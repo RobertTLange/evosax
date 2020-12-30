@@ -1,13 +1,13 @@
 from matplotlib import animation
 import matplotlib.pyplot as plt
 import gym
-from ffw_pendulum import ffw_policy, flat_to_network
+from ffw_pendulum import ffw_policy, flat_to_mlp
 import numpy as np
 
 
 def save_frames_as_gif(frames, title, path='./img/', filename='gym_animation.gif'):
 
-    #Mess with this to change frame size
+    # Mess with this to change frame size
     plt.figure(figsize=(frames[0].shape[1] / 72.0,
                         frames[0].shape[0] / 72.0), dpi=72)
 

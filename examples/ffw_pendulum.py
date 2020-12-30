@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from jax import jit, vmap
+from jax import jit, vmap, pmap
 from evosax.problems.pendulum import reset, step
 
 
@@ -66,3 +66,6 @@ generation_rollout_no_jit = vmap(batch_rollout_no_jit,
 generation_rollout = jit(vmap(batch_rollout,
                               in_axes=(None, v_dict, None, None),
                               out_axes=0), static_argnums=(2, 3))
+
+generation_rollout_pmap = jit(pmap(batch_rollout,
+                              in_axes=(None, v_dict, None, None)), static_argnums=(2, 3))

@@ -1,4 +1,4 @@
-from mle_toolbox.utils import set_random_seeds, get_configs_ready
+import copy, commentjson
 import torch
 import os, time
 import jax, jaxlib
@@ -6,18 +6,58 @@ import jax.numpy as jnp
 import numpy as np
 from evosax.strategies.cma_es import init_strategy, ask, tell
 from evosax.utils import flat_to_mlp
-from ffw_pendulum import generation_rollout, generation_rollout_no_jit
+
+import sys
+sys.path.append("..")
+from examples.ffw_pendulum import (generation_rollout,
+                                   generation_rollout_no_jit,
+                                   generation_rollout_pmap)
 
 
-def speed_test_accelerator(num_evaluations, population_size, hidden_size,
-                           net_config, train_config, log_config, use_jit=True):
+def load_config(config_fname: str):
+    """ Load in a config JSON file and return as a dictionary """
+    json_config = commentjson.loads(open(config_fname, 'r').read())
+    dict_config = DotDic(json_config)
+
+    # Make inner dictionaries indexable like a class
+    for key, value in dict_config.items():
+        if isinstance(value, dict):
+            dict_config[key] = DotDic(value)
+    return dict_config
+
+
+class DotDic(dict):
+    """
+    a dictionary that supports dot notation
+    as well as dictionary access notation
+    usage: d = DotDict() or d = DotDict({'val1':'first'})
+    set attributes: d.val2 = 'second' or d['val2'] = 'second'
+    get attributes: d.val2 or d['val2']
+    """
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __deepcopy__(self, memo=None):
+        return DotDic(copy.deepcopy(dict(self), memo=memo))
+
+    def __init__(self, dct):
+        for key, value in dct.items():
+            if hasattr(value, 'keys'):
+                value = DotDic(value)
+            self[key] = value
+
+
+def benchmark_accelerator(num_evaluations, population_size, hidden_size,
+                           net_config, train_config, log_config, use_jit=True,
+                           use_tpu=False):
     """ Evaluate speed for different population sizes run. """
     # Want to eval gains from acc over different population size + archs
     train_config.pop_size = population_size
     train_config.hidden_size = hidden_size
 
     # Start by setting the random seeds for reproducibility
-    rng = set_random_seeds(train_config.seed_id, return_key=True)
+    rng = jax.random.PRNGKey(train_config.seed_id)
 
     # Define logger, CMA-ES strategy
     net_config.network_size[1] = int(train_config.hidden_size)
@@ -30,7 +70,7 @@ def speed_test_accelerator(num_evaluations, population_size, hidden_size,
 
     generation_times = []
     for eval in range(num_evaluations):
-        es_params, es_memory = init_cma_es(mean_init,
+        es_params, es_memory = init_strategy(mean_init,
                                            train_config.sigma_init,
                                            train_config.pop_size,
                                            elite_size)
@@ -43,7 +83,7 @@ def speed_test_accelerator(num_evaluations, population_size, hidden_size,
                               train_config.num_env_steps,
                               net_config.network_size,
                               dict(train_config.env_params),
-                              es_params, es_memory, use_jit)
+                              es_params, es_memory, use_jit, use_tpu)
 
         # Save wall-clock time for evaluation
         if eval > 0:
@@ -55,7 +95,7 @@ def speed_test_accelerator(num_evaluations, population_size, hidden_size,
 
 def run_single_generation(rng, elite_size, num_evals_per_gen,
                           num_env_steps, network_size, env_params, es_params,
-                          es_memory, use_jit=True):
+                          es_memory, use_jit=True, use_tpu=False):
     """ Run the training loop over a set of epochs. """
     # Loop over different generations and search!
     rng, rng_input = jax.random.split(rng)
@@ -68,6 +108,10 @@ def run_single_generation(rng, elite_size, num_evals_per_gen,
 
     if use_jit:
         population_returns = generation_rollout(rollout_keys,
+                                                generation_params,
+                                                env_params, num_env_steps)
+    elif use_tpu:
+        population_returns = generation_rollout_pmap(rollout_keys,
                                                 generation_params,
                                                 env_params, num_env_steps)
     else:
@@ -98,21 +142,25 @@ if __name__ == "__main__":
         save_fname = "tpu_speed"
 
     if use_jit:
-        save_fname = save_fname + "_jit"
+        save_fname = "results/" + save_fname + "_jit"
     else:
-        save_fname = save_fname + "_no_jit"
+        save_fname = "results/" + save_fname + "_no_jit"
 
     print(f"JAX device: {devices}, {save_fname}")
-    train_config, net_config, log_config = get_configs_ready(
-        default_config_fname="configs/train/cma_config.json")
+    config = load_config("../examples/configs/train/cma_config.json")
+    train_config, net_config, log_config = (config.train_config,
+                                            config.net_config,
+                                            config.log_config)
 
-    num_evaluations = 100 + 1  # Dont use first - used for compilation
-    population_sizes = [100, 250, 500, 750, 1000]
-    network_sizes = [16, 48, 80, 112, 144]
-    store_times = np.zeros((3, len(population_sizes), len(network_sizes)))
+    num_evaluations = 1 + 1  # Dont use first - used for compilation
+    population_sizes = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    #network_sizes = [16, 48, 80, 112, 144]
+    network_sizes = [48]
+    store_times = np.zeros((3, len(network_sizes),
+                            len(population_sizes)))
     for i, hidden_size in enumerate(network_sizes):
         for j, pop_size in enumerate(population_sizes):
-            mean, std, jit_t = speed_test_accelerator(num_evaluations, pop_size, hidden_size,
+            mean, std, jit_t = benchmark_accelerator(num_evaluations, pop_size, hidden_size,
                                                       net_config, train_config, log_config,
                                                       use_jit)
             # Jitted time, mean, std

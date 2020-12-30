@@ -79,8 +79,9 @@ The speed comparisons were benchmarked for the devices and transition rollout se
 
 
 ## Intro, Examples, Notebooks & Colabs
-* :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/) walking through CMA-ES and the motivation of leveraging `vmap` for massive vectorization.
-* :notebook: [Classic Control](examples/classic_control.ipynb) - CMA-ES on the `Pendulum-v0` gym task.
+* :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Walk through of CMA-ES and how to leverage JAX in ES.
+* :notebook: [Low-D Optimization](examples/optimisation_cma_es.ipynb): CMA-ES on Rosenbrock, Himmelblau, 6-Hump Camel Fct.
+* :notebook: [MLP-Control](examples/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
 
 
 ## Contributing & Development
@@ -88,6 +89,8 @@ The speed comparisons were benchmarked for the devices and transition rollout se
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
+- [ ] Benchmark plots
+- [ ] Clean up visualizations/proper API
 - [ ] Implement more strategies
     - [ ] Add restarts for CMA-ES
     - [ ] Add simple Gaussian strategy
