@@ -4,12 +4,13 @@ import os, time
 import jax, jaxlib
 import jax.numpy as jnp
 import numpy as np
-from cma_es.cma_es_jax import init_cma_es, ask_cma_es, tell_cma_es
-from ffw_pendulum import generation_rollout, flat_to_network
+from evosax.strategies.cma_es import init_strategy, ask, tell
+from evosax.utils import flat_to_mlp
+from ffw_pendulum import generation_rollout, generation_rollout_no_jit
 
 
 def speed_test_accelerator(num_evaluations, population_size, hidden_size,
-                           net_config, train_config, log_config):
+                           net_config, train_config, log_config, use_jit=True):
     """ Evaluate speed for different population sizes run. """
     # Want to eval gains from acc over different population size + archs
     train_config.pop_size = population_size
@@ -42,7 +43,7 @@ def speed_test_accelerator(num_evaluations, population_size, hidden_size,
                               train_config.num_env_steps,
                               net_config.network_size,
                               dict(train_config.env_params),
-                              es_params, es_memory)
+                              es_params, es_memory, use_jit)
 
         # Save wall-clock time for evaluation
         if eval > 0:
@@ -54,28 +55,36 @@ def speed_test_accelerator(num_evaluations, population_size, hidden_size,
 
 def run_single_generation(rng, elite_size, num_evals_per_gen,
                           num_env_steps, network_size, env_params, es_params,
-                          es_memory):
+                          es_memory, use_jit=True):
     """ Run the training loop over a set of epochs. """
     # Loop over different generations and search!
     rng, rng_input = jax.random.split(rng)
-    x, es_memory = ask_cma_es(rng_input, es_memory, es_params)
-    generation_params = flat_to_network(x, sizes=network_size)
+    x, es_memory = ask(rng_input, es_memory, es_params)
+    generation_params = flat_to_mlp(x, sizes=network_size)
 
     # Evaluate the fitness of the generation members
     rng, rng_input = jax.random.split(rng)
     rollout_keys = jax.random.split(rng_input, num_evals_per_gen)
-    population_returns = generation_rollout(rollout_keys,
-                                            generation_params,
-                                            env_params, num_env_steps)
+
+    if use_jit:
+        population_returns = generation_rollout(rollout_keys,
+                                                generation_params,
+                                                env_params, num_env_steps)
+    else:
+        population_returns = generation_rollout_no_jit(rollout_keys,
+                                                generation_params,
+                                                env_params, num_env_steps)
+
     values = - population_returns.mean(axis=1)
 
     # Update the CMA-ES strategy
-    es_memory = tell_cma_es(x, values, elite_size, es_params, es_memory)
+    es_memory = tell(x, values, elite_size, es_params, es_memory)
     return
 
 
 if __name__ == "__main__":
     devices = jax.devices()
+    use_jit = True
     if type(devices[0]) == jaxlib.xla_extension.CpuDevice:
         save_fname = "cpu_speed"
     elif type(devices[0]) == jaxlib.xla_extension.GpuDevice:
@@ -88,6 +97,11 @@ if __name__ == "__main__":
     elif type(devices[0]) == jaxlib.xla_extension.TpuDevice:
         save_fname = "tpu_speed"
 
+    if use_jit:
+        save_fname = save_fname + "_jit"
+    else:
+        save_fname = save_fname + "_no_jit"
+
     print(f"JAX device: {devices}, {save_fname}")
     train_config, net_config, log_config = get_configs_ready(
         default_config_fname="configs/train/cma_config.json")
@@ -99,7 +113,8 @@ if __name__ == "__main__":
     for i, hidden_size in enumerate(network_sizes):
         for j, pop_size in enumerate(population_sizes):
             mean, std, jit_t = speed_test_accelerator(num_evaluations, pop_size, hidden_size,
-                                                      net_config, train_config, log_config)
+                                                      net_config, train_config, log_config,
+                                                      use_jit)
             # Jitted time, mean, std
             store_times[0, len(network_sizes)-1-i, j] = jit_t
             store_times[1, len(network_sizes)-1-i, j] = mean

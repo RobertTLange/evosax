@@ -54,26 +54,15 @@ def policy_pendulum_step(state_input, tmp):
     return carry, y
 
 
-def flat_to_network(flat_params, sizes):
-    """ Reshape flat parameter vector to feedforward network param dict. """
-    pop_size = flat_params.shape[0]
-    W1_stop = sizes[0]*sizes[1]
-    b1_stop = W1_stop + sizes[1]
-    W2_stop = b1_stop + (sizes[1]*sizes[2])
-    b2_stop = W2_stop + sizes[2]
-    # Reshape params into weight/bias shapes
-    params = {"W1": flat_params[:, :W1_stop].reshape(pop_size,
-                                                     sizes[1], sizes[0]),
-              "b1": flat_params[:, W1_stop:b1_stop],
-              "W2": flat_params[:, b1_stop:W2_stop].reshape(pop_size,
-                                                            sizes[2], sizes[1]),
-              "b2": flat_params[:, W2_stop:b2_stop]}
-    return params
+batch_rollout_no_jit = vmap(pendulum_rollout, in_axes=(0, None, None, None),
+                            out_axes=0)
+batch_rollout = jit(batch_rollout_no_jit, static_argnums=(3))
 
-
-batch_rollout = jit(vmap(pendulum_rollout, in_axes=(0, None, None, None),
-                         out_axes=0), static_argnums=(3))
 v_dict = {"W1": 0, "b1": 0, "W2": 0, "b2": 0}
+
+generation_rollout_no_jit = vmap(batch_rollout_no_jit,
+                                 in_axes=(None, v_dict, None, None),
+                                 out_axes=0)
 generation_rollout = jit(vmap(batch_rollout,
                               in_axes=(None, v_dict, None, None),
                               out_axes=0), static_argnums=(2, 3))

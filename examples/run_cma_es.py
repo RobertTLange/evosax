@@ -6,10 +6,10 @@ import os
 import jax
 import jax.numpy as jnp
 import numpy as np
-from evosax.cma_es import init_strategy, ask, tell, check_termination
-from evosax.utils import init_logger, update_logger
+from evosax.strategies.cma_es import init_strategy, ask, tell, check_termination
+from evosax.utils import init_logger, update_logger, flat_to_mlp
 
-from ffw_pendulum import generation_rollout, flat_to_network
+from ffw_pendulum import generation_rollout
 
 
 def main(net_config, train_config, log_config):
@@ -81,7 +81,7 @@ def search_net(rng, elite_size, num_generations, num_evals_per_gen,
     for g in range(num_generations):
         rng, rng_input = jax.random.split(rng)
         x, es_memory = ask(rng_input, es_memory, es_params)
-        generation_params = flat_to_network(x, sizes=network_size)
+        generation_params = flat_to_mlp(x, sizes=network_size)
 
         # Evaluate the fitness of the generation members
         rng, rng_input = jax.random.split(rng)
