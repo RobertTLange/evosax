@@ -89,7 +89,8 @@ The speed comparisons were benchmarked for the devices and transition rollout se
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
-- [ ] Benchmark plots
+- [ ] Benchmark plots - Line plot single generation eval
+- [ ] Figure out what is wrong with TPU/How to do pmap
 - [ ] Clean up visualizations/proper API
 - [ ] Implement more strategies
     - [ ] Add restarts for CMA-ES
