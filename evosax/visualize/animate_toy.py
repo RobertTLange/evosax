@@ -1,18 +1,15 @@
 import jax
 import jax.numpy as jnp
-from envs.low_d_problems import (six_hump_camel_fct, batch_hump_camel,
-                                 rosenbrock_d_dim, batch_rosenbrock,
-                                 himmelblau_fct, batch_himmelblau)
-from cma_es.cma_es_jax import (init_cma_es, ask_cma_es, tell_cma_es,
-                               check_termination, init_evo_logger,
-                               update_evo_logger)
-
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.colors import LinearSegmentedColormap
 from pylab import rcParams
+
+from evosax.problems.low_d_optimisation import (batch_hump_camel,
+                                                batch_himmelblau,
+                                                batch_rosenbrock)
 
 fct_name = "rosenbrock"
 file_name = "rosenbrock.gif"

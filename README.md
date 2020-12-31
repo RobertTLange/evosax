@@ -1,4 +1,4 @@
-# `evosax` - Evolutionary Strategies in JAX
+# Evolutionary Strategies :heart: JAX
 
 Are you tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization for high-throughput accelerators for evolutionary strategies (ES)? `evosax` allows you to leverage JAX and to scale ES to GPUs/TPUs using XLA compilation.
 
@@ -32,6 +32,7 @@ Implemented evolutionary strategies.
 
 | Strategy | Reference | Implemented | Source Code | Example |
 | --- | --- | --- | --- | --- |
+| Simple Gaussian | :question: | :heavy_check_mark:  | [Click](evosax/strategies/gaussian.py) | [Low D optimisation](notebooks/optimisation_gaussian.ipynb)
 | CMA-ES | [Hansen (2016)](https://arxiv.org/abs/1604.00772) | :heavy_check_mark:  | [Click](evosax/strategies/cma_es.py) | [Pendulum RL task](notebooks/pendulum_cma_es.ipynb)
 </details>
 
@@ -88,7 +89,7 @@ Implementing ES on TPUs requires significantly more tuning then originally expec
 
 ## Intro, Examples, Notebooks & Colabs
 * :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Walk through of CMA-ES and how to leverage JAX in ES.
-* :notebook: [Low-D Optimization](notebooks/optimisation_cma_es.ipynb): CMA-ES on Rosenbrock, Himmelblau, 6-Hump Camel
+* :notebook: [Low-D Optimisation](notebooks/optimisation_cma_es.ipynb): Gaussian on 2D Rosenbrock function
 * :notebook: [MLP-Control](notebooks/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
 
 
@@ -97,6 +98,8 @@ Implementing ES on TPUs requires significantly more tuning then originally expec
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
+- [ ] Pull in mu/elite size into params - make mu update with weights zero'd out
+    - Why? Want to be differentiable with respect to params
 - [ ] Figure out what is wrong with TPU/How to do pmap
 - [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies
@@ -106,6 +109,6 @@ Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open a
 - [ ] Implement more examples
     - [ ] MNIST classification example - MLP/CNNs
     - [ ] Small RNN example
-    - [ ] Use flax/haiku as NN library
+    - [ ] Use flax/haiku as NN library for example
 - [ ] More param -> network reshaping helpers
 - [ ] [Connect notebooks with example Colab](https://colab.research.google.com/github/googlecolab/colabtools/blob/master/notebooks/colab-github-demo.ipynb#scrollTo=K-NVg7RjyeTk)
