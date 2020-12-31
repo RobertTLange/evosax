@@ -91,7 +91,7 @@ def search_net(rng, elite_size, num_generations, num_evals_per_gen,
                                                 env_params, num_env_steps)
         values = - population_returns.mean(axis=1)
         # Update the CMA-ES strategy
-        es_memory = tell(x, values, elite_size, es_params, es_memory)
+        es_memory = tell(x, values, es_params, es_memory)
 
         # Log current performance/pop stats and check termination!
         if (g + 1) % 5 == 0:

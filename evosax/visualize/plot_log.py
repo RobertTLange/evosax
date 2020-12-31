@@ -10,6 +10,8 @@ def plot_fitness(evo_logger, title, ylims=(0, 10), fig=None, ax=None,
             label="Top 1")
     ax.plot(evo_logger["log_gen"], evo_logger["log_top_mean"],
             label="Top-k Mean")
+    ax.plot(evo_logger["log_gen"], evo_logger["log_gen_1"],
+            label="Gen. 1")
     ax.plot(evo_logger["log_gen"], evo_logger["log_gen_mean"],
             label="Gen. Mean")
     ax.set_ylim(ylims)

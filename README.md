@@ -8,7 +8,7 @@ Are you tired of having to handle asynchronous processes for neuroevolution? Do 
 from evosax.strategies.cma_es import init_strategy, ask, tell
 
 # Initialize the CMA evolutionary strategy
-params, memory = init_strategy(mean, sigma, pop_size, elite_size)
+params, memory = init_strategy(mean, sigma, pop_size, mu)
 
 # Loop over number of generations using ask-eval-tell API
 for g in range(num_generations):
@@ -22,7 +22,7 @@ for g in range(num_generations):
     fitness = evaluate_fitness(x)
 
     # Tell/Update the CMA-ES with newest data points
-    memory = tell(x, values, elite_size, params, memory)
+    memory = tell(x, values, params, memory)
 ```
 
 <details><summary>
@@ -89,8 +89,8 @@ Implementing ES on TPUs requires significantly more tuning then originally expec
 
 ## Intro, Examples, Notebooks & Colabs
 * :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Walk through of CMA-ES and how to leverage JAX in ES.
-* :notebook: [Low-D Optimisation](notebooks/optimisation_cma_es.ipynb): Gaussian on 2D Rosenbrock function
-* :notebook: [MLP-Control](notebooks/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
+* :notebook: [Low-dimensional Optimisation](notebooks/optimisation_cma_es.ipynb): Simple Gaussian strategy on 2D Rosenbrock function
+* :notebook: [MLP-Pendulum-Control](notebooks/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
 
 
 ## Contributing & Development
@@ -103,7 +103,7 @@ Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open a
 - [ ] Figure out what is wrong with TPU/How to do pmap
 - [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies
-    - [ ] Add simple Gaussian strategy
+    - [x] Add simple Gaussian strategy
     - [ ] Add restarts for CMA-ES
     - [ ] Add evo gradient-based strategy
 - [ ] Implement more examples

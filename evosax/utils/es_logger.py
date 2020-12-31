@@ -7,6 +7,7 @@ def init_logger(top_k, num_params):
                   "log_top_1": [],
                   "log_top_mean": [],
                   "log_top_std": [],
+                  "log_gen_1": [],
                   "log_gen_mean": [],
                   "log_gen_std": [],
                   "log_sigma": [],
@@ -28,8 +29,9 @@ def update_logger(evo_logger, x, fitness, memory, top_k):
     evo_logger["log_top_1"].append(evo_logger["top_values"][0])
     evo_logger["log_top_mean"].append(jnp.mean(evo_logger["top_values"]))
     evo_logger["log_top_std"].append(jnp.std(evo_logger["top_values"]))
-    evo_logger["log_gen_mean"].append(jnp.mean(vals))
-    evo_logger["log_gen_std"].append(jnp.std(vals))
+    evo_logger["log_gen_1"].append(jnp.min(fitness))
+    evo_logger["log_gen_mean"].append(jnp.mean(fitness))
+    evo_logger["log_gen_std"].append(jnp.std(fitness))
     evo_logger["log_sigma"].append(memory["sigma"])
     evo_logger["log_gen"].append(memory["generation"])
     return evo_logger

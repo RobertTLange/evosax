@@ -27,6 +27,7 @@ def init_strategy(mean_init, sigma, population_size, mu):
     weights = jnp.where(weights_prime >= 0,
                        1 / positive_sum * weights_prime,
                        min_alpha / negative_sum * weights_prime,)
+    weights_truncated = jax.ops.index_update(weights, jax.ops.index[mu:], 0)
     c_m = 1
 
     # lrate for cumulation of step-size control and rank-one update
@@ -48,6 +49,7 @@ def init_strategy(mean_init, sigma, population_size, mu):
               "c_sigma": c_sigma, "d_sigma": d_sigma,
               "c_c": c_c, "chi_n": chi_n,
               "weights": weights,
+              "weights_truncated": weights_truncated,
               "tol_x": 1e-12 * sigma,
               "tol_x_up": 1e4,
               "tol_fun": 1e-12,
@@ -82,14 +84,14 @@ def eigen_decomposition(C, B, D):
     return C, B, D
 
 
-def tell_cma_strategy(x, fitness, mu, params, memory):
+def tell_cma_strategy(x, fitness, params, memory):
     """ Update the surrogate ES model. """
     memory["generation"] = memory["generation"] + 1
     # Sort new results, extract elite, store best performer
     concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
     sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
     # Update mean, isotropic/anisotropic paths, covariance, stepsize
-    y_k, y_w, mean = update_mean(sorted_solutions, mu, params, memory)
+    y_k, y_w, mean = update_mean(sorted_solutions, params, memory)
     memory["mean"] = mean
     p_sigma, C_2, C, B, D = update_p_sigma(y_w, params, memory)
     memory["p_sigma"], memory["C"], memory["B"], memory["D"] = p_sigma, C, B, D
@@ -107,11 +109,11 @@ ask = jit(ask_cma_strategy, static_argnums=(2))
 tell = jit(tell_cma_strategy, static_argnums=(2))
 
 
-def update_mean(sorted_solutions, mu, params, memory):
+def update_mean(sorted_solutions, params, memory):
     """ Update mean of strategy. """
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = (x_k - memory["mean"]) / memory["sigma"]  # ~ N(0, C)
-    y_w = jnp.sum(y_k[:mu].T * params["weights"][:mu], axis=1)
+    y_w = jnp.sum(y_k.T * params["weights_truncated"], axis=1)
     mean = memory["mean"] + params["c_m"] * memory["sigma"] * y_w
     return y_k, y_w, mean
 

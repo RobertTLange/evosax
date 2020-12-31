@@ -122,7 +122,7 @@ def run_single_generation(rng, elite_size, num_evals_per_gen,
     values = - population_returns.mean(axis=1)
 
     # Update the CMA-ES strategy
-    es_memory = tell(x, values, elite_size, es_params, es_memory)
+    es_memory = tell(x, values, es_params, es_memory)
     return
 
 
