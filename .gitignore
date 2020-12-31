@@ -16,7 +16,6 @@ tboards/
 dev_notes.md
 configs/
 experiments/
-docs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

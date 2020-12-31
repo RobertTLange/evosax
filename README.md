@@ -32,7 +32,7 @@ Implemented evolutionary strategies.
 
 | Strategy | Reference | Implemented | Source Code | Example |
 | --- | --- | --- | --- | --- |
-| Classic Control | `Pendulum-v0` | :heavy_check_mark:  | :heavy_check_mark: |
+| CMA-ES | [Hansen (2016)](https://arxiv.org/abs/1604.00772) | :heavy_check_mark:  | [Click](evosax/strategies/cma_es.py) | [Pendulum RL task](notebooks/pendulum_cma_es.ipynb)
 </details>
 
 
@@ -60,12 +60,14 @@ pip install --upgrade jaxlib==0.1.57+cuda101 -f https://storage.googleapis.com/j
 
 You can find more details in the [JAX documentation](https://github.com/google/jax#installation). Finally, please note that `evosax` is only tested for Python 3.6. You can directly run the test from the repo directory via `pytest`.
 
-## Benchmarking Details
+## Speed Benchmarks
 
-Throughout our benchmarks we make use of the [`gymnax`](https://github.com/RobertTLange/gymnax) package for accelerated RL environments. Thereby, we can `jit` through entire RL episode rollouts.
+![](docs/benchmark.png)
+
+We estimate run and compile times on 1000 ask-eval-tell iterations for FFW-MLP (48 hidden units) policies on a `Pendulum-v0`-RL task and 50 fitness evaluation episodes. We make use of the [`gymnax`](https://github.com/RobertTLange/gymnax) package for accelerated RL environments. We `jit` through entire RL episode rollouts. Stochastic fitness evaluations are collected synchronously and using a composition of `jit`, `vmap`/`pmap` (over evaluations and population members) and `lax.scan` (over sequential fitness evaluations).
 
 <details> <summary>
-  Device and benchmark details.
+  More device and benchmark details.
 
 </summary>
 
@@ -74,14 +76,20 @@ Throughout our benchmarks we make use of the [`gymnax`](https://github.com/Rober
 CPU-STEP-GYM | OpenAI gym/NumPy | Single transition |2,7 GHz Intel Core i7| 1 | - |
 </details>
 
+<details> <summary>
+  Notes on TPU acceleration considerations.
 
-The speed comparisons were benchmarked for the devices and transition rollout settings listed above. Stochastic fitness evaluations are collected synchronously and using a composition of `jit`, `vmap`/`pmap` (over evaluations and population members) and `lax.scan` (over sequential fitness evaluations).
+</summary>
+
+Implementing ES on TPUs requires significantly more tuning then originally expected. This may be partially due to the 128 x 128 layout of the systolic array matrix unit (MXU). Furthermore, efficient `pmap` is still work-in-progress.
+</details>
+
 
 
 ## Intro, Examples, Notebooks & Colabs
 * :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Walk through of CMA-ES and how to leverage JAX in ES.
-* :notebook: [Low-D Optimization](examples/optimisation_cma_es.ipynb): CMA-ES on Rosenbrock, Himmelblau, 6-Hump Camel Fct.
-* :notebook: [MLP-Control](examples/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
+* :notebook: [Low-D Optimization](notebooks/optimisation_cma_es.ipynb): CMA-ES on Rosenbrock, Himmelblau, 6-Hump Camel
+* :notebook: [MLP-Control](notebooks/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
 
 
 ## Contributing & Development
@@ -89,15 +97,15 @@ The speed comparisons were benchmarked for the devices and transition rollout se
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
-- [ ] Benchmark plots - Line plot single generation eval
 - [ ] Figure out what is wrong with TPU/How to do pmap
-- [ ] Clean up visualizations/proper API
+- [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies
-    - [ ] Add restarts for CMA-ES
     - [ ] Add simple Gaussian strategy
+    - [ ] Add restarts for CMA-ES
+    - [ ] Add evo gradient-based strategy
 - [ ] Implement more examples
     - [ ] MNIST classification example - MLP/CNNs
     - [ ] Small RNN example
     - [ ] Use flax/haiku as NN library
-- [ ] Add different param -> network reshaping helpers
-- [ ] Connect notebooks with example Colab https://colab.research.google.com/github/googlecolab/colabtools/blob/master/notebooks/colab-github-demo.ipynb#scrollTo=K-NVg7RjyeTk
+- [ ] More param -> network reshaping helpers
+- [ ] [Connect notebooks with example Colab](https://colab.research.google.com/github/googlecolab/colabtools/blob/master/notebooks/colab-github-demo.ipynb#scrollTo=K-NVg7RjyeTk)

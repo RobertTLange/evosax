@@ -128,7 +128,7 @@ def run_single_generation(rng, elite_size, num_evals_per_gen,
 
 if __name__ == "__main__":
     devices = jax.devices()
-    use_jit = True
+    use_jit = False
     if type(devices[0]) == jaxlib.xla_extension.CpuDevice:
         save_fname = "cpu_speed"
     elif type(devices[0]) == jaxlib.xla_extension.GpuDevice:
@@ -152,7 +152,7 @@ if __name__ == "__main__":
                                             config.net_config,
                                             config.log_config)
 
-    num_evaluations = 1 + 1  # Dont use first - used for compilation
+    num_evaluations = 1000 + 1  # Dont use first - used for compilation
     population_sizes = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
     #network_sizes = [16, 48, 80, 112, 144]
     network_sizes = [48]
