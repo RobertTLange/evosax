@@ -15,3 +15,13 @@ def flat_to_mlp(flat_params, sizes):
                                                             sizes[2], sizes[1]),
               "b2": flat_params[:, W2_stop:b2_stop]}
     return params
+
+
+def flat_to_cnn():
+    """ TODO: Implement a reshaper for CNNs. """
+    raise NotImplementedError
+
+
+def flat_to_rnn():
+    """ TODO: Implement a reshaper for RNNs. """
+    raise NotImplementedError

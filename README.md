@@ -1,6 +1,8 @@
 # Evolutionary Strategies :heart: JAX
+[![Pyversions](https://img.shields.io/pypi/pyversions/mle-toolbox.svg?style=flat-square)](https://pypi.python.org/pypi/mle-toolbox)[![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://github.com/RobertTLange/mle-toolbox/) [![PyPI version](https://badge.fury.io/py/mle-toolbox.svg)](https://badge.fury.io/py/mle-toolbox)
+<a href="docs/evosax_logo.jpg"><img src="docs/evosax_logo.jpg" width="200" align="right" /></a>
 
-Are you tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization for high-throughput accelerators for evolutionary strategies (ES)? `evosax` allows you to leverage JAX and to scale ES to GPUs/TPUs using XLA compilation.
+Are you tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolutionary strategies (ES)? `evosax` allows you to leverage JAX and XLA compilation to scale ES to your favorite accelerator. The API follows the classical `ask`, `evaluate`, `tell` cycle and only requires you `vmap` and `omap` over the fitness function axes of choice. It includes popular strategies such as Simple Gaussian, CMA-ES, NAS and PEPG.
 
 ## Basic API Usage
 
@@ -32,8 +34,12 @@ Implemented evolutionary strategies.
 
 | Strategy | Reference | Implemented | Source Code | Example |
 | --- | --- | --- | --- | --- |
-| Simple Gaussian | :question: | :heavy_check_mark:  | [Click](evosax/strategies/gaussian.py) | [Low D optimisation](notebooks/optimisation_gaussian.ipynb)
+| Simple Gaussian | :question: | :heavy_check_mark:  | [Click](evosax/strategies/gaussian.py) | [Low Dim. optimisation](notebooks/optimisation_gaussian.ipynb)
 | CMA-ES | [Hansen (2016)](https://arxiv.org/abs/1604.00772) | :heavy_check_mark:  | [Click](evosax/strategies/cma_es.py) | [Pendulum RL task](notebooks/pendulum_cma_es.ipynb)
+| IPOP/BIPOP/SEP | [Hansen (2016)](https://arxiv.org/abs/1604.00772) | :heavy_check_mark:  | [Click](evosax/strategies/cma_es.py) | [Pendulum RL task](notebooks/pendulum_cma_es.ipynb)
+| NES | [Wierstra et al. (2014)](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf) | :station:  | - | -
+| PEPG | [Sehnke et al. (2009)](https://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=A64D1AE8313A364B814998E9E245B40A?doi=10.1.1.180.7104&rep=rep1&type=pdf) | :station:  | - | -
+| OpenAI-ES | [Salimans et al. (2017)](https://arxiv.org/pdf/1703.03864.pdf) | :station:  | - | -
 </details>
 
 
@@ -65,7 +71,7 @@ You can find more details in the [JAX documentation](https://github.com/google/j
 
 ![](docs/benchmark.png)
 
-We estimate run and compile times on 1000 ask-eval-tell iterations for FFW-MLP (48 hidden units) policies on a `Pendulum-v0`-RL task and 50 fitness evaluation episodes. We make use of the [`gymnax`](https://github.com/RobertTLange/gymnax) package for accelerated RL environments. We `jit` through entire RL episode rollouts. Stochastic fitness evaluations are collected synchronously and using a composition of `jit`, `vmap`/`pmap` (over evaluations and population members) and `lax.scan` (over sequential fitness evaluations).
+Run and compile times are estimated on 1000 ask-eval-tell iterations for FFW-MLP (48 hidden units) policies on a `Pendulum-v0`-RL task and 50 fitness evaluation episodes. We make use of the [`gymnax`](https://github.com/RobertTLange/gymnax) package for accelerated RL environments and `jit` through entire RL episode rollouts. Stochastic fitness evaluations are collected synchronously and using a composition of `jit`, `vmap`/`pmap` (over evaluations and population members) and `lax.scan` (over sequential fitness evaluations).
 
 <details> <summary>
   More device and benchmark details.
@@ -82,14 +88,14 @@ CPU-STEP-GYM | OpenAI gym/NumPy | Single transition |2,7 GHz Intel Core i7| 1 | 
 
 </summary>
 
-Implementing ES on TPUs requires significantly more tuning then originally expected. This may be partially due to the 128 x 128 layout of the systolic array matrix unit (MXU). Furthermore, efficient `pmap` is still work-in-progress.
+- Implementing ES on TPUs requires significantly more tuning then originally expected. This may be partially due to the 128 x 128 layout of the systolic array matrix unit (MXU). Furthermore, efficient `pmap` is still work-in-progress.
 </details>
 
 
 
 ## Intro, Examples, Notebooks & Colabs
 * :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Walk through of CMA-ES and how to leverage JAX in ES.
-* :notebook: [Low-dimensional Optimisation](notebooks/optimisation_cma_es.ipynb): Simple Gaussian strategy on 2D Rosenbrock function
+* :notebook: [Low-dimensional Optimisation](notebooks/optimisation_gaussian.ipynb): Simple Gaussian strategy on 2D Rosenbrock function
 * :notebook: [MLP-Pendulum-Control](notebooks/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
 
 
@@ -98,14 +104,12 @@ Implementing ES on TPUs requires significantly more tuning then originally expec
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
-- [ ] Pull in mu/elite size into params - make mu update with weights zero'd out
-    - Why? Want to be differentiable with respect to params
 - [ ] Figure out what is wrong with TPU/How to do pmap
 - [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies
-    - [x] Add simple Gaussian strategy
     - [ ] Add restarts for CMA-ES
-    - [ ] Add evo gradient-based strategy
+    - [ ] Add NES strategy
+    - [ ] Add PEPG strategy
 - [ ] Implement more examples
     - [ ] MNIST classification example - MLP/CNNs
     - [ ] Small RNN example
