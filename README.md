@@ -105,6 +105,10 @@ CPU-STEP-GYM | OpenAI gym/NumPy | Single transition |2,7 GHz Intel Core i7| 1 | 
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
+- [ ] Jit with frozen dicts?
+    - https://github.com/google/flax/issues/587
+    - https://github.com/google/flax/blob/master/flax/core/frozen_dict.py
+    - Could make sense if we want to generate entire batches of CMA-ES runs and Jit through entire pipelines
 - [ ] Figure out what is wrong with TPU/How to do pmap
 - [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies

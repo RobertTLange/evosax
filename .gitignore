@@ -1,4 +1,5 @@
 # Repo-specific excludes
+experimental
 
 # Standard ROB excludes
 .sync-config.cson

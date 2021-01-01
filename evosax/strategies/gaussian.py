@@ -1,17 +1,21 @@
 import jax
 import jax.numpy as jnp
 from jax import jit
+import functools
 
 
 def init_strategy(mean_init, sigma, population_size, mu):
     ''' Initialize evolutionary strategy & learning rates. '''
+    n_dim = mean_init.shape[0]
     weights = jnp.zeros(population_size)
+    # Only parents have positive weight - equal weighting!
     weights = jax.ops.index_update(weights, jax.ops.index[:mu], 1/mu)
     params = {"pop_size": population_size,
+              "n_dim": n_dim,
               "mu": mu,
               "weights": weights,
-              "c_m": 1,
-              "c_sigma": 0.,
+              "c_m": 1,  # Learning rate for population mean
+              "c_sigma": 0.,   # Learning rate for population std
               "tol_fun": 1e-12,
               "min_generations": 10}
     memory = {"sigma": sigma,
@@ -22,10 +26,15 @@ def init_strategy(mean_init, sigma, population_size, mu):
 
 def ask_gaussian_strategy(rng, memory, params):
     """ Propose params to evaluate next. Sample from isotropic Gaussian. """
-    z = jax.random.normal(rng, (int(params["pop_size"]),
-                                memory["mean"].shape[0])) # ~ N(0, I)
-    x = memory["mean"] + memory["sigma"] * z    # ~ N(m, σ^2 I)
+    x = sample(rng, memory, params["n_dim"], params["pop_size"])
     return x, memory
+
+
+@functools.partial(jax.jit, static_argnums=(2, 3))
+def sample(rng, memory, n_dim, pop_size):
+    z = jax.random.normal(rng, (pop_size, n_dim)) # ~ N(0, I)
+    x = memory["mean"] + memory["sigma"] * z    # ~ N(m, σ^2 I)
+    return x
 
 
 def tell_gaussian_strategy(x, fitness, params, memory):
@@ -41,11 +50,9 @@ def tell_gaussian_strategy(x, fitness, params, memory):
     return memory
 
 
-# Jitted version of CMA-ES ask and tell interface
-#ask = jit(ask_gaussian_strategy, static_argnums=(2))
-#tell = jit(tell_gaussian_strategy, static_argnums=(2))
+# Jitted version of Gaussian ask and tell interface
 ask = ask_gaussian_strategy
-tell = tell_gaussian_strategy
+tell = jit(tell_gaussian_strategy)
 
 
 def update_mean(sorted_solutions, params, memory):

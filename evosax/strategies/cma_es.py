@@ -1,9 +1,10 @@
 import jax
+import functools
 import jax.numpy as jnp
 from jax import jit
 
 
-def init_strategy(mean_init, sigma, population_size, mu):
+def init_strategy(mean_init, sigma, population_size, mu, split_params=False):
     ''' Initialize evolutionary strategy & learning rates. '''
     n_dim = mean_init.shape[0]
     weights_prime = jnp.array(
@@ -42,37 +43,61 @@ def init_strategy(mean_init, sigma, population_size, mu):
     p_c = jnp.zeros(n_dim)
     C, D, B = jnp.eye(n_dim), None, None
 
-    params = {"pop_size": population_size,
-              "mu": mu,
-              "mu_eff": mu_eff,
-              "c_1": c_1, "c_mu": c_mu, "c_m": c_m,
-              "c_sigma": c_sigma, "d_sigma": d_sigma,
-              "c_c": c_c, "chi_n": chi_n,
-              "weights": weights,
-              "weights_truncated": weights_truncated,
-              "tol_x": 1e-12 * sigma,
-              "tol_x_up": 1e4,
-              "tol_fun": 1e-12,
-              "tol_condition_C": 1e14,
-              "min_generations": 10}
     memory = {"p_sigma": p_sigma, "p_c": p_c, "sigma": sigma,
               "mean": mean_init, "C": C, "D": D, "B": B,
               "generation": 0}
-    return params, memory
+
+    # Decide whether to split params in static and dynamic hyperparams
+    if not split_params:
+        params = {"mu_eff": mu_eff,
+                  "c_1": c_1, "c_mu": c_mu, "c_m": c_m,
+                  "c_sigma": c_sigma, "d_sigma": d_sigma,
+                  "c_c": c_c, "chi_n": chi_n,
+                  "weights": weights,
+                  "weights_truncated": weights_truncated,
+                  "pop_size": population_size,
+                  "n_dim": n_dim,
+                  "tol_x": 1e-12 * sigma,
+                  "tol_x_up": 1e4,
+                  "tol_fun": 1e-12,
+                  "tol_condition_C": 1e14,
+                  "min_generations": 10}
+        return params, memory
+    else:
+        ask_params = {"pop_size": population_size,
+                      "n_dim": n_dim}
+        tell_params = {"mu_eff": mu_eff,
+                       "c_1": c_1, "c_mu": c_mu, "c_m": c_m,
+                       "c_sigma": c_sigma, "d_sigma": d_sigma,
+                       "c_c": c_c, "chi_n": chi_n,
+                       "weights": weights,
+                       "weights_truncated": weights_truncated}
+        terminal_params = {"tol_x": 1e-12 * sigma,
+                           "tol_x_up": 1e4,
+                           "tol_fun": 1e-12,
+                           "tol_condition_C": 1e14,
+                           "min_generations": 10}
+        return ask_params, tell_params, terminal_params, memory
 
 
 def ask_cma_strategy(rng, memory, params):
     """ Propose parameters to evaluate next. """
     C, B, D = eigen_decomposition(memory["C"], memory["B"], memory["D"])
-    z = jax.random.normal(rng, (memory["mean"].shape[0],
-                                int(params["pop_size"]))) # ~ N(0, I)
-    y = B.dot(jnp.diag(D)).dot(z)               # ~ N(0, C)
-    y = jnp.swapaxes(y, 1, 0)
-    x = memory["mean"] + memory["sigma"] * y    # ~ N(m, σ^2 C)
+    x = sample(rng, memory, B, D, params["n_dim"], params["pop_size"])
     memory["C"], memory["B"], memory["D"] = C, B, D
     return x, memory
 
 
+@functools.partial(jax.jit, static_argnums=(4, 5))
+def sample(rng, memory, B, D, n_dim, pop_size):
+    z = jax.random.normal(rng, (n_dim, pop_size)) # ~ N(0, I)
+    y = B.dot(jnp.diag(D)).dot(z)               # ~ N(0, C)
+    y = jnp.swapaxes(y, 1, 0)
+    x = memory["mean"] + memory["sigma"] * y    # ~ N(m, σ^2 C)
+    return x
+
+
+@jax.jit
 def eigen_decomposition(C, B, D):
     """ Perform eigendecomposition of covariance matrix. """
     if B is not None and D is not None:
@@ -105,8 +130,9 @@ def tell_cma_strategy(x, fitness, params, memory):
 
 
 # Jitted version of CMA-ES ask and tell interface
-ask = jit(ask_cma_strategy, static_argnums=(2))
-tell = jit(tell_cma_strategy, static_argnums=(2))
+# Only static args for ask - pop_size, num_params
+ask = ask_cma_strategy
+tell = jit(tell_cma_strategy)
 
 
 def update_mean(sorted_solutions, params, memory):
@@ -163,7 +189,7 @@ def update_sigma(norm_p_sigma, params, memory):
     return sigma
 
 
-def check_initialization():
+def check_initialization(params):
     """ Check lrates and other params of CMA-ES at initialization. """
     assert population_size > 0, "popsize must be non-zero positive value."
     assert n_dim > 1, "The dimension of mean must be larger than 1"
