@@ -2,7 +2,7 @@
 [![Pyversions](https://img.shields.io/pypi/pyversions/mle-toolbox.svg?style=flat-square)](https://pypi.python.org/pypi/mle-toolbox)[![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://github.com/RobertTLange/mle-toolbox/) [![PyPI version](https://badge.fury.io/py/mle-toolbox.svg)](https://badge.fury.io/py/mle-toolbox)
 <a href="docs/evosax_transparent.png"><img src="docs/evosax_transparent.png" width="200" align="right" /></a>
 
-Are you tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolutionary strategies (ES)? `evosax` allows you to leverage JAX and XLA compilation to scale ES to your favorite accelerator. The API follows the classical `ask`, `evaluate`, `tell` cycle and only requires you `vmap` and `pmap` over the fitness function axes of choice. It includes popular strategies such as Simple Gaussian, CMA-ES, NAS and PEPG.
+Are you tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolutionary strategies (ES)? `evosax` allows you to leverage JAX and XLA compilation to scale ES to your favorite accelerator. The API follows the classical `ask`, `evaluate`, `tell` cycle and only requires you `vmap` and `pmap` over the fitness function axes of choice. It includes popular strategies such as Simple Gaussian, CMA-ES, and different NES variants.
 
 ## Basic API Usage
 
@@ -10,7 +10,9 @@ Are you tired of having to handle asynchronous processes for neuroevolution? Do 
 from evosax.strategies.cma_es import init_strategy, ask, tell
 
 # Initialize the CMA evolutionary strategy
-params, memory = init_strategy(mean, sigma, pop_size, mu)
+rng = jax.random.PRNGKey(0)
+params, memory = init_strategy(mean_init, sigma_init,
+                               pop_size, mu)
 
 # Loop over number of generations using ask-eval-tell API
 for g in range(num_generations):
@@ -45,7 +47,7 @@ Implemented evolutionary strategies.
 
 ## Installing `evosax` and dependencies
 
-`evosax` can be directly installed from PyPi.
+`evosax` can directly be installed from PyPi.
 
 ```
 pip install evosax
@@ -92,10 +94,9 @@ CPU-STEP-GYM | OpenAI gym/NumPy | Single transition |2,7 GHz Intel Core i7| 1 | 
 </details>
 
 
-
 ## Intro, Examples, Notebooks & Colabs
-* :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Walk through of CMA-ES and how to leverage JAX in ES.
-* :notebook: [Low-dimensional Optimisation](notebooks/optimisation_gaussian.ipynb): Simple Gaussian strategy on 2D Rosenbrock function
+* :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Walk through of CMA-ES and how to leverage JAX's primitives
+* :notebook: [Low-dim. Optimisation](notebooks/optimisation_gaussian.ipynb): Simple Gaussian strategy on Rosenbrock function
 * :notebook: [MLP-Pendulum-Control](notebooks/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
 
 
@@ -104,11 +105,12 @@ CPU-STEP-GYM | OpenAI gym/NumPy | Single transition |2,7 GHz Intel Core i7| 1 | 
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
-- [ ] Jit with frozen dicts?
+- [ ] Make all neuroevo parts wrap around Haiku
+- [ ] Jit with frozen dicts? -> also in Haiku!
     - https://github.com/google/flax/issues/587
     - https://github.com/google/flax/blob/master/flax/core/frozen_dict.py
     - Could make sense if we want to generate entire batches of CMA-ES runs and Jit through entire pipelines
-- [ ] Figure out what is wrong with TPU/How to do pmap
+- [ ] Add TPU example/How to do pmap over devices/hosts
 - [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies
     - [ ] Add restarts for CMA-ES
@@ -119,4 +121,5 @@ Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open a
     - [ ] Small RNN example
     - [ ] Use flax/haiku as NN library for example
 - [ ] More param -> network reshaping helpers
+- [ ] Add a license
 - [ ] [Connect notebooks with example Colab](https://colab.research.google.com/github/googlecolab/colabtools/blob/master/notebooks/colab-github-demo.ipynb#scrollTo=K-NVg7RjyeTk)

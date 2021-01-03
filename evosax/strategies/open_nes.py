@@ -6,15 +6,17 @@ import functools
 import optax
 
 
-def init_strategy(n_dim, lrate, search_params_init, population_size):
+def init_strategy(lrate, search_params_init,
+                  sigma, population_size):
     ''' Initialize evolutionary strategy & learning rates. '''
+    n_dim = search_params_init.shape[0]
     params = {"pop_size": population_size,
               "n_dim": n_dim,
               "lrate": lrate,
               "tol_fun": 1e-12,
               "min_generations": 10}
     memory = {"search_params": search_params_init,
-              "sigma": 0.1,
+              "sigma": sigma,
               "generation": 0}
     return params, memory
 
