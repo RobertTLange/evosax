@@ -80,7 +80,7 @@ def search_net(rng, elite_size, num_generations, num_evals_per_gen,
     # Loop over different generations and search!
     for g in range(num_generations):
         rng, rng_input = jax.random.split(rng)
-        x, es_memory = ask(rng_input, es_memory, es_params)
+        x, es_memory = ask(rng_input, es_params, es_memory)
         generation_params = flat_to_mlp(x, sizes=network_size)
 
         # Evaluate the fitness of the generation members

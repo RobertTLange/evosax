@@ -4,7 +4,7 @@ from jax import jit
 import functools
 
 
-def init_strategy(mean_init, sigma, population_size, mu):
+def init_strategy(mean_init, sigma_init, population_size, mu):
     ''' Initialize evolutionary strategy & learning rates. '''
     n_dim = mean_init.shape[0]
     weights = jnp.zeros(population_size)
@@ -18,13 +18,13 @@ def init_strategy(mean_init, sigma, population_size, mu):
               "c_sigma": 0.,   # Learning rate for population std
               "tol_fun": 1e-12,
               "min_generations": 10}
-    memory = {"sigma": sigma,
+    memory = {"sigma": sigma_init,
               "mean": mean_init,
               "generation": 0}
     return params, memory
 
 
-def ask_gaussian_strategy(rng, memory, params):
+def ask_gaussian_strategy(rng, params, memory):
     """ Propose params to evaluate next. Sample from isotropic Gaussian. """
     x = sample(rng, memory, params["n_dim"], params["pop_size"])
     return x, memory
@@ -32,6 +32,7 @@ def ask_gaussian_strategy(rng, memory, params):
 
 @functools.partial(jax.jit, static_argnums=(2, 3))
 def sample(rng, memory, n_dim, pop_size):
+    """ Jittable Gaussian Sample Helper. """
     z = jax.random.normal(rng, (pop_size, n_dim)) # ~ N(0, I)
     x = memory["mean"] + memory["sigma"] * z    # ~ N(m, σ^2 I)
     return x

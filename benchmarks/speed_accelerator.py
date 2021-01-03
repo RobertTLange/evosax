@@ -99,7 +99,7 @@ def run_single_generation(rng, elite_size, num_evals_per_gen,
     """ Run the training loop over a set of epochs. """
     # Loop over different generations and search!
     rng, rng_input = jax.random.split(rng)
-    x, es_memory = ask(rng_input, es_memory, es_params)
+    x, es_memory = ask(rng_input, es_params, es_memory)
     generation_params = flat_to_mlp(x, sizes=network_size)
 
     # Evaluate the fitness of the generation members

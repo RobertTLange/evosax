@@ -4,7 +4,8 @@ import jax.numpy as jnp
 from jax import jit
 
 
-def init_strategy(mean_init, sigma, population_size, mu, split_params=False):
+def init_strategy(mean_init, sigma_init, population_size, mu,
+                  split_params=False):
     ''' Initialize evolutionary strategy & learning rates. '''
     n_dim = mean_init.shape[0]
     weights_prime = jnp.array(
@@ -43,7 +44,7 @@ def init_strategy(mean_init, sigma, population_size, mu, split_params=False):
     p_c = jnp.zeros(n_dim)
     C, D, B = jnp.eye(n_dim), None, None
 
-    memory = {"p_sigma": p_sigma, "p_c": p_c, "sigma": sigma,
+    memory = {"p_sigma": p_sigma, "p_c": p_c, "sigma": sigma_init,
               "mean": mean_init, "C": C, "D": D, "B": B,
               "generation": 0}
 
@@ -57,7 +58,7 @@ def init_strategy(mean_init, sigma, population_size, mu, split_params=False):
                   "weights_truncated": weights_truncated,
                   "pop_size": population_size,
                   "n_dim": n_dim,
-                  "tol_x": 1e-12 * sigma,
+                  "tol_x": 1e-12 * sigma_init,
                   "tol_x_up": 1e4,
                   "tol_fun": 1e-12,
                   "tol_condition_C": 1e14,
@@ -80,7 +81,7 @@ def init_strategy(mean_init, sigma, population_size, mu, split_params=False):
         return ask_params, tell_params, terminal_params, memory
 
 
-def ask_cma_strategy(rng, memory, params):
+def ask_cma_strategy(rng, params, memory):
     """ Propose parameters to evaluate next. """
     C, B, D = eigen_decomposition(memory["C"], memory["B"], memory["D"])
     x = sample(rng, memory, B, D, params["n_dim"], params["pop_size"])
@@ -90,6 +91,7 @@ def ask_cma_strategy(rng, memory, params):
 
 @functools.partial(jax.jit, static_argnums=(4, 5))
 def sample(rng, memory, B, D, n_dim, pop_size):
+    """ Jittable Gaussian Sample Helper. """
     z = jax.random.normal(rng, (n_dim, pop_size)) # ~ N(0, I)
     y = B.dot(jnp.diag(D)).dot(z)               # ~ N(0, C)
     y = jnp.swapaxes(y, 1, 0)
