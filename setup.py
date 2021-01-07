@@ -13,7 +13,8 @@ requires = [
             'jax==0.2.7',
             'jaxlib==0.1.57',
             'gym',
-            'commentjson'
+            'commentjson',
+            'optax'
             ]
 
 setup(

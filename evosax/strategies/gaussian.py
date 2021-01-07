@@ -4,24 +4,36 @@ from jax import jit
 import functools
 
 
-def init_strategy(mean_init, sigma_init, population_size, mu):
+def init_strategy(mean_init, sigma_init, population_size, mu,
+                  split_params=False):
     ''' Initialize evolutionary strategy & learning rates. '''
     n_dim = mean_init.shape[0]
     weights = jnp.zeros(population_size)
     # Only parents have positive weight - equal weighting!
     weights = jax.ops.index_update(weights, jax.ops.index[:mu], 1/mu)
-    params = {"pop_size": population_size,
-              "n_dim": n_dim,
-              "mu": mu,
-              "weights": weights,
-              "c_m": 1,  # Learning rate for population mean
-              "c_sigma": 0.,   # Learning rate for population std
-              "tol_fun": 1e-12,
-              "min_generations": 10}
     memory = {"sigma": sigma_init,
               "mean": mean_init,
               "generation": 0}
-    return params, memory
+
+    # Decide whether to split params in static and dynamic hyperparams
+    if not split_params:
+        params = {"pop_size": population_size,
+                  "n_dim": n_dim,
+                  "weights": weights,
+                  "c_m": 1,  # Learning rate for population mean
+                  "c_sigma": 0.,   # Learning rate for population std
+                  "tol_fun": 1e-12,
+                  "min_generations": 10}
+        return params, memory
+    else:
+        ask_params = {"pop_size": population_size,
+                      "n_dim": n_dim}
+        tell_params = {"c_m": 1,
+                       "c_sigma": 0.,
+                       "weights": weights}
+        terminal_params = {"tol_fun": 1e-12}
+        return ask_params, tell_params, terminal_params, memory
+
 
 
 def ask_gaussian_strategy(rng, params, memory):

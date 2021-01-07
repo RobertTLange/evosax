@@ -106,6 +106,7 @@ Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open a
 
 ## TODOs, Notes & Questions
 - [ ] Make all neuroevo parts wrap around Haiku
+- [ ] Restructure sampling out of strategies
 - [ ] Jit with frozen dicts? -> also in Haiku!
     - https://github.com/google/flax/issues/587
     - https://github.com/google/flax/blob/master/flax/core/frozen_dict.py

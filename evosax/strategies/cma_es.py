@@ -73,7 +73,7 @@ def init_strategy(mean_init, sigma_init, population_size, mu,
                        "c_c": c_c, "chi_n": chi_n,
                        "weights": weights,
                        "weights_truncated": weights_truncated}
-        terminal_params = {"tol_x": 1e-12 * sigma,
+        terminal_params = {"tol_x": 1e-12 * sigma_init,
                            "tol_x_up": 1e4,
                            "tol_fun": 1e-12,
                            "tol_condition_C": 1e14,
