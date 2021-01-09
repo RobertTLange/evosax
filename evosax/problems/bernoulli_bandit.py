@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from jax import jit
 from flax.core import FrozenDict
-
+#from haiku._src.data_structures import FlatMapping
 
 params = FrozenDict({"sample_probs": jnp.array([0.1, 0.9]),
                      "num_arms": 2,
@@ -13,7 +13,7 @@ def step_bandit(rng_input, params, state, action):
     """ Sample bernoulli reward, increase counter, construct input. """
     time = state[2] + 1
     done = (time >= params["max_steps"])
-    reward = jax.random.bernoulli(rng_input, state[action])
+    reward = jax.random.bernoulli(rng_input, state[action]).astype(jnp.int32)
     obs = get_obs_bandit(reward, action, time, params)
     state = jax.ops.index_update(state, 2, time)
     return obs, state, reward, done, {}

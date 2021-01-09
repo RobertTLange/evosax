@@ -7,6 +7,7 @@ Are you tired of having to handle asynchronous processes for neuroevolution? Do 
 ## Basic API Usage
 
 ```python
+import jax
 from evosax.strategies.cma_es import init_strategy, ask, tell
 
 # Initialize the CMA evolutionary strategy
@@ -18,13 +19,10 @@ params, memory = init_strategy(mean_init, sigma_init,
 for g in range(num_generations):
     # Explicitly handle random number generation
     rng, rng_input = jax.random.split(rng)
-
     # Ask for the next generation population to test
     x, memory = ask(rng_input, params, memory)
-
     # Evaluate the fitness of the generation members
     fitness = evaluate_fitness(x)
-
     # Tell/Update the CMA-ES with newest data points
     memory = tell(x, fitness, params, memory)
 ```
@@ -105,12 +103,9 @@ CPU-STEP-GYM | OpenAI gym/NumPy | Single transition |2,7 GHz Intel Core i7| 1 | 
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
-- [ ] Make all neuroevo parts wrap around Haiku
+- [ ] Make all neuroevo parts wrap around Flax
 - [ ] Restructure sampling out of strategies
-- [ ] Jit with frozen dicts? -> also in Haiku!
-    - https://github.com/google/flax/issues/587
-    - https://github.com/google/flax/blob/master/flax/core/frozen_dict.py
-    - Could make sense if we want to generate entire batches of CMA-ES runs and Jit through entire pipelines
+- [ ] Jit with frozen dicts? -> ES entire batches/pipelines
 - [ ] Add TPU example/How to do pmap over devices/hosts
 - [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies
@@ -118,9 +113,8 @@ Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open a
     - [ ] Add NES strategy
     - [ ] Add PEPG strategy
 - [ ] Implement more examples
-    - [ ] MNIST classification example - CNNs
-    - [ ] Small RNN example
-    - [ ] Use flax/haiku as NN library for example
+    - [ ] Flax CNN MNIST classification example
+    - [ ] Small Haiku RNN example - meta on bandit
 - [ ] More param -> network reshaping helpers
 - [ ] Add a license
 - [ ] [Connect notebooks with example Colab](https://colab.research.google.com/github/googlecolab/colabtools/blob/master/notebooks/colab-github-demo.ipynb#scrollTo=K-NVg7RjyeTk)
