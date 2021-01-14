@@ -4,9 +4,9 @@ from jax import jit
 from flax.core import FrozenDict
 #from haiku._src.data_structures import FlatMapping
 
-params = FrozenDict({"sample_probs": jnp.array([0.1, 0.9]),
-                     "num_arms": 2,
-                     "max_steps": 100})
+env_params = FrozenDict({"sample_probs": jnp.array([0.1, 0.9]),
+                         "num_arms": 2,
+                         "max_steps": 100})
 
 
 def step_bandit(rng_input, params, state, action):

@@ -15,7 +15,7 @@ def init_logger(top_k, num_params):
     return evo_logger
 
 
-def update_logger(evo_logger, x, fitness, memory, top_k):
+def update_logger(evo_logger, x, fitness, memory, top_k, verbose=False):
     """ Helper function to keep track of top solutions. """
     # Check if there are solutions better than current archive
     vals = jnp.hstack([evo_logger["top_values"], fitness])
@@ -34,4 +34,6 @@ def update_logger(evo_logger, x, fitness, memory, top_k):
     evo_logger["log_gen_std"].append(jnp.std(fitness))
     evo_logger["log_sigma"].append(memory["sigma"])
     evo_logger["log_gen"].append(memory["generation"])
+    if verbose:
+        print(evo_logger["log_gen"][-1], evo_logger["top_values"])
     return evo_logger
