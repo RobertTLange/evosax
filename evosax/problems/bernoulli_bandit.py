@@ -5,7 +5,6 @@ from flax.core import FrozenDict
 #from haiku._src.data_structures import FlatMapping
 
 env_params = FrozenDict({"sample_probs": jnp.array([0.1, 0.9]),
-                         "num_arms": 2,
                          "max_steps": 100})
 
 
@@ -31,9 +30,9 @@ def reset_bandit(rng_input, params):
 
 def get_obs_bandit(reward, action, time, params):
     """ Concatenate reward, one-hot action and time stamp. """
-    action_one_hot = jax.nn.one_hot(action, params["num_arms"]).squeeze()
+    action_one_hot = jax.nn.one_hot(action, 2).squeeze()
     return jnp.hstack([reward, action_one_hot, time])
 
 
-reset = jit(reset_bandit, static_argnums=(1,))
-step = jit(step_bandit, static_argnums=(1,))
+reset = jit(reset_bandit)
+step = jit(step_bandit)

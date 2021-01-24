@@ -1,0 +1,14 @@
+**v0.0.1**
+- **`strategies`**:
+    - Base Gaussian Strategy
+    - CMA-ES
+    - OpenAI NES
+- **`utils`**:
+    - Logger for ES
+    - Fitness reshaping/normalisation
+    - 'Flat-to-Net' reshaper for going from `ask` to `eval` step
+- **`notebooks`**:
+    - Gaussian ES on low dim. problems (Rosenbrock, etc.)
+    - CMA-ES on Pendulum task
+    - OpenAI NES on CNN for MNIST
+    - CMA-ES on Bandit Meta-LSTM

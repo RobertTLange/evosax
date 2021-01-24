@@ -68,4 +68,5 @@ generation_rollout = jit(vmap(batch_rollout,
                               out_axes=0), static_argnums=(2, 3))
 
 generation_rollout_pmap = jit(pmap(batch_rollout,
-                              in_axes=(None, v_dict, None, None)), static_argnums=(2, 3))
+                              in_axes=(None, v_dict, None, None)),
+                              static_argnums=(2, 3))

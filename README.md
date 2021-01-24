@@ -34,7 +34,7 @@ Implemented evolutionary strategies.
 
 | Strategy | Reference | Implemented | Source Code | Example |
 | --- | --- | --- | --- | --- |
-| Simple Gaussian | :question: | :heavy_check_mark:  | [Click](evosax/strategies/gaussian.py) | [Low Dim. optimisation](notebooks/optimisation_gaussian.ipynb)
+| Simple Gaussian | :question: | :heavy_check_mark:  | [Click](evosax/strategies/gaussian.py) | [Low Dim. optimisation](notebooks/01_gaussian_strategy.ipynb)
 | CMA-ES | [Hansen (2016)](https://arxiv.org/abs/1604.00772) | :heavy_check_mark:  | [Click](evosax/strategies/cma_es.py) | [Pendulum RL task](notebooks/pendulum_cma_es.ipynb)
 | OpenAI-ES | [Salimans et al. (2017)](https://arxiv.org/pdf/1703.03864.pdf) | :heavy_check_mark:  | [Click](evosax/strategies/open_nes.py) | [Simple Quadratic](notebooks/quadratic_open_nes.ipynb)
 | IPOP/BIPOP/SEP | - | :station:  | - | -
@@ -94,8 +94,10 @@ CPU-STEP-GYM | OpenAI gym/NumPy | Single transition |2,7 GHz Intel Core i7| 1 | 
 
 ## Intro, Examples, Notebooks & Colabs
 * :book: [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Walk through of CMA-ES and how to leverage JAX's primitives
-* :notebook: [Low-dim. Optimisation](notebooks/optimisation_gaussian.ipynb): Simple Gaussian strategy on Rosenbrock function
-* :notebook: [MLP-Pendulum-Control](notebooks/pendulum_cma_es.ipynb): CMA-ES on the `Pendulum-v0` gym task.
+* :notebook: [Low-dim. Optimisation](notebooks/01_gaussian_low_d.ipynb): Simple Gaussian strategy on Rosenbrock function
+* :notebook: [MLP-Pendulum-Control](notebooks/02_cma_es_control.ipynb): CMA-ES on the `Pendulum-v0` gym task.
+* :notebook: [CNN-MNIST-Classifier](notebooks/03_nes_cnn.ipynb): Open AI NES on MNIST-CNN.
+* :notebook: [RNN-Meta-Bandit](notebooks/03_nes_cnn.ipynb): CMA-ES on an LSTM evolved to learn on a bandit.
 
 
 ## Contributing & Development
@@ -103,10 +105,13 @@ CPU-STEP-GYM | OpenAI gym/NumPy | Single transition |2,7 GHz Intel Core i7| 1 | 
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
 
 ## TODOs, Notes & Questions
+- [ ] Get rid of MLP reshaper = only single one needed!
 - [ ] Make all neuroevo parts wrap around Flax
-- [ ] Restructure sampling out of strategies
+- [ ] Restructure sampling out of strategies - separate file with different types
 - [ ] Jit with frozen dicts? -> ES entire batches/pipelines
-- [ ] Add TPU example/How to do pmap over devices/hosts
+- [ ] Add TPU example/How to do pmap over devices/hosts => Run on GCP VM
+- [ ] Add TPU to runtime benchmarks
+- [ ] Get conv running - update GPU drivers
 - [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies
     - [ ] Add restarts for CMA-ES
@@ -114,7 +119,9 @@ Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open a
     - [ ] Add PEPG strategy
 - [ ] Implement more examples
     - [ ] Flax CNN MNIST classification example
-    - [ ] Small Haiku RNN example - meta on bandit
-- [ ] More param -> network reshaping helpers
-- [ ] Add a license
+    - [x] Small Haiku RNN example - meta on bandit
+- [ ] Integrate `gymnax` into all RL examples with rollout wrapper
+- [ ] Provide a nice wrapper for vmapping reshape and eval
+
+- [ ] Make pip installable
 - [ ] [Connect notebooks with example Colab](https://colab.research.google.com/github/googlecolab/colabtools/blob/master/notebooks/colab-github-demo.ipynb#scrollTo=K-NVg7RjyeTk)
