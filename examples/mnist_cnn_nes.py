@@ -59,9 +59,9 @@ def loss(params, batch, w_decay=1e-4):
     return softmax_xent + w_decay * l2_loss
 
 
-def reshape_and_eval(x, network_shapes, param_idx_list):
+def reshape_and_eval(x, network_shapes):
     """ Perform both parameter reshaping and evaluation in one go. """
-    nn = flat_to_network(x, network_shapes, param_idx_list)
+    nn = flat_to_network(x, network_shapes)
     out = loss(nn, next(train))
     return out
 
@@ -102,9 +102,8 @@ if __name__ == "__main__":
         x, memory = ask(rng_input, params, memory)
         # Evaluate the fitness of the generation members
         #fitness = batch_rosenbrock(x, 1, 100)
-        fitness = batch_fitness(x, network_shapes, param_idx_list)
+        fitness = batch_fitness(x, network_shapes)
         fit.append(fitness.min())
-        print(g, fit[-1])
         fitness = z_score_fitness(fitness)
         # x, fitness = rank_shaped_fitness(x, fitness)
         # Tell/Update the CMA-ES with newest data points

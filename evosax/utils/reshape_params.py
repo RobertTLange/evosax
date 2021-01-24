@@ -3,23 +3,6 @@ import jax.numpy as jnp
 from flax.core import FrozenDict
 
 
-def flat_to_mlp(flat_params, network_shapes):
-    """ Reshape flat param vector into feedforward/MLP network param dict. """
-    pop_size = flat_params.shape[0]
-    W1_stop = network_shapes[0]*network_shapes[1]
-    b1_stop = W1_stop + network_shapes[1]
-    W2_stop = b1_stop + (network_shapes[1]*network_shapes[2])
-    b2_stop = W2_stop + network_shapes[2]
-    # Reshape params into weight/bias shapes
-    params = {"W1": flat_params[:, :W1_stop].reshape(pop_size,
-                                                     network_shapes[1], network_shapes[0]),
-              "b1": flat_params[:, W1_stop:b1_stop],
-              "W2": flat_params[:, b1_stop:W2_stop].reshape(pop_size,
-                                                            network_shapes[2], network_shapes[1]),
-              "b2": flat_params[:, W2_stop:b2_stop]}
-    return params
-
-
 def get_total_params(params):
     """ Get total number of params in net. Loop over layer modules + params. """
     total_params = 0

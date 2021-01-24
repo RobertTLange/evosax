@@ -1,15 +1,16 @@
 import jax
 import jax.numpy as jnp
 from jax import jit
-
+from flax.core import FrozenDict
 
 # Default environment parameters for Pendulum-v0
-env_params = {"max_speed": 8,
-              "max_torque": 2.,
-              "dt": 0.05,
-              "g": 10.0,
-              "m": 1.,
-              "l": 1.}
+env_params = FrozenDict({"max_speed": 8,
+                         "max_torque": 2.,
+                         "dt": 0.05,
+                         "g": 10.0,
+                         "m": 1.,
+                         "l": 1.,
+                         "max_steps_in_episode": 200})
 
 
 def step_pendulum(params, state, u):
