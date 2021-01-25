@@ -1,9 +1,8 @@
 ## TODOs, Notes & Questions
-- [ ] Refactor sampling - separate file with different types
+- [ ] Refactor sampling - separate file with different relevant types
 - [ ] Jit with frozen dicts? -> ES entire batches/pipelines
 - [ ] TPU example/How to do pmap over devices/hosts => Run on GCP VM
 - [ ] Add TPU to runtime benchmarks
-- [ ] Get conv running - update GPU drivers
 - [ ] Clean up visualizations/animations + proper general API
 - [ ] Implement more strategies
     - [ ] Add restarts for CMA-ES
@@ -11,8 +10,10 @@
     - [ ] Add PEPG strategy
 - [ ] Implement more examples
     - [ ] Flax CNN MNIST classification example
+    - [ ] Update cuda driver for conv operation?
     - [x] Small Haiku RNN example - meta on bandit
 - [ ] Provide a nice wrapper to vmap reshape and eval
+- [ ] Saving of logger - need to save weight shape dict separately?!
 
 
 ## Final steps
@@ -24,4 +25,7 @@
 
 ## 24/01/21 - Clean up + Gymnax integration
 - [x] Get rid of MLP reshaper = only single one for all packages!
-- [ ] Integrate `gymnax` into all RL examples with rollout wrapper
+- [x] Integrate `gymnax` into all RL examples with rollout wrapper
+
+## 25/01/21 - Visualizer to `gymnax`
+- [ ] Move visualizer to gymnax
