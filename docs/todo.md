@@ -14,7 +14,7 @@
     - [x] Small Haiku RNN example - meta on bandit
 - [ ] Provide a nice wrapper to vmap reshape and eval
 - [ ] Logging integration
-    - [ ] Save + load logger as pkl
+    - [x] Save + load logger as pkl
     - [ ] Integrate with tensorboard?! Can't jit!
 
 ## Final steps
@@ -32,3 +32,4 @@
 - [x] Move problems to gymnax (bandit + pendulum task)
 - [x] Move visualizer to gymnax
 - [x] Add save and load log functions
+- [x] Update animate viz example notebook with reload
