@@ -1,5 +1,5 @@
 ## TODOs, Notes & Questions
-- [ ] Refactor sampling - separate file with different relevant types
+- [ ] Refactor sampling - file with different relevant types
 - [ ] Jit with frozen dicts? -> ES entire batches/pipelines
 - [ ] TPU example/How to do pmap over devices/hosts => Run on GCP VM
 - [ ] Add TPU to runtime benchmarks
@@ -13,8 +13,9 @@
     - [ ] Update cuda driver for conv operation?
     - [x] Small Haiku RNN example - meta on bandit
 - [ ] Provide a nice wrapper to vmap reshape and eval
-- [ ] Saving of logger - need to save weight shape dict separately?!
-
+- [ ] Logging integration
+    - [ ] Save + load logger as pkl
+    - [ ] Integrate with tensorboard?! Can't jit!
 
 ## Final steps
 - [ ] Make pip installable
@@ -27,5 +28,7 @@
 - [x] Get rid of MLP reshaper = only single one for all packages!
 - [x] Integrate `gymnax` into all RL examples with rollout wrapper
 
-## 25/01/21 - Visualizer to `gymnax`
-- [ ] Move visualizer to gymnax
+## 25/01/21 - Problems + Visualizer to `gymnax`
+- [x] Move problems to gymnax (bandit + pendulum task)
+- [x] Move visualizer to gymnax
+- [x] Add save and load log functions

@@ -1,7 +1,6 @@
 import jax
 import jax.numpy as jnp
 from jax import jit, vmap, pmap
-from evosax.problems.pendulum import reset, step
 
 
 def init_policy_mlp(rng_input, sizes, scale=1e-2):
