@@ -1,5 +1,6 @@
 # Repo-specific excludes
 experimental
+cma_es_grid.sh
 
 # Standard ROB excludes
 .sync-config.cson

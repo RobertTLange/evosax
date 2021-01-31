@@ -6,10 +6,15 @@ import os
 import jax
 import jax.numpy as jnp
 import numpy as np
-from evosax.strategies.cma_es import init_strategy, ask, tell, check_termination
-from evosax.utils import init_logger, update_logger, flat_to_mlp
 
-from ffw_pendulum import generation_rollout
+import gymnax
+from gymnax.rollouts import DeterministicRollouts
+
+from evosax.strategies.cma_es import (init_strategy, ask, tell,
+                                      check_termination)
+from evosax.utils import (init_logger, update_logger, flat_to_network,
+                          get_total_params, get_network_shapes)
+from ffw_pendulum import ffw_policy, init_policy_mlp
 
 
 def main(net_config, train_config, log_config):
@@ -17,34 +22,33 @@ def main(net_config, train_config, log_config):
     # Start by setting the random seeds for reproducibility
     rng = set_random_seeds(train_config.seed_id, return_key=True)
 
-    # Define logger, CMA-ES strategy
+    # Define logger
     train_log = DeepLogger(**log_config)
 
+    # Init placeholder net to get total no params and network layout
     net_config.network_size[1] = int(train_config.hidden_size)
-    num_params = (net_config.network_size[0] * net_config.network_size[1]
-                  + net_config.network_size[1]
-                  + net_config.network_size[1]*net_config.network_size[2]
-                  + net_config.network_size[2])
-    mean_init = jnp.zeros(num_params)
+    policy_params = init_policy_mlp(rng, net_config.network_size)
+    total_no_params = get_total_params(policy_params)
+    network_shapes = get_network_shapes(policy_params)
+    mean_init = jnp.zeros(total_no_params)
+
+    # Define/Init CMA-ES strategy
     elite_size = int(train_config.pop_size * train_config.elite_percentage)
     es_params, es_memory = init_strategy(mean_init,
                                          train_config.sigma_init,
                                          train_config.pop_size,
                                          elite_size)
-    evo_logger = init_logger(train_config.top_k, num_params)
+    evo_logger = init_logger(train_config.top_k, total_no_params,
+                             network_shapes)
 
     # Modify helper for gridsearch
     es_params = modify_cma_es_params(es_params, train_config)
 
     # Train the network using the training loop
-    evo_logger = search_net(rng, elite_size,
-                            train_config.num_generations,
+    evo_logger = search_net(rng, train_config.num_generations,
                             train_config.num_evals_per_gen,
-                            train_config.num_env_steps,
-                            net_config.network_size,
-                            dict(train_config.env_params),
-                            es_params, es_memory, train_config.top_k,
-                            evo_logger, train_log)
+                            es_params, es_memory, network_shapes,
+                            train_config.top_k, evo_logger, train_log)
 
     # Save top k model array into numpy file
     np.save(os.path.join(train_log.experiment_dir, "networks",
@@ -55,23 +59,38 @@ def main(net_config, train_config, log_config):
 
 def modify_cma_es_params(es_params, train_config):
     """ Modify base config based on train config for gridsearch. """
-    if train_config.c_m is not None:
+    if "c_m" in train_config.keys():
         es_params["c_m"] = train_config.c_m
-    if train_config.c_1 is not None:
+    if "c_1" in train_config.keys():
         es_params["c_1"] = train_config.c_1
-    if train_config.c_mu is not None:
+    if "c_mu" in train_config.keys():
         es_params["c_mu"] = train_config.c_mu
-    if train_config.c_c is not None:
+    if "c_c" in train_config.keys():
         es_params["c_c"] = train_config.c_c
-    if train_config.c_sigma is not None:
+    if "c_sigma" in train_config.keys():
         es_params["c_sigma"] = train_config.c_sigma
     return es_params
 
 
-def search_net(rng, elite_size, num_generations, num_evals_per_gen,
-               num_env_steps, network_size, env_params, es_params,
-               es_memory, top_k, evo_logger, train_log):
+def search_net(rng, num_generations, num_evals_per_gen,
+               es_params, es_memory, network_shapes,
+               top_k, evo_logger, train_log):
     """ Run the training loop over a set of epochs. """
+    # Setup the gymnax rollout collector for pendulum
+    _, reset, step, env_params = gymnax.make("Pendulum-v0")
+    collector = DeterministicRollouts(ffw_policy, step, reset, env_params)
+    collector.init_collector()
+
+    # Wrap reshaping of param vector and rollout into single fct. to vmap
+    def reshape_and_eval(rng, x, network_shapes):
+        """ Perform both parameter reshaping and evaluation in one go. """
+        net_params = flat_to_network(x, network_shapes)
+        traces, returns = collector.batch_rollout(rng, net_params)
+        return - returns.mean(axis=0).sum()
+
+    # vmap the merged reshape + rollout function over population members
+    generation_rollout = jax.vmap(reshape_and_eval, in_axes=(None, 0, None))
+
     # Print out the ES params before starting to train
     for key, value in es_params.items():
         if key != "weights":
@@ -79,18 +98,15 @@ def search_net(rng, elite_size, num_generations, num_evals_per_gen,
 
     # Loop over different generations and search!
     for g in range(num_generations):
-        rng, rng_input = jax.random.split(rng)
-        x, es_memory = ask(rng_input, es_params, es_memory)
-        generation_params = flat_to_mlp(x, sizes=network_size)
+        # Ask ES for next generation params
+        rng, rng_ask, rng_eval = jax.random.split(rng, 3)
+        x, es_memory = ask(rng_ask, es_params, es_memory)
 
-        # Evaluate the fitness of the generation members
-        rng, rng_input = jax.random.split(rng)
-        rollout_keys = jax.random.split(rng_input, num_evals_per_gen)
-        population_returns = generation_rollout(rollout_keys,
-                                                generation_params,
-                                                env_params, num_env_steps)
-        values = - population_returns.mean(axis=1)
-        # Update the CMA-ES strategy
+        # Reshape and rollout/eval batch
+        rollout_keys = jax.random.split(rng_eval, num_evals_per_gen)
+        values = generation_rollout(rollout_keys, x, network_shapes)
+
+        # Update ES, log + check for termination
         es_memory = tell(x, values, es_params, es_memory)
 
         # Log current performance/pop stats and check termination!
