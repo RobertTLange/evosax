@@ -4,6 +4,7 @@ import os, time
 import jax, jaxlib
 import jax.numpy as jnp
 import numpy as np
+from dotmap import DotMap
 from evosax.strategies.cma_es import init_strategy, ask, tell
 from evosax.utils import flat_to_mlp
 
@@ -17,35 +18,13 @@ from examples.ffw_pendulum import (generation_rollout,
 def load_config(config_fname: str):
     """ Load in a config JSON file and return as a dictionary """
     json_config = commentjson.loads(open(config_fname, 'r').read())
-    dict_config = DotDic(json_config)
+    dict_config = DotMap(json_config)
 
     # Make inner dictionaries indexable like a class
     for key, value in dict_config.items():
         if isinstance(value, dict):
-            dict_config[key] = DotDic(value)
+            dict_config[key] = DotMap(value)
     return dict_config
-
-
-class DotDic(dict):
-    """
-    a dictionary that supports dot notation
-    as well as dictionary access notation
-    usage: d = DotDict() or d = DotDict({'val1':'first'})
-    set attributes: d.val2 = 'second' or d['val2'] = 'second'
-    get attributes: d.val2 or d['val2']
-    """
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-    def __deepcopy__(self, memo=None):
-        return DotDic(copy.deepcopy(dict(self), memo=memo))
-
-    def __init__(self, dct):
-        for key, value in dct.items():
-            if hasattr(value, 'keys'):
-                value = DotDic(value)
-            self[key] = value
 
 
 def benchmark_accelerator(num_evaluations, population_size, hidden_size,

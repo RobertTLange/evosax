@@ -33,3 +33,8 @@
 - [x] Move visualizer to gymnax
 - [x] Add save and load log functions
 - [x] Update animate viz example notebook with reload
+
+## 10/02/21 - Update collectors with new gymnax dojos
+- Use `EvaluationDojo` + `MinimalEvaluationAgent`
+- Need to figure out how to scan through RNN agent
+- Weird problems with Conv operations and tensorflow
