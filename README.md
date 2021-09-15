@@ -8,7 +8,7 @@ Are you tired of having to handle asynchronous processes for neuroevolution? Do 
 
 ```python
 import jax
-from evosax.strategies.cma_es import init_strategy, ask, tell
+from evosax.strategies import CMA
 
 # Initialize the CMA evolutionary strategy
 rng = jax.random.PRNGKey(0)
