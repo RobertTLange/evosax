@@ -1,7 +1,54 @@
 import jax
 import jax.numpy as jnp
-from jax import jit
 import functools
+from .strategy import Strategy
+
+
+class Simple_GA(Strategy):
+    def __init__(self,
+                 popsize: int,
+                 num_dims: int,
+                 elite_ratio: float):
+        super().__init__(num_dims, popsize)
+        self.elite_ratio = elite_ratio
+        self.elite_popsize = int(self.popsize * self.elite_ratio)
+
+    @property
+    def default_params(self):
+        return {
+            "c_m": 1,  # Learning rate for population mean
+            "c_sigma": 0.,   # Learning rate for population std
+          }
+
+    @partial(jax.jit, static_argnums=(0,))
+    def initialize(self, rng, params):
+        """
+        `initialize` the differential evolution strategy.
+        Initialize all population members by randomly sampling
+        positions in search-space (defined in `params`).
+        """
+        state = {"archive": jax.random.uniform(
+                              rng,
+                              (self.elite_popsize, self.num_dims),
+                              minval=params["init_min"],
+                              maxval=params["init_max"]),
+                 "fitness": jnp.zeros(self.elite_popsize) - 20e10,
+                 "sigma": params["sigma_init"]}
+        return state
+
+    @partial(jax.jit, static_argnums=(0,))
+    def ask(self, rng, state, params):
+        """
+        `ask` for new proposed candidates to evaluate next.
+        """
+        return jnp.squeeze(y), state
+
+    @partial(jax.jit, static_argnums=(0,))
+    def tell(self, x, fitness, state, params):
+        """
+        `tell` update to ES state.
+        """
+        return state
 
 
 def init_strategy(mean_init, sigma_init, population_size, mu,
@@ -13,6 +60,7 @@ def init_strategy(mean_init, sigma_init, population_size, mu,
     weights = jax.ops.index_update(weights, jax.ops.index[:mu], 1/mu)
     memory = {"sigma": sigma_init,
               "mean": mean_init,
+              "weights": weights,
               "generation": 0}
 
     # Decide whether to split params in static and dynamic hyperparams
@@ -20,8 +68,7 @@ def init_strategy(mean_init, sigma_init, population_size, mu,
         params = {"pop_size": population_size,
                   "n_dim": n_dim,
                   "weights": weights,
-                  "c_m": 1,  # Learning rate for population mean
-                  "c_sigma": 0.,   # Learning rate for population std
+
                   "tol_fun": 1e-12,
                   "min_generations": 10}
         return params, memory
@@ -33,7 +80,6 @@ def init_strategy(mean_init, sigma_init, population_size, mu,
                        "weights": weights}
         terminal_params = {"tol_fun": 1e-12}
         return ask_params, tell_params, terminal_params, memory
-
 
 
 def ask_gaussian_strategy(rng, params, memory):
@@ -61,11 +107,6 @@ def tell_gaussian_strategy(x, fitness, params, memory):
     sigma = update_sigma(y_k, params, memory)
     memory["mean"], memory["sigma"] = mean, sigma
     return memory
-
-
-# Jitted version of Gaussian ask and tell interface
-ask = ask_gaussian_strategy
-tell = jit(tell_gaussian_strategy)
 
 
 def update_mean(sorted_solutions, params, memory):

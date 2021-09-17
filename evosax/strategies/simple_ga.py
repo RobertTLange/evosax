@@ -103,6 +103,13 @@ if __name__ == "__main__":
     strategy = Simple_GA(popsize=20, num_dims=2, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
-    x, state = strategy.ask(rng, state, params)
-    fitness = -1 * batch_rosenbrock(x, 1, 100)
-    state = strategy.tell(x, fitness, state, params)
+    fitness_log = []
+    num_iters = 25
+    for t in range(num_iters):
+        rng, rng_iter = jax.random.split(rng)
+        y, state = strategy.ask(rng_iter, state, params)
+        fitness = -batch_rosenbrock(y, 1, 100)
+        state = strategy.tell(y, fitness, state, params)
+        best_id = jnp.argmin(fitness)
+        print(t, fitness[best_id], state["mean"])
+        fitness_log.append(fitness[best_id])
