@@ -1,58 +1,83 @@
 import jax
 import jax.numpy as jnp
-from jax import jit, vmap, grad
-from jax.scipy.stats.multivariate_normal import logpdf
-import functools
+from functools import partial
 import optax
+from .strategy import Strategy
 
 
-def init_strategy(lrate, search_params_init,
-                  sigma, population_size):
-    ''' Initialize evolutionary strategy & learning rates. '''
-    n_dim = search_params_init.shape[0]
-    params = {"pop_size": population_size,
-              "n_dim": n_dim,
-              "lrate": lrate,
-              "tol_fun": 1e-12,
-              "min_generations": 10}
-    memory = {"search_params": search_params_init,
-              "sigma": sigma,
-              "generation": 0}
-    return params, memory
+class Open_NES(Strategy):
+    def __init__(self,
+                 popsize: int,
+                 num_dims: int,
+                 learning_rate: float):
+        super().__init__(num_dims, popsize)
+        self.learning_rate = learning_rate
+        self.optimizer = optax.chain(
+                              optax.scale_by_adam(eps=1e-4),
+                              optax.scale(-self.learning_rate)
+                              )
+
+    @property
+    def default_params(self):
+        """Return default parameters of evolutionary strategy."""
+        params = {"sigma_init": 0.1}
+        return params
+
+    @partial(jax.jit, static_argnums=(0,))
+    def initialize(self, rng, params):
+        """`initialize` the evolutionary strategy."""
+        state = {"mean": jnp.zeros(self.num_dims),
+                 "sigma": params["sigma_init"],
+                 "gen_counter": 0}
+        state["optimizer_state"] = self.optimizer.init(state["mean"])
+        return state
+
+    @partial(jax.jit, static_argnums=(0,))
+    def ask(self, rng, state, params):
+        """`ask` for new parameter candidates to evaluate next."""
+        # Antithetic sampling of noise
+        z_plus = jax.random.multivariate_normal(rng,
+                                                jnp.zeros(self.num_dims),
+                                                jnp.eye(self.num_dims),
+                                                (int(self.popsize/2),))
+        z = jnp.concatenate([z_plus, -1.*z_plus])
+        x = state["mean"] + state["sigma"]*z
+        return x, state
+
+    @partial(jax.jit, static_argnums=(0,))
+    def tell(self, x, fitness, state, params):
+        """`tell` performance data for strategy state update."""
+        state["gen_counter"] = state["gen_counter"] + 1
+
+        # Get REINFORCE-style gradient for each sample
+        noise = (x - state["mean"])/state["sigma"]
+        nes_grads = (1./(self.popsize*state["sigma"])
+                     * jnp.dot(noise.T, fitness))
+
+        # Natural grad update using optax API!
+        updates, opt_state = self.optimizer.update(nes_grads,
+                                                   state["optimizer_state"])
+        state["mean"] = optax.apply_updates(state["mean"], updates)
+        state["optimizer_state"] = opt_state
+        return state
 
 
-def ask_open_nes_strategy(rng, params, memory):
-    """ Propose params to evaluate next. Sample from Multivariate Gaussian. """
-    z = antithetic_sample(rng, memory, params["n_dim"], params["pop_size"])  # ~ N(0, I)
-    x = memory["search_params"] + memory["sigma"]*z
-    return x, memory
+if __name__ == "__main__":
+    from evosax.problems import batch_quadratic
+    from evosax.utils import FitnessShaper
+    rng = jax.random.PRNGKey(0)
+    strategy = Open_NES(popsize=50, num_dims=3, learning_rate=0.015)
+    fit_shaper = FitnessShaper(z_score_fitness=True)
 
-
-@functools.partial(jax.jit, static_argnums=(2, 3))
-def antithetic_sample(rng, memory, n_dim, pop_size):
-    """ Jittable Gaussian Sample Helper. """
-    z_plus = jax.random.multivariate_normal(rng, jnp.zeros(n_dim), # ~ N(0, I)
-                                            jnp.eye(n_dim), (int(pop_size/2),))
-    z = jnp.concatenate([z_plus, -1.*z_plus])
-    return z
-
-
-def tell_open_nes_strategy(x, fitness, params, memory, opt_state):
-    """ Update the surrogate ES model. """
-    memory["generation"] = memory["generation"] + 1
-
-    # Get REINFORCE-style gradient for each sample
-    noise = (x - memory["search_params"])/memory["sigma"]
-    nes_grads = (1./(params["pop_size"]*memory["sigma"])
-                 * jnp.dot(noise.T, fitness))
-
-    # Natural grad update using optax API - redefine adam opt without init!
-    opt = optax.adam(params["lrate"])
-    updates, opt_state = opt.update(nes_grads, opt_state)
-    memory["search_params"] = optax.apply_updates(memory["search_params"], updates)
-    return memory, opt_state
-
-
-# Jitted version of CMA-ES ask and tell interface
-ask = ask_open_nes_strategy
-tell = jit(tell_open_nes_strategy)
+    params = strategy.default_params
+    state = strategy.initialize(rng, params)
+    fitness_log = []
+    num_iters = 200
+    for t in range(num_iters):
+        rng, rng_iter = jax.random.split(rng)
+        x, state = strategy.ask(rng_iter, state, params)
+        fitness = batch_quadratic(x)
+        best_id = jnp.argmin(fitness)
+        fitness_log.append(fitness[best_id])
+        fitness_shaped = fit_shaper.apply(x, fitness)
+        state = strategy.tell(x, fitness_shaped, state, params)

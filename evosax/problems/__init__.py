@@ -1,4 +1,5 @@
-from .low_d import (batch_himmelblau,
+from .low_d import (batch_quadratic,
+                    batch_himmelblau,
                     batch_hump_camel,
                     batch_rosenbrock,
                     batch_ackley,
@@ -8,6 +9,7 @@ from .low_d import (batch_himmelblau,
 
 
 __all__ = [
+    "batch_quadratic",
     "batch_himmelblau",
     "batch_hump_camel",
     "batch_rosenbrock",

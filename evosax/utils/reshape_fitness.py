@@ -1,40 +1,34 @@
 import jax
 import jax.numpy as jnp
-
-
-@jax.jit
-def z_score_fitness(fitness):
-    """ Make fitness 'Gaussian' by substracting mean and dividing by std. """
-    return (fitness - jnp.mean(fitness)) / jnp.std(fitness)
-
-
-@jax.jit
-def rank_shaped_fitness(x, fitness, fit_range=[-0.5, 0.5]):
-    """ REINFORCE weights scaled between [-1, 1] - variance reduction. """
-    # Sort new results, extract elite, store best performer
-    concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
-    idx_sort = concat_p_f[:, 0].argsort()
-    sorted_solutions = x[idx_sort]
-    # Return linear spaced weights between [-1, 1]
-    shaped_fitness = jnp.linspace(fit_range[0],
-                                  fit_range[1], x.shape[0])
-    return sorted_solutions, shaped_fitness
+from functools import partial
 
 
 class FitnessShaper(object):
-    def __init__(self, rank_fitness: bool = True,
-                 weight_decay: float = 0.01):
+    def __init__(self,
+                 rank_fitness: bool = False,
+                 z_score_fitness: bool = False,
+                 weight_decay: float = 0.0):
         self.weight_decay = weight_decay
         self.rank_fitness = rank_fitness
+        self.z_score_fitness = z_score_fitness
 
     @partial(jax.jit, static_argnums=(0,))
     def apply(self, x, fitness):
         """ Apply weight decay and rank shaping. """
-        fitness_trafo = jax.lax.select(self.rank_fitness,
-                                       compute_centered_ranks(fitness),
-                                       fitness)
+        fitness = jax.lax.select(self.rank_fitness,
+                                 compute_centered_ranks(fitness),
+                                 fitness)
+        fitness = jax.lax.select(self.z_score_fitness,
+                                 z_score_fitness(fitness),
+                                 fitness)
+        # "Reduce" fitness based on L2 norm of parameters
         l2_fitness_reduction = - self.weight_decay * compute_weight_norm(x)
-        return fitness_trafo + l2_fitness_reduction
+        return fitness + l2_fitness_reduction
+
+
+def z_score_fitness(fitness):
+    """ Make fitness 'Gaussian' by substracting mean and dividing by std. """
+    return (fitness - jnp.mean(fitness)) / jnp.std(fitness)
 
 
 def compute_ranks(fitness):

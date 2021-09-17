@@ -2,10 +2,19 @@ import jax.numpy as jnp
 from jax import vmap, jit
 
 
+def quadratic_fitness(x):
+    '''
+    Simple 3-dim. quadratic function.
+    f(x*)=0 - Minimum at [0.5, 0.1, -0.3]
+    '''
+    fit = jnp.sum(jnp.square(x - jnp.array([0.5, 0.1, -0.3])))
+    return fit
+
+
 def himmelblau_fct(x, offset=0):
     '''
     2-dim. Himmelblau function.
-    Value 0 - Minima at [3, 2], [-2.81, 3.13],
+    f(x*)=0 - Minima at [3, 2], [-2.81, 3.13],
                         [-3.78, -3.28], [3.58, -1.85]
     '''
     x = x + offset
@@ -15,7 +24,7 @@ def himmelblau_fct(x, offset=0):
 def six_hump_camel_fct(x, offset=0.):
     '''
     2-dim. 6-Hump Camel function.
-    Value -1.0316 - Minimum at [0.0898, -0.7126], [-0.0898, 0.7126]
+    f(x*)=-1.0316 - Minimum at [0.0898, -0.7126], [-0.0898, 0.7126]
     '''
     x = x + offset
     p1 = (4 - 2.1*x[0]**2 + x[0]**4/3)*x[0]**2
@@ -70,6 +79,8 @@ def schwefel_d_dim(x):
 
 
 # Toy Problem Evaluation Batch-Jitted Versions
+batch_quadratic = jit(vmap(quadratic_fitness, 0))
+
 batch_himmelblau = jit(vmap(himmelblau_fct, in_axes=(0, None),
                             out_axes=0))
 
