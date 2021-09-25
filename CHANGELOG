@@ -12,3 +12,9 @@
     - CMA-ES on Pendulum task
     - OpenAI NES on CNN for MNIST
     - CMA-ES on Bandit Meta-LSTM
+
+
+- This way we can easily `vmap` across parameter configurations.
+- Check out Flax surgery setup: https://flax.readthedocs.io/en/latest/howtos/model_surgery.html
+  - `flatten_dict` and `unflatten_dict` for network modules - jittable?!
+- Check out Flax ensembling via pmap: https://flax.readthedocs.io/en/latest/howtos/ensembling.html

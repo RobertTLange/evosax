@@ -1,9 +1,9 @@
-from simple_ga import Simple_GA
-from simple_es import Simple_ES
-from cma_es import CMA_ES
-from differential_es import Differential_ES
-from open_nes import Open_NES
-from pepg_es import PEPG_ES
+from .simple_ga import Simple_GA
+from .simple_es import Simple_ES
+from .cma_es import CMA_ES
+from .differential_es import Differential_ES
+from .open_nes import Open_NES
+from .pepg_es import PEPG_ES
 
 
 __all__ = [

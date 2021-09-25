@@ -9,22 +9,18 @@ Are you tired of having to handle asynchronous processes for neuroevolution? Do 
 ```python
 import jax
 from evosax.strategies import CMA
+from evosax.problems import batch_rosenbrock
 
-# Initialize the CMA evolutionary strategy
 rng = jax.random.PRNGKey(0)
-params, memory = init_strategy(mean_init, sigma_init,
-                               pop_size, mu)
+strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
+params = strategy.default_params
+state = strategy.initialize(rng, params)
 
-# Loop over number of generations using ask-eval-tell API
-for g in range(num_generations):
-    # Explicitly handle random number generation
-    rng, rng_input = jax.random.split(rng)
-    # Ask for the next generation population to test
-    x, memory = ask(rng_input, params, memory)
-    # Evaluate the fitness of the generation members
-    fitness = evaluate_fitness(x)
-    # Tell/Update the CMA-ES with newest data points
-    memory = tell(x, fitness, params, memory)
+for t in range(num_generations):
+    rng, rng_iter = jax.random.split(rng)
+    y, state = strategy.ask(rng_iter, state, params)
+    fitness = batch_rosenbrock(y, 1, 100)
+    state = strategy.tell(y, fitness, state, params)
 ```
 
 <details><summary>
