@@ -1,6 +1,6 @@
 # Evolutionary Strategies :heart: JAX
 [![Pyversions](https://img.shields.io/pypi/pyversions/mle-toolbox.svg?style=flat-square)](https://pypi.python.org/pypi/mle-toolbox)[![Docs Latest](https://img.shields.io/badge/docs-dev-blue.svg)](https://github.com/RobertTLange/mle-toolbox/) [![PyPI version](https://badge.fury.io/py/mle-toolbox.svg)](https://badge.fury.io/py/mle-toolbox)
-<a href="docs/evosax_transparent.png"><img src="docs/evosax_transparent.png" width="200" align="right" /></a>
+<a href="docs/evosax_transparent.png_2"><img src="docs/evosax_transparent_2.png" width="200" align="right" /></a>
 
 Are you tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolutionary strategies (ES)? `evosax` allows you to leverage JAX and XLA compilation to scale ES to your favorite accelerator. The API follows the classical `ask`, `evaluate`, `tell` cycle and only requires you `vmap` and `pmap` over the fitness function axes of choice. It includes popular strategies such as Simple Gaussian, CMA-ES, and different NES variants.
 
