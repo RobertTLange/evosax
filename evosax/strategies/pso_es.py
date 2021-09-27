@@ -95,3 +95,23 @@ def single_member_velocity(rng, member_id, archive, velocity,
                cognitive_coeff * r1 * (best_archive[member_id] - archive[member_id]) +
                social_coeff * r2 * (global_best - archive[member_id]))
     return vel_new
+
+
+if __name__ == "__main__":
+    from evosax.problems import batch_rosenbrock
+    rng = jax.random.PRNGKey(0)
+    strategy = PSO_ES(popsize=20, num_dims=2)
+    params = strategy.default_params
+    state = strategy.initialize(rng, params)
+    fitness_log = []
+
+    for i in range(200):
+      rng, rng_iter = jax.random.split(rng)
+      x, state = strategy.ask(rng_iter, state, params)
+      fitness = batch_rosenbrock(x, 1, 100)
+      state = strategy.tell(x, fitness, state, params)
+      best_id = jnp.argmax(state["best_fitness"])
+      fitness_log.append(state["best_fitness"][best_id])
+
+    plt.plot(jnp.array(fitness_log))
+    plt.ylim(0, 50)

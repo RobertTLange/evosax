@@ -5,6 +5,7 @@ from .differential_es import Differential_ES
 from .pso_es import PSO_ES
 from .open_nes import Open_NES
 from .pepg_es import PEPG_ES
+from .pbt_es import PBT_ES
 
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "PSO_ES",
     "Open_NES",
     "PEPG_ES",
+    "PBT_ES",
 ]

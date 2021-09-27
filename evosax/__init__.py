@@ -4,7 +4,8 @@ from .strategies import (Simple_GA,
                          Differential_ES,
                          PSO_ES,
                          Open_NES,
-                         PEPG_ES)
+                         PEPG_ES,
+                         PBT_ES)
 
 __all__ = [
     "Simple_GA",
@@ -14,4 +15,5 @@ __all__ = [
     "PSO_ES"
     "Open_NES",
     "PEPG_ES",
+    "PBT_ES"
 ]
