@@ -106,12 +106,12 @@ if __name__ == "__main__":
     fitness_log = []
 
     for i in range(200):
-      rng, rng_iter = jax.random.split(rng)
-      x, state = strategy.ask(rng_iter, state, params)
-      fitness = batch_rosenbrock(x, 1, 100)
-      state = strategy.tell(x, fitness, state, params)
-      best_id = jnp.argmax(state["best_fitness"])
-      fitness_log.append(state["best_fitness"][best_id])
+        rng, rng_iter = jax.random.split(rng)
+        x, state = strategy.ask(rng_iter, state, params)
+        fitness = batch_rosenbrock(x, 1, 100)
+        state = strategy.tell(x, fitness, state, params)
+        best_id = jnp.argmax(state["best_fitness"])
+        fitness_log.append(state["best_fitness"][best_id])
 
     plt.plot(jnp.array(fitness_log))
     plt.ylim(0, 50)
