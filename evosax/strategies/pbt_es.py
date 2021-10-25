@@ -6,29 +6,32 @@ from .strategy import Strategy
 
 class PBT_ES(Strategy):
     def __init__(self, popsize: int, num_dims: int):
-        """ Synchronous version of Population-Based Training. """
+        """Synchronous version of Population-Based Training."""
         super().__init__(num_dims, popsize)
 
     @property
     def default_params(self):
         return {
-          "noise_scale": 0.1,
-          "truncation_selection": 0.2,
-          "init_min": -2,              # Param. init range - min
-          "init_max": 2,               # Param. init range - max
-          }
+            "noise_scale": 0.1,
+            "truncation_selection": 0.2,
+            "init_min": -2,  # Param. init range - min
+            "init_max": 2,  # Param. init range - max
+        }
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(self, rng, params):
         """
         `initialize` the differential evolution strategy.
         """
-        state = {"archive": jax.random.uniform(
-                              rng,
-                              (self.popsize, self.num_dims),
-                              minval=params["init_min"],
-                              maxval=params["init_max"]),
-                "fitness": jnp.zeros(self.popsize) - 20e10}
+        state = {
+            "archive": jax.random.uniform(
+                rng,
+                (self.popsize, self.num_dims),
+                minval=params["init_min"],
+                maxval=params["init_max"],
+            ),
+            "fitness": jnp.zeros(self.popsize) - 20e10,
+        }
         return state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -42,15 +45,12 @@ class PBT_ES(Strategy):
         """
         rng_members = jax.random.split(rng, self.popsize)
         member_ids = jnp.arange(self.popsize)
-        exploit_bool, copy_id, hyperparams = jax.vmap(single_member_exploit,
-                                                      in_axes=(0, None, None, None))(
-                                                member_ids, state["archive"],
-                                                state["fitness"], params)
-        hyperparams = jax.vmap(single_member_explore,
-                               in_axes=(0, 0, 0, None))(rng_members,
-                                                        exploit_bool,
-                                                        hyperparams,
-                                                        params)
+        exploit_bool, copy_id, hyperparams = jax.vmap(
+            single_member_exploit, in_axes=(0, None, None, None)
+        )(member_ids, state["archive"], state["fitness"], params)
+        hyperparams = jax.vmap(single_member_explore, in_axes=(0, 0, 0, None))(
+            rng_members, exploit_bool, hyperparams, params
+        )
         return copy_id, hyperparams, state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -59,16 +59,18 @@ class PBT_ES(Strategy):
         `tell` update to ES state. - Only copy if perfomance has improved.
         """
         replace = fitness >= state["fitness"]
-        state["archive"] = (jnp.expand_dims(replace, 1) * x +
-                            (1 - jnp.expand_dims(replace, 1)) * state["archive"])
+        state["archive"] = (
+            jnp.expand_dims(replace, 1) * x
+            + (1 - jnp.expand_dims(replace, 1)) * state["archive"]
+        )
         state["fitness"] = replace * fitness + (1 - replace) * state["fitness"]
         return state
 
 
 def single_member_exploit(member_id, archive, fitness, params):
-    """ Get the top and bottom performers. """
+    """Get the top and bottom performers."""
     best_id = jnp.argmax(fitness)
-    exploit_bool = (member_id != best_id)  # Copy if worker not best
+    exploit_bool = member_id != best_id  # Copy if worker not best
     copy_id = jax.lax.select(exploit_bool, best_id, member_id)
     hyperparams_copy = archive[copy_id]
     return exploit_bool, copy_id, hyperparams_copy
@@ -76,28 +78,29 @@ def single_member_exploit(member_id, archive, fitness, params):
 
 def single_member_explore(rng, exploit_bool, hyperparams, params):
     explore_noise = jax.random.normal(rng, hyperparams.shape) * params["noise_scale"]
-    hyperparams_explore = jax.lax.select(exploit_bool,
-                                         hyperparams + explore_noise,
-                                         hyperparams)
+    hyperparams_explore = jax.lax.select(
+        exploit_bool, hyperparams + explore_noise, hyperparams
+    )
     return hyperparams_explore
 
 
 if __name__ == "__main__":
+
     @partial(jax.vmap, in_axes=(0, 0, None))
     def step(theta, h, lrate):
-        """ Perform GradAscent step on quadratic surrogate objective (maximize!). """
+        """Perform GradAscent step on quadratic surrogate objective (maximize!)."""
         surrogate_grad = -2.0 * h * theta
         return theta + lrate * surrogate_grad
 
     @partial(jax.vmap, in_axes=(0,))
     def evaluate(theta):
-        """ Ground truth objective (e.g. val loss) as in Jaderberg et al. 2016. """
-        return 1.2 - jnp.sum(theta**2)
+        """Ground truth objective (e.g. val loss) as in Jaderberg et al. 2016."""
+        return 1.2 - jnp.sum(theta ** 2)
 
     @partial(jax.vmap, in_axes=(0, 0))
     def surrogate_objective(theta, h):
-        """ Surrogate objective (with hyperparams h) as in Jaderberg et al. 2016. """
-        return 1.2 - jnp.sum(h * theta**2)
+        """Surrogate objective (with hyperparams h) as in Jaderberg et al. 2016."""
+        return 1.2 - jnp.sum(h * theta ** 2)
 
     rng = jax.random.PRNGKey(1)
     strategy = PBT_ES(2, 2)
@@ -106,10 +109,8 @@ if __name__ == "__main__":
     state = strategy.initialize(rng, params)
 
     # set the state manually for init
-    theta = jnp.array([[0.9, 0.9],
-                       [0.9, 0.9]])
-    h = jnp.array([[0, 1],
-                   [1, 0]])
+    theta = jnp.array([[0.9, 0.9], [0.9, 0.9]])
+    h = jnp.array([[0, 1], [1, 0]])
 
     # Run 10 steps and evaluate final performance
     fitness_log = []
@@ -128,6 +129,7 @@ if __name__ == "__main__":
     theta_log = jnp.array(theta_log)
 
     import matplotlib.pyplot as plt
+
     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
     axs[0].plot(fitness_log)
     axs[1].scatter(theta_log[:, 0], theta_log[:, 1], s=8)

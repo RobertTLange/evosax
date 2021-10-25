@@ -5,19 +5,19 @@ from flax.core import FrozenDict
 
 class ParameterReshaper(object):
     def __init__(self, placeholder_params):
-        """ Reshape flat parameters vectors into generation eval shape."""
+        """Reshape flat parameters vectors into generation eval shape."""
         self.placeholder_params = placeholder_params
         self.total_params = get_total_params(self.placeholder_params)
         self.network_shape = get_network_shapes(self.placeholder_params)
 
     def reshape(self, x):
-        """ Perform reshaping for a 2D matrix (pop_members, params). """
+        """Perform reshaping for a 2D matrix (pop_members, params)."""
         vmap_shape = jax.vmap(flat_to_network, in_axes=(0, None))
         return vmap_shape(x, self.network_shape)
 
     @property
     def vmap_dict(self):
-        """ Get a dictionary specifying axes to vmap over. """
+        """Get a dictionary specifying axes to vmap over."""
         vmap_dict = {}
         layer_keys = list(self.network_shape.keys())
         for l_k in layer_keys:
@@ -30,7 +30,7 @@ class ParameterReshaper(object):
 
 
 def get_total_params(params):
-    """ Get total number of params in net. Loop over layer modules + params. """
+    """Get total number of params in net. Loop over layer modules + params."""
     total_params = 0
     layer_keys = list(params.keys())
     # Loop over layers
@@ -42,7 +42,7 @@ def get_total_params(params):
 
 
 def get_layer_params(layer, sum_up=False):
-    """ Get dict with no params per trafo matrix/vector"""
+    """Get dict with no params per trafo matrix/vector"""
     param_keys = list(layer.keys())
     counts = {}
     # Loop over params in layer
@@ -52,7 +52,7 @@ def get_layer_params(layer, sum_up=False):
 
 
 def get_network_shapes(params):
-    """ Get dict w. shapes per layer/module & list of indexes flat vector. """
+    """Get dict w. shapes per layer/module & list of indexes flat vector."""
     layer_keys = list(params.keys())
     placeh_nn = {}
     for l_k in layer_keys:
@@ -65,7 +65,7 @@ def get_network_shapes(params):
 
 
 def flat_to_network(flat_params, network_shapes):
-    """ Fill a FrozenDict with new proposed vector of params. """
+    """Fill a FrozenDict with new proposed vector of params."""
     layer_keys = list(network_shapes.keys())
     # print(layer_keys)
     new_nn = {}
@@ -80,8 +80,7 @@ def flat_to_network(flat_params, network_shapes):
             # print(p_k)
             # Select params from flat to vector to be reshaped
             params_to_add = jnp.prod(jnp.array(network_shapes[l_k][p_k]))
-            p_flat = flat_params[param_counter:
-                                 (param_counter + params_to_add)]
+            p_flat = flat_params[param_counter : (param_counter + params_to_add)]
             # print(p_flat.shape, network_shapes[l_k][p_k])
             # Reshape parameters into matrix/kernel/etc. shape
             p_reshaped = p_flat.reshape(network_shapes[l_k][p_k])

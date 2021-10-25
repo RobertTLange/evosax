@@ -1,4 +1,3 @@
-
 class Strategy(object):
     def __init__(self, num_dims: int, popsize: int):
         """Base Abstract Class for an Evolutionary Strategy."""

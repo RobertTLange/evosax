@@ -1,19 +1,21 @@
-from .strategies import (Simple_GA,
-                         Simple_ES,
-                         CMA_ES,
-                         Differential_ES,
-                         PSO_ES,
-                         Open_NES,
-                         PEPG_ES,
-                         PBT_ES)
+from .strategies import (
+    Simple_GA,
+    Simple_ES,
+    CMA_ES,
+    Differential_ES,
+    PSO_ES,
+    Open_NES,
+    PEPG_ES,
+    PBT_ES,
+)
 
 __all__ = [
     "Simple_GA",
     "Simple_ES",
     "CMA_ES",
     "Differential_ES",
-    "PSO_ES"
+    "PSO_ES",
     "Open_NES",
     "PEPG_ES",
-    "PBT_ES"
+    "PBT_ES",
 ]

@@ -5,10 +5,7 @@ from .strategy import Strategy
 
 
 class Simple_ES(Strategy):
-    def __init__(self,
-                 popsize: int,
-                 num_dims: int,
-                 elite_ratio: float):
+    def __init__(self, popsize: int, num_dims: int, elite_ratio: float):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
@@ -17,17 +14,17 @@ class Simple_ES(Strategy):
     def default_params(self):
         # Only parents have positive weight - equal weighting!
         weights = jnp.zeros(self.popsize)
-        weights = jax.ops.index_update(weights,
-                                       jax.ops.index[:self.elite_popsize],
-                                       1/self.elite_popsize)
+        weights = jax.ops.index_update(
+            weights, jax.ops.index[: self.elite_popsize], 1 / self.elite_popsize
+        )
         return {
-            "c_m": 1.,               # Learning rate for population mean
-            "c_sigma": 0.1,           # Learning rate for population std
-            "weights": weights,      # Weights for population members
-            "sigma_init": 1,         # Standard deviation
-            "init_min": -2,          # Param. init range - min
-            "init_max": 2            # Param. init range - min
-          }
+            "c_m": 1.0,  # Learning rate for population mean
+            "c_sigma": 0.1,  # Learning rate for population std
+            "weights": weights,  # Weights for population members
+            "sigma_init": 1,  # Standard deviation
+            "init_min": -2,  # Param. init range - min
+            "init_max": 2,  # Param. init range - min
+        }
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(self, rng, params):
@@ -36,15 +33,18 @@ class Simple_ES(Strategy):
         Initialize all population members by randomly sampling
         positions in search-space (defined in `params`).
         """
-        state = {"archive": jax.random.uniform(
-                              rng,
-                              (self.elite_popsize, self.num_dims),
-                              minval=params["init_min"],
-                              maxval=params["init_max"]),
-                 "fitness": jnp.zeros(self.elite_popsize) - 20e10,
-                 "gen_counter": 0,
-                 "mean": jnp.zeros(self.num_dims),
-                 "sigma": params["sigma_init"]}
+        state = {
+            "archive": jax.random.uniform(
+                rng,
+                (self.elite_popsize, self.num_dims),
+                minval=params["init_min"],
+                maxval=params["init_max"],
+            ),
+            "fitness": jnp.zeros(self.elite_popsize) - 20e10,
+            "gen_counter": 0,
+            "mean": jnp.zeros(self.num_dims),
+            "sigma": params["sigma_init"],
+        }
         return state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -53,7 +53,7 @@ class Simple_ES(Strategy):
         `ask` for new proposed candidates to evaluate next.
         """
         z = jax.random.normal(rng, (self.popsize, self.num_dims))  # ~ N(0, I)
-        x = state["mean"] + state["sigma"] * z                     # ~ N(m, σ^2 I)
+        x = state["mean"] + state["sigma"] * z  # ~ N(m, σ^2 I)
         return x, state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -73,24 +73,24 @@ class Simple_ES(Strategy):
 
 
 def update_mean(sorted_solutions, mean, params):
-    """ Update mean of strategy. """
+    """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
-    y_k = (x_k - mean)
+    y_k = x_k - mean
     y_w = jnp.sum(y_k.T * params["weights"], axis=1)
     mean_new = mean + params["c_m"] * y_w
     return mean_new, y_k
 
 
 def update_sigma(y_k, sigma, params):
-    """ Update stepsize sigma. """
-    sigma_est = jnp.sqrt(jnp.sum((y_k.T**2 * params["weights"]), axis=1))
-    sigma_new = ((1-params["c_sigma"])*sigma
-                 + params["c_sigma"]*sigma_est)
+    """Update stepsize sigma."""
+    sigma_est = jnp.sqrt(jnp.sum((y_k.T ** 2 * params["weights"]), axis=1))
+    sigma_new = (1 - params["c_sigma"]) * sigma + params["c_sigma"] * sigma_est
     return sigma_new
 
 
 if __name__ == "__main__":
     from evosax.problems import batch_rosenbrock
+
     rng = jax.random.PRNGKey(0)
     strategy = Simple_ES(popsize=10, num_dims=2, elite_ratio=0.5)
     params = strategy.default_params

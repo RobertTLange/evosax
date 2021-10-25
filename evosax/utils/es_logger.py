@@ -3,23 +3,24 @@ import jax.numpy as jnp
 
 
 def init_logger(top_k, num_params, network_shapes=None):
-    evo_logger = {"top_values": jnp.zeros(top_k) + 1e10,
-                  "top_params": jnp.zeros((top_k, num_params)),
-                  "log_top_1": [],
-                  "log_top_mean": [],
-                  "log_top_std": [],
-                  "log_gen_1": [],
-                  "log_gen_mean": [],
-                  "log_gen_std": [],
-                  "log_sigma": [],
-                  "log_gen": [],
-                  "network_shapes": network_shapes}
+    evo_logger = {
+        "top_values": jnp.zeros(top_k) + 1e10,
+        "top_params": jnp.zeros((top_k, num_params)),
+        "log_top_1": [],
+        "log_top_mean": [],
+        "log_top_std": [],
+        "log_gen_1": [],
+        "log_gen_mean": [],
+        "log_gen_std": [],
+        "log_sigma": [],
+        "log_gen": [],
+        "network_shapes": network_shapes,
+    }
     return evo_logger
 
 
-def update_logger(evo_logger, x, fitness, memory, top_k,
-                  verbose=False):
-    """ Helper function to keep track of top solutions. """
+def update_logger(evo_logger, x, fitness, memory, top_k, verbose=False):
+    """Helper function to keep track of top solutions."""
     # Check if there are solutions better than current archive
     vals = jnp.hstack([evo_logger["top_values"], fitness])
     params = jnp.vstack([evo_logger["top_params"], x])
@@ -43,14 +44,13 @@ def update_logger(evo_logger, x, fitness, memory, top_k,
 
 
 def save_logger(evo_logger, filename):
-    """ Save different parts of logger in .pkl file. """
-    with open(filename, 'wb') as handle:
-        pickle.dump(evo_logger, handle,
-                    protocol=pickle.HIGHEST_PROTOCOL)
+    """Save different parts of logger in .pkl file."""
+    with open(filename, "wb") as handle:
+        pickle.dump(evo_logger, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def load_logger(filename):
-    """ Reload the pickle logger and return dictionary. """
-    with open(filename, 'rb') as handle:
+    """Reload the pickle logger and return dictionary."""
+    with open(filename, "rb") as handle:
         es_logger = pickle.load(handle)
     return es_logger

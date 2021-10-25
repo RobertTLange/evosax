@@ -5,8 +5,12 @@ import jax
 from jax import vmap, jit, lax
 import jax.numpy as jnp
 from evosax.strategies.open_nes import init_strategy, ask, tell
-from evosax.utils import (rank_shaped_fitness, get_total_params,
-                          get_network_shapes, flat_to_network)
+from evosax.utils import (
+    rank_shaped_fitness,
+    get_total_params,
+    get_network_shapes,
+    flat_to_network,
+)
 import tensorflow_datasets as tfds
 
 
@@ -27,17 +31,20 @@ class MNIST_CNN(hk.Module):
 
     def __call__(self, batch):
         """Classifies images as real or fake."""
-        x = batch["image"].astype(jnp.float32) / 255.
+        x = batch["image"].astype(jnp.float32) / 255.0
         for output_channels, stride in zip(self.output_channels, self.strides):
-            x = hk.Conv2D(output_channels=output_channels,
-                        kernel_shape=[5, 5],
-                        stride=stride,
-                        padding="SAME")(x)
+            x = hk.Conv2D(
+                output_channels=output_channels,
+                kernel_shape=[5, 5],
+                stride=stride,
+                padding="SAME",
+            )(x)
             x = jax.nn.leaky_relu(x, negative_slope=0.2)
         x = hk.Flatten()(x)
         # We have two classes: 0 = input is fake, 1 = input is real.
         logits = hk.Linear(10)(x)
         return logits
+
 
 # Evaluation metrics (classification accuracy + cross-entropy loss).
 @jax.jit
@@ -60,10 +67,11 @@ def loss(params, batch, w_decay=1e-4):
 
 
 def reshape_and_eval(x, network_shapes):
-    """ Perform both parameter reshaping and evaluation in one go. """
+    """Perform both parameter reshaping and evaluation in one go."""
     nn = flat_to_network(x, network_shapes)
     out = loss(nn, next(train))
     return out
+
 
 batch_fitness = vmap(reshape_and_eval, in_axes=(0, None, None))
 
@@ -91,8 +99,7 @@ if __name__ == "__main__":
     opt = optax.adam(lrate)
     opt_state = opt.init(mean_init)
 
-    params, memory = init_strategy(lrate, mean_init, sigma_init,
-                                   population_size)
+    params, memory = init_strategy(lrate, mean_init, sigma_init, population_size)
     fit = []
     for g in range(num_generations):
         # Explicitly handle random number generation
@@ -101,7 +108,7 @@ if __name__ == "__main__":
         # Ask for the next generation population to test
         x, memory = ask(rng_input, params, memory)
         # Evaluate the fitness of the generation members
-        #fitness = batch_rosenbrock(x, 1, 100)
+        # fitness = batch_rosenbrock(x, 1, 100)
         fitness = batch_fitness(x, network_shapes)
         fit.append(fitness.min())
         fitness = z_score_fitness(fitness)

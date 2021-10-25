@@ -13,73 +13,95 @@ class CMA_ES(Strategy):
     @property
     def default_params(self):
         weights_prime = jnp.array(
-            [jnp.log((self.popsize + 1) / 2) - jnp.log(i + 1)
-             for i in range(self.popsize)])
-        mu_eff = ((jnp.sum(weights_prime[:self.elite_popsize]) ** 2) /
-                  jnp.sum(weights_prime[:self.elite_popsize] ** 2))
-        mu_eff_minus = ((jnp.sum(weights_prime[self.elite_popsize:]) ** 2) /
-                        jnp.sum(weights_prime[self.elite_popsize:] ** 2))
+            [
+                jnp.log((self.popsize + 1) / 2) - jnp.log(i + 1)
+                for i in range(self.popsize)
+            ]
+        )
+        mu_eff = (jnp.sum(weights_prime[: self.elite_popsize]) ** 2) / jnp.sum(
+            weights_prime[: self.elite_popsize] ** 2
+        )
+        mu_eff_minus = (jnp.sum(weights_prime[self.elite_popsize :]) ** 2) / jnp.sum(
+            weights_prime[self.elite_popsize :] ** 2
+        )
 
         # lrates for rank-one and rank-μ C updates
         alpha_cov = 2
         c_1 = alpha_cov / ((self.num_dims + 1.3) ** 2 + mu_eff)
-        c_mu = jnp.minimum(1 - c_1 - 1e-8, alpha_cov * (mu_eff - 2 + 1 / mu_eff)
-                           / ((self.num_dims + 2) ** 2 + alpha_cov * mu_eff / 2))
-        min_alpha = min(1 + c_1 / c_mu,
-                        1 + (2 * mu_eff_minus) / (mu_eff + 2),
-                        (1 - c_1 - c_mu) / (self.num_dims * c_mu))
+        c_mu = jnp.minimum(
+            1 - c_1 - 1e-8,
+            alpha_cov
+            * (mu_eff - 2 + 1 / mu_eff)
+            / ((self.num_dims + 2) ** 2 + alpha_cov * mu_eff / 2),
+        )
+        min_alpha = min(
+            1 + c_1 / c_mu,
+            1 + (2 * mu_eff_minus) / (mu_eff + 2),
+            (1 - c_1 - c_mu) / (self.num_dims * c_mu),
+        )
         positive_sum = jnp.sum(weights_prime[weights_prime > 0])
         negative_sum = jnp.sum(jnp.abs(weights_prime[weights_prime < 0]))
-        weights = jnp.where(weights_prime >= 0,
-                            1 / positive_sum * weights_prime,
-                            min_alpha / negative_sum * weights_prime,)
+        weights = jnp.where(
+            weights_prime >= 0,
+            1 / positive_sum * weights_prime,
+            min_alpha / negative_sum * weights_prime,
+        )
         weights_truncated = jax.ops.index_update(
-                                weights,
-                                jax.ops.index[self.elite_popsize:], 0)
+            weights, jax.ops.index[self.elite_popsize :], 0
+        )
 
         # lrate for cumulation of step-size control and rank-one update
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
-        d_sigma = (1 + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1)
-                   / (self.num_dims + 1)) - 1) + c_sigma)
-        c_c = ((4 + mu_eff / self.num_dims) /
-               (self.num_dims + 4 + 2 * mu_eff / self.num_dims))
+        d_sigma = (
+            1
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + c_sigma
+        )
+        c_c = (4 + mu_eff / self.num_dims) / (
+            self.num_dims + 4 + 2 * mu_eff / self.num_dims
+        )
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0 - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2)))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.num_dims ** 2))
+        )
 
-        params = {"mu_eff": mu_eff,
-                  "c_1": c_1,
-                  "c_mu": c_mu,
-                  "c_m": 1,
-                  "c_sigma": c_sigma,
-                  "d_sigma": d_sigma,
-                  "c_c": c_c,
-                  "chi_n": chi_n,
-                  "weights": weights,
-                  "sigma_init": 1,
-                  "weights_truncated": weights_truncated}
+        params = {
+            "mu_eff": mu_eff,
+            "c_1": c_1,
+            "c_mu": c_mu,
+            "c_m": 1,
+            "c_sigma": c_sigma,
+            "d_sigma": d_sigma,
+            "c_c": c_c,
+            "chi_n": chi_n,
+            "weights": weights,
+            "sigma_init": 1,
+            "weights_truncated": weights_truncated,
+        }
         return params
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(self, rng, params):
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
-        state = {"p_sigma": jnp.zeros(self.num_dims),
-                 "p_c": jnp.zeros(self.num_dims),
-                 "sigma": params["sigma_init"],
-                 "mean": jnp.zeros(self.num_dims),
-                 "C": jnp.eye(self.num_dims),
-                 "D": None,
-                 "B": None,
-                 "gen_counter": 0}
+        state = {
+            "p_sigma": jnp.zeros(self.num_dims),
+            "p_c": jnp.zeros(self.num_dims),
+            "sigma": params["sigma_init"],
+            "mean": jnp.zeros(self.num_dims),
+            "C": jnp.eye(self.num_dims),
+            "D": None,
+            "B": None,
+            "gen_counter": 0,
+        }
         return state
 
     @partial(jax.jit, static_argnums=(0,))
     def ask(self, rng, state, params):
         """`ask` for new parameter candidates to evaluate next."""
         C, B, D = eigen_decomposition(state["C"], state["B"], state["D"])
-        x = sample(rng, state["mean"], state["sigma"], B, D,
-                   self.num_dims, self.popsize)
+        x = sample(
+            rng, state["mean"], state["sigma"], B, D, self.num_dims, self.popsize
+        )
         state["C"], state["B"], state["D"] = C, B, D
         return x, state
 
@@ -90,24 +112,17 @@ class CMA_ES(Strategy):
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
         sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        y_k, y_w, mean = update_mean(state["mean"],
-                                     state["sigma"],
-                                     sorted_solutions,
-                                     params)
+        y_k, y_w, mean = update_mean(
+            state["mean"], state["sigma"], sorted_solutions, params
+        )
 
-        p_sigma, C_2, C, B, D = update_p_sigma(state["C"],
-                                               state["B"],
-                                               state["D"],
-                                               state["p_sigma"],
-                                               y_w,
-                                               params)
+        p_sigma, C_2, C, B, D = update_p_sigma(
+            state["C"], state["B"], state["D"], state["p_sigma"], y_w, params
+        )
 
-        p_c, norm_p_sigma, h_sigma = update_p_c(mean,
-                                                p_sigma,
-                                                state["p_c"],
-                                                state["gen_counter"],
-                                                y_w,
-                                                params)
+        p_c, norm_p_sigma, h_sigma = update_p_c(
+            mean, p_sigma, state["p_c"], state["gen_counter"], y_w, params
+        )
 
         C = update_covariance(mean, p_c, C, y_k, h_sigma, C_2, params)
         sigma = update_sigma(state["sigma"], norm_p_sigma, params)
@@ -125,7 +140,7 @@ class CMA_ES(Strategy):
 
 
 def update_mean(mean, sigma, sorted_solutions, params):
-    """ Update mean of strategy. """
+    """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = (x_k - mean) / sigma  # ~ N(0, C)
     y_w = jnp.sum(y_k.T * params["weights_truncated"], axis=1)
@@ -134,61 +149,75 @@ def update_mean(mean, sigma, sorted_solutions, params):
 
 
 def update_p_sigma(C, B, D, p_sigma, y_w, params):
-    """ Update evolution path for covariance matrix. """
+    """Update evolution path for covariance matrix."""
     C, B, D = eigen_decomposition(C, B, D)
     C_2 = B.dot(jnp.diag(1 / D)).dot(B.T)  # C^(-1/2) = B D^(-1) B^T
     p_sigma_new = (1 - params["c_sigma"]) * p_sigma + jnp.sqrt(
-        params["c_sigma"] * (2 - params["c_sigma"]) *
-        params["mu_eff"]) * C_2.dot(y_w)
+        params["c_sigma"] * (2 - params["c_sigma"]) * params["mu_eff"]
+    ) * C_2.dot(y_w)
     _B, _D = None, None
     return p_sigma_new, C_2, C, _B, _D
 
 
 def update_p_c(mean, p_sigma, p_c, gen_counter, y_w, params):
-    """ Update evolution path for sigma/stepsize. """
+    """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
     h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
-        1 - (1 - params["c_sigma"]) ** (2 * (gen_counter + 1)))
+        1 - (1 - params["c_sigma"]) ** (2 * (gen_counter + 1))
+    )
     h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * params["chi_n"]
     h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
     p_c_new = (1 - params["c_c"]) * p_c + h_sigma * jnp.sqrt(
-               params["c_c"] * (2 - params["c_c"]) * params["mu_eff"]) * y_w
+        params["c_c"] * (2 - params["c_c"]) * params["mu_eff"]
+    ) * y_w
     return p_c_new, norm_p_sigma, h_sigma
 
 
 def update_covariance(mean, p_c, C, y_k, h_sigma, C_2, params):
-    """ Update cov. matrix estimator using rank 1 + μ updates. """
-    w_io = params["weights"] * jnp.where(params["weights"] >= 0, 1,
-                                         mean.shape[0]/
-            (jnp.linalg.norm(C_2.dot(y_k.T), axis=0) ** 2 + 1e-20))
+    """Update cov. matrix estimator using rank 1 + μ updates."""
+    w_io = params["weights"] * jnp.where(
+        params["weights"] >= 0,
+        1,
+        mean.shape[0] / (jnp.linalg.norm(C_2.dot(y_k.T), axis=0) ** 2 + 1e-20),
+    )
     delta_h_sigma = (1 - h_sigma) * params["c_c"] * (2 - params["c_c"])
     rank_one = jnp.outer(p_c, p_c)
     rank_mu = jnp.sum(
-        jnp.array([w * jnp.outer(y, y) for w, y in zip(w_io, y_k)]), axis=0)
-    C = ((1 + params["c_1"] * delta_h_sigma - params["c_1"]
-          - params["c_mu"] * jnp.sum(params["weights"])) * C
-         + params["c_1"] * rank_one + params["c_mu"] * rank_mu)
+        jnp.array([w * jnp.outer(y, y) for w, y in zip(w_io, y_k)]), axis=0
+    )
+    C = (
+        (
+            1
+            + params["c_1"] * delta_h_sigma
+            - params["c_1"]
+            - params["c_mu"] * jnp.sum(params["weights"])
+        )
+        * C
+        + params["c_1"] * rank_one
+        + params["c_mu"] * rank_mu
+    )
     return C
 
 
 def update_sigma(sigma, norm_p_sigma, params):
-    """ Update stepsize sigma. """
-    sigma_new = (sigma * jnp.exp((params["c_sigma"] / params["d_sigma"])
-                                 * (norm_p_sigma / params["chi_n"] - 1)))
+    """Update stepsize sigma."""
+    sigma_new = sigma * jnp.exp(
+        (params["c_sigma"] / params["d_sigma"]) * (norm_p_sigma / params["chi_n"] - 1)
+    )
     return sigma_new
 
 
 def sample(rng, mean, sigma, B, D, n_dim, pop_size):
-    """ Jittable Gaussian Sample Helper. """
-    z = jax.random.normal(rng, (n_dim, pop_size)) # ~ N(0, I)
-    y = B.dot(jnp.diag(D)).dot(z)               # ~ N(0, C)
+    """Jittable Gaussian Sample Helper."""
+    z = jax.random.normal(rng, (n_dim, pop_size))  # ~ N(0, I)
+    y = B.dot(jnp.diag(D)).dot(z)  # ~ N(0, C)
     y = jnp.swapaxes(y, 1, 0)
-    x = mean + sigma * y    # ~ N(m, σ^2 C)
+    x = mean + sigma * y  # ~ N(m, σ^2 C)
     return x
 
 
 def eigen_decomposition(C, B, D):
-    """ Perform eigendecomposition of covariance matrix. """
+    """Perform eigendecomposition of covariance matrix."""
     if B is not None and D is not None:
         return C, B, D
     C = (C + C.T) / 2
@@ -200,6 +229,7 @@ def eigen_decomposition(C, B, D):
 
 if __name__ == "__main__":
     from evosax.problems import batch_rosenbrock
+
     rng = jax.random.PRNGKey(0)
     strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
     params = strategy.default_params
