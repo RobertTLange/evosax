@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from functools import partial
-from .strategy import Strategy
+from ..strategy import Strategy
 
 
 class PBT_ES(Strategy):

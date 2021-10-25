@@ -1,4 +1,4 @@
-from .strategy import Strategy
+from ..strategy import Strategy
 import jax
 from functools import partial
 import jax.numpy as jnp
