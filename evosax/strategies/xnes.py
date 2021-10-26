@@ -1,12 +1,11 @@
 import jax
 import jax.numpy as jnp
-from functools import partial
 from ..strategy import Strategy
 
 
 class xNES(Strategy):
     def __init__(self, popsize: int, num_dims: int):
-        """Exponential Natural ES (Wierstra et al., 2011).
+        """Exponential Natural ES (Wierstra et al., 2014).
         The code & example are heavily adopted from a scipy implementation:
         https://github.com/chanshing/xnes
         """
@@ -28,8 +27,7 @@ class xNES(Strategy):
         }
         return params
 
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng, params):
+    def initialize_strategy(self, rng, params):
         """`initialize` the evolutionary strategy."""
         amat = jnp.eye(self.num_dims)
         sigma = abs(jax.scipy.linalg.det(amat)) ** (1.0 / self.num_dims)
@@ -57,22 +55,20 @@ class xNES(Strategy):
 
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng, state, params):
+    def ask_strategy(self, rng, state, params):
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(rng, (self.popsize, self.num_dims))
         x = state["mean"] + state["sigma"] * jnp.dot(noise, state["bmat"])
         state["noise"] = noise
         return x, state
 
-    # @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x, fitness, state, params):
+    def tell_strategy(self, x, fitness, state, params):
         """`tell` performance data for strategy state update."""
         state["gen_counter"] = state["gen_counter"] + 1
         # By default the ES maximizes the objective
-        fitness = -fitness
-        isort = fitness.argsort()
-        sorted_fitness = fitness[isort]
+        fitness_re = -fitness
+        isort = fitness_re.argsort()
+        sorted_fitness = fitness_re[isort]
         sorted_noise = state["noise"][isort]
         sorted_candidates = x[isort]
         fitness_shaped = jax.lax.select(
@@ -115,7 +111,6 @@ class xNES(Strategy):
         )
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
     def adaptive_sampling(
         self, eta_sigma, mu, sigma, bmat, sigma_old, z_try, eta_sigma_init
     ):

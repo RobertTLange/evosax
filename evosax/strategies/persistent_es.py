@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from functools import partial
 from ..strategy import Strategy
 
 
@@ -36,8 +35,7 @@ class Persistent_ES(Strategy):
             "init_max": 0,
         }
 
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng, params) -> dict:
+    def initialize_strategy(self, rng, params) -> dict:
         """`initialize` the differential evolution strategy."""
         state = {
             "mean": jax.random.uniform(
@@ -55,8 +53,7 @@ class Persistent_ES(Strategy):
         }
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng, state, params):
+    def ask_strategy(self, rng, state, params):
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         pos_perts = (
@@ -69,8 +66,7 @@ class Persistent_ES(Strategy):
         y = state["mean"] + perts
         return jnp.squeeze(y), state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x, fitness, state, params):
+    def tell_strategy(self, x, fitness, state, params):
         """`tell` update to ES state."""
         theta_grad = jnp.mean(
             state["pert_accum"] * fitness.reshape(-1, 1) / (state["sigma"] ** 2), axis=0
@@ -91,6 +87,8 @@ class Persistent_ES(Strategy):
 
 
 if __name__ == "__main__":
+    from functools import partial
+
     popsize = 100
     T = 100
     K = 10

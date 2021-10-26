@@ -1,6 +1,5 @@
 from ..strategy import Strategy
 import jax
-from functools import partial
 import jax.numpy as jnp
 
 
@@ -79,8 +78,7 @@ class CMA_ES(Strategy):
         }
         return params
 
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng, params):
+    def initialize_strategy(self, rng, params):
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         state = {
@@ -95,8 +93,7 @@ class CMA_ES(Strategy):
         }
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng, state, params):
+    def ask_strategy(self, rng, state, params):
         """`ask` for new parameter candidates to evaluate next."""
         C, B, D = eigen_decomposition(state["C"], state["B"], state["D"])
         x = sample(
@@ -105,8 +102,7 @@ class CMA_ES(Strategy):
         state["C"], state["B"], state["D"] = C, B, D
         return x, state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x, fitness, state, params):
+    def tell_strategy(self, x, fitness, state, params):
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])

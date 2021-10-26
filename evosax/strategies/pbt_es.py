@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from functools import partial
 from ..strategy import Strategy
 
 
@@ -18,8 +17,7 @@ class PBT_ES(Strategy):
             "init_max": 2,  # Param. init range - max
         }
 
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng, params):
+    def initialize_strategy(self, rng, params):
         """
         `initialize` the differential evolution strategy.
         """
@@ -34,8 +32,7 @@ class PBT_ES(Strategy):
         }
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng, state, params):
+    def ask_strategy(self, rng, state, params):
         """
         `ask` for new proposed candidates to evaluate next.
         Perform explore-exploit step.
@@ -53,8 +50,7 @@ class PBT_ES(Strategy):
         )
         return copy_id, hyperparams, state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x, fitness, state, params):
+    def tell_strategy(self, x, fitness, state, params):
         """
         `tell` update to ES state. - Only copy if perfomance has improved.
         """
@@ -85,6 +81,7 @@ def single_member_explore(rng, exploit_bool, hyperparams, params):
 
 
 if __name__ == "__main__":
+    from functools import partial
 
     @partial(jax.vmap, in_axes=(0, 0, None))
     def step(theta, h, lrate):

@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from functools import partial
 from ..strategy import Strategy
 
 
@@ -22,8 +21,7 @@ class Simple_GA(Strategy):
             "init_max": 2,  # Param. init range - min
         }
 
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng, params):
+    def initialize_strategy(self, rng, params):
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -41,8 +39,7 @@ class Simple_GA(Strategy):
         }
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng, state, params):
+    def ask_strategy(self, rng, state, params):
         """
         `ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
@@ -69,8 +66,7 @@ class Simple_GA(Strategy):
         y += epsilon
         return jnp.squeeze(y), state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x, fitness, state, params):
+    def tell_strategy(self, x, fitness, state, params):
         """
         `tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.

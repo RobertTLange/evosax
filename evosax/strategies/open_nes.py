@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from functools import partial
 import optax
 from ..strategy import Strategy
 
@@ -19,8 +18,7 @@ class Open_NES(Strategy):
         params = {"sigma_init": 0.1}
         return params
 
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng, params):
+    def initialize_strategy(self, rng, params):
         """`initialize` the evolutionary strategy."""
         state = {
             "mean": jnp.zeros(self.num_dims),
@@ -30,8 +28,7 @@ class Open_NES(Strategy):
         state["optimizer_state"] = self.optimizer.init(state["mean"])
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng, state, params):
+    def ask_strategy(self, rng, state, params):
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         z_plus = jax.random.multivariate_normal(
@@ -44,8 +41,7 @@ class Open_NES(Strategy):
         x = state["mean"] + state["sigma"] * z
         return x, state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x, fitness, state, params):
+    def tell_strategy(self, x, fitness, state, params):
         """`tell` performance data for strategy state update."""
         state["gen_counter"] = state["gen_counter"] + 1
 

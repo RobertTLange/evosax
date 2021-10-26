@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from functools import partial
 from ..strategy import Strategy
 
 
@@ -18,8 +17,7 @@ class PSO_ES(Strategy):
             "init_max": 2,  # Param. init range - min
         }
 
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng, params) -> dict:
+    def initialize_strategy(self, rng, params) -> dict:
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -39,8 +37,7 @@ class PSO_ES(Strategy):
         state["best_fitness"] = state["fitness"][:]
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng, state, params):
+    def ask_strategy(self, rng, state, params):
         """
         `ask` for new proposed candidates to evaluate next.
         1. Update v_i(t+1) velocities base on:
@@ -70,8 +67,7 @@ class PSO_ES(Strategy):
         state["velocity"] = vel
         return jnp.squeeze(y), state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x, fitness, state, params):
+    def tell_strategy(self, x, fitness, state, params):
         """
         `tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
