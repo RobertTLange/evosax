@@ -8,6 +8,7 @@ from .strategies import (
     PEPG_ES,
     PBT_ES,
     Persistent_ES,
+    xNES,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "PEPG_ES",
     "PBT_ES",
     "Persistent_ES",
+    "xNES",
 ]

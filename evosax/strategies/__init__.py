@@ -7,6 +7,7 @@ from .open_nes import Open_NES
 from .pepg_es import PEPG_ES
 from .pbt_es import PBT_ES
 from .persistent_es import Persistent_ES
+from .xnes import xNES
 
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "PEPG_ES",
     "PBT_ES",
     "Persistent_ES",
+    "xNES",
 ]

@@ -91,6 +91,9 @@ class Persistent_ES(Strategy):
 
 
 if __name__ == "__main__":
+    popsize = 100
+    T = 100
+    K = 10
 
     def loss(x):
         """Inner loss."""
@@ -131,8 +134,7 @@ if __name__ == "__main__":
     t = 0
     theta = jnp.log(jnp.array([0.01, 0.01]))
     x = jnp.array([1.0, 1.0])
-    xs = jnp.ones((N, 2)) * jnp.array([1.0, 1.0])
-    popsize = 100
+    xs = jnp.ones((popsize, 2)) * jnp.array([1.0, 1.0])
 
     for i in range(10000):
         rng, skey = jax.random.split(rng)

@@ -39,11 +39,11 @@ state["best_member"], state["best_fitness"]
 | Particle Swarm Optimization | [Kennedy & Eberhart (1995)](https://ieeexplore.ieee.org/document/488968) | [`PSO_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/pso_es.py)  | -
 | Population-Based Training | [Jaderberg et al. (2017)](https://arxiv.org/abs/1711.09846) | [`PBT_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/pbt_es.py)  | -
 | Persistent ES | [Vicol et al. (2021)](http://proceedings.mlr.press/v139/vicol21a.html) | [`Persistent_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/persistent_es.py)  | -
+| x-NES | [Wierstra et al. (2014)](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf) | `xNES` | -
 
 ## To Be Completed
 | Strategy | Reference | Import | Example |
 | --- | --- | ---  | --- |
-| x-NES | [Wierstra et al. (2014)](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf) | :station:  | -
 | IPOP/BIPOP/SEP | - | :station:  | -
 | NSLC | [Lehman & Stanley (2011)](https://direct.mit.edu/evco/article-abstract/19/2/189/1365/Abandoning-Objectives-Evolution-Through-the-Search) | :station:  | -
 | MAP-Elites | [Mouret & Clune (2015)](https://arxiv.org/abs/1504.04909) | :station:  | -
