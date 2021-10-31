@@ -4,14 +4,14 @@ from ..strategy import Strategy
 
 
 class Differential_ES(Strategy):
-    def __init__(self, popsize: int, num_dims: int):
+    def __init__(self, num_dims: int, popsize: int):
         assert popsize > 6
         super().__init__(num_dims, popsize)
 
     @property
     def default_params(self):
         return {
-            "mutate_vector": "best",  # ['random', 'best']
+            "mutate_best_vector": 1,  # 0 - 'random'
             "num_diff_vectors": 1,  # [1, 2]
             "crossover_rate": 0.9,  # cross-over probability [0, 1]
             "diff_w": 0.8,  # differential weight (F) [0, 2]
@@ -101,7 +101,7 @@ def single_member_ask(rng, member_id, num_dims, archive, best_member, params):
     )
 
     # Use best vector instead of random `a` vector if `mutate_vector` == "best"
-    a = jax.lax.select(params["mutate_vector"] == "best", best_member, a)
+    a = jax.lax.select(params["mutate_best_vector"], best_member, a)
 
     # Sample random dimension that will be alter for sure
     R = jax.random.randint(rng_R, (1,), minval=0, maxval=num_dims)

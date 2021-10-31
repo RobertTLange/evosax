@@ -15,6 +15,21 @@ class ParameterReshaper(object):
         vmap_shape = jax.vmap(flat_to_network, in_axes=(0, None))
         return vmap_shape(x, self.network_shape)
 
+    def reshape_single(self, x):
+        """Perform reshaping for a 1D vector (params,)."""
+        unsqueezed_re = self.reshape(x.reshape(1, -1))
+        squeeze_dict = {}
+        layer_keys = list(self.network_shape.keys())
+        for l_k in layer_keys:
+            place_h_layer = {}
+            for p_k in self.network_shape[l_k].keys():
+                place_h_layer[p_k] = unsqueezed_re[l_k][p_k].reshape(
+                    self.network_shape[l_k][p_k]
+                )
+            # Add mapping wrapped parameters to dict
+            squeeze_dict[l_k] = place_h_layer
+        return squeeze_dict
+
     @property
     def vmap_dict(self):
         """Get a dictionary specifying axes to vmap over."""

@@ -5,7 +5,7 @@ from ..strategy import Strategy
 
 
 class Open_NES(Strategy):
-    def __init__(self, popsize: int, num_dims: int, learning_rate: float):
+    def __init__(self, num_dims: int, popsize: int, learning_rate: float):
         super().__init__(num_dims, popsize)
         self.learning_rate = learning_rate
         self.optimizer = optax.chain(

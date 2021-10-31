@@ -4,7 +4,7 @@ from ..strategy import Strategy
 
 
 class PBT_ES(Strategy):
-    def __init__(self, popsize: int, num_dims: int):
+    def __init__(self, num_dims: int, popsize: int):
         """Synchronous version of Population-Based Training."""
         super().__init__(num_dims, popsize)
 

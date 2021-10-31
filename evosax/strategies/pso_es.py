@@ -4,7 +4,7 @@ from ..strategy import Strategy
 
 
 class PSO_ES(Strategy):
-    def __init__(self, popsize: int, num_dims: int):
+    def __init__(self, num_dims: int, popsize: int):
         super().__init__(num_dims, popsize)
 
     @property
@@ -34,7 +34,7 @@ class PSO_ES(Strategy):
             "velocity": jnp.zeros((self.popsize, self.num_dims)),
         }
         state["best_archive"] = state["archive"][:]
-        state["best_fitness"] = state["fitness"][:]
+        state["best_archive_fitness"] = state["fitness"][:]
         return state
 
     def ask_strategy(self, rng, state, params):
@@ -57,7 +57,7 @@ class PSO_ES(Strategy):
             state["archive"],
             state["velocity"],
             state["best_archive"],
-            state["best_fitness"],
+            state["best_archive_fitness"],
             params["inertia_coeff"],
             params["cognitive_coeff"],
             params["social_coeff"],
@@ -74,13 +74,13 @@ class PSO_ES(Strategy):
         """
         state["fitness"] = fitness
         state["archive"] = x
-        replace = fitness <= state["best_fitness"]
+        replace = fitness <= state["best_archive_fitness"]
         state["best_archive"] = (
             jnp.expand_dims(replace, 1) * x
             + (1 - jnp.expand_dims(replace, 1)) * state["best_archive"]
         )
-        state["best_fitness"] = (
-            replace * fitness + (1 - replace) * state["best_fitness"]
+        state["best_archive_fitness"] = (
+            replace * fitness + (1 - replace) * state["best_archive_fitness"]
         )
         return state
 
@@ -124,5 +124,5 @@ if __name__ == "__main__":
         x, state = strategy.ask(rng_iter, state, params)
         fitness = batch_rosenbrock(x, 1, 100)
         state = strategy.tell(x, fitness, state, params)
-        best_id = jnp.argmax(state["best_fitness"])
-        fitness_log.append(state["best_fitness"][best_id])
+        best_id = jnp.argmax(state["best_archive_fitness"])
+        fitness_log.append(state["best_archive_fitness"][best_id])

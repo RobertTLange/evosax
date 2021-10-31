@@ -1,11 +1,10 @@
 import jax
 import jax.numpy as jnp
-from functools import partial
 from ..strategy import Strategy
 
 
 class Simple_ES(Strategy):
-    def __init__(self, popsize: int, num_dims: int, elite_ratio: float):
+    def __init__(self, num_dims: int, popsize: int, elite_ratio: float):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
@@ -26,8 +25,7 @@ class Simple_ES(Strategy):
             "init_max": 2,  # Param. init range - min
         }
 
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng, params):
+    def initialize_strategy(self, rng, params):
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -47,8 +45,7 @@ class Simple_ES(Strategy):
         }
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng, state, params):
+    def ask_strategy(self, rng, state, params):
         """
         `ask` for new proposed candidates to evaluate next.
         """
@@ -56,8 +53,7 @@ class Simple_ES(Strategy):
         x = state["mean"] + state["sigma"] * z  # ~ N(m, σ^2 I)
         return x, state
 
-    @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x, fitness, state, params):
+    def tell_strategy(self, x, fitness, state, params):
         """
         `tell` update to ES state.
         """

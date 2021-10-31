@@ -13,7 +13,7 @@ def outer_adam_step(state, params, grads):
 
 
 class Persistent_ES(Strategy):
-    def __init__(self, popsize: int, num_dims: int):
+    def __init__(self, num_dims: int, popsize: int):
         """Persistent ES (Vicol et al., 2021).
         The code & example are heavily adopted from the supplementary material:
         http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
