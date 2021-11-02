@@ -40,11 +40,11 @@ class Strategy(object):
     @partial(jax.jit, static_argnums=(0,))
     def tell(self, x: Array, fitness: Array, state: dict, params: dict) -> dict:
         """`tell` performance data for strategy state update."""
-        # Update the generation counter
-        state["gen_counter"] += 1
-
         # Update the search state based on strategy-specific update
         state = self.tell_strategy(x, fitness, state, params)
+
+        # Update the generation counter
+        state["gen_counter"] += 1
 
         # Check if there is a new best member
         best_in_gen = jnp.argmin(fitness)

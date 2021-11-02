@@ -1,22 +1,24 @@
 import jax
 import jax.numpy as jnp
-import optax
 from ..strategy import Strategy
+from ..utils import adam_step
 
 
 class Open_NES(Strategy):
-    def __init__(self, num_dims: int, popsize: int, learning_rate: float = 3e-04):
+    def __init__(self, num_dims: int, popsize: int):
         super().__init__(num_dims, popsize)
         assert not self.popsize & 1, "Population size must be even"
-        self.learning_rate = learning_rate
-        self.optimizer = optax.chain(
-            optax.scale_by_adam(eps=1e-4), optax.scale(-self.learning_rate)
-        )
 
     @property
     def default_params(self):
         """Return default parameters of evolutionary strategy."""
-        params = {"sigma_init": 0.1}
+        params = {
+            "lrate": 3e-4,  # Adam learning rate outer step
+            "beta_1": 0.99,  # beta_1 outer step
+            "beta_2": 0.999,  # beta_2 outer step
+            "eps": 1e-8,  # eps constant outer step,
+            "sigma_init": 0.1,
+        }
         return params
 
     def initialize_strategy(self, rng, params):
@@ -24,8 +26,9 @@ class Open_NES(Strategy):
         state = {
             "mean": jnp.zeros(self.num_dims),
             "sigma": params["sigma_init"],
+            "m": jnp.zeros(self.num_dims),
+            "v": jnp.zeros(self.num_dims),
         }
-        state["optimizer_state"] = self.optimizer.init(state["mean"])
         return state
 
     def ask_strategy(self, rng, state, params):
@@ -45,32 +48,8 @@ class Open_NES(Strategy):
         """`tell` performance data for strategy state update."""
         # Get REINFORCE-style gradient for each sample
         noise = (x - state["mean"]) / state["sigma"]
-        nes_grads = 1.0 / (self.popsize * state["sigma"]) * jnp.dot(noise.T, fitness)
+        theta_grad = 1.0 / (self.popsize * state["sigma"]) * jnp.dot(noise.T, fitness)
 
         # Natural grad update using optax API!
-        updates, opt_state = self.optimizer.update(nes_grads, state["optimizer_state"])
-        state["mean"] = optax.apply_updates(state["mean"], updates)
-        state["optimizer_state"] = opt_state
+        state = adam_step(state, params, theta_grad)
         return state
-
-
-if __name__ == "__main__":
-    from evosax.problems import batch_quadratic
-    from evosax.utils import FitnessShaper
-
-    rng = jax.random.PRNGKey(0)
-    strategy = Open_NES(popsize=50, num_dims=3, learning_rate=0.015)
-    fit_shaper = FitnessShaper(z_score_fitness=True)
-
-    params = strategy.default_params
-    state = strategy.initialize(rng, params)
-    fitness_log = []
-    num_iters = 200
-    for t in range(num_iters):
-        rng, rng_iter = jax.random.split(rng)
-        x, state = strategy.ask(rng_iter, state, params)
-        fitness = batch_quadratic(x)
-        best_id = jnp.argmin(fitness)
-        fitness_log.append(fitness[best_id])
-        fitness_shaped = fit_shaper.apply(x, fitness)
-        state = strategy.tell(x, fitness_shaped, state, params)

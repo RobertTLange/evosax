@@ -116,7 +116,7 @@ class CMA_ES(Strategy):
         )
 
         p_c, norm_p_sigma, h_sigma = update_p_c(
-            mean, p_sigma, state["p_c"], state["gen_counter"], y_w, params
+            mean, p_sigma, state["p_c"], state["gen_counter"] + 1, y_w, params
         )
 
         C = update_covariance(mean, p_c, C, y_k, h_sigma, C_2, params)
@@ -219,25 +219,6 @@ def eigen_decomposition(C, B, D):
     D = jnp.sqrt(jnp.where(D2 < 0, 1e-20, D2))
     C = jnp.dot(jnp.dot(B, jnp.diag(D ** 2)), B.T)
     return C, B, D
-
-
-if __name__ == "__main__":
-    from evosax.problems import batch_rosenbrock
-
-    rng = jax.random.PRNGKey(0)
-    strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
-    params = strategy.default_params
-    state = strategy.initialize(rng, params)
-    fitness_log = []
-    num_iters = 25
-    for t in range(num_iters):
-        rng, rng_iter = jax.random.split(rng)
-        y, state = strategy.ask(rng_iter, state, params)
-        fitness = batch_rosenbrock(y, 1, 100)
-        state = strategy.tell(y, fitness, state, params)
-        best_id = jnp.argmin(fitness)
-        print(t, fitness[best_id], state["mean"])
-        fitness_log.append(fitness[best_id])
 
 
 # def check_initialization(params):

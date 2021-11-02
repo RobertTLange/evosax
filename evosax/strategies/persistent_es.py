@@ -1,15 +1,7 @@
 import jax
 import jax.numpy as jnp
 from ..strategy import Strategy
-
-
-def outer_adam_step(state, params, grads):
-    state["m"] = (1 - params["beta_1"]) * grads + params["beta_1"] * state["m"]
-    state["v"] = (1 - params["beta_2"]) * (grads ** 2) + params["beta_2"] * state["v"]
-    mhat = state["m"] / (1 - params["beta_1"] ** (state["outer_step_counter"] + 1))
-    vhat = state["v"] / (1 - params["beta_2"] ** (state["outer_step_counter"] + 1))
-    state["mean"] -= params["lrate"] * mhat / (jnp.sqrt(vhat) + params["eps"])
-    return state
+from ..utils import adam_step
 
 
 class Persistent_ES(Strategy):
@@ -48,7 +40,6 @@ class Persistent_ES(Strategy):
             "v": jnp.zeros(self.num_dims),
             "pert_accum": jnp.zeros((self.popsize, self.num_dims)),
             "sigma": params["sigma_init"],
-            "outer_step_counter": 0,
             "inner_step_counter": 0,
         }
         return state
@@ -71,8 +62,7 @@ class Persistent_ES(Strategy):
         theta_grad = jnp.mean(
             state["pert_accum"] * fitness.reshape(-1, 1) / (state["sigma"] ** 2), axis=0
         )
-        state = outer_adam_step(state, params, theta_grad)
-        state["outer_step_counter"] += 1
+        state = adam_step(state, params, theta_grad)
         state["inner_step_counter"] += params["K"]
 
         # Reset accumulated antithetic noise memory if done with inner problem
@@ -84,76 +74,3 @@ class Persistent_ES(Strategy):
             reset, jnp.zeros((self.popsize, self.num_dims)), state["pert_accum"]
         )
         return state
-
-
-if __name__ == "__main__":
-    from functools import partial
-
-    popsize = 100
-    T = 100
-    K = 10
-
-    def loss(x):
-        """Inner loss."""
-        return (
-            jnp.sqrt(x[0] ** 2 + 5)
-            - jnp.sqrt(5)
-            + jnp.sin(x[1]) ** 2 * jnp.exp(-5 * x[0] ** 2)
-            + 0.25 * jnp.abs(x[1] - 100)
-        )
-
-    # Gradient of inner loss
-    loss_grad = jax.grad(loss)
-
-    def update(state, i):
-        """Performs a single inner problem update, e.g., a single unroll step."""
-        (L, x, theta, t_curr, T, K) = state
-        lr = jnp.exp(theta[0]) * (T - t_curr) / T + jnp.exp(theta[1]) * t_curr / T
-        x = x - lr * loss_grad(x)
-        L += loss(x) * (t_curr < T)
-        t_curr += 1
-        return (L, x, theta, t_curr, T, K), x
-
-    @partial(jax.jit, static_argnums=(3, 4))
-    def unroll(x_init, theta, t0, T, K):
-        """Unroll the inner problem for K steps."""
-        L = 0.0
-        initial_state = (L, x_init, theta, t0, T, K)
-        state, outputs = jax.lax.scan(update, initial_state, None, length=K)
-        (L, x_curr, theta, t_curr, T, K) = state
-        return L, x_curr
-
-    strategy = Persistent_ES(popsize=100, num_dims=2)
-    params = strategy.default_params
-    rng = jax.random.PRNGKey(5)
-    state = strategy.initialize(rng, params)
-
-    # Initialize inner parameters
-    t = 0
-    theta = jnp.log(jnp.array([0.01, 0.01]))
-    x = jnp.array([1.0, 1.0])
-    xs = jnp.ones((popsize, 2)) * jnp.array([1.0, 1.0])
-
-    for i in range(10000):
-        rng, skey = jax.random.split(rng)
-        if t >= params["T"]:
-            # Reset the inner problem: iteration, parameters
-            t = 0
-            xs = jnp.ones((popsize, 2)) * jnp.array([1.0, 1.0])
-            x = jnp.array([1.0, 1.0])
-        theta_gen, state = strategy.ask(rng, state, params)
-
-        # Unroll inner problem for K steps using antithetic perturbations
-        L, xs = jax.vmap(unroll, in_axes=(0, 0, None, None, None))(
-            xs, theta_gen, t, params["T"], params["K"]
-        )
-
-        state = strategy.tell(theta_gen, L, state, params)
-        t += params["K"]
-
-        # Teset evaluation!
-        if i % 1000 == 0:
-            L, _ = unroll(
-                jnp.array([1.0, 1.0]), state["mean"], 0, params["T"], params["T"]
-            )
-            print(i, state["mean"], L)

@@ -1,6 +1,7 @@
 # Repo-specific excludes
 experimental
 cma_es_grid.sh
+eval/
 
 # Standard ROB excludes
 .sync-config.cson

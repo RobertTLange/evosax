@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
-import optax
 from ..strategy import Strategy
+from ..utils import adam_step
 
 
 class PEPG_ES(Strategy):
@@ -10,9 +10,6 @@ class PEPG_ES(Strategy):
         num_dims: int,
         popsize: int,
         elite_ratio: float = 0.0,
-        learning_rate: float = 0.01,  # Learning rate for std
-        learning_rate_decay: float = 0.9999,  # Anneal the lrate
-        learning_rate_limit: float = 0.001,
     ):  # Stop annealing lrate
         self.popsize = popsize
         self.num_dims = num_dims
@@ -30,21 +27,13 @@ class PEPG_ES(Strategy):
         # Baseline = average of batch
         assert self.popsize & 1, "Population size must be odd"
         self.batch_size = int((self.popsize - 1) / 2)
-        # Setup Adam optimizer with exponential lrate decay schedule
-        self.learning_rate = learning_rate
-        self.learning_rate_decay = learning_rate_decay
-        self.learning_rate_limit = learning_rate_limit
+
         # TODO: Open issue on Github
         # lrate_schedule = optax.exponential_decay(
         #     init_value=self.learning_rate,
         #     decay_rate=self.learning_rate_decay,
         #     transition_steps=1,
         #     end_value=self.learning_rate_limit)
-        self.optimizer = optax.chain(
-            optax.scale_by_adam(eps=1e-4),
-            optax.scale(-self.learning_rate)
-            # optax.scale_by_schedule(-schedule_fn)
-        )
 
     @property
     def default_params(self):
@@ -56,6 +45,12 @@ class PEPG_ES(Strategy):
             "sigma_max_change": 0.2,  # Clip adaptive sigma to 20%
             "init_min": -2,  # Param. init range - min
             "init_max": 2,  # Param. init range - min
+            "lrate": 0.02,  # Learning rate
+            "beta_1": 0.99,  # beta_1 outer step
+            "beta_2": 0.999,  # beta_2 outer step
+            "eps": 1e-4,  # eps constant outer step,
+            "lrate_decay": 0.9999,  # Anneal the lrate
+            "lrate_limit": 0.001,
         }
 
     def initialize_strategy(self, rng, params):
@@ -65,7 +60,7 @@ class PEPG_ES(Strategy):
         positions in search-space (defined in `params`).
         """
         state = {
-            "mu": jax.random.uniform(
+            "mean": jax.random.uniform(
                 rng,
                 (self.num_dims,),
                 minval=params["init_min"],
@@ -75,8 +70,9 @@ class PEPG_ES(Strategy):
             "sigma": jnp.ones(self.num_dims) * params["sigma_init"],
             "epsilon": jnp.zeros((self.batch_size, self.num_dims)),
             "epsilon_full": jnp.zeros((2 * self.batch_size, self.num_dims)),
+            "m": jnp.zeros(self.num_dims),
+            "v": jnp.zeros(self.num_dims),
         }
-        state["optimizer_state"] = self.optimizer.init(state["mu"])
         return state
 
     def ask_strategy(self, rng, state, params):
@@ -93,7 +89,7 @@ class PEPG_ES(Strategy):
         epsilon = jnp.concatenate(
             [jnp.zeros((1, self.num_dims)), state["epsilon_full"]]
         )
-        y = state["mu"].reshape(1, self.num_dims) + epsilon
+        y = state["mean"].reshape(1, self.num_dims) + epsilon
         return jnp.squeeze(y), state
 
     def tell_strategy(self, x, fitness, state, params):
@@ -114,13 +110,11 @@ class PEPG_ES(Strategy):
         #                               b)
 
         # Compute both mu updates (elite/optimizer-base) and select
-        mu_elite = state["mu"] + state["epsilon_full"][idx].mean(axis=0)
+        mu_elite = state["mean"] + state["epsilon_full"][idx].mean(axis=0)
         rT = fitness_sub[: self.batch_size] - fitness_sub[self.batch_size :]
-        change_mu = jnp.dot(rT, state["epsilon"])
-        updates, opt_state = self.optimizer.update(change_mu, state["optimizer_state"])
-        mu_optim = optax.apply_updates(state["mu"], updates)
-        state["optimizer_state"] = opt_state
-        state["mu"] = jax.lax.select(self.use_elite, mu_elite, mu_optim)
+        theta_grad = jnp.dot(rT, state["epsilon"])
+        state = adam_step(state, params, theta_grad)
+        state["mean"] = jax.lax.select(self.use_elite, mu_elite, state["mean"])
 
         # Adaptive sigma - normalization
         stdev_reward = fitness_sub.std()
@@ -150,27 +144,3 @@ class PEPG_ES(Strategy):
         update_array = decay_part + non_decay_part
         state["sigma"] = update_array * state["sigma"]
         return state
-
-
-if __name__ == "__main__":
-    from evosax.problems import batch_quadratic
-    from evosax.utils import FitnessShaper
-
-    rng = jax.random.PRNGKey(0)
-    strategy = PEPG_ES(popsize=51, num_dims=3, learning_rate=0.02)
-    fit_shaper = FitnessShaper(z_score_fitness=True)
-
-    params = strategy.default_params
-    state = strategy.initialize(rng, params)
-    fitness_log = []
-    num_iters = 100
-    for t in range(num_iters):
-        rng, rng_iter = jax.random.split(rng)
-        x, state = strategy.ask(rng_iter, state, params)
-        fitness = batch_quadratic(x)
-        fitness_shaped = fit_shaper.apply(x, fitness)
-
-        state = strategy.tell(x, fitness_shaped, state, params)
-        best_id = jnp.argmin(fitness)
-        print(t, fitness[best_id], state["mu"])
-        fitness_log.append(fitness[best_id])
