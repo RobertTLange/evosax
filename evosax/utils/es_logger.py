@@ -81,7 +81,9 @@ class ESLog(object):
         int_range = jnp.arange(1, log["gen_counter"] + 1)
         ax.plot(int_range, log["log_top_1"][: log["gen_counter"]], label="Top 1")
         ax.plot(
-            int_range, log["log_top_mean"][: log["gen_counter"]], label="Top-k Mean"
+            int_range,
+            log["log_top_mean"][: log["gen_counter"]],
+            label=f"Top-{self.top_k} Mean",
         )
         ax.plot(int_range, log["log_gen_1"][: log["gen_counter"]], label="Gen. 1")
         ax.plot(int_range, log["log_gen_mean"][: log["gen_counter"]], label="Gen. Mean")
