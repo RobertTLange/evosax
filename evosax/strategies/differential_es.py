@@ -11,7 +11,7 @@ class Differential_ES(Strategy):
     @property
     def default_params(self):
         return {
-            "mutate_best_vector": 1,  # 0 - 'random'
+            "mutate_best_vector": True,  # 0 - 'random'
             "num_diff_vectors": 1,  # [1, 2]
             "crossover_rate": 0.9,  # cross-over probability [0, 1]
             "diff_w": 0.8,  # differential weight (F) [0, 2]

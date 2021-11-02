@@ -47,7 +47,6 @@ class xNES(Strategy):
             "sigma_old": sigma,
             "amat": amat,
             "bmat": bmat,
-            "gen_counter": 0,
             "noise": jnp.zeros((self.popsize, self.num_dims)),
             "eta_sigma": params["eta_sigma_init"],
             "utilities": utilities,
@@ -64,7 +63,6 @@ class xNES(Strategy):
 
     def tell_strategy(self, x, fitness, state, params):
         """`tell` performance data for strategy state update."""
-        state["gen_counter"] = state["gen_counter"] + 1
         # By default the ES maximizes the objective
         fitness_re = -fitness
         isort = fitness_re.argsort()

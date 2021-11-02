@@ -4,7 +4,7 @@ from ..strategy import Strategy
 
 
 class Simple_GA(Strategy):
-    def __init__(self, num_dims: int, popsize: int, elite_ratio: float):
+    def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)

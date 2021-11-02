@@ -8,7 +8,7 @@ class PEPG_ES(Strategy):
     def __init__(
         self,
         num_dims: int,
-        popsize: int = 255,
+        popsize: int,
         elite_ratio: float = 0.0,
         learning_rate: float = 0.01,  # Learning rate for std
         learning_rate_decay: float = 0.9999,  # Anneal the lrate

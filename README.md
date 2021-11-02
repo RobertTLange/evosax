@@ -4,9 +4,6 @@
 
 Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and autovectorization to scale ES to your favorite accelerators. The API follows the classical `ask`, `evaluate`, `tell` cycle of ES and only requires you to `vmap` and `pmap` over the fitness function axes of choice. It includes popular strategies such as Simple Gaussian, CMA-ES, and different NES variants.
 
-## Todos
-
-- [ ] Change state dicts to named tuples? Ask Matteo
 
 ## Basic API Usage
 

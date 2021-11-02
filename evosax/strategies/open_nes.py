@@ -5,8 +5,9 @@ from ..strategy import Strategy
 
 
 class Open_NES(Strategy):
-    def __init__(self, num_dims: int, popsize: int, learning_rate: float):
+    def __init__(self, num_dims: int, popsize: int, learning_rate: float = 3e-04):
         super().__init__(num_dims, popsize)
+        assert not self.popsize & 1, "Population size must be even"
         self.learning_rate = learning_rate
         self.optimizer = optax.chain(
             optax.scale_by_adam(eps=1e-4), optax.scale(-self.learning_rate)
@@ -23,7 +24,6 @@ class Open_NES(Strategy):
         state = {
             "mean": jnp.zeros(self.num_dims),
             "sigma": params["sigma_init"],
-            "gen_counter": 0,
         }
         state["optimizer_state"] = self.optimizer.init(state["mean"])
         return state
@@ -43,8 +43,6 @@ class Open_NES(Strategy):
 
     def tell_strategy(self, x, fitness, state, params):
         """`tell` performance data for strategy state update."""
-        state["gen_counter"] = state["gen_counter"] + 1
-
         # Get REINFORCE-style gradient for each sample
         noise = (x - state["mean"]) / state["sigma"]
         nes_grads = 1.0 / (self.popsize * state["sigma"]) * jnp.dot(noise.T, fitness)

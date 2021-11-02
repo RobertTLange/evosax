@@ -4,7 +4,7 @@ from ..strategy import Strategy
 
 
 class Simple_ES(Strategy):
-    def __init__(self, num_dims: int, popsize: int, elite_ratio: float):
+    def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
@@ -39,7 +39,6 @@ class Simple_ES(Strategy):
                 maxval=params["init_max"],
             ),
             "fitness": jnp.zeros(self.elite_popsize) - 20e10,
-            "gen_counter": 0,
             "mean": jnp.zeros(self.num_dims),
             "sigma": params["sigma_init"],
         }
@@ -57,7 +56,6 @@ class Simple_ES(Strategy):
         """
         `tell` update to ES state.
         """
-        state["gen_counter"] += 1
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
         sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]

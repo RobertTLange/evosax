@@ -24,9 +24,10 @@ class Strategy(object):
         # Initialize strategy based on strategy-specific initialize method
         state = self.initialize_strategy(rng, params)
 
-        # Add best performing parameters/fitness tracker
+        # Add best performing parameters/fitness tracker/generation counter
         state["best_member"] = jnp.zeros(self.num_dims)
         state["best_fitness"] = 20e10
+        state["gen_counter"] = 0
         return state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -39,6 +40,9 @@ class Strategy(object):
     @partial(jax.jit, static_argnums=(0,))
     def tell(self, x: Array, fitness: Array, state: dict, params: dict) -> dict:
         """`tell` performance data for strategy state update."""
+        # Update the generation counter
+        state["gen_counter"] += 1
+
         # Update the search state based on strategy-specific update
         state = self.tell_strategy(x, fitness, state, params)
 

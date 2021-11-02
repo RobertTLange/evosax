@@ -89,7 +89,6 @@ class CMA_ES(Strategy):
             "C": jnp.eye(self.num_dims),
             "D": None,
             "B": None,
-            "gen_counter": 0,
         }
         return state
 
@@ -131,7 +130,6 @@ class CMA_ES(Strategy):
         state["p_c"] = p_c
         state["C"] = C
         state["sigma"] = sigma
-        state["gen_counter"] += 1
         return state
 
 
@@ -159,7 +157,7 @@ def update_p_c(mean, p_sigma, p_c, gen_counter, y_w, params):
     """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
     h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
-        1 - (1 - params["c_sigma"]) ** (2 * (gen_counter + 1))
+        1 - (1 - params["c_sigma"]) ** (2 * (gen_counter))
     )
     h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * params["chi_n"]
     h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
