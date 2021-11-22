@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from flax.core import FrozenDict
 
 
 class ParameterReshaper(object):
@@ -75,8 +74,8 @@ def get_network_shapes(params):
         param_keys = list(params[l_k].keys())
         for p_k in param_keys:
             place_h_layer[p_k] = params[l_k][p_k].shape
-        placeh_nn[l_k] = FrozenDict(place_h_layer)
-    return FrozenDict(placeh_nn)
+        placeh_nn[l_k] = place_h_layer
+    return placeh_nn
 
 
 def flat_to_network(flat_params, network_shapes):
