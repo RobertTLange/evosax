@@ -1,20 +1,43 @@
 import jax
 import jax.numpy as jnp
+from typing import Union
 
 
 class ParameterReshaper(object):
-    def __init__(self, placeholder_params):
+    def __init__(
+        self, placeholder_params: Union[dict, None] = None, identity: bool = False
+    ):
         """Reshape flat parameters vectors into generation eval shape."""
+        # Get network shape to reshape
         self.placeholder_params = placeholder_params
-        self.total_params = get_total_params(self.placeholder_params)
-        self.network_shape = get_network_shapes(self.placeholder_params)
+        if type(placeholder_params) == dict:
+            self.total_params = get_total_params(self.placeholder_params)
+            self.network_shape = get_network_shapes(self.placeholder_params)
+        else:
+            # Classic problem case - no dict but raw array
+            self.total_params = self.placeholder_params.shape[0]
 
-    def reshape(self, x):
+        if identity:
+            self.reshape = self.reshape_identity
+            self.reshape_single = self.reshape_single_flat
+        else:
+            self.reshape = self.reshape_network
+            self.reshape_single = self.reshape_single_net
+
+    def reshape_identity(self, x):
+        """Return parameters w/o reshaping for evaluation."""
+        return x
+
+    def reshape_network(self, x):
         """Perform reshaping for a 2D matrix (pop_members, params)."""
         vmap_shape = jax.vmap(flat_to_network, in_axes=(0, None))
         return vmap_shape(x, self.network_shape)
 
-    def reshape_single(self, x):
+    def reshape_single_flat(self, x):
+        """Perform reshaping for a 1D vector (params,)."""
+        return x
+
+    def reshape_single_net(self, x):
         """Perform reshaping for a 1D vector (params,)."""
         unsqueezed_re = self.reshape(x.reshape(1, -1))
         squeeze_dict = {}
