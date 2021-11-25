@@ -25,6 +25,8 @@ class Persistent_ES(Strategy):
             "K": 10,  # Truncation length for partial unrolls
             "init_min": 0,
             "init_max": 0,
+            "clip_min": -jnp.finfo(jnp.float32).max,
+            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params) -> dict:

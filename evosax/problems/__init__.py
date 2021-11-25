@@ -1,4 +1,4 @@
-from .low_d import (
+from .classic import (
     batch_quadratic,
     batch_himmelblau,
     batch_hump_camel,

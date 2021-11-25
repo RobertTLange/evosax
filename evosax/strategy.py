@@ -35,7 +35,8 @@ class Strategy(object):
         """`ask` for new parameter candidates to evaluate next."""
         # Generate proposal based on strategy-specific ask method
         x, state = self.ask_strategy(rng, state, params)
-        return x, state
+        x_clipped = jnp.clip(jnp.squeeze(x), params["clip_min"], params["clip_max"])
+        return x_clipped, state
 
     @partial(jax.jit, static_argnums=(0,))
     def tell(self, x: Array, fitness: Array, state: dict, params: dict) -> dict:

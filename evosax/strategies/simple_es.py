@@ -23,6 +23,8 @@ class Simple_ES(Strategy):
             "sigma_init": 1,  # Standard deviation
             "init_min": -2,  # Param. init range - min
             "init_max": 2,  # Param. init range - min
+            "clip_min": -jnp.finfo(jnp.float32).max,
+            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params):

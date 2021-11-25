@@ -50,6 +50,8 @@ class xNES(Strategy):
             "noise": jnp.zeros((self.popsize, self.num_dims)),
             "eta_sigma": params["eta_sigma_init"],
             "utilities": utilities,
+            "clip_min": -jnp.finfo(jnp.float32).max,
+            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
         return state

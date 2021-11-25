@@ -51,6 +51,8 @@ class PEPG_ES(Strategy):
             "eps": 1e-4,  # eps constant outer step,
             "lrate_decay": 0.9999,  # Anneal the lrate
             "lrate_limit": 0.001,
+            "clip_min": -jnp.finfo(jnp.float32).max,
+            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params):

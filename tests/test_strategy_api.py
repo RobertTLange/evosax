@@ -36,6 +36,6 @@ def test_strategy_ask_tell():
             params = strategy.default_params
             state = strategy.initialize(rng, params)
             x, state = strategy.ask(rng, state, params)
-            fitness = batch_rosenbrock(x, 1, 100)
+            fitness = batch_rosenbrock(x)
             state = strategy.tell(x, fitness, state, params)
     return

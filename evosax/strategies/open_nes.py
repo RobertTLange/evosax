@@ -18,6 +18,8 @@ class Open_NES(Strategy):
             "beta_2": 0.999,  # beta_2 outer step
             "eps": 1e-8,  # eps constant outer step,
             "sigma_init": 0.1,
+            "clip_min": -jnp.finfo(jnp.float32).max,
+            "clip_max": jnp.finfo(jnp.float32).max,
         }
         return params
 

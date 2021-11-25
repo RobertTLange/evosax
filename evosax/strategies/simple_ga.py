@@ -19,6 +19,8 @@ class Simple_GA(Strategy):
             "forget_best": False,  # forget the historical best elites
             "init_min": -2,  # Param. init range - min
             "init_max": 2,  # Param. init range - min
+            "clip_min": -jnp.finfo(jnp.float32).max,
+            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params):

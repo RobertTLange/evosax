@@ -2,15 +2,7 @@ import jax.numpy as jnp
 from jax import vmap, jit
 
 
-def quadratic_fitness(x):
-    """
-    Simple 3-dim. quadratic function.
-    f(x*)=0 - Minimum at [0.]ˆd
-    """
-    return jnp.sum(jnp.square(x))
-
-
-def himmelblau_fct(x):
+def himmelblau_2_dim(x):
     """
     2-dim. Himmelblau function.
     f(x*)=0 - Minima at [3, 2], [-2.81, 3.13],
@@ -20,7 +12,7 @@ def himmelblau_fct(x):
     return (x[0] ** 2 + x[1] - 11) ** 2 + (x[0] + x[1] ** 2 - 7) ** 2
 
 
-def six_hump_camel_fct(x):
+def six_hump_camel_2_dim(x):
     """
     2-dim. 6-Hump Camel function.
     f(x*)=-1.0316 - Minimum at [0.0898, -0.7126], [-0.0898, 0.7126]
@@ -30,6 +22,14 @@ def six_hump_camel_fct(x):
     p2 = x[0] * x[1]
     p3 = (-4 + 4 * x[1] ** 2) * x[1] ** 2
     return p1 + p2 + p3
+
+
+def quadratic_d_dim(x):
+    """
+    Simple 3-dim. quadratic function.
+    f(x*)=0 - Minimum at [0.]ˆd
+    """
+    return jnp.sum(jnp.square(x))
 
 
 def rosenbrock_d_dim(x):
@@ -89,11 +89,11 @@ def schwefel_d_dim(x):
 
 
 # Toy Problem Evaluation Batch-Jitted Versions
-batch_quadratic = jit(vmap(quadratic_fitness, 0))
+batch_himmelblau = jit(vmap(himmelblau_2_dim, 0))
 
-batch_himmelblau = jit(vmap(himmelblau_fct, 0))
+batch_hump_camel = jit(vmap(six_hump_camel_2_dim, 0))
 
-batch_hump_camel = jit(vmap(six_hump_camel_fct, 0))
+batch_quadratic = jit(vmap(quadratic_d_dim, 0))
 
 batch_rosenbrock = jit(vmap(rosenbrock_d_dim, 0))
 

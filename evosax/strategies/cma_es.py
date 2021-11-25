@@ -75,6 +75,8 @@ class CMA_ES(Strategy):
             "weights": weights,
             "sigma_init": 1,
             "weights_truncated": weights_truncated,
+            "clip_min": -jnp.finfo(jnp.float32).max,
+            "clip_max": jnp.finfo(jnp.float32).max,
         }
         return params
 
