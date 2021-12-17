@@ -14,9 +14,16 @@ class Strategy(object):
         self.num_dims = num_dims
         self.popsize = popsize
 
+    @property
     def default_params(self):
         """Return default parameters of evolutionary strategy."""
-        raise NotImplementedError
+        params = self.params_strategy
+        # Add shared parameter clipping and archive init params
+        params["clip_min"] = -jnp.finfo(jnp.float32).max
+        params["clip_max"] = jnp.finfo(jnp.float32).max
+        params["init_min"] = -0
+        params["init_max"] = 0
+        return params
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(self, rng: PRNGKey, params: dict) -> dict:

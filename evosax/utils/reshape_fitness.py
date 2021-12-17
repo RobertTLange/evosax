@@ -24,13 +24,13 @@ class FitnessShaper(object):
             self.z_score_fitness, z_score_fitness(fitness), fitness
         )
         # "Reduce" fitness based on L2 norm of parameters
-        l2_fitness_reduction = -self.weight_decay * compute_weight_norm(x)
+        l2_fitness_reduction = self.weight_decay * compute_weight_norm(x)
         return fitness + l2_fitness_reduction
 
 
 def z_score_fitness(fitness):
     """Make fitness 'Gaussian' by substracting mean and dividing by std."""
-    return (fitness - jnp.mean(fitness)) / jnp.std(fitness)
+    return (fitness - jnp.mean(fitness)) / jnp.std(1e-6 + fitness)
 
 
 def compute_ranks(fitness):

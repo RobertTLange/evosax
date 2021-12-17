@@ -12,7 +12,7 @@ class xNES(Strategy):
         super().__init__(num_dims, popsize)
 
     @property
-    def default_params(self):
+    def params_strategy(self):
         """Return default parameters of evolutionary strategy."""
         params = {
             "eta_mean": 1.0,
@@ -41,8 +41,14 @@ class xNES(Strategy):
         utilities -= 1.0 / self.popsize  # broadcast
         utilities = utilities[::-1]  # ascending order
 
+        initialization = jax.random.uniform(
+            rng,
+            (self.num_dims,),
+            minval=params["init_min"],
+            maxval=params["init_max"],
+        )
         state = {
-            "mean": jnp.zeros(self.num_dims),
+            "mean": initialization,
             "sigma": sigma,
             "sigma_old": sigma,
             "amat": amat,
@@ -50,8 +56,6 @@ class xNES(Strategy):
             "noise": jnp.zeros((self.popsize, self.num_dims)),
             "eta_sigma": params["eta_sigma_init"],
             "utilities": utilities,
-            "clip_min": -jnp.finfo(jnp.float32).max,
-            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
         return state

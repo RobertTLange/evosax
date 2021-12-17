@@ -10,17 +10,13 @@ class Simple_GA(Strategy):
         self.elite_popsize = int(self.popsize * self.elite_ratio)
 
     @property
-    def default_params(self):
+    def params_strategy(self):
         return {
             "cross_over_rate": 0.5,  # cross-over probability
             "sigma_init": 0.1,  # initial standard deviation
             "sigma_decay": 0.999,  # anneal standard deviation
             "sigma_limit": 0.01,  # stop annealing if less than this
             "forget_best": False,  # forget the historical best elites
-            "init_min": -2,  # Param. init range - min
-            "init_max": 2,  # Param. init range - min
-            "clip_min": -jnp.finfo(jnp.float32).max,
-            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params):
@@ -29,13 +25,14 @@ class Simple_GA(Strategy):
         Initialize all population members by randomly sampling
         positions in search-space (defined in `params`).
         """
+        initialization = jax.random.uniform(
+            rng,
+            (self.popsize, self.num_dims),
+            minval=params["init_min"],
+            maxval=params["init_max"],
+        )
         state = {
-            "archive": jax.random.uniform(
-                rng,
-                (self.elite_popsize, self.num_dims),
-                minval=params["init_min"],
-                maxval=params["init_max"],
-            ),
+            "archive": initialization,
             "fitness": jnp.zeros(self.elite_popsize) - 20e10,
             "sigma": params["sigma_init"],
         }

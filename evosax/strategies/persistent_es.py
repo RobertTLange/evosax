@@ -14,7 +14,7 @@ class Persistent_ES(Strategy):
         assert not self.popsize & 1, "Population size must be even"
 
     @property
-    def default_params(self) -> dict:
+    def params_strategy(self) -> dict:
         return {
             "lrate": 5e-3,  # Adam learning rate outer step
             "beta_1": 0.99,  # beta_1 outer step
@@ -23,21 +23,18 @@ class Persistent_ES(Strategy):
             "sigma_init": 0.1,  # Perturbation Std
             "T": 100,  # Total inner problem length
             "K": 10,  # Truncation length for partial unrolls
-            "init_min": 0,
-            "init_max": 0,
-            "clip_min": -jnp.finfo(jnp.float32).max,
-            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params) -> dict:
         """`initialize` the differential evolution strategy."""
+        initialization = jax.random.uniform(
+            rng,
+            (self.num_dims,),
+            minval=params["init_min"],
+            maxval=params["init_max"],
+        )
         state = {
-            "mean": jax.random.uniform(
-                rng,
-                (self.num_dims,),
-                minval=params["init_min"],
-                maxval=params["init_max"],
-            ),
+            "mean": initialization,
             "m": jnp.zeros(self.num_dims),
             "v": jnp.zeros(self.num_dims),
             "pert_accum": jnp.zeros((self.popsize, self.num_dims)),

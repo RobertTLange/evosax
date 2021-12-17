@@ -10,7 +10,7 @@ class Simple_ES(Strategy):
         self.elite_popsize = int(self.popsize * self.elite_ratio)
 
     @property
-    def default_params(self):
+    def params_strategy(self):
         # Only parents have positive weight - equal weighting!
         weights = jnp.zeros(self.popsize)
         weights = jax.ops.index_update(
@@ -21,10 +21,6 @@ class Simple_ES(Strategy):
             "c_sigma": 0.1,  # Learning rate for population std
             "weights": weights,  # Weights for population members
             "sigma_init": 1,  # Standard deviation
-            "init_min": -2,  # Param. init range - min
-            "init_max": 2,  # Param. init range - min
-            "clip_min": -jnp.finfo(jnp.float32).max,
-            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params):
@@ -33,13 +29,14 @@ class Simple_ES(Strategy):
         Initialize all population members by randomly sampling
         positions in search-space (defined in `params`).
         """
+        initialization = jax.random.uniform(
+            rng,
+            (self.popsize, self.num_dims),
+            minval=params["init_min"],
+            maxval=params["init_max"],
+        )
         state = {
-            "archive": jax.random.uniform(
-                rng,
-                (self.elite_popsize, self.num_dims),
-                minval=params["init_min"],
-                maxval=params["init_max"],
-            ),
+            "archive": initialization,
             "fitness": jnp.zeros(self.elite_popsize) - 20e10,
             "mean": jnp.zeros(self.num_dims),
             "sigma": params["sigma_init"],

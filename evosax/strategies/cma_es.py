@@ -10,7 +10,7 @@ class CMA_ES(Strategy):
         self.elite_popsize = int(self.popsize * self.elite_ratio)
 
     @property
-    def default_params(self):
+    def params_strategy(self):
         weights_prime = jnp.array(
             [
                 jnp.log((self.popsize + 1) / 2) - jnp.log(i + 1)
@@ -75,19 +75,23 @@ class CMA_ES(Strategy):
             "weights": weights,
             "sigma_init": 1,
             "weights_truncated": weights_truncated,
-            "clip_min": -jnp.finfo(jnp.float32).max,
-            "clip_max": jnp.finfo(jnp.float32).max,
         }
         return params
 
     def initialize_strategy(self, rng, params):
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
+        initialization = jax.random.uniform(
+            rng,
+            (self.num_dims,),
+            minval=params["init_min"],
+            maxval=params["init_max"],
+        )
         state = {
             "p_sigma": jnp.zeros(self.num_dims),
             "p_c": jnp.zeros(self.num_dims),
             "sigma": params["sigma_init"],
-            "mean": jnp.zeros(self.num_dims),
+            "mean": initialization,
             "C": jnp.eye(self.num_dims),
             "D": None,
             "B": None,

@@ -9,27 +9,24 @@ class PBT_ES(Strategy):
         super().__init__(num_dims, popsize)
 
     @property
-    def default_params(self):
+    def params_strategy(self):
         return {
             "noise_scale": 0.1,
             "truncation_selection": 0.2,
-            "init_min": -2,  # Param. init range - min
-            "init_max": 2,  # Param. init range - max
-            "clip_min": -jnp.finfo(jnp.float32).max,
-            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params):
         """
         `initialize` the differential evolution strategy.
         """
+        initialization = jax.random.uniform(
+            rng,
+            (self.popsize, self.num_dims),
+            minval=params["init_min"],
+            maxval=params["init_max"],
+        )
         state = {
-            "archive": jax.random.uniform(
-                rng,
-                (self.popsize, self.num_dims),
-                minval=params["init_min"],
-                maxval=params["init_max"],
-            ),
+            "archive": initialization,
             "fitness": jnp.zeros(self.popsize) - 20e10,
         }
         return state

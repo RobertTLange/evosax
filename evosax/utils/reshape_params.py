@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 from typing import Union
+from flax.core.frozen_dict import FrozenDict
 
 
 class ParameterReshaper(object):
@@ -10,7 +11,7 @@ class ParameterReshaper(object):
         """Reshape flat parameters vectors into generation eval shape."""
         # Get network shape to reshape
         self.placeholder_params = placeholder_params
-        if type(placeholder_params) == dict:
+        if type(placeholder_params) in [dict, FrozenDict]:
             self.total_params = get_total_params(self.placeholder_params)
             self.network_shape = get_network_shapes(self.placeholder_params)
         else:

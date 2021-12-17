@@ -36,23 +36,19 @@ class PEPG_ES(Strategy):
         #     end_value=self.learning_rate_limit)
 
     @property
-    def default_params(self):
+    def params_strategy(self):
         return {
             "sigma_init": 0.10,  # initial standard deviation
             "sigma_alpha": 0.20,  # Learning rate for std
             "sigma_decay": 0.999,  # Anneal standard deviation
             "sigma_limit": 0.01,  # Stop annealing if less than this
             "sigma_max_change": 0.2,  # Clip adaptive sigma to 20%
-            "init_min": -2,  # Param. init range - min
-            "init_max": 2,  # Param. init range - min
             "lrate": 0.02,  # Learning rate
             "beta_1": 0.99,  # beta_1 outer step
             "beta_2": 0.999,  # beta_2 outer step
             "eps": 1e-4,  # eps constant outer step,
             "lrate_decay": 0.9999,  # Anneal the lrate
             "lrate_limit": 0.001,
-            "clip_min": -jnp.finfo(jnp.float32).max,
-            "clip_max": jnp.finfo(jnp.float32).max,
         }
 
     def initialize_strategy(self, rng, params):
@@ -61,13 +57,14 @@ class PEPG_ES(Strategy):
         Initialize all population members by randomly sampling
         positions in search-space (defined in `params`).
         """
+        initialization = jax.random.uniform(
+            rng,
+            (self.num_dims,),
+            minval=params["init_min"],
+            maxval=params["init_max"],
+        )
         state = {
-            "mean": jax.random.uniform(
-                rng,
-                (self.num_dims,),
-                minval=params["init_min"],
-                maxval=params["init_max"],
-            ),
+            "mean": initialization,
             "fitness": jnp.zeros(self.popsize) - 20e10,
             "sigma": jnp.ones(self.num_dims) * params["sigma_init"],
             "epsilon": jnp.zeros((self.batch_size, self.num_dims)),
