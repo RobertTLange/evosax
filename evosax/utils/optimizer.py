@@ -32,7 +32,7 @@ def rmsprop_step(state, params, grads):
 
 def clipup_step(state, params, grads):
     """Perform a ClipUp step (Toklu et al., 2020).
-    Hyperparam Heuristics: momentum = 0.9, lrate = vmax/2, vmax = small"""
+    Hyperparameter Heuristics: momentum = 0.9, lrate = vmax/2, vmax = small"""
     # Normalize length of gradients - vmax & alpha control max step magnitude
     grad_magnitude = jnp.sqrt(jnp.sum(grads * grads))
     gradient = grads / grad_magnitude

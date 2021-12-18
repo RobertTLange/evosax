@@ -36,4 +36,5 @@ jobs:
         flake8 ./evosax --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Run unit/integration tests
       run: |
-        pytest -vv
+        python -m pytest tests/test_strategy_api -vv
+        python -m pytest tests/test_strategy_run --all -vv

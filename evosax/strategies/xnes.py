@@ -146,34 +146,3 @@ class xNES(Strategy):
             jnp.minimum(1, (1 + c) * eta_sigma),
         )
         return eta_out
-
-
-if __name__ == "__main__":
-
-    def f(x):  # sin(x^2+y^2)/(x^2+y^2)
-        r = jnp.sum(x ** 2)
-        return -jnp.sin(r) / r
-
-    batch_func = jax.vmap(f, in_axes=0)
-
-    rng = jax.random.PRNGKey(0)
-    strategy = xNES(popsize=50, num_dims=2)
-    params = strategy.default_params
-    params["use_adaptive_sampling"] = True
-    params["use_fitness_shaping"] = True
-    params["eta_bmat"] = 0.01
-    params["eta_sigma"] = 0.1
-
-    state = strategy.initialize(rng, params)
-    state["mean"] = jnp.array([9999.0, -9999.0])  # a bad init guess
-    fitness_log = []
-    num_iters = 5000
-    for t in range(num_iters):
-        rng, rng_iter = jax.random.split(rng)
-        y, state = strategy.ask(rng_iter, state, params)
-        fitness = batch_func(y)
-        state = strategy.tell(y, fitness, state, params)
-        best_id = jnp.argmin(fitness)
-        fitness_log.append(fitness[best_id])
-        if t % 500 == 0:
-            print(t, jnp.min(jnp.array(fitness_log)), state["mean"])

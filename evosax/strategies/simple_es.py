@@ -79,30 +79,3 @@ def update_sigma(y_k, sigma, params):
     sigma_est = jnp.sqrt(jnp.sum((y_k.T ** 2 * params["weights"]), axis=1))
     sigma_new = (1 - params["c_sigma"]) * sigma + params["c_sigma"] * sigma_est
     return sigma_new
-
-
-if __name__ == "__main__":
-    from evosax.problems import batch_rosenbrock
-
-    rng = jax.random.PRNGKey(0)
-    strategy = Simple_ES(popsize=10, num_dims=2, elite_ratio=0.5)
-    params = strategy.default_params
-    state = strategy.initialize(rng, params)
-    fitness_log = []
-    num_iters = 10
-    for t in range(num_iters):
-        rng, rng_iter = jax.random.split(rng)
-        y, state = strategy.ask(rng_iter, state, params)
-        fitness = batch_rosenbrock(y, 1, 100)
-        state = strategy.tell(y, fitness, state, params)
-        best_id = jnp.argmin(fitness)
-        fitness_log.append(fitness[best_id])
-        print(t, jnp.min(jnp.array(fitness_log)), state["mean"])
-# def check_termination(values, params, state):
-#     """ Check whether to terminate simple Gaussian search loop. """
-#     # Stop if generation fct values of recent generation is below thresh.
-#     if (state["gen_counter"] > params["min_generations"]
-#         and jnp.max(values) - jnp.min(values) < params["tol_fun"]):
-#         print("TERMINATE ----> Convergence/No progress in objective")
-#         return True
-#     return False

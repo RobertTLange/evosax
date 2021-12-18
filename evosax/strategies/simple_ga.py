@@ -91,22 +91,3 @@ def single_mate(rng, a, b, cross_over_rate):
     idx = jax.random.uniform(rng, (a.shape[0],)) > cross_over_rate
     cross_over_candidate = a * (1 - idx) + b * idx
     return cross_over_candidate
-
-
-if __name__ == "__main__":
-    from evosax.problems import batch_rosenbrock
-
-    rng = jax.random.PRNGKey(0)
-    strategy = Simple_GA(popsize=20, num_dims=2, elite_ratio=0.5)
-    params = strategy.default_params
-    state = strategy.initialize(rng, params)
-    fitness_log = []
-    num_iters = 25
-    for t in range(num_iters):
-        rng, rng_iter = jax.random.split(rng)
-        y, state = strategy.ask(rng_iter, state, params)
-        fitness = -batch_rosenbrock(y, 1, 100)
-        state = strategy.tell(y, fitness, state, params)
-        best_id = jnp.argmin(fitness)
-        print(t, fitness[best_id], state["mean"])
-        fitness_log.append(fitness[best_id])
