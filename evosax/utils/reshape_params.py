@@ -1,7 +1,9 @@
 import jax
 import jax.numpy as jnp
 from typing import Union
-from flax.core.frozen_dict import FrozenDict
+from flax.core.frozen_dict import FrozenDict, unfreeze
+from flax.traverse_util import flatten_dict, unflatten_dict
+from functools import partial
 
 
 class ParameterReshaper(object):
@@ -11,19 +13,31 @@ class ParameterReshaper(object):
         """Reshape flat parameters vectors into generation eval shape."""
         # Get network shape to reshape
         self.placeholder_params = placeholder_params
-        if type(placeholder_params) in [dict, FrozenDict]:
-            self.total_params = get_total_params(self.placeholder_params)
-            self.network_shape = get_network_shapes(self.placeholder_params)
+        if type(placeholder_params) == dict:
+            flat_params = {
+                "/".join(k): v for k, v in flatten_dict(self.placeholder_params).items()
+            }
+            self.unflat_shape = jax.tree_map(jnp.shape, self.placeholder_params)
+            self.network_shape = jax.tree_map(jnp.shape, flat_params)
+            self.total_params = get_total_params(self.network_shape)
+            self.l_id = get_layer_ids(self.network_shape)
+        elif type(placeholder_params) == FrozenDict:
+            self.placeholder_params = unfreeze(self.placeholder_params)
+            flat_params = {"/".join(k): v for k, v in flatten_dict(params).items()}
+            self.unflat_shape = jax.tree_map(jnp.shape, self.placeholder_params)
+            self.network_shape = jax.tree_map(jnp.shape, flat_params)
+            self.total_params = get_total_params(self.network_shape)
+            self.l_id = get_layer_ids(self.network_shape)
         else:
             # Classic problem case - no dict but raw array
             self.total_params = self.placeholder_params.shape[0]
 
         if identity:
-            self.reshape = self.reshape_identity
-            self.reshape_single = self.reshape_single_flat
+            self.reshape = jax.jit(self.reshape_identity)
+            self.reshape_single = jax.jit(self.reshape_single_flat)
         else:
-            self.reshape = self.reshape_network
-            self.reshape_single = self.reshape_single_net
+            self.reshape = jax.jit(self.reshape_network)
+            self.reshape_single = jax.jit(self.reshape_single_net)
 
     def reshape_identity(self, x):
         """Return parameters w/o reshaping for evaluation."""
@@ -31,8 +45,8 @@ class ParameterReshaper(object):
 
     def reshape_network(self, x):
         """Perform reshaping for a 2D matrix (pop_members, params)."""
-        vmap_shape = jax.vmap(flat_to_network, in_axes=(0, None))
-        return vmap_shape(x, self.network_shape)
+        vmap_shape = jax.vmap(self.flat_to_network, in_axes=(0,))
+        return vmap_shape(x)
 
     def reshape_single_flat(self, x):
         """Perform reshaping for a 1D vector (params,)."""
@@ -40,31 +54,31 @@ class ParameterReshaper(object):
 
     def reshape_single_net(self, x):
         """Perform reshaping for a 1D vector (params,)."""
-        unsqueezed_re = self.reshape(x.reshape(1, -1))
-        squeeze_dict = {}
-        layer_keys = list(self.network_shape.keys())
-        for l_k in layer_keys:
-            place_h_layer = {}
-            for p_k in self.network_shape[l_k].keys():
-                place_h_layer[p_k] = unsqueezed_re[l_k][p_k].reshape(
-                    self.network_shape[l_k][p_k]
-                )
-            # Add mapping wrapped parameters to dict
-            squeeze_dict[l_k] = place_h_layer
-        return squeeze_dict
+        unsqueezed_re = self.flat_to_network(x)
+        return unsqueezed_re
 
     @property
     def vmap_dict(self):
         """Get a dictionary specifying axes to vmap over."""
-        vmap_dict = {}
-        layer_keys = list(self.network_shape.keys())
-        for l_k in layer_keys:
-            place_h_layer = {}
-            param_keys = list(self.network_shape[l_k].keys())
-            for p_k in param_keys:
-                place_h_layer[p_k] = 0
-            vmap_dict[l_k] = place_h_layer
+        vmap_dict = jax.tree_map(lambda x: 0, self.placeholder_params)
         return vmap_dict
+
+    def flat_to_network(self, flat_params):
+        """Fill a FrozenDict with new proposed vector of params."""
+        new_nn = {}
+        layer_keys = self.network_shape.keys()
+
+        # Loop over layers in network
+        for i, p_k in enumerate(layer_keys):
+            # Select params from flat to vector to be reshaped
+            p_flat = jax.lax.dynamic_slice(
+                flat_params, (self.l_id[i],), (self.l_id[i + 1] - l_id[i],)
+            )
+            # Reshape parameters into matrix/kernel/etc. shape
+            p_reshaped = p_flat.reshape(self.network_shape[p_k])
+            # Place reshaped params into dict and increase counter
+            new_nn[p_k] = p_reshaped
+        return unflatten_dict({tuple(k.split("/")): v for k, v in new_nn.items()})
 
 
 def get_total_params(params):
@@ -73,60 +87,15 @@ def get_total_params(params):
     layer_keys = list(params.keys())
     # Loop over layers
     for l_k in layer_keys:
-        no_params = get_layer_params(params[l_k])
-        # print(l_k, no_params)
-        total_params += sum(no_params.values())
+        total_params += jnp.prod(jnp.array(params[l_k]))
     return total_params
 
 
-def get_layer_params(layer, sum_up=False):
-    """Get dict with no params per trafo matrix/vector"""
-    param_keys = list(layer.keys())
-    counts = {}
-    # Loop over params in layer
-    for p_k in param_keys:
-        counts[p_k] = jnp.prod(jnp.array(layer[p_k].shape))
-    return counts
-
-
-def get_network_shapes(params):
-    """Get dict w. shapes per layer/module & list of indexes flat vector."""
-    layer_keys = list(params.keys())
-    placeh_nn = {}
-    for l_k in layer_keys:
-        place_h_layer = {}
-        param_keys = list(params[l_k].keys())
-        for p_k in param_keys:
-            place_h_layer[p_k] = params[l_k][p_k].shape
-        placeh_nn[l_k] = place_h_layer
-    return placeh_nn
-
-
-def flat_to_network(flat_params, network_shapes):
-    """Fill a FrozenDict with new proposed vector of params."""
-    layer_keys = list(network_shapes.keys())
-    # print(layer_keys)
-    new_nn = {}
-    param_counter = 0
-
-    # Loop over layers in network
-    for l_k in layer_keys:
-        # print(l_k)
-        place_h_layer = {}
-        # Loop over params in layer
-        for p_k in network_shapes[l_k].keys():
-            # print(p_k)
-            # Select params from flat to vector to be reshaped
-            params_to_add = jnp.prod(jnp.array(network_shapes[l_k][p_k]))
-            p_flat = flat_params[param_counter : (param_counter + params_to_add)]
-            # print(p_flat.shape, network_shapes[l_k][p_k])
-            # Reshape parameters into matrix/kernel/etc. shape
-            p_reshaped = p_flat.reshape(network_shapes[l_k][p_k])
-            # Place reshaped params into dict and increase counter
-            place_h_layer[p_k] = p_reshaped
-            param_counter += params_to_add
-
-        # Add mapping wrapped parameters to dict
-        new_nn[l_k] = place_h_layer
-    nn = new_nn
-    return nn
+def get_layer_ids(network_shape):
+    """Get indices to target when reshaping single flat net into dict."""
+    layer_keys = list(network_shape.keys())
+    l_id = [0]
+    for l in layer_keys:
+        add_pcount = jnp.prod(jnp.array(network_shape[l]))
+        l_id.append(int(l_id[-1] + add_pcount))
+    return l_id

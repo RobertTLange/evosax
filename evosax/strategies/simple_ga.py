@@ -74,7 +74,7 @@ class Simple_GA(Strategy):
         fitness = jnp.concatenate([fitness, state["fitness"]])
         solution = jnp.concatenate([x, state["archive"]])
         # Select top elite from total archive info
-        idx = jnp.argsort(fitness)[::-1][0 : self.elite_popsize]
+        idx = jnp.argsort(fitness)[0 : self.elite_popsize]
         state["fitness"] = fitness[idx]
         state["archive"] = solution[idx]
         # Update mutation epsilon - multiplicative decay
