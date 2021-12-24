@@ -27,7 +27,7 @@ class Simple_GA(Strategy):
         """
         initialization = jax.random.uniform(
             rng,
-            (self.popsize, self.num_dims),
+            (self.elite_popsize, self.num_dims),
             minval=params["init_min"],
             maxval=params["init_max"],
         )

@@ -3,7 +3,6 @@ import jax.numpy as jnp
 from typing import Union
 from flax.core.frozen_dict import FrozenDict, unfreeze
 from flax.traverse_util import flatten_dict, unflatten_dict
-from functools import partial
 
 
 class ParameterReshaper(object):
@@ -23,7 +22,9 @@ class ParameterReshaper(object):
             self.l_id = get_layer_ids(self.network_shape)
         elif type(placeholder_params) == FrozenDict:
             self.placeholder_params = unfreeze(self.placeholder_params)
-            flat_params = {"/".join(k): v for k, v in flatten_dict(params).items()}
+            flat_params = {
+                "/".join(k): v for k, v in flatten_dict(self.placeholder_params).items()
+            }
             self.unflat_shape = jax.tree_map(jnp.shape, self.placeholder_params)
             self.network_shape = jax.tree_map(jnp.shape, flat_params)
             self.total_params = get_total_params(self.network_shape)
@@ -72,7 +73,7 @@ class ParameterReshaper(object):
         for i, p_k in enumerate(layer_keys):
             # Select params from flat to vector to be reshaped
             p_flat = jax.lax.dynamic_slice(
-                flat_params, (self.l_id[i],), (self.l_id[i + 1] - l_id[i],)
+                flat_params, (self.l_id[i],), (self.l_id[i + 1] - self.l_id[i],)
             )
             # Reshape parameters into matrix/kernel/etc. shape
             p_reshaped = p_flat.reshape(self.network_shape[p_k])

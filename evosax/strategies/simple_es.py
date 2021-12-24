@@ -39,7 +39,7 @@ class Simple_ES(Strategy):
             "archive": initialization,
             "fitness": jnp.zeros(self.elite_popsize) - 20e10,
             "mean": jnp.zeros(self.num_dims),
-            "sigma": params["sigma_init"],
+            "sigma": jnp.repeat(params["sigma_init"], self.num_dims),
         }
         return state
 

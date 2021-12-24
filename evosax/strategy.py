@@ -33,7 +33,7 @@ class Strategy(object):
 
         # Add best performing parameters/fitness tracker/generation counter
         state["best_member"] = jnp.zeros(self.num_dims)
-        state["best_fitness"] = 20e10
+        state["best_fitness"] = jnp.finfo(jnp.float32).max
         state["gen_counter"] = 0
         return state
 
