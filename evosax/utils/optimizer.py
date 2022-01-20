@@ -5,28 +5,32 @@ import jax.numpy as jnp
 def sgd_step(state, params, grads):
     """Perform a simple SGD + Momentum step."""
     state["m"] = grads + params["momentum"] * state["m"]
-    state["mean"] -= params["lrate"] * state["m"]
+    state["mean"] -= state["lrate"] * state["m"]
     return state
 
 
 def adam_step(state, params, grads):
     """Perform a simple Adam GD step (Kingma & Ba, 2015)."""
     state["m"] = (1 - params["beta_1"]) * grads + params["beta_1"] * state["m"]
-    state["v"] = (1 - params["beta_2"]) * (grads ** 2) + params["beta_2"] * state["v"]
+    state["v"] = (1 - params["beta_2"]) * (grads ** 2) + params[
+        "beta_2"
+    ] * state["v"]
     mhat = state["m"] / (1 - params["beta_1"] ** (state["gen_counter"] + 1))
     vhat = state["v"] / (1 - params["beta_2"] ** (state["gen_counter"] + 1))
-    state["mean"] -= params["lrate"] * mhat / (jnp.sqrt(vhat) + params["eps"])
+    state["mean"] -= state["lrate"] * mhat / (jnp.sqrt(vhat) + params["eps"])
     return state
 
 
 def rmsprop_step(state, params, grads):
     """Perform a simple RMSprop GD step (Hinton lecture).
     https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf"""
-    state["v"] = (1 - params["beta"]) * (grads ** 2) + params["beta"] * state["v"]
+    state["v"] = (1 - params["beta"]) * (grads ** 2) + params["beta"] * state[
+        "v"
+    ]
     state["m"] = params["momentum"] * state["m"] + grads / (
         jnp.sqrt(state["v"]) + params["eps"]
     )
-    state["mean"] -= params["lrate"] * state["m"]
+    state["mean"] -= state["lrate"] * state["m"]
     return state
 
 
@@ -49,5 +53,5 @@ def clipup_step(state, params, grads):
 
     # Clip the update velocity and apply the update
     state["velocity"] = clip(velocity, params["max_speed"])
-    state["mean"] -= params["lrate"] * state["velocity"]
+    state["mean"] -= state["lrate"] * state["velocity"]
     return state

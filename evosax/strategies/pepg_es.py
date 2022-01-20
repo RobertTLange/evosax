@@ -43,10 +43,10 @@ class PEPG_ES(Strategy):
             "sigma_decay": 0.999,  # Anneal standard deviation
             "sigma_limit": 0.01,  # Stop annealing if less than this
             "sigma_max_change": 0.2,  # Clip adaptive sigma to 20%
-            "lrate": 0.02,  # Learning rate
             "beta_1": 0.99,  # beta_1 outer step
             "beta_2": 0.999,  # beta_2 outer step
             "eps": 1e-4,  # eps constant outer step,
+            "lrate_init": 0.02,  # Learning rate
             "lrate_decay": 0.9999,  # Anneal the lrate
             "lrate_limit": 0.001,
         }
@@ -66,6 +66,7 @@ class PEPG_ES(Strategy):
         state = {
             "mean": initialization,
             "fitness": jnp.zeros(self.popsize) - 20e10,
+            "lrate": params["lrate_init"],
             "sigma": jnp.ones(self.num_dims) * params["sigma_init"],
             "epsilon": jnp.zeros((self.batch_size, self.num_dims)),
             "epsilon_full": jnp.zeros((2 * self.batch_size, self.num_dims)),
@@ -84,7 +85,9 @@ class PEPG_ES(Strategy):
             rng_eps, (self.batch_size, self.num_dims)
         ) * state["sigma"].reshape(1, self.num_dims)
         # Note: No average baseline shenanigans as in estool version
-        state["epsilon_full"] = jnp.concatenate([state["epsilon"], -state["epsilon"]])
+        state["epsilon_full"] = jnp.concatenate(
+            [state["epsilon"], -state["epsilon"]]
+        )
         epsilon = jnp.concatenate(
             [jnp.zeros((1, self.num_dims)), state["epsilon_full"]]
         )
@@ -127,6 +130,10 @@ class PEPG_ES(Strategy):
         rS = reward_avg - b
         delta_sigma = (jnp.dot(rS, S)) / (2 * self.batch_size * stdev_reward)
 
+        # Update lrate and standard deviation based on min and decay
+        state["lrate"] *= params["lrate_decay"]
+        state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
+
         # adjust sigma according to the adaptive sigma calculation
         # for stability, don't let sigma move more than 10% of orig value
         change_sigma = params["sigma_alpha"] * delta_sigma
@@ -138,7 +145,9 @@ class PEPG_ES(Strategy):
         )
         state["sigma"] += change_sigma
         # Update via multiplication with [1, ..., sigma_decay, ... 1] array based on booleans
-        decay_part = (state["sigma"] > params["sigma_limit"]) * params["sigma_decay"]
+        decay_part = (state["sigma"] > params["sigma_limit"]) * params[
+            "sigma_decay"
+        ]
         non_decay_part = state["sigma"] <= params["sigma_limit"]
         update_array = decay_part + non_decay_part
         state["sigma"] = update_array * state["sigma"]

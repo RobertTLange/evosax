@@ -9,14 +9,18 @@ class FitnessShaper(object):
         rank_fitness: bool = False,
         z_score_fitness: bool = False,
         weight_decay: float = 0.0,
+        maximize_objective: bool = False,
     ):
+        # TODO: Add minimize/maximize objective here - multiply by -1 if max.
         self.weight_decay = weight_decay
         self.rank_fitness = rank_fitness
         self.z_score_fitness = z_score_fitness
+        self.maximize_objective = maximize_objective
 
     @partial(jax.jit, static_argnums=(0,))
     def apply(self, x, fitness):
-        """Apply weight decay and rank shaping."""
+        """Max objective trafo, rank shaping, z scoring and add weight decay."""
+        fitness = jax.lax.select(self.maximize_objective, -1 * fitness, fitness)
         fitness = jax.lax.select(
             self.rank_fitness, compute_centered_ranks(fitness), fitness
         )

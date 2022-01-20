@@ -8,6 +8,7 @@ from .pepg_es import PEPG_ES
 from .pbt_es import PBT_ES
 from .persistent_es import Persistent_ES
 from .xnes import xNES
+from .augmented_rs import Augmented_RS
 
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "PBT_ES",
     "Persistent_ES",
     "xNES",
+    "Augmented_RS",
 ]

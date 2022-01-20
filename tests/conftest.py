@@ -18,7 +18,8 @@ def pytest_generate_tests(metafunc):
                     # "PBT_ES",
                     # "Persistent_ES",
                     # "xNES",
+                    # "Augmented_RS"
                 ],
             )
         else:
-            metafunc.parametrize("env_name", ["CMA_ES"])
+            metafunc.parametrize("strategy_name", ["CMA_ES"])

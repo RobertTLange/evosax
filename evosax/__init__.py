@@ -1,3 +1,5 @@
+from .strategy import Strategy
+
 from .strategies import (
     Simple_GA,
     Simple_ES,
@@ -9,6 +11,7 @@ from .strategies import (
     PBT_ES,
     Persistent_ES,
     xNES,
+    Augmented_RS,
 )
 
 
@@ -23,9 +26,11 @@ Strategies = {
     "PBT_ES": PBT_ES,
     "Persistent_ES": Persistent_ES,
     "xNES": xNES,
+    "Augmented_RS": Augmented_RS,
 }
 
 __all__ = [
+    "Strategy",
     "Simple_GA",
     "Simple_ES",
     "CMA_ES",
@@ -36,5 +41,6 @@ __all__ = [
     "PBT_ES",
     "Persistent_ES",
     "xNES",
+    "Augmented_RS",
     "Strategies",
 ]

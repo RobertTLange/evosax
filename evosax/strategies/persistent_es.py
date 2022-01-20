@@ -16,11 +16,15 @@ class Persistent_ES(Strategy):
     @property
     def params_strategy(self) -> dict:
         return {
-            "lrate": 5e-3,  # Adam learning rate outer step
+            "lrate_init": 5e-3,  # Adam learning rate outer step
+            "lrate_decay": 0.999,
+            "lrate_limit": 5e-3,
             "beta_1": 0.99,  # beta_1 outer step
             "beta_2": 0.999,  # beta_2 outer step
             "eps": 1e-8,  # eps constant outer step
             "sigma_init": 0.1,  # Perturbation Std
+            "sigma_decay": 0.999,
+            "sigma_limit": 0.1,
             "T": 100,  # Total inner problem length
             "K": 10,  # Truncation length for partial unrolls
         }
@@ -39,6 +43,7 @@ class Persistent_ES(Strategy):
             "v": jnp.zeros(self.num_dims),
             "pert_accum": jnp.zeros((self.popsize, self.num_dims)),
             "sigma": params["sigma_init"],
+            "lrate": params["lrate_init"],
             "inner_step_counter": 0,
         }
         return state
@@ -47,7 +52,8 @@ class Persistent_ES(Strategy):
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         pos_perts = (
-            jax.random.normal(rng, (self.popsize // 2, self.num_dims)) * state["sigma"]
+            jax.random.normal(rng, (self.popsize // 2, self.num_dims))
+            * state["sigma"]
         )
         neg_perts = -pos_perts
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)
@@ -59,11 +65,20 @@ class Persistent_ES(Strategy):
     def tell_strategy(self, x, fitness, state, params):
         """`tell` update to ES state."""
         theta_grad = jnp.mean(
-            state["pert_accum"] * fitness.reshape(-1, 1) / (state["sigma"] ** 2), axis=0
+            state["pert_accum"]
+            * fitness.reshape(-1, 1)
+            / (state["sigma"] ** 2),
+            axis=0,
         )
         state = adam_step(state, params, theta_grad)
         state["inner_step_counter"] += params["K"]
 
+        # Update lrate and standard deviation based on min and decay
+        state["lrate"] *= params["lrate_decay"]
+        state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
+
+        state["sigma"] *= params["sigma_decay"]
+        state["sigma"] = jnp.maximum(state["sigma"], params["sigma_limit"])
         # Reset accumulated antithetic noise memory if done with inner problem
         reset = state["inner_step_counter"] >= params["T"]
         state["inner_step_counter"] = jax.lax.select(
