@@ -11,7 +11,6 @@ class FitnessShaper(object):
         weight_decay: float = 0.0,
         maximize_objective: bool = False,
     ):
-        # TODO: Add minimize/maximize objective here - multiply by -1 if max.
         self.weight_decay = weight_decay
         self.rank_fitness = rank_fitness
         self.z_score_fitness = z_score_fitness
@@ -44,7 +43,7 @@ def compute_ranks(fitness):
 
 
 def compute_centered_ranks(fitness):
-    """Return ~ -0.5 to 0.5 centered ranks."""
+    """Return ~ -0.5 to 0.5 centered ranks (best to worst - min!)."""
     y = compute_ranks(fitness)
     y /= fitness.size - 1
     y -= 0.5

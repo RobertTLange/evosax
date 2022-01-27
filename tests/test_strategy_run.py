@@ -19,7 +19,7 @@ def test_strategy_run(strategy_name):
     rng = jax.random.PRNGKey(0)
     Strat = Strategies[strategy_name]
     # PBT also returns copy ID integer - treat separately
-    if strategy_name in ["Persistent_ES", "Open_NES"]:
+    if strategy_name in ["Persistent_ES", "Open_NES", "Augmented_RS"]:
         popsize = 8
     else:
         popsize = 9
@@ -33,7 +33,7 @@ def test_strategy_run(strategy_name):
     ]:
         batch_eval = batch_rosenbrock
         fitness_shaper = FitnessShaper()
-    elif strategy_name in ["Open_NES", "PEPG_ES"]:
+    elif strategy_name in ["Open_NES", "PEPG_ES", "Augmented_RS"]:
         batch_eval = batch_quadratic
         fitness_shaper = FitnessShaper(z_score_fitness=True)
 
@@ -58,7 +58,7 @@ def test_strategy_scan(strategy_name):
     rng = jax.random.PRNGKey(0)
     Strat = Strategies[strategy_name]
     # PBT also returns copy ID integer - treat separately
-    if strategy_name in ["Persistent_ES", "Open_NES"]:
+    if strategy_name in ["Persistent_ES", "Open_NES", "Augmented_RS"]:
         popsize = 8
     else:
         popsize = 9
@@ -72,7 +72,7 @@ def test_strategy_scan(strategy_name):
     ]:
         batch_eval = batch_rosenbrock
         fitness_shaper = FitnessShaper()
-    elif strategy_name in ["Open_NES", "PEPG_ES"]:
+    elif strategy_name in ["Open_NES", "PEPG_ES", "Augmented_RS"]:
         batch_eval = batch_quadratic
         fitness_shaper = FitnessShaper(z_score_fitness=True)
 

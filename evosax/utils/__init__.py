@@ -8,6 +8,24 @@ from .reshape_params import ParameterReshaper
 from .reshape_fitness import FitnessShaper
 
 # Import Gradient Based Optimizer step functions
-from .optimizer import adam_step
+from .optimizer import (
+    SGD_Optimizer,
+    Adam_Optimizer,
+    RMSProp_Optimizer,
+    ClipUp_Optimizer,
+)
 
-__all__ = ["ESLog", "ParameterReshaper", "FitnessShaper", "adam_step"]
+GradientOptimizer = {
+    "sgd": SGD_Optimizer,
+    "adam": Adam_Optimizer,
+    "rmsprop": RMSProp_Optimizer,
+    "clipup": ClipUp_Optimizer,
+}
+
+
+__all__ = [
+    "ESLog",
+    "ParameterReshaper",
+    "FitnessShaper",
+    "GradientOptimizer",
+]

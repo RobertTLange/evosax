@@ -1,33 +1,35 @@
 import jax
 import jax.numpy as jnp
 from ..strategy import Strategy
-from ..utils import sgd_step
+from ..utils import GradientOptimizer
 
 
 class Augmented_RS(Strategy):
-    def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.1):
+    def __init__(
+        self,
+        num_dims: int,
+        popsize: int,
+        elite_ratio: float = 0.1,
+        opt_name: str = "sgd",
+    ):
         super().__init__(num_dims, popsize)
         assert not self.popsize & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
         # "b" elite perturbation directions for the update
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize / 2 * self.elite_ratio)
+        assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
+        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
 
     @property
     def params_strategy(self):
         """Return default parameters of evolutionary strategy."""
-        params = {
-            "lrate_init": 0.01,  # Adam learning rate outer step
-            "lrate_decay": 0.999,
-            "lrate_limit": 0.001,
-            "momentum": 0,
-            "beta_1": 0.99,  # beta_1 outer step
-            "beta_2": 0.999,  # beta_2 outer step
-            "eps": 1e-8,  # eps constant outer step,
+        es_params = {
             "sigma_init": 0.1,
             "sigma_decay": 0.999,
             "sigma_limit": 0.01,
         }
+        params = {**es_params, **self.optimizer.default_params}
         return params
 
     def initialize_strategy(self, rng, params):
@@ -38,13 +40,11 @@ class Augmented_RS(Strategy):
             minval=params["init_min"],
             maxval=params["init_max"],
         )
-        state = {
+        es_state = {
             "mean": initialization,
             "sigma": params["sigma_init"],
-            "lrate": params["lrate_init"],
-            "m": jnp.zeros(self.num_dims),
-            "v": jnp.zeros(self.num_dims),
         }
+        state = {**es_state, **self.optimizer.initialize(params)}
         return state
 
     def ask_strategy(self, rng, state, params):
@@ -75,13 +75,10 @@ class Augmented_RS(Strategy):
 
         theta_grad = 1.0 / (self.elite_popsize * sigma_fitness) * fit_diff_noise
         # print(jnp.linalg.norm(theta_grad), sigma_fitness)
-        # Natural grad update using optax API!
-        state = sgd_step(state, params, theta_grad)
-
+        # Grad update using optimizer instance - decay lrate if desired
+        state = self.optimizer.step(theta_grad, state, params)
+        state = self.optimizer.update(state, params)
         # Update lrate and standard deviation based on min and decay
-        state["lrate"] *= params["lrate_decay"]
-        state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
-
         state["sigma"] *= params["sigma_decay"]
         state["sigma"] = jnp.maximum(state["sigma"], params["sigma_limit"])
         return state

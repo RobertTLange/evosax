@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from ..strategy import Strategy
-from ..utils import adam_step
+from ..utils import GradientOptimizer
 
 
 class PEPG_ES(Strategy):
@@ -9,7 +9,8 @@ class PEPG_ES(Strategy):
         self,
         num_dims: int,
         popsize: int,
-        elite_ratio: float = 0.0,
+        elite_ratio: float = 0.1,
+        opt_name: str = "sgd",
     ):  # Stop annealing lrate
         self.popsize = popsize
         self.num_dims = num_dims
@@ -27,29 +28,20 @@ class PEPG_ES(Strategy):
         # Baseline = average of batch
         assert self.popsize & 1, "Population size must be odd"
         self.batch_size = int((self.popsize - 1) / 2)
-
-        # TODO: Open issue on Github
-        # lrate_schedule = optax.exponential_decay(
-        #     init_value=self.learning_rate,
-        #     decay_rate=self.learning_rate_decay,
-        #     transition_steps=1,
-        #     end_value=self.learning_rate_limit)
+        assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
+        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
 
     @property
     def params_strategy(self):
-        return {
+        es_params = {
             "sigma_init": 0.10,  # initial standard deviation
-            "sigma_alpha": 0.20,  # Learning rate for std
             "sigma_decay": 0.999,  # Anneal standard deviation
             "sigma_limit": 0.01,  # Stop annealing if less than this
+            "sigma_alpha": 0.20,  # Learning rate for std
             "sigma_max_change": 0.2,  # Clip adaptive sigma to 20%
-            "beta_1": 0.99,  # beta_1 outer step
-            "beta_2": 0.999,  # beta_2 outer step
-            "eps": 1e-4,  # eps constant outer step,
-            "lrate_init": 0.02,  # Learning rate
-            "lrate_decay": 0.9999,  # Anneal the lrate
-            "lrate_limit": 0.001,
         }
+        params = {**es_params, **self.optimizer.default_params}
+        return params
 
     def initialize_strategy(self, rng, params):
         """
@@ -63,16 +55,15 @@ class PEPG_ES(Strategy):
             minval=params["init_min"],
             maxval=params["init_max"],
         )
-        state = {
+        es_state = {
             "mean": initialization,
             "fitness": jnp.zeros(self.popsize) - 20e10,
             "lrate": params["lrate_init"],
             "sigma": jnp.ones(self.num_dims) * params["sigma_init"],
             "epsilon": jnp.zeros((self.batch_size, self.num_dims)),
             "epsilon_full": jnp.zeros((2 * self.batch_size, self.num_dims)),
-            "m": jnp.zeros(self.num_dims),
-            "v": jnp.zeros(self.num_dims),
         }
+        state = {**es_state, **self.optimizer.initialize(params)}
         return state
 
     def ask_strategy(self, rng, state, params):
@@ -115,7 +106,8 @@ class PEPG_ES(Strategy):
         mu_elite = state["mean"] + state["epsilon_full"][idx].mean(axis=0)
         rT = fitness_sub[: self.batch_size] - fitness_sub[self.batch_size :]
         theta_grad = jnp.dot(rT, state["epsilon"])
-        state = adam_step(state, params, theta_grad)
+        state = self.optimizer.step(theta_grad, state, params)
+        state = self.optimizer.update(state, params)
         state["mean"] = jax.lax.select(self.use_elite, mu_elite, state["mean"])
 
         # Adaptive sigma - normalization
@@ -129,10 +121,6 @@ class PEPG_ES(Strategy):
         ) / 2.0
         rS = reward_avg - b
         delta_sigma = (jnp.dot(rS, S)) / (2 * self.batch_size * stdev_reward)
-
-        # Update lrate and standard deviation based on min and decay
-        state["lrate"] *= params["lrate_decay"]
-        state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
 
         # adjust sigma according to the adaptive sigma calculation
         # for stability, don't let sigma move more than 10% of orig value

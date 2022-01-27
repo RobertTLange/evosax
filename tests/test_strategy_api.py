@@ -8,7 +8,7 @@ def test_strategy_ask():
     rng = jax.random.PRNGKey(0)
     for s_name, Strat in Strategies.items():
         # PBT also returns copy ID integer - treat separately
-        if s_name in ["Persistent_ES", "Open_NES"]:
+        if s_name in ["Persistent_ES", "Open_NES", "Augmented_RS"]:
             popsize = 8
         else:
             popsize = 9
@@ -27,7 +27,7 @@ def test_strategy_ask_tell():
     rng = jax.random.PRNGKey(0)
     # PBT also returns copy ID integer - treat separately
     for s_name, Strat in Strategies.items():
-        if s_name in ["Persistent_ES", "Open_NES"]:
+        if s_name in ["Persistent_ES", "Open_NES", "Augmented_RS"]:
             popsize = 8
         else:
             popsize = 9
