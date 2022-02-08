@@ -4,7 +4,7 @@ from ..strategy import Strategy
 from ..utils import GradientOptimizer
 
 
-class Open_NES(Strategy):
+class Open_ES(Strategy):
     def __init__(self, num_dims: int, popsize: int, opt_name: str = "adam"):
         super().__init__(num_dims, popsize)
         assert not self.popsize & 1, "Population size must be even"

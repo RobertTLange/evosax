@@ -32,7 +32,13 @@ class Strategy(object):
         state = self.initialize_strategy(rng, params)
 
         # Add best performing parameters/fitness tracker/generation counter
-        state["best_member"] = jnp.zeros(self.num_dims)
+        state["best_member"] = jax.random.uniform(
+            rng,
+            (self.num_dims,),
+            minval=params["init_min"],
+            maxval=params["init_max"],
+        )
+        # Set best fitness to large value - ES minimizes by default!
         state["best_fitness"] = jnp.finfo(jnp.float32).max
         state["gen_counter"] = 0
         return state
@@ -42,7 +48,9 @@ class Strategy(object):
         """`ask` for new parameter candidates to evaluate next."""
         # Generate proposal based on strategy-specific ask method
         x, state = self.ask_strategy(rng, state, params)
-        x_clipped = jnp.clip(jnp.squeeze(x), params["clip_min"], params["clip_max"])
+        x_clipped = jnp.clip(
+            jnp.squeeze(x), params["clip_min"], params["clip_max"]
+        )
         return x_clipped, state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -56,7 +64,10 @@ class Strategy(object):
 
         # Check if there is a new best member
         best_in_gen = jnp.argmin(fitness)
-        best_in_gen_fitness, best_in_gen_member = fitness[best_in_gen], x[best_in_gen]
+        best_in_gen_fitness, best_in_gen_member = (
+            fitness[best_in_gen],
+            x[best_in_gen],
+        )
         replace_best = best_in_gen_fitness < state["best_fitness"]
         state["best_fitness"] = jax.lax.select(
             replace_best, best_in_gen_fitness, state["best_fitness"]
@@ -70,7 +81,9 @@ class Strategy(object):
         """Search-specific `initialize` method."""
         raise NotImplementedError
 
-    def ask_strategy(self, rng: PRNGKey, state: dict, params: dict) -> (Array, dict):
+    def ask_strategy(
+        self, rng: PRNGKey, state: dict, params: dict
+    ) -> (Array, dict):
         """Search-specific `ask` request."""
         raise NotImplementedError
 

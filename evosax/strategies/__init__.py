@@ -3,7 +3,7 @@ from .simple_es import Simple_ES
 from .cma_es import CMA_ES
 from .differential_es import Differential_ES
 from .pso_es import PSO_ES
-from .open_nes import Open_NES
+from .open_es import Open_ES
 from .pepg_es import PEPG_ES
 from .pbt_es import PBT_ES
 from .persistent_es import Persistent_ES
@@ -17,7 +17,7 @@ __all__ = [
     "CMA_ES",
     "Differential_ES",
     "PSO_ES",
-    "Open_NES",
+    "Open_ES",
     "PEPG_ES",
     "PBT_ES",
     "Persistent_ES",

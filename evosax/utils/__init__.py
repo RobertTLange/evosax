@@ -28,4 +28,8 @@ __all__ = [
     "ParameterReshaper",
     "FitnessShaper",
     "GradientOptimizer",
+    "SGD_Optimizer",
+    "Adam_Optimizer",
+    "RMSProp_Optimizer",
+    "ClipUp_Optimizer",
 ]

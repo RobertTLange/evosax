@@ -38,7 +38,8 @@ def z_score_fitness(fitness):
 
 def compute_ranks(fitness):
     """Return ranks in [0, len(fitness))."""
-    ranks = jnp.arange(len(fitness))[fitness.argsort()]
+    ranks = jnp.zeros(len(fitness))
+    ranks = ranks.at[fitness.argsort()].set(jnp.arange(len(fitness)))
     return ranks
 
 

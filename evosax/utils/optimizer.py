@@ -155,7 +155,7 @@ class ClipUp_Optimizer(object):
         # Normalize length of gradients - vmax & alpha control max step magnitude
         grad_magnitude = jnp.sqrt(jnp.sum(grads * grads))
         gradient = grads / grad_magnitude
-        step = gradient * params["lrate"]
+        step = gradient * state["lrate"]
         velocity = params["momentum"] * state["m"] + step
 
         def clip(velocity: jnp.ndarray, max_speed: float):
