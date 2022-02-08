@@ -11,23 +11,13 @@ class PEPG_ES(Strategy):
         popsize: int,
         elite_ratio: float = 0.1,
         opt_name: str = "sgd",
-    ):  # Stop annealing lrate
-        self.popsize = popsize
-        self.num_dims = num_dims
+    ):
+        super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
-        self.elite_popsize = int(self.popsize * self.elite_ratio)
-
-        # Use greedy es to select next mu, rather than using drift param
-        if self.elite_popsize > 0:
-            self.use_elite = True
-        else:
-            self.use_elite = False
-            # Trick for fixed shapes: use entire population as elite
-            self.elite_popsize = self.popsize - 1
+        self.elite_popsize = int(self.popsize / 2 * self.elite_ratio)
 
         # Baseline = average of batch
-        assert self.popsize & 1, "Population size must be odd"
-        self.batch_size = int((self.popsize - 1) / 2)
+        assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
 
@@ -37,7 +27,7 @@ class PEPG_ES(Strategy):
             "sigma_init": 0.10,  # initial standard deviation
             "sigma_decay": 0.999,  # Anneal standard deviation
             "sigma_limit": 0.01,  # Stop annealing if less than this
-            "sigma_alpha": 0.20,  # Learning rate for std
+            "sigma_lrate": 0.20,  # Learning rate for std
             "sigma_max_change": 0.2,  # Clip adaptive sigma to 20%
         }
         params = {**es_params, **self.optimizer.default_params}
@@ -60,83 +50,55 @@ class PEPG_ES(Strategy):
             "fitness": jnp.zeros(self.popsize) - 20e10,
             "lrate": params["lrate_init"],
             "sigma": jnp.ones(self.num_dims) * params["sigma_init"],
-            "epsilon": jnp.zeros((self.batch_size, self.num_dims)),
-            "epsilon_full": jnp.zeros((2 * self.batch_size, self.num_dims)),
         }
         state = {**es_state, **self.optimizer.initialize(params)}
         return state
 
     def ask_strategy(self, rng, state, params):
-        """
-        `ask` for new proposed candidates to evaluate next.
-        """
-        rng, rng_eps = jax.random.split(rng)
-        # Antithetic sampling - "positive"/"negative noise"
-        state["epsilon"] = jax.random.normal(
-            rng_eps, (self.batch_size, self.num_dims)
-        ) * state["sigma"].reshape(1, self.num_dims)
-        # Note: No average baseline shenanigans as in estool version
-        state["epsilon_full"] = jnp.concatenate(
-            [state["epsilon"], -state["epsilon"]]
+        """`ask` for new parameter candidates to evaluate next."""
+        # Antithetic sampling of noise
+        z_plus = jax.random.normal(
+            rng,
+            (jnp.array(self.popsize / 2, int), self.num_dims),
         )
-        epsilon = jnp.concatenate(
-            [jnp.zeros((1, self.num_dims)), state["epsilon_full"]]
-        )
-        y = state["mean"].reshape(1, self.num_dims) + epsilon
-        return jnp.squeeze(y), state
+        z = jnp.concatenate([z_plus, -1.0 * z_plus])
+        x = state["mean"] + z * state["sigma"].reshape(1, self.num_dims)
+        return x, state
 
     def tell_strategy(self, x, fitness, state, params):
-        """
-        `tell` update to ES state.
-        """
-        b, fitness_offset = fitness[0], 1
-        fitness_sub = fitness[fitness_offset:]
-        idx = jnp.argsort(fitness_sub)[::-1][: self.elite_popsize]
+        # Reconstruct noise from last mean/std estimates
+        noise = (x - state["mean"]) / state["sigma"]
+        noise_1 = noise[: jnp.array(self.popsize / 2, int)]
+        fit_1 = fitness[: jnp.array(self.popsize / 2, int)]
+        fit_2 = fitness[jnp.array(self.popsize / 2, int) :]
+        elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
 
-        # # Keep track of best performers
-        # best_fitness = fitness_sub[idx[0]]
-        # best_mu = jax.lax.select(best_fitness > b,
-        #                          state["mu"] + state["epsilon_full"][idx[0]],
-        #                          state["mu"])
-        # best_fitness = jax.lax.select(best_fitness > b,
-        #                               fitness[idx[0]],
-        #                               b)
+        fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
+        fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
+        fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
 
-        # Compute both mu updates (elite/optimizer-base) and select
-        mu_elite = state["mean"] + state["epsilon_full"][idx].mean(axis=0)
-        rT = fitness_sub[: self.batch_size] - fitness_sub[self.batch_size :]
-        theta_grad = jnp.dot(rT, state["epsilon"])
+        theta_grad = 1.0 / (self.elite_popsize) * fit_diff_noise
+        # Grad update using optimizer instance - decay lrate if desired
         state = self.optimizer.step(theta_grad, state, params)
         state = self.optimizer.update(state, params)
-        state["mean"] = jax.lax.select(self.use_elite, mu_elite, state["mean"])
-
-        # Adaptive sigma - normalization
-        stdev_reward = fitness_sub.std()
+        # Update sigma vector
         S = (
-            state["epsilon"] * state["epsilon"]
+            noise_1 * noise_1
             - (state["sigma"] * state["sigma"]).reshape(1, self.num_dims)
         ) / state["sigma"].reshape(1, self.num_dims)
-        reward_avg = (
-            fitness_sub[: self.batch_size] + fitness_sub[self.batch_size :]
-        ) / 2.0
-        rS = reward_avg - b
-        delta_sigma = (jnp.dot(rS, S)) / (2 * self.batch_size * stdev_reward)
-
-        # adjust sigma according to the adaptive sigma calculation
-        # for stability, don't let sigma move more than 10% of orig value
-        change_sigma = params["sigma_alpha"] * delta_sigma
+        rS = (fit_1 + fit_2) / 2.0 - jnp.mean(fitness_elite)
+        delta_sigma = (jnp.dot(rS, S)) / self.elite_popsize
+        change_sigma = params["sigma_lrate"] * delta_sigma
         change_sigma = jnp.minimum(
             change_sigma, params["sigma_max_change"] * state["sigma"]
         )
         change_sigma = jnp.maximum(
             change_sigma, -params["sigma_max_change"] * state["sigma"]
         )
-        state["sigma"] += change_sigma
-        # Update via multiplication with [1, ..., sigma_decay, ... 1] array based on booleans
-        decay_part = (state["sigma"] > params["sigma_limit"]) * params[
-            "sigma_decay"
-        ]
-        non_decay_part = state["sigma"] <= params["sigma_limit"]
-        update_array = decay_part + non_decay_part
-        state["sigma"] = update_array * state["sigma"]
+
+        # adjust sigma according to the adaptive sigma calculation
+        # for stability, don't let sigma move more than 20% of orig value
+        state["sigma"] -= change_sigma
+        state["sigma"] *= params["sigma_decay"]
+        state["sigma"] = jnp.maximum(state["sigma"], params["sigma_limit"])
         return state

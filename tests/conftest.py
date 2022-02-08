@@ -13,12 +13,12 @@ def pytest_generate_tests(metafunc):
                     "CMA_ES",
                     "Differential_ES",
                     "PSO_ES",
-                    "Open_NES",
+                    "Open_ES",
                     "PEPG_ES",
+                    "Augmented_RS"
                     # "PBT_ES",
                     # "Persistent_ES",
                     # "xNES",
-                    # "Augmented_RS"
                 ],
             )
         else:

@@ -19,10 +19,7 @@ def test_strategy_run(strategy_name):
     rng = jax.random.PRNGKey(0)
     Strat = Strategies[strategy_name]
     # PBT also returns copy ID integer - treat separately
-    if strategy_name in ["Persistent_ES", "Open_ES", "Augmented_RS"]:
-        popsize = 8
-    else:
-        popsize = 9
+    popsize = 20
 
     if strategy_name in [
         "CMA_ES",
@@ -58,10 +55,7 @@ def test_strategy_scan(strategy_name):
     rng = jax.random.PRNGKey(0)
     Strat = Strategies[strategy_name]
     # PBT also returns copy ID integer - treat separately
-    if strategy_name in ["Persistent_ES", "Open_ES", "Augmented_RS"]:
-        popsize = 8
-    else:
-        popsize = 9
+    popsize = 20
 
     if strategy_name in [
         "CMA_ES",
