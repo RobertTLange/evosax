@@ -38,25 +38,17 @@ state["best_member"], state["best_fitness"]
 
 | Strategy | Reference | Import | Example |
 | --- | --- | ---  | --- |
-| CMA-ES | [Hansen (2016)](https://arxiv.org/abs/1604.00772) | [`CMA_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/cma_es.py) | [Pendulum RL task](https://github.com/RobertTLange/evosax/tree/main/examples/pendulum_cma_es.ipynb)
-| Differential ES | [Storn & Price (1997)](https://www.metabolic-economics.de/pages/seminar_theoretische_biologie_2007/literatur/schaber/Storn1997JGlobOpt11.pdf) | [`Differential_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/differential_es.py)  | -
+| CMA-ES | [Hansen (2016)](https://arxiv.org/abs/1604.00772) | [`CMA_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/cma_es.py) | [Pendulum RL task](https://github.com/RobertTLange/evosax/tree/main/examples/pendulum_cma_es.ipynb)
+| Differential ES | [Storn & Price (1997)](https://www.metabolic-economics.de/pages/seminar_theoretische_biologie_2007/literatur/schaber/Storn1997JGlobOpt11.pdf) | [`Differential_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/differential_es.py)  | -
 | OpenAI-ES | [Salimans et al. (2017)](https://arxiv.org/pdf/1703.03864.pdf) | [`Open_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/open_es.py) | [Simple Quadratic](https://github.com/RobertTLange/evosax/tree/main/examples/quadratic_open_nes.ipynb)
-| Particle Swarm Optimization | [Kennedy & Eberhart (1995)](https://ieeexplore.ieee.org/document/488968) | [`PSO_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/pso_es.py)  | -
-| PEPG | [Sehnke et al. (2010)](https://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=A64D1AE8313A364B814998E9E245B40A?doi=10.1.1.180.7104&rep=rep1&type=pdf) | [`PEPG_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/pepg_es.py)  | -
-| ARS | [Mania et al. (2018)](https://arxiv.org/pdf/1803.07055.pdf) | [`Augmented_RS`](https://github.com/RobertTLange/evosax/tree/main/strategies/ars.py)  | -
+| Particle Swarm Optimization | [Kennedy & Eberhart (1995)](https://ieeexplore.ieee.org/document/488968) | [`PSO_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/pso_es.py)  | -
+| PEPG | [Sehnke et al. (2010)](https://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=A64D1AE8313A364B814998E9E245B40A?doi=10.1.1.180.7104&rep=rep1&type=pdf) | [`PEPG_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/pepg_es.py)  | -
+| ARS | [Mania et al. (2018)](https://arxiv.org/pdf/1803.07055.pdf) | [`Augmented_RS`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/ars.py)  | -
 | Persistent ES | [Vicol et al. (2021)](http://proceedings.mlr.press/v139/vicol21a.html) | [`Persistent_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/persistent_es.py)  | -
-| Population-Based Training | [Jaderberg et al. (2017)](https://arxiv.org/abs/1711.09846) | [`PBT_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/pbt_es.py)  | -
-| Simple Gaussian | ❓ | [`Simple_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/simple_es.py) | [Low Dim. optimisation](https://github.com/RobertTLange/evosax/tree/main/examples/01_gaussian_strategy.ipynb)
-| Simple Genetic | [Such et al. (2017)](https://arxiv.org/abs/1712.06567) | [`Simple_GA`](https://github.com/RobertTLange/evosax/tree/main/strategies/simple_ga.py) | [Low Dim. optimisation](https://github.com/RobertTLange/evosax/tree/main/examples/01_gaussian_strategy.ipynb)
-| x-NES | [Wierstra et al. (2014)](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf) | [`xNES`](https://github.com/RobertTLange/evosax/tree/main/strategies/xnes.py)  | -
-
-## To Be Completed
-| Strategy | Reference | Import | Example |
-| --- | --- | ---  | --- |
-| IPOP/BIPOP/SEP | - | 🚉  | -
-| NSLC | [Lehman & Stanley (2011)](https://direct.mit.edu/evco/article-abstract/19/2/189/1365/Abandoning-Objectives-Evolution-Through-the-Search) | 🚉 | -
-| MAP-Elites | [Mouret & Clune (2015)](https://arxiv.org/abs/1504.04909) |🚉  | -
-| CMA-ME | [Fontaine et al. (2020)](https://arxiv.org/abs/1912.02400) | 🚉  | -
+| Population-Based Training | [Jaderberg et al. (2017)](https://arxiv.org/abs/1711.09846) | [`PBT_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/pbt_es.py)  | -
+| Simple Gaussian | ❓ | [`Simple_ES`](https://github.com/RobertTLange/evosax/tree/main/strategies/evosax/simple_es.py) | [Low Dim. optimisation](https://github.com/RobertTLange/evosax/tree/main/examples/01_gaussian_strategy.ipynb)
+| Simple Genetic | [Such et al. (2017)](https://arxiv.org/abs/1712.06567) | [`Simple_GA`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/simple_ga.py) | [Low Dim. optimisation](https://github.com/RobertTLange/evosax/tree/main/examples/01_gaussian_strategy.ipynb)
+| x-NES | [Wierstra et al. (2014)](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf) | [`xNES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/xnes.py)  | -
 
 ## Installation ⏳
 
@@ -79,3 +71,11 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 ## Contributing & Development 🧑‍🤝‍🧑
 
 Feel free to ping me ([@RobertTLange](https://twitter.com/RobertTLange)), open an issue or start contributing yourself.
+
+<!-- ## To Be Completed
+| Strategy | Reference | Import | Example |
+| --- | --- | ---  | --- |
+| IPOP/BIPOP/SEP | - | 🚉  | -
+| NSLC | [Lehman & Stanley (2011)](https://direct.mit.edu/evco/article-abstract/19/2/189/1365/Abandoning-Objectives-Evolution-Through-the-Search) | 🚉 | -
+| MAP-Elites | [Mouret & Clune (2015)](https://arxiv.org/abs/1504.04909) |🚉  | -
+| CMA-ME | [Fontaine et al. (2020)](https://arxiv.org/abs/1912.02400) | 🚉  | - -->

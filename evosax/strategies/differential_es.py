@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 from ..strategy import Strategy
 
 
@@ -9,7 +11,7 @@ class Differential_ES(Strategy):
         super().__init__(num_dims, popsize)
 
     @property
-    def params_strategy(self):
+    def params_strategy(self) -> chex.ArrayTree:
         return {
             "mutate_best_vector": True,  # 0 - 'random'
             "num_diff_vectors": 1,  # [1, 2]
@@ -17,7 +19,9 @@ class Differential_ES(Strategy):
             "diff_w": 0.8,  # differential weight (F) [0, 2]
         }
 
-    def initialize_strategy(self, rng, params):
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -35,7 +39,9 @@ class Differential_ES(Strategy):
         }
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """
         `ask` for new proposed candidates to evaluate next.
         For each population member x:
@@ -59,7 +65,13 @@ class Differential_ES(Strategy):
         )
         return jnp.squeeze(y), state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """
         `tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
@@ -73,7 +85,14 @@ class Differential_ES(Strategy):
         return state
 
 
-def single_member_ask(rng, member_id, num_dims, archive, best_member, params):
+def single_member_ask(
+    rng: chex.PRNGKey,
+    member_id: int,
+    num_dims: int,
+    archive: chex.Array,
+    best_member: chex.Array,
+    params: chex.ArrayTree,
+) -> chex.Array:
     """Perform `ask` steps for single member."""
     x = archive[member_id]
 
@@ -82,7 +101,9 @@ def single_member_ask(rng, member_id, num_dims, archive, best_member, params):
     # A bit of an awkward hack - sample one additional member to avoid
     # using same vector as x - check condition and select extra if needed
     # Also always sample 6 members - for case where we want two diff vectors
-    row_ids = jax.random.choice(rng, jnp.arange(archive.shape[0]), (6,), replace=False)
+    row_ids = jax.random.choice(
+        rng, jnp.arange(archive.shape[0]), (6,), replace=False
+    )
     a = jax.lax.select(
         row_ids[0] == member_id, archive[row_ids[5]], archive[row_ids[0]]
     )
@@ -140,7 +161,20 @@ def single_member_ask(rng, member_id, num_dims, archive, best_member, params):
     return y
 
 
-def single_dimension_ask(rng, dim_id, x, a, b, c, d, e, R, cr, diff_w, use_second_diff):
+def single_dimension_ask(
+    rng: chex.PRNGKey,
+    dim_id: int,
+    x: chex.Array,
+    a: chex.Array,
+    b: chex.Array,
+    c: chex.Array,
+    d: chex.Array,
+    e: chex.Array,
+    R: int,
+    cr: float,
+    diff_w: float,
+    use_second_diff: bool,
+) -> chex.Array:
     """Perform `ask` step for single dimension."""
     r_i = jax.random.uniform(rng, (1,))
     mutate_bool = jnp.logical_or(r_i < cr, dim_id == R)

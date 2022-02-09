@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 from ..strategy import Strategy
 
 
@@ -10,7 +12,7 @@ class Simple_ES(Strategy):
         self.elite_popsize = int(self.popsize * self.elite_ratio)
 
     @property
-    def params_strategy(self):
+    def params_strategy(self) -> chex.ArrayTree:
         # Only parents have positive weight - equal weighting!
         weights = jnp.zeros(self.popsize)
         weights = jax.ops.index_update(
@@ -23,7 +25,9 @@ class Simple_ES(Strategy):
             "sigma_init": 1,  # Standard deviation
         }
 
-    def initialize_strategy(self, rng, params):
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.Array
+    ) -> chex.ArrayTree:
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -43,7 +47,9 @@ class Simple_ES(Strategy):
         }
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """
         `ask` for new proposed candidates to evaluate next.
         """
@@ -51,7 +57,13 @@ class Simple_ES(Strategy):
         x = state["mean"] + state["sigma"] * z  # ~ N(m, σ^2 I)
         return x, state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """
         `tell` update to ES state.
         """
@@ -65,7 +77,9 @@ class Simple_ES(Strategy):
         return state
 
 
-def update_mean(sorted_solutions, mean, params):
+def update_mean(
+    sorted_solutions: chex.Array, mean: chex.Array, params: chex.ArrayTree
+) -> Tuple[chex.Array, chex.Array]:
     """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = x_k - mean
@@ -74,7 +88,9 @@ def update_mean(sorted_solutions, mean, params):
     return mean_new, y_k
 
 
-def update_sigma(y_k, sigma, params):
+def update_sigma(
+    y_k: chex.Array, sigma: chex.Array, params: chex.ArrayTree
+) -> chex.Array:
     """Update stepsize sigma."""
     sigma_est = jnp.sqrt(jnp.sum((y_k.T ** 2 * params["weights"]), axis=1))
     sigma_new = (1 - params["c_sigma"]) * sigma + params["c_sigma"] * sigma_est

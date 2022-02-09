@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 from ..strategy import Strategy
 
 
@@ -8,14 +10,16 @@ class PSO_ES(Strategy):
         super().__init__(num_dims, popsize)
 
     @property
-    def params_strategy(self) -> dict:
+    def params_strategy(self) -> chex.ArrayTree:
         return {
             "inertia_coeff": 0.75,  # w momentum of velocity
             "cognitive_coeff": 1.5,  # c_1 cognitive "force" multiplier
             "social_coeff": 2.0,  # c_2 social "force" multiplier
         }
 
-    def initialize_strategy(self, rng, params) -> dict:
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -36,7 +40,9 @@ class PSO_ES(Strategy):
         state["best_archive_fitness"] = state["fitness"][:]
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """
         `ask` for new proposed candidates to evaluate next.
         1. Update v_i(t+1) velocities base on:
@@ -66,7 +72,13 @@ class PSO_ES(Strategy):
         state["velocity"] = vel
         return jnp.squeeze(y), state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """
         `tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
@@ -85,15 +97,15 @@ class PSO_ES(Strategy):
 
 
 def single_member_velocity(
-    rng,
-    member_id,
-    archive,
-    velocity,
-    best_archive,
-    best_fitness,
-    inertia_coeff,
-    cognitive_coeff,
-    social_coeff,
+    rng: chex.PRNGKey,
+    member_id: int,
+    archive: chex.Array,
+    velocity: chex.Array,
+    best_archive: chex.Array,
+    best_fitness: chex.Array,
+    inertia_coeff: float,
+    cognitive_coeff: float,
+    social_coeff: float,
 ):
     """Update v_i(t+1) velocities based on: Inertia, Cognitive, Social."""
     # Sampling one r1, r2 that is shared across dims of one member seems more robust!

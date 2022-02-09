@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 from ..strategy import Strategy
 from ..utils import GradientOptimizer
 
@@ -16,7 +18,7 @@ class Persistent_ES(Strategy):
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
 
     @property
-    def params_strategy(self) -> dict:
+    def params_strategy(self) -> chex.ArrayTree:
         """Return default parameters of evolutionary strategy."""
         es_params = {
             "sigma_init": 0.1,  # Perturbation Std
@@ -28,7 +30,9 @@ class Persistent_ES(Strategy):
         params = {**es_params, **self.optimizer.default_params}
         return params
 
-    def initialize_strategy(self, rng, params) -> dict:
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -45,7 +49,9 @@ class Persistent_ES(Strategy):
         state = {**es_state, **self.optimizer.initialize(params)}
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         pos_perts = (
@@ -59,7 +65,13 @@ class Persistent_ES(Strategy):
         y = state["mean"] + perts
         return jnp.squeeze(y), state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """`tell` update to ES state."""
         theta_grad = jnp.mean(
             state["pert_accum"]

@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 from ..strategy import Strategy
 
 
@@ -9,13 +11,15 @@ class PBT_ES(Strategy):
         super().__init__(num_dims, popsize)
 
     @property
-    def params_strategy(self):
+    def params_strategy(self) -> chex.ArrayTree:
         return {
             "noise_scale": 0.1,
             "truncation_selection": 0.2,
         }
 
-    def initialize_strategy(self, rng, params):
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
         """
         `initialize` the differential evolution strategy.
         """
@@ -31,7 +35,9 @@ class PBT_ES(Strategy):
         }
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """
         `ask` for new proposed candidates to evaluate next.
         Perform explore-exploit step.
@@ -49,7 +55,13 @@ class PBT_ES(Strategy):
         )
         return copy_id, hyperparams, state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """
         `tell` update to ES state. - Only copy if perfomance has improved.
         """
@@ -62,7 +74,12 @@ class PBT_ES(Strategy):
         return state
 
 
-def single_member_exploit(member_id, archive, fitness, params):
+def single_member_exploit(
+    member_id: int,
+    archive: chex.Array,
+    fitness: chex.Array,
+    params: chex.ArrayTree,
+) -> Tuple[bool, int, chex.Array]:
     """Get the top and bottom performers."""
     best_id = jnp.argmax(fitness)
     exploit_bool = member_id != best_id  # Copy if worker not best
@@ -71,8 +88,15 @@ def single_member_exploit(member_id, archive, fitness, params):
     return exploit_bool, copy_id, hyperparams_copy
 
 
-def single_member_explore(rng, exploit_bool, hyperparams, params):
-    explore_noise = jax.random.normal(rng, hyperparams.shape) * params["noise_scale"]
+def single_member_explore(
+    rng: chex.PRNGKey,
+    exploit_bool: int,
+    hyperparams: chex.Array,
+    params: chex.ArrayTree,
+) -> chex.Array:
+    explore_noise = (
+        jax.random.normal(rng, hyperparams.shape) * params["noise_scale"]
+    )
     hyperparams_explore = jax.lax.select(
         exploit_bool, hyperparams + explore_noise, hyperparams
     )

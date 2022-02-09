@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 from ..strategy import Strategy
 
 
@@ -12,7 +14,7 @@ class xNES(Strategy):
         super().__init__(num_dims, popsize)
 
     @property
-    def params_strategy(self):
+    def params_strategy(self) -> chex.ArrayTree:
         """Return default parameters of evolutionary strategy."""
         params = {
             "eta_mean": 1.0,
@@ -27,7 +29,9 @@ class xNES(Strategy):
         }
         return params
 
-    def initialize_strategy(self, rng, params):
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.Array
+    ) -> chex.ArrayTree:
         """`initialize` the evolutionary strategy."""
         amat = jnp.eye(self.num_dims)
         sigma = abs(jax.scipy.linalg.det(amat)) ** (1.0 / self.num_dims)
@@ -60,14 +64,22 @@ class xNES(Strategy):
 
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(rng, (self.popsize, self.num_dims))
         x = state["mean"] + state["sigma"] * jnp.dot(noise, state["bmat"])
         state["noise"] = noise
         return x, state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
         # By default the ES maximizes the objective
         fitness_re = -fitness
@@ -97,27 +109,41 @@ class xNES(Strategy):
         )
 
         dj_delta = jnp.dot(fitness_shaped, sorted_noise)
-        dj_mmat = jnp.dot(
-            sorted_noise.T, sorted_noise * fitness_shaped.reshape(self.popsize, 1)
-        ) - jnp.sum(fitness_shaped) * jnp.eye(self.num_dims)
+        dj_mmat = (
+            jnp.dot(
+                sorted_noise.T,
+                sorted_noise * fitness_shaped.reshape(self.popsize, 1),
+            )
+            - jnp.sum(fitness_shaped) * jnp.eye(self.num_dims)
+        )
         dj_sigma = jnp.trace(dj_mmat) * (1.0 / self.num_dims)
         dj_bmat = dj_mmat - dj_sigma * jnp.eye(self.num_dims)
 
         state["sigma_old"] = state["sigma"]
         state["mean"] += (
-            params["eta_mean"] * state["sigma"] * jnp.dot(state["bmat"], dj_delta)
+            params["eta_mean"]
+            * state["sigma"]
+            * jnp.dot(state["bmat"], dj_delta)
         )
         state["sigma"] = state["sigma_old"] * jnp.exp(
             0.5 * state["eta_sigma"] * dj_sigma
         )
         state["bmat"] = jnp.dot(
-            state["bmat"], jax.scipy.linalg.expm(0.5 * params["eta_bmat"] * dj_bmat)
+            state["bmat"],
+            jax.scipy.linalg.expm(0.5 * params["eta_bmat"] * dj_bmat),
         )
         return state
 
     def adaptive_sampling(
-        self, eta_sigma, mu, sigma, bmat, sigma_old, z_try, eta_sigma_init
-    ):
+        self,
+        eta_sigma: float,
+        mu: chex.Array,
+        sigma: float,
+        bmat: chex.Array,
+        sigma_old: float,
+        z_try: chex.Array,
+        eta_sigma_init: float,
+    ) -> float:
         """Adaptation sampling."""
         c = 0.1
         rho = 0.5 - 1.0 / (3 * (self.num_dims + 1))  # empirical
@@ -128,7 +154,9 @@ class xNES(Strategy):
         cov_ = sigma_ ** 2 * bbmat
 
         p0 = jax.scipy.stats.multivariate_normal.logpdf(z_try, mean=mu, cov=cov)
-        p1 = jax.scipy.stats.multivariate_normal.logpdf(z_try, mean=mu, cov=cov_)
+        p1 = jax.scipy.stats.multivariate_normal.logpdf(
+            z_try, mean=mu, cov=cov_
+        )
         w = jnp.exp(p1 - p0)
 
         # Mann-Whitney. It is assumed z_try was in ascending order.

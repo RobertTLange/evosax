@@ -1,11 +1,8 @@
 import jax
 import jax.numpy as jnp
 import chex
+from typing import Tuple
 from functools import partial
-
-
-Array = chex.Array
-PRNGKey = chex.PRNGKey
 
 
 class Strategy(object):
@@ -15,7 +12,7 @@ class Strategy(object):
         self.popsize = popsize
 
     @property
-    def default_params(self):
+    def default_params(self) -> chex.ArrayTree:
         """Return default parameters of evolutionary strategy."""
         params = self.params_strategy
         # Add shared parameter clipping and archive init params
@@ -26,7 +23,9 @@ class Strategy(object):
         return params
 
     @partial(jax.jit, static_argnums=(0,))
-    def initialize(self, rng: PRNGKey, params: dict) -> dict:
+    def initialize(
+        self, rng: chex.PRNGKey, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
         """`initialize` the evolutionary strategy."""
         # Initialize strategy based on strategy-specific initialize method
         state = self.initialize_strategy(rng, params)
@@ -44,7 +43,9 @@ class Strategy(object):
         return state
 
     @partial(jax.jit, static_argnums=(0,))
-    def ask(self, rng: PRNGKey, state: dict, params: dict) -> (Array, dict):
+    def ask(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
         # Generate proposal based on strategy-specific ask method
         x, state = self.ask_strategy(rng, state, params)
@@ -54,8 +55,17 @@ class Strategy(object):
         return x_clipped, state
 
     @partial(jax.jit, static_argnums=(0,))
-    def tell(self, x: Array, fitness: Array, state: dict, params: dict) -> dict:
+    def tell(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
+        # Make sure that fitness and inputs are of correct size
+        chex.assert_shape(x, (self.popsize, self.num_dims))
+        chex.assert_shape(fitness, (self.popsize,))
         # Update the search state based on strategy-specific update
         state = self.tell_strategy(x, fitness, state, params)
 
@@ -77,18 +87,24 @@ class Strategy(object):
         )
         return state
 
-    def initialize_strategy(self, rng: PRNGKey, params: dict):
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
         """Search-specific `initialize` method."""
         raise NotImplementedError
 
     def ask_strategy(
-        self, rng: PRNGKey, state: dict, params: dict
-    ) -> (Array, dict):
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """Search-specific `ask` request."""
         raise NotImplementedError
 
     def tell_strategy(
-        self, x: Array, fitness: Array, state: dict, params: dict
-    ) -> dict:
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """Search-specific `tell` update."""
         raise NotImplementedError

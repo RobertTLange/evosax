@@ -1,16 +1,19 @@
-from ..strategy import Strategy
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
+from ..strategy import Strategy
 
 
 class CMA_ES(Strategy):
     def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
         super().__init__(num_dims, popsize)
+        assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
 
     @property
-    def params_strategy(self):
+    def params_strategy(self) -> chex.ArrayTree:
         weights_prime = jnp.array(
             [
                 jnp.log((self.popsize + 1) / 2) - jnp.log(i + 1)
@@ -20,9 +23,9 @@ class CMA_ES(Strategy):
         mu_eff = (jnp.sum(weights_prime[: self.elite_popsize]) ** 2) / jnp.sum(
             weights_prime[: self.elite_popsize] ** 2
         )
-        mu_eff_minus = (jnp.sum(weights_prime[self.elite_popsize :]) ** 2) / jnp.sum(
-            weights_prime[self.elite_popsize :] ** 2
-        )
+        mu_eff_minus = (
+            jnp.sum(weights_prime[self.elite_popsize :]) ** 2
+        ) / jnp.sum(weights_prime[self.elite_popsize :] ** 2)
 
         # lrates for rank-one and rank-μ C updates
         alpha_cov = 2
@@ -53,14 +56,17 @@ class CMA_ES(Strategy):
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
         d_sigma = (
             1
-            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2
+            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
         c_c = (4 + mu_eff / self.num_dims) / (
             self.num_dims + 4 + 2 * mu_eff / self.num_dims
         )
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.num_dims ** 2))
+            1.0
+            - (1.0 / (4.0 * self.num_dims))
+            + 1.0 / (21.0 * (self.num_dims ** 2))
         )
 
         params = {
@@ -78,7 +84,9 @@ class CMA_ES(Strategy):
         }
         return params
 
-    def initialize_strategy(self, rng, params):
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
@@ -98,16 +106,30 @@ class CMA_ES(Strategy):
         }
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
         C, B, D = eigen_decomposition(state["C"], state["B"], state["D"])
         x = sample(
-            rng, state["mean"], state["sigma"], B, D, self.num_dims, self.popsize
+            rng,
+            state["mean"],
+            state["sigma"],
+            B,
+            D,
+            self.num_dims,
+            self.popsize,
         )
         state["C"], state["B"], state["D"] = C, B, D
         return x, state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
@@ -139,7 +161,12 @@ class CMA_ES(Strategy):
         return state
 
 
-def update_mean(mean, sigma, sorted_solutions, params):
+def update_mean(
+    mean: chex.Array,
+    sigma: float,
+    sorted_solutions: chex.Array,
+    params: chex.ArrayTree,
+) -> Tuple[chex.Array, chex.Array, chex.Array]:
     """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = (x_k - mean) / sigma  # ~ N(0, C)
@@ -148,7 +175,14 @@ def update_mean(mean, sigma, sorted_solutions, params):
     return y_k, y_w, mean
 
 
-def update_p_sigma(C, B, D, p_sigma, y_w, params):
+def update_p_sigma(
+    C: chex.Array,
+    B: chex.Array,
+    D: chex.Array,
+    p_sigma: chex.Array,
+    y_w: chex.Array,
+    params: chex.ArrayTree,
+) -> Tuple[chex.Array, chex.Array, chex.Array, None, None]:
     """Update evolution path for covariance matrix."""
     C, B, D = eigen_decomposition(C, B, D)
     C_2 = B.dot(jnp.diag(1 / D)).dot(B.T)  # C^(-1/2) = B D^(-1) B^T
@@ -159,7 +193,14 @@ def update_p_sigma(C, B, D, p_sigma, y_w, params):
     return p_sigma_new, C_2, C, _B, _D
 
 
-def update_p_c(mean, p_sigma, p_c, gen_counter, y_w, params):
+def update_p_c(
+    mean: chex.Array,
+    p_sigma: chex.Array,
+    p_c: chex.Array,
+    gen_counter: int,
+    y_w: chex.Array,
+    params: chex.ArrayTree,
+) -> Tuple[chex.Array, float, float]:
     """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
     h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
@@ -173,7 +214,15 @@ def update_p_c(mean, p_sigma, p_c, gen_counter, y_w, params):
     return p_c_new, norm_p_sigma, h_sigma
 
 
-def update_covariance(mean, p_c, C, y_k, h_sigma, C_2, params):
+def update_covariance(
+    mean: chex.Array,
+    p_c: chex.Array,
+    C: chex.Array,
+    y_k: chex.Array,
+    h_sigma: float,
+    C_2: chex.Array,
+    params: chex.ArrayTree,
+) -> chex.Array:
     """Update cov. matrix estimator using rank 1 + μ updates."""
     w_io = params["weights"] * jnp.where(
         params["weights"] >= 0,
@@ -199,15 +248,26 @@ def update_covariance(mean, p_c, C, y_k, h_sigma, C_2, params):
     return C
 
 
-def update_sigma(sigma, norm_p_sigma, params):
+def update_sigma(
+    sigma: float, norm_p_sigma: float, params: chex.ArrayTree
+) -> float:
     """Update stepsize sigma."""
     sigma_new = sigma * jnp.exp(
-        (params["c_sigma"] / params["d_sigma"]) * (norm_p_sigma / params["chi_n"] - 1)
+        (params["c_sigma"] / params["d_sigma"])
+        * (norm_p_sigma / params["chi_n"] - 1)
     )
     return sigma_new
 
 
-def sample(rng, mean, sigma, B, D, n_dim, pop_size):
+def sample(
+    rng: chex.PRNGKey,
+    mean: chex.Array,
+    sigma: float,
+    B: chex.Array,
+    D: chex.Array,
+    n_dim: int,
+    pop_size: int,
+) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
     z = jax.random.normal(rng, (n_dim, pop_size))  # ~ N(0, I)
     y = B.dot(jnp.diag(D)).dot(z)  # ~ N(0, C)
@@ -216,7 +276,9 @@ def sample(rng, mean, sigma, B, D, n_dim, pop_size):
     return x
 
 
-def eigen_decomposition(C, B, D):
+def eigen_decomposition(
+    C: chex.Array, B: chex.Array, D: chex.Array
+) -> Tuple[chex.Array, chex.Array, chex.Array]:
     """Perform eigendecomposition of covariance matrix."""
     if B is not None and D is not None:
         return C, B, D

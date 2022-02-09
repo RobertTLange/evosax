@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 from ..strategy import Strategy
 
 
@@ -10,7 +12,7 @@ class Simple_GA(Strategy):
         self.elite_popsize = int(self.popsize * self.elite_ratio)
 
     @property
-    def params_strategy(self):
+    def params_strategy(self) -> chex.ArrayTree:
         return {
             "cross_over_rate": 0.5,  # cross-over probability
             "sigma_init": 0.1,  # initial standard deviation
@@ -19,7 +21,9 @@ class Simple_GA(Strategy):
             "forget_best": False,  # forget the historical best elites
         }
 
-    def initialize_strategy(self, rng, params):
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.Array
+    ) -> chex.ArrayTree:
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -38,7 +42,9 @@ class Simple_GA(Strategy):
         }
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """
         `ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
@@ -52,7 +58,8 @@ class Simple_GA(Strategy):
         rng, rng_idx_b = jax.random.split(rng)
         rng_mate = jax.random.split(rng, self.popsize)
         epsilon = (
-            jax.random.normal(rng_eps, (self.popsize, self.num_dims)) * state["sigma"]
+            jax.random.normal(rng_eps, (self.popsize, self.num_dims))
+            * state["sigma"]
         )
         elite_ids = jnp.arange(self.elite_popsize)
         idx_a = jax.random.choice(rng_idx_a, elite_ids, (self.popsize,))
@@ -65,7 +72,13 @@ class Simple_GA(Strategy):
         y += epsilon
         return jnp.squeeze(y), state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         """
         `tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
@@ -86,7 +99,9 @@ class Simple_GA(Strategy):
         return state
 
 
-def single_mate(rng, a, b, cross_over_rate):
+def single_mate(
+    rng: chex.PRNGKey, a: chex.Array, b: chex.Array, cross_over_rate: float
+) -> chex.Array:
     """Only cross-over dims for x% of all dims."""
     idx = jax.random.uniform(rng, (a.shape[0],)) > cross_over_rate
     cross_over_candidate = a * (1 - idx) + b * idx

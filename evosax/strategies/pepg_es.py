@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 from ..strategy import Strategy
 from ..utils import GradientOptimizer
 
@@ -13,16 +15,16 @@ class PEPG_ES(Strategy):
         opt_name: str = "sgd",
     ):
         super().__init__(num_dims, popsize)
+        assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize / 2 * self.elite_ratio)
 
-        # Baseline = average of batch
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
 
     @property
-    def params_strategy(self):
+    def params_strategy(self) -> chex.ArrayTree:
         es_params = {
             "sigma_init": 0.10,  # initial standard deviation
             "sigma_decay": 0.999,  # Anneal standard deviation
@@ -33,7 +35,9 @@ class PEPG_ES(Strategy):
         params = {**es_params, **self.optimizer.default_params}
         return params
 
-    def initialize_strategy(self, rng, params):
+    def initialize_strategy(
+        self, rng: chex.PRNGKey, params: chex.Array
+    ) -> chex.ArrayTree:
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -54,7 +58,9 @@ class PEPG_ES(Strategy):
         state = {**es_state, **self.optimizer.initialize(params)}
         return state
 
-    def ask_strategy(self, rng, state, params):
+    def ask_strategy(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
@@ -65,7 +71,13 @@ class PEPG_ES(Strategy):
         x = state["mean"] + z * state["sigma"].reshape(1, self.num_dims)
         return x, state
 
-    def tell_strategy(self, x, fitness, state, params):
+    def tell_strategy(
+        self,
+        x: chex.Array,
+        fitness: chex.Array,
+        state: chex.ArrayTree,
+        params: chex.ArrayTree,
+    ) -> chex.ArrayTree:
         # Reconstruct noise from last mean/std estimates
         noise = (x - state["mean"]) / state["sigma"]
         noise_1 = noise[: int(self.popsize / 2)]
