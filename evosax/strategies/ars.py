@@ -52,7 +52,7 @@ class Augmented_RS(Strategy):
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
             rng,
-            (jnp.array(self.popsize / 2, int), self.num_dims),
+            (int(self.popsize / 2), self.num_dims),
         )
         z = jnp.concatenate([z_plus, -1.0 * z_plus])
         x = state["mean"] + state["sigma"] * z
@@ -62,9 +62,9 @@ class Augmented_RS(Strategy):
         """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state["mean"]) / state["sigma"]
-        noise_1 = noise[: jnp.array(self.popsize / 2, int)]
-        fit_1 = fitness[: jnp.array(self.popsize / 2, int)]
-        fit_2 = fitness[jnp.array(self.popsize / 2, int) :]
+        noise_1 = noise[: int(self.popsize / 2)]
+        fit_1 = fitness[: int(self.popsize / 2)]
+        fit_2 = fitness[int(self.popsize / 2) :]
         elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
 
         fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])

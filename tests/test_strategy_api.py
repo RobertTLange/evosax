@@ -3,33 +3,27 @@ from evosax import Strategies
 from evosax.problems import batch_rosenbrock
 
 
-def test_strategy_ask():
+def test_strategy_ask(strategy_name):
     # Loop over all strategies and test ask API
     rng = jax.random.PRNGKey(0)
-    for s_name, Strat in Strategies.items():
-        # PBT also returns copy ID integer - treat separately
-        popsize = 20
-        if s_name != "PBT_ES":
-            strategy = Strat(popsize=popsize, num_dims=2)
-            params = strategy.default_params
-            state = strategy.initialize(rng, params)
-            x, state = strategy.ask(rng, state, params)
-            assert x.shape[0] == popsize
-            assert x.shape[1] == 2
+    popsize = 20
+    strategy = Strategies[strategy_name](popsize=popsize, num_dims=2)
+    params = strategy.default_params
+    state = strategy.initialize(rng, params)
+    x, state = strategy.ask(rng, state, params)
+    assert x.shape[0] == popsize
+    assert x.shape[1] == 2
     return
 
 
-def test_strategy_ask_tell():
+def test_strategy_ask_tell(strategy_name):
     # Loop over all strategies and test ask API
     rng = jax.random.PRNGKey(0)
-    # PBT also returns copy ID integer - treat separately
-    for s_name, Strat in Strategies.items():
-        popsize = 20
-        if s_name != "PBT_ES":
-            strategy = Strat(popsize=popsize, num_dims=2)
-            params = strategy.default_params
-            state = strategy.initialize(rng, params)
-            x, state = strategy.ask(rng, state, params)
-            fitness = batch_rosenbrock(x)
-            state = strategy.tell(x, fitness, state, params)
+    popsize = 20
+    strategy = Strategies[strategy_name](popsize=popsize, num_dims=2)
+    params = strategy.default_params
+    state = strategy.initialize(rng, params)
+    x, state = strategy.ask(rng, state, params)
+    fitness = batch_rosenbrock(x)
+    state = strategy.tell(x, fitness, state, params)
     return

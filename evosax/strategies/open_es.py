@@ -42,7 +42,7 @@ class Open_ES(Strategy):
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
             rng,
-            (jnp.array(self.popsize / 2, int), self.num_dims),
+            (int(self.popsize / 2), self.num_dims),
         )
         z = jnp.concatenate([z_plus, -1.0 * z_plus])
         x = state["mean"] + state["sigma"] * z
