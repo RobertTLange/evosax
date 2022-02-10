@@ -63,9 +63,6 @@ class Strategy(object):
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
-        # Make sure that fitness and inputs are of correct size
-        chex.assert_shape(x, (self.popsize, self.num_dims))
-        chex.assert_shape(fitness, (self.popsize,))
         # Update the search state based on strategy-specific update
         state = self.tell_strategy(x, fitness, state, params)
 

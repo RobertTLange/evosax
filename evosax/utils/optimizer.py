@@ -169,7 +169,7 @@ class ClipUp_Optimizer(object):
 
         # Normalize length of gradients - vmax & alpha control max step magnitude
         grad_magnitude = jnp.sqrt(jnp.sum(grads * grads))
-        gradient = grads / grad_magnitude
+        gradient = grads / (grad_magnitude + 1e-08)
         step = gradient * state["lrate"]
         velocity = params["momentum"] * state["m"] + step
 
@@ -177,7 +177,7 @@ class ClipUp_Optimizer(object):
             """Rescale clipped velocities."""
             vel_magnitude = jnp.sqrt(jnp.sum(velocity * velocity))
             ratio_scale = vel_magnitude > max_speed
-            scaled_vel = velocity * (max_speed / vel_magnitude)
+            scaled_vel = velocity * (max_speed / (vel_magnitude + 1e-08))
             x_out = jax.lax.select(ratio_scale, scaled_vel, velocity)
             return x_out
 

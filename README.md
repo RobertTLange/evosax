@@ -1,9 +1,7 @@
 # `evosax`: JAX-Based Evolution Strategies
 [![Pyversions](https://img.shields.io/pypi/pyversions/evosax.svg?style=flat-square)](https://pypi.python.org/pypi/evosax) [![PyPI version](https://badge.fury.io/py/evosax.svg)](https://badge.fury.io/py/evosax)[![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/getting_started.ipynb)
-[![PyPI version](https://badge.fury.io/py/evosax.svg)](https://badge.fury.io/py/evosax)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![codecov](https://codecov.io/gh/RobertTLange/evosax/branch/main/graph/badge.svg?token=5FUSX35KWO)](https://codecov.io/gh/RobertTLange/evosax)
-[![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/getting_started.ipynb)
 <a href="https://github.com/RobertTLange/evosax/blob/main/docs/evosax_transparent_2.png?raw=true"><img src="https://github.com/RobertTLange/evosax/blob/main/docs/evosax_transparent_2.png?raw=true" width="170" align="right" /></a>
 
 Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and autovectorization to scale ES to your favorite accelerators. The API follows the classical `ask`, `evaluate`, `tell` cycle of ES and only requires you to `vmap` and `pmap` over the fitness function axes of choice. It includes popular strategies such as Simple Gaussian, CMA-ES, and different NES variants.
