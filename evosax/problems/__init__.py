@@ -1,22 +1,12 @@
-from .classic import (
-    batch_quadratic,
-    batch_himmelblau,
-    batch_hump_camel,
-    batch_rosenbrock,
-    batch_ackley,
-    batch_griewank,
-    batch_rastrigin,
-    batch_schwefel,
-)
+from .control_brax import BraxFitness
+from .control_gym import GymnaxFitness
+from .supervised import SupervisedFitness
+from .classic import ClassicFitness
 
 
 __all__ = [
-    "batch_quadratic",
-    "batch_himmelblau",
-    "batch_hump_camel",
-    "batch_rosenbrock",
-    "batch_ackley",
-    "batch_griewank",
-    "batch_rastrigin",
-    "batch_schwefel",
+    "BraxFitness",
+    "GymnaxFitness",
+    "SupervisedFitness",
+    "ClassicFitness",
 ]

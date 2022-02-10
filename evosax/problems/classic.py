@@ -1,5 +1,37 @@
+import jax
 import jax.numpy as jnp
-from jax import vmap, jit
+
+
+class ClassicFitness(object):
+    def __init__(self, problem_name: str = "rosenbrock", num_dims: int = 2):
+        self.problem_name = problem_name
+        self.num_dims = num_dims
+
+        if self.problem_name == "quadratic":
+            self.eval = jax.jit(jax.vmap(quadratic_d_dim, 0))
+        elif self.problem_name == "rosenbrock":
+            self.eval = jax.jit(jax.vmap(rosenbrock_d_dim, 0))
+        elif self.problem_name == "ackley":
+            self.eval = jax.jit(jax.vmap(ackley_d_dim, 0))
+        elif self.problem_name == "griewank":
+            self.eval = jax.jit(jax.vmap(griewank_d_dim, 0))
+        elif self.problem_name == "rastrigin":
+            self.eval = jax.jit(jax.vmap(rastrigin_d_dim, 0))
+        elif self.problem_name == "schwefel":
+            self.eval = jax.jit(jax.vmap(schwefel_d_dim, 0))
+        elif self.problem_name == "himmelblau":
+            assert self.num_dims == 2
+            self.eval = jax.jit(jax.vmap(himmelblau_2_dim, 0))
+        elif self.problem_name == "six-hump":
+            assert self.num_dims == 2
+            self.eval = jax.jit(jax.vmap(six_hump_camel_2_dim, 0))
+        else:
+            raise ValueError("Please provide a valid problem name.")
+
+    def rollout(self, rng_input, eval_params):
+        """Rollout a pendulum episode with lax.scan."""
+        fitness = self.eval(eval_params)
+        return {"function_value": fitness}
 
 
 def himmelblau_2_dim(x):
@@ -85,22 +117,6 @@ def schwefel_d_dim(x):
     D-Dim. Schwefel function. x_i ∈ [-500, 500]
     f(x*)=0 - Minimum at x*=[420.9687,...,420.9687]
     """
-    return 418.9829 * x.shape[0] - jnp.sum(x * jnp.sin(jnp.sqrt(jnp.absolute(x))))
-
-
-# Toy Problem Evaluation Batch-Jitted Versions
-batch_himmelblau = jit(vmap(himmelblau_2_dim, 0))
-
-batch_hump_camel = jit(vmap(six_hump_camel_2_dim, 0))
-
-batch_quadratic = jit(vmap(quadratic_d_dim, 0))
-
-batch_rosenbrock = jit(vmap(rosenbrock_d_dim, 0))
-
-batch_ackley = jit(vmap(ackley_d_dim, 0))
-
-batch_griewank = jit(vmap(griewank_d_dim, 0))
-
-batch_rastrigin = jit(vmap(rastrigin_d_dim, 0))
-
-batch_schwefel = jit(vmap(schwefel_d_dim, 0))
+    return 418.9829 * x.shape[0] - jnp.sum(
+        x * jnp.sin(jnp.sqrt(jnp.absolute(x)))
+    )
