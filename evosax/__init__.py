@@ -1,4 +1,5 @@
 from .strategy import Strategy
+from .utils import FitnessShaper, ParameterReshaper
 
 from .strategies import (
     Simple_GA,
@@ -43,4 +44,6 @@ __all__ = [
     "xNES",
     "Augmented_RS",
     "Strategies",
+    "FitnessShaper",
+    "ParameterReshaper",
 ]

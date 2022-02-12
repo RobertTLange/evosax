@@ -7,34 +7,35 @@ from functools import partial
 class FitnessShaper(object):
     def __init__(
         self,
-        rank_fitness: bool = False,
-        z_score_fitness: bool = False,
+        centered_rank: bool = False,
+        z_score: bool = False,
         weight_decay: float = 0.0,
-        maximize_objective: bool = False,
+        maximize: bool = False,
     ):
         self.weight_decay = weight_decay
-        self.rank_fitness = rank_fitness
-        self.z_score_fitness = z_score_fitness
-        self.maximize_objective = maximize_objective
+        self.centered_rank = centered_rank
+        self.z_score = z_score
+        self.maximize = maximize
 
     @partial(jax.jit, static_argnums=(0,))
     def apply(self, x: chex.Array, fitness: chex.Array):
         """Max objective trafo, rank shaping, z scoring and add weight decay."""
-        fitness = jax.lax.select(self.maximize_objective, -1 * fitness, fitness)
+        fitness = jax.lax.select(self.maximize, -1 * fitness, fitness)
         fitness = jax.lax.select(
-            self.rank_fitness, compute_centered_ranks(fitness), fitness
+            self.centered_rank, compute_centered_ranks(fitness), fitness
         )
         fitness = jax.lax.select(
-            self.z_score_fitness, z_score_fitness(fitness), fitness
+            self.z_score, z_score_fitness(fitness), fitness
         )
         # "Reduce" fitness based on L2 norm of parameters
-        l2_fitness_reduction = self.weight_decay * compute_weight_norm(x)
-        return fitness + l2_fitness_reduction
+        l2_fit_red = self.weight_decay * compute_weight_norm(x)
+        l2_fit_red = jax.lax.select(self.maximize, -1 * l2_fit_red, l2_fit_red)
+        return fitness + l2_fit_red
 
 
 def z_score_fitness(fitness: chex.Array):
     """Make fitness 'Gaussian' by substracting mean and dividing by std."""
-    return (fitness - jnp.mean(fitness)) / jnp.std(1e-6 + fitness)
+    return (fitness - jnp.mean(fitness)) / jnp.std(1e-10 + fitness)
 
 
 def compute_ranks(fitness: chex.Array):
