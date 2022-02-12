@@ -59,7 +59,7 @@ class BraxFitness(object):
         rewards, dones = scan_out[0], scan_out[1]
         rewards = rewards.reshape(self.num_env_steps, 1)
         ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
-        return {"returns": jnp.sum(rewards * ep_mask)}
+        return jnp.sum(rewards * ep_mask)
 
     def rollout_rnn(self, rng_input, policy_params):
         """Rollout a jitted gymnax episode with lax.scan."""
@@ -89,7 +89,7 @@ class BraxFitness(object):
         rewards, dones = scan_out[0], scan_out[1]
         rewards = rewards.reshape(self.num_env_steps, 1)
         ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
-        return {"returns": jnp.sum(rewards * ep_mask)}
+        return jnp.sum(rewards * ep_mask)
 
     @property
     def input_shape(self):

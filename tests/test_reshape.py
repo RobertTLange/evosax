@@ -23,7 +23,7 @@ class LSTM(nn.Module):
         )
 
 
-def test_param_reshaping():
+def test_reshape_lstm():
     rng = jax.random.PRNGKey(1)
     network = LSTM(num_hidden_units=10, num_output_units=1)
     hidden = network.initialize_carry()

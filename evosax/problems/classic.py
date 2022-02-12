@@ -31,7 +31,7 @@ class ClassicFitness(object):
     def rollout(self, rng_input, eval_params):
         """Rollout a pendulum episode with lax.scan."""
         fitness = self.eval(eval_params)
-        return {"function_value": fitness}
+        return fitness
 
 
 def himmelblau_2_dim(x):

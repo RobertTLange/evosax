@@ -1,17 +1,11 @@
 import jax
 import jax.numpy as jnp
 from evosax import Strategies
-from evosax.problems import batch_rosenbrock, batch_quadratic
+from evosax.problems import ClassicFitness
 from evosax.utils import FitnessShaper
 from functools import partial
 
 num_iters = 25
-
-
-"""
-OpenNES: params["lrate"] = 0.015, num_iters = 200
-PEPG: params["lrate"] = 0.01, num_iters = 500
-"""
 
 
 def test_strategy_run(strategy_name):
@@ -28,21 +22,22 @@ def test_strategy_run(strategy_name):
         "Simple_ES",
         "Simple_GA",
     ]:
-        batch_eval = batch_rosenbrock
+        evaluator = ClassicFitness("rosenbrock", 2)
         fitness_shaper = FitnessShaper()
     elif strategy_name in ["Open_ES", "PEPG_ES", "Augmented_RS"]:
-        batch_eval = batch_quadratic
+        evaluator = ClassicFitness("quadratic", 2)
         fitness_shaper = FitnessShaper(z_score_fitness=True)
 
+    batch_eval = evaluator.rollout
     strategy = Strat(popsize=popsize, num_dims=2)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
 
     fitness_log = []
     for t in range(num_iters):
-        rng, rng_iter = jax.random.split(rng)
+        rng, rng_eval, rng_iter = jax.random.split(rng, 3)
         x, state = strategy.ask(rng_iter, state, params)
-        fitness = batch_eval(x)
+        fitness = batch_eval(rng, x)
         fitness_shaped = fitness_shaper.apply(x, fitness)
         state = strategy.tell(x, fitness_shaped, state, params)
         best_id = jnp.argmin(fitness)
@@ -64,12 +59,13 @@ def test_strategy_scan(strategy_name):
         "Simple_ES",
         "Simple_GA",
     ]:
-        batch_eval = batch_rosenbrock
+        evaluator = ClassicFitness("rosenbrock", 2)
         fitness_shaper = FitnessShaper()
     elif strategy_name in ["Open_ES", "PEPG_ES", "Augmented_RS"]:
-        batch_eval = batch_quadratic
+        evaluator = ClassicFitness("quadratic", 2)
         fitness_shaper = FitnessShaper(z_score_fitness=True)
 
+    batch_eval = evaluator.rollout
     strategy = Strat(popsize=popsize, num_dims=2)
     es_params = strategy.default_params
 
@@ -81,9 +77,9 @@ def test_strategy_scan(strategy_name):
         def step(state_input, tmp):
             """Helper function to lax.scan through."""
             rng, state = state_input
-            rng, rng_iter = jax.random.split(rng)
+            rng, rng_eval, rng_iter = jax.random.split(rng, 3)
             x, state = strategy.ask(rng_iter, state, es_params)
-            fitness = batch_eval(x)
+            fitness = batch_eval(rng_eval, x)
             fitness_shaped = fitness_shaper.apply(x, fitness)
             state = strategy.tell(x, fitness_shaped, state, es_params)
             best_id = jnp.argmin(fitness)
