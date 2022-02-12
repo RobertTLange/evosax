@@ -1,38 +1,23 @@
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from evosax.utils import ParameterReshaper
-
-
-class LSTM(nn.Module):
-    num_hidden_units: int
-    num_output_units: int
-    model_name: str = "LSTM"
-
-    @nn.compact
-    def __call__(self, carry, x, rng):
-        lstm_state = carry
-        lstm_state, y = nn.LSTMCell()(lstm_state, x)
-        logits = nn.Dense(features=self.num_output_units)(y)
-        return lstm_state, logits
-
-    def initialize_carry(self):
-        # Use fixed random key since default state init fn is just zeros.
-        return nn.LSTMCell.initialize_carry(
-            jax.random.PRNGKey(0), (), self.num_hidden_units
-        )
+from evosax.networks import LSTM, MLP, CNN
+from evosax import ParameterReshaper
 
 
 def test_reshape_lstm():
     rng = jax.random.PRNGKey(1)
-    network = LSTM(num_hidden_units=10, num_output_units=1)
-    hidden = network.initialize_carry()
+    network = LSTM(
+        num_hidden_units=10,
+        num_output_units=1,
+        output_activation="identity",
+    )
+    pholder = jnp.zeros((10,))
+    carry_init = network.initialize_carry()
     net_params = network.init(
         rng,
-        hidden,
-        jnp.zeros(
-            10,
-        ),
+        x=pholder,
+        carry=carry_init,
         rng=rng,
     )
 
@@ -49,4 +34,69 @@ def test_reshape_lstm():
     test_single = jnp.zeros(531)
     out = reshaper.reshape_single(test_single)
     assert out["LSTMCell_0"]["hf"]["kernel"].shape == (10, 10)
-    return
+
+
+def test_reshape_mlp():
+    rng = jax.random.PRNGKey(1)
+    network = MLP(
+        num_hidden_units=64,
+        num_hidden_layers=2,
+        num_output_units=1,
+        hidden_activation="relu",
+        output_activation="identity",
+    )
+    pholder = jnp.zeros((10,))
+    net_params = network.init(
+        rng,
+        x=pholder,
+        rng=rng,
+    )
+
+    reshaper = ParameterReshaper(net_params["params"])
+    assert reshaper.total_params == (10 * 64 + 64 + 64 * 64 + 64 + 64 + 1)
+
+    # Test population batch matrix reshaping
+    test_params = jnp.zeros((100, 4929))
+    out = reshaper.reshape(test_params)
+    assert out["Dense_0"]["kernel"].shape == (100, 10, 64)
+
+    # Test single network vector reshaping
+    test_single = jnp.zeros(4929)
+    out = reshaper.reshape_single(test_single)
+    assert out["Dense_0"]["kernel"].shape == (10, 64)
+
+
+def test_reshape_cnn():
+    rng = jax.random.PRNGKey(1)
+    network = CNN(
+        depth_1=1,
+        depth_2=1,
+        features_1=16,
+        features_2=8,
+        kernel_1=3,
+        kernel_2=5,
+        strides_1=1,
+        strides_2=1,
+        num_linear_layers=1,
+        num_hidden_units=16,
+        num_output_units=10,
+    )
+    pholder = jnp.zeros((1, 28, 28, 1))
+    net_params = network.init(
+        rng,
+        x=pholder,
+        rng=rng,
+    )
+
+    reshaper = ParameterReshaper(net_params["params"])
+    assert reshaper.total_params == 9826
+
+    # Test population batch matrix reshaping
+    test_params = jnp.zeros((100, 9826))
+    out = reshaper.reshape(test_params)
+    assert out["Conv_0"]["kernel"].shape == (100, 3, 3, 1, 16)
+
+    # Test single network vector reshaping
+    test_single = jnp.zeros(9826)
+    out = reshaper.reshape_single(test_single)
+    assert out["Conv_0"]["kernel"].shape == (3, 3, 1, 16)

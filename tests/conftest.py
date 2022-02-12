@@ -23,3 +23,21 @@ def pytest_generate_tests(metafunc):
             )
         else:
             metafunc.parametrize("strategy_name", ["CMA_ES"])
+
+    if "classic_name" in metafunc.fixturenames:
+        if metafunc.config.getoption("all"):
+            metafunc.parametrize(
+                "classic_name",
+                [
+                    "rosenbrock",
+                    "quadratic",
+                    "ackley",
+                    "griewank",
+                    "rastrigin",
+                    "schwefel",
+                    "himmelblau",
+                    "six-hump",
+                ],
+            )
+        else:
+            metafunc.parametrize("classic_name", ["rosenbrock"])
