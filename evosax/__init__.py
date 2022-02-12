@@ -1,6 +1,4 @@
 from .strategy import Strategy
-from .utils import FitnessShaper, ParameterReshaper
-
 from .strategies import (
     Simple_GA,
     Simple_ES,
@@ -30,6 +28,9 @@ Strategies = {
     "Augmented_RS": Augmented_RS,
 }
 
+from .utils import FitnessShaper, ParameterReshaper
+from .networks import NetworkMapper
+
 __all__ = [
     "Strategy",
     "Simple_GA",
@@ -46,4 +47,5 @@ __all__ = [
     "Strategies",
     "FitnessShaper",
     "ParameterReshaper",
+    "NetworkMapper",
 ]

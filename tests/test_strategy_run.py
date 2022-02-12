@@ -26,7 +26,7 @@ def test_strategy_run(strategy_name):
         fitness_shaper = FitnessShaper()
     elif strategy_name in ["Open_ES", "PEPG_ES", "Augmented_RS"]:
         evaluator = ClassicFitness("quadratic", 2)
-        fitness_shaper = FitnessShaper(z_score_fitness=True)
+        fitness_shaper = FitnessShaper(z_score=True)
 
     batch_eval = evaluator.rollout
     strategy = Strat(popsize=popsize, num_dims=2)
@@ -63,7 +63,7 @@ def test_strategy_scan(strategy_name):
         fitness_shaper = FitnessShaper()
     elif strategy_name in ["Open_ES", "PEPG_ES", "Augmented_RS"]:
         evaluator = ClassicFitness("quadratic", 2)
-        fitness_shaper = FitnessShaper(z_score_fitness=True)
+        fitness_shaper = FitnessShaper(z_score=True)
 
     batch_eval = evaluator.rollout
     strategy = Strat(popsize=popsize, num_dims=2)

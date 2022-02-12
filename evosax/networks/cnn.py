@@ -1,8 +1,16 @@
 import jax.numpy as jnp
 from flax import linen as nn
+import chex
+from typing import Tuple
 
 
-def conv_relu_block(x, features, kernel_size, strides, padding="SAME"):
+def conv_relu_block(
+    x: chex.Array,
+    features: int,
+    kernel_size: Tuple[int, int],
+    strides: Tuple[int, int],
+    padding: str = "SAME",
+):
     x = nn.Conv(
         features=features,
         kernel_size=kernel_size,
@@ -14,7 +22,13 @@ def conv_relu_block(x, features, kernel_size, strides, padding="SAME"):
     return x
 
 
-def conv_relu_pool_block(x, features, kernel_size, strides, padding="SAME"):
+def conv_relu_pool_block(
+    x: chex.Array,
+    features: int,
+    kernel_size: Tuple[int, int],
+    strides: Tuple[int, int],
+    padding: str = "SAME",
+):
     x = nn.Conv(
         features=features,
         kernel_size=kernel_size,
@@ -30,21 +44,21 @@ def conv_relu_pool_block(x, features, kernel_size, strides, padding="SAME"):
 class CNN(nn.Module):
     """Basic CNN with Conv-ReLu-MaxPool."""
 
-    num_output_units: int
-    depth_1: int
-    depth_2: int
-    features_1: int
-    features_2: int
-    kernel_1: int
-    kernel_2: int
-    strides_1: int
-    strides_2: int
-    num_linear_layers: int
-    num_hidden_units: int
+    num_output_units: int = 10
+    depth_1: int = 1
+    depth_2: int = 1
+    features_1: int = 16
+    features_2: int = 8
+    kernel_1: int = 3
+    kernel_2: int = 5
+    strides_1: int = 1
+    strides_2: int = 1
+    num_linear_layers: int = 1
+    num_hidden_units: int = 16
     model_name: str = "CNN"
 
     @nn.compact
-    def __call__(self, x, rng):
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey):
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_pool_block(
@@ -74,19 +88,20 @@ class CNN(nn.Module):
 class All_CNN_C(nn.Module):
     """All-CNN-inspired architecture as in Springenberg et al. (2015)."""
 
-    num_output_units: int
-    depth_1: int
-    depth_2: int
-    features_1: int
-    features_2: int
-    kernel_1: int
-    kernel_2: int
-    strides_1: int
-    strides_2: int
+    num_output_units: int = 10
+    depth_1: int = 1
+    depth_2: int = 1
+    features_1: int = 16
+    features_2: int = 8
+    kernel_1: int = 3
+    kernel_2: int = 5
+    strides_1: int = 1
+    strides_2: int = 1
+    final_window: Tuple[int, int] = (28, 28)
     model_name: str = "All_CNN_C"
 
     @nn.compact
-    def __call__(self, x, rng):
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey):
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_block(
@@ -115,6 +130,8 @@ class All_CNN_C(nn.Module):
         )(x)
 
         # Global average pooling -> logits
-        x = nn.avg_pool(x, window_shape=(28, 28), strides=None, padding="VALID")
+        x = nn.avg_pool(
+            x, window_shape=self.final_window, strides=None, padding="VALID"
+        )
         x = jnp.squeeze(x, axis=(1, 2))
         return x

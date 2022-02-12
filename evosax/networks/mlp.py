@@ -1,84 +1,36 @@
-import jax
-import jax.numpy as jnp
 from flax import linen as nn
-
-
-# MLP - Works on batches of data! Supervised Learning Tasks
-# TanhMLP, ContinuousMLP, DiscreteMLP - Work on raw observations (RL)
+import chex
+from .shared import identity_out, tanh_out, categorical_out, gaussian_out
 
 
 class MLP(nn.Module):
     """Simple ReLU MLP."""
 
-    num_hidden_units: int
-    num_hidden_layers: int
-    num_output_units: int
+    num_hidden_units: int = 64
+    num_hidden_layers: int = 2
+    num_output_units: int = 1
+    hidden_activation: str = "relu"
+    output_activation: str = "identity"
     model_name: str = "MLP"
 
     @nn.compact
-    def __call__(self, x, rng):
-        x = x.reshape((x.shape[0], -1))
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey):
         for l in range(self.num_hidden_layers):
             x = nn.Dense(features=self.num_hidden_units)(x)
-            x = nn.relu(x)
-        x = nn.Dense(features=self.num_output_units)(x)
-        return x
+            if self.hidden_activation == "relu":
+                x = nn.relu(x)
+            elif self.hidden_activation == "tanh":
+                x = nn.tanh(x)
+            elif self.hidden_activation == "gelu":
+                x = nn.gelu(x)
+            elif self.hidden_activation == "softplus":
+                x = nn.softplus(x)
 
-
-class TanhMLP(nn.Module):
-    """Simple ReLU MLP."""
-
-    num_hidden_units: int
-    num_hidden_layers: int
-    num_output_units: int
-    model_name: str = "TanhMLP"
-
-    @nn.compact
-    def __call__(self, x, rng):
-        x = x.ravel()
-        for l in range(self.num_hidden_layers):
-            x = nn.Dense(features=self.num_hidden_units)(x)
-            x = nn.relu(x)
-        x = nn.Dense(features=self.num_output_units)(x)
-        return nn.tanh(x)
-
-
-class ContinuousMLP(nn.Module):
-    """Simple ReLU MLP."""
-
-    num_hidden_units: int
-    num_hidden_layers: int
-    num_output_units: int
-    model_name: str = "ContinuousMLP"
-
-    @nn.compact
-    def __call__(self, x, rng):
-        x = x.ravel()
-        for l in range(self.num_hidden_layers):
-            x = nn.Dense(features=self.num_hidden_units)(x)
-            x = nn.relu(x)
-        x_mean = nn.Dense(features=self.num_output_units)(x)
-        x_log_var = nn.Dense(features=1)(x)
-        x_std = jnp.exp(0.5 * x_log_var)
-        noise = x_std * jax.random.normal(rng, (self.num_output_units,))
-        x_out = x_mean + noise
-        return x_out
-
-
-class DiscreteMLP(nn.Module):
-    """Simple ReLU MLP."""
-
-    num_hidden_units: int
-    num_hidden_layers: int
-    num_output_units: int
-    model_name: str = "DiscreteMLP"
-
-    @nn.compact
-    def __call__(self, x, rng):
-        x = x.ravel()
-        for l in range(self.num_hidden_layers):
-            x = nn.Dense(features=self.num_hidden_units)(x)
-            x = nn.relu(x)
-        x = nn.Dense(features=self.num_output_units)(x)
-        x_out = jax.random.categorical(rng, x)
-        return x_out
+        if self.output_activation == "identity":
+            return identity_out(x, self.num_output_units)
+        elif self.output_activation == "tanh":
+            return tanh_out(x, self.num_output_units)
+        elif self.output_activation == "categorical":
+            return categorical_out(rng, x, self.num_output_units)
+        elif self.output_activation == "gaussian":
+            return gaussian_out(rng, x, self.num_output_units)
