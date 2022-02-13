@@ -1,25 +1,29 @@
 import jax
 import jax.numpy as jnp
-import gymnax
+from .cartpole import CartPole
 
 
-class GymnaxFitness(object):
-    def __init__(self, env_name: str = "CartPole-v1", num_env_steps: int = 200):
+class GymFitness(object):
+    def __init__(self, num_env_steps: int = 200):
         self.env_name = env_name
         self.num_env_steps = num_env_steps
 
         # Define the RL environment & network forward fucntion
-        self.env, self.env_params = gymnax.make(self.env_name)
-        self.action_shape = self.env.action_space.n
+        # TODO: Make more general later on
+        self.env = CartPole()
+        self.env_params = self.env.default_params
+        self.action_shape = self.env.action_shape
+        self.input_shape = self.env.observation_shape
 
     def set_apply_fn(self, network, recurrent: bool = False):
         """Set the network forward function."""
         self.network = network
         # Set rollout function based on model architecture
         if recurrent:
-            self.rollout = self.rollout_rnn
+            self.single_rollout = self.rollout_rnn
         else:
-            self.rollout = self.rollout_ffw
+            self.single_rollout = self.rollout_ffw
+        self.rollout = jax.vmap(self.single_rollout, in_axes=(0, None))
 
     def rollout_ffw(self, rng_input, policy_params):
         """Rollout a pendulum episode with lax.scan."""
@@ -31,9 +35,7 @@ class GymnaxFitness(object):
             """lax.scan compatible step transition in jax env."""
             obs, state, policy_params, rng = state_input
             rng, rng_step, rng_net = jax.random.split(rng, 3)
-            action = self.network.apply(
-                {"params": policy_params}, obs, rng=rng_net
-            )
+            action = self.network({"params": policy_params}, obs, rng=rng_net)
             # action = jnp.nan_to_num(action, nan=0.0)
             next_o, next_s, reward, done, _ = self.env.step(
                 rng_step, state, action, self.env_params
@@ -67,7 +69,7 @@ class GymnaxFitness(object):
             """lax.scan compatible step transition in jax env."""
             obs, state, policy_params, rng, hidden = state_input
             rng, rng_step, rng_net = jax.random.split(rng, 3)
-            hidden, action = self.network.apply(
+            hidden, action = self.network(
                 {"params": policy_params}, obs, hidden, rng_net
             )
             next_o, next_s, reward, done, _ = self.env.step(
@@ -90,10 +92,3 @@ class GymnaxFitness(object):
         rewards = rewards.reshape(self.num_env_steps, 1)
         ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
         return jnp.sum(rewards * ep_mask)
-
-    @property
-    def input_shape(self):
-        """Get the shape of the observation."""
-        rng = jax.random.PRNGKey(0)
-        obs, state = self.env.reset(rng, self.env_params)
-        return obs.shape

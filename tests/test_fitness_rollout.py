@@ -1,10 +1,10 @@
 import jax
-from evosax import CMA_ES
-from evosax.problems import ClassicFitness, GymnaxFitness, BraxFitness
+import jax.numpy as jnp
+from evosax import CMA_ES, ParameterReshaper, NetworkMapper
+from evosax.problems import ClassicFitness, GymFitness, BraxFitness
 
 
 def test_classic_rollout(classic_name: str):
-    # Instantiate the search strategy
     rng = jax.random.PRNGKey(0)
     evaluator = ClassicFitness(classic_name, num_dims=2)
     strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
@@ -18,11 +18,34 @@ def test_classic_rollout(classic_name: str):
     assert fitness.shape == (20,)
 
 
-def test_gym_rollout(gym_name: str):
-    # TODO: Implement gym rollout test - GymnaxFitness
-    return
-
-
-def test_brax_rollout(brax_name: str):
-    # TODO: Implement brax rollout test - BraxFitness
-    return
+def test_gymnax_rollout(gymnax_name: str):
+    rng = jax.random.PRNGKey(0)
+    evaluator = GymFitness()
+    network = NetworkMapper["MLP"](
+        num_hidden_units=64,
+        num_hidden_layers=2,
+        num_output_units=2,
+        hidden_activation="relu",
+        output_activation="categorical",
+    )
+    pholder = jnp.zeros(evaluator.input_shape)
+    net_params = network.init(
+        rng,
+        x=pholder,
+        rng=rng,
+    )
+    evaluator.set_apply_fn(network.apply)
+    reshaper = ParameterReshaper(net_params["params"])
+    strategy = CMA_ES(
+        popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5
+    )
+    params = strategy.default_params
+    state = strategy.initialize(rng, params)
+    rollout = jax.vmap(evaluator.rollout, in_axes=(None, reshaper.vmap_dict))
+    # Run the ask-eval-tell loop
+    rng, rng_gen, rng_eval = jax.random.split(rng, 3)
+    rng_epi = jax.random.split(rng_eval, 5)
+    x, state = strategy.ask(rng_gen, state, params)
+    x_re = reshaper.reshape(x)
+    fitness = rollout(rng_epi, x_re)
+    assert fitness.shape == (20, 5)

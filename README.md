@@ -2,9 +2,9 @@
 [![Pyversions](https://img.shields.io/pypi/pyversions/evosax.svg?style=flat-square)](https://pypi.python.org/pypi/evosax) [![PyPI version](https://badge.fury.io/py/evosax.svg)](https://badge.fury.io/py/evosax)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![codecov](https://codecov.io/gh/RobertTLange/evosax/branch/main/graph/badge.svg?token=5FUSX35KWO)](https://codecov.io/gh/RobertTLange/evosax)
-<a href="https://github.com/RobertTLange/evosax/blob/main/docs/evosax_transparent_2.png?raw=true"><img src="https://github.com/RobertTLange/evosax/blob/main/docs/evosax_transparent_2.png?raw=true" width="170" align="right" /></a>
+<a href="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true"><img src="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true" width="170" align="right" /></a>
 
-Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and autovectorization to scale ES to your favorite accelerators. The API leverages the classical `ask`, `evaluate`, `tell` cycle of ES. Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap` and `lax.scan`. It includes a vast set of both classic (e.g. CMA-ES, Differential Evolution, etc.) and modern neuroevolution (e.g. OpenAI-ES, Augmented RS, etc.) strategies. Get started 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/getting_started.ipynb)
+Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and autovectorization to scale ES to your favorite accelerators. The API leverages the classical `ask`, `evaluate`, `tell` cycle of ES. Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap` and `lax.scan`. It includes a vast set of both classic (e.g. CMA-ES, Differential Evolution, etc.) and modern neuroevolution (e.g. OpenAI-ES, Augmented RS, etc.) strategies. Get started here 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/getting_started.ipynb)
 
 ## Basic `evosax` API Usage 🍲
 
@@ -49,10 +49,16 @@ state["best_member"], state["best_fitness"]
 
 ## Installation ⏳
 
-`evosax` can directly be installed from PyPI.
+The latest `evosax` release can directly be installed from PyPI:
 
 ```
 pip install evosax
+```
+
+If you want to get the most commit, please install directly from the repository:
+
+```
+pip install pip install git+https://github.com/RobertTLange/evosax.git@main
 ```
 
 In order to use JAX on your accelerators, you can find more details in the [JAX documentation](https://github.com/google/jax#installation).
@@ -73,7 +79,7 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 ## References & Other Great JAX-ES Tools 📝
 * 💻 [Evojax](https://github.com/google/evojax): JAX-ES library by Google Brain with great rollout wrappers.
 * 💻 [QDax](https://github.com/adaptive-intelligent-robotics/QDax): Quality-Diversity algorithms in JAX.
-* 💻 [Blog post](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Tutorial on CMA-ES & leveraging JAX's primitives.
+* 💻 [Rob's Blog](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Tutorial on CMA-ES & leveraging JAX's primitives.
 
 ## Development 👷
 
