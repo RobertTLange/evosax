@@ -5,7 +5,7 @@ from .cartpole import CartPole
 
 class GymFitness(object):
     def __init__(self, num_env_steps: int = 200):
-        self.env_name = env_name
+        self.env_name = "CartPole-v1"
         self.num_env_steps = num_env_steps
 
         # Define the RL environment & network forward fucntion

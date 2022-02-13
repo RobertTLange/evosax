@@ -55,7 +55,7 @@ The latest `evosax` release can directly be installed from PyPI:
 pip install evosax
 ```
 
-If you want to get the most commit, please install directly from the repository:
+If you want to get the most recent commit, please install directly from the repository:
 
 ```
 pip install pip install git+https://github.com/RobertTLange/evosax.git@main
