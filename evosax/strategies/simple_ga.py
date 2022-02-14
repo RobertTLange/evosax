@@ -37,7 +37,7 @@ class Simple_GA(Strategy):
         )
         state = {
             "archive": initialization,
-            "fitness": jnp.zeros(self.elite_popsize) - 20e10,
+            "fitness": jnp.zeros(self.elite_popsize) + 20e10,
             "sigma": params["sigma_init"],
         }
         return state

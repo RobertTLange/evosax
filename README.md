@@ -1,4 +1,4 @@
-# `evosax`: JAX-Based Evolution Strategies
+# `evosax`: JAX-Based Evolution Strategies 🦎
 [![Pyversions](https://img.shields.io/pypi/pyversions/evosax.svg?style=flat-square)](https://pypi.python.org/pypi/evosax) [![PyPI version](https://badge.fury.io/py/evosax.svg)](https://badge.fury.io/py/evosax)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![codecov](https://codecov.io/gh/RobertTLange/evosax/branch/main/graph/badge.svg?token=5FUSX35KWO)](https://codecov.io/gh/RobertTLange/evosax)
@@ -20,7 +20,7 @@ strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
 params = strategy.default_params
 state = strategy.initialize(rng, params)
 
-# Run the ask-eval-tell loop
+# Run ask-eval-tell loop - NOTE: By default minimization
 for t in range(num_generations):
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
     x, state = strategy.ask(rng_gen, state, params)
@@ -72,9 +72,96 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 
 ## Key Selling Points 💵
 
-- **Strategy Diversity**: `evosax` implements a diverse set of both classic and modern neuroevolution strategies. Furthermore, it comes with ES-tailored tools such as [ClipUp](https://arxiv.org/abs/2008.02387) and [fitness reshaping](https://arxiv.org/abs/1703.03864).
-- **JAX-Transformable `ask`/`tell` Calls**: Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap` and `lax.scan`. This enables vectorized/parallel rollouts of different evolution strategies.
-- **Population Parameter Reshaping**: We provide a `ParamaterReshaper` wrapper to reshape flat parameter vectors into PyTrees. These are compatible with JAX neural network libraries such as Flax and Haiku.
+- **Strategy Diversity**: `evosax` implements a diverse set of both classic and modern neuroevolution strategies. All of them follow the same simple `ask`/`eval` API and come with tailored tools such as [ClipUp](https://arxiv.org/abs/2008.02387) optimization, parameter reshaping into PyTrees and fitness shaping (see below).
+
+- **Vectorization/Parallelization of `ask`/`tell` Calls**: Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap`. This enables vectorized/parallel rollouts of different evolution strategies.
+
+```Python
+from evosax import Augmented_RS
+# E.g. vectorize over different lrate decays
+strategy = Augmented_RS(popsize=100, num_dims=20)
+es_params = {
+    "lrate_decay": jnp.array([0.999, 0.99, 0.9]),
+    ...
+}
+map_dict = {
+    "lrate_decay": 0,
+    ...
+}
+batch_init = jax.vmap(strategy.init, in_axes=(None, map_dict))
+batch_ask = jax.vmap(strategy.ask, in_axes=(None, 0, map_dict)) #
+batch_tell = jax.vmap(strategy.tell, in_axes=(0, 0, 0, map_dict))
+```
+
+- **Scan Through Evolution Rollouts**: You can also `lax.scan` through entire `init`, `ask`, `eval`, `tell` loops for fast compilation:
+
+```Python
+@partial(jax.jit, static_argnums=(4,))
+def run_es_loop(rng num_steps):
+    """Run evolution ask-eval-tell loop."""
+    es_params = strategy.default_params
+
+    def es_step(state_input, tmp):
+        """Helper function to lax.scan through."""
+        rng, state = state_input
+        rng, rng_iter = jax.random.split(rng)
+        x, state = strategy.ask(rng_iter, state, es_params)
+        fitness = evaluate(x)
+        state = strategy.tell(y, fitness, state, es_params)
+        return [rng, state, hidden, -fitness], fitness[jnp.argmin(fitness)]
+
+    _, scan_out = jax.lax.scan(es_step,
+                               [rng, state],
+                               [jnp.zeros(num_steps)])
+    return jnp.min(scan_out)
+```
+
+- **Population Parameter Reshaping**: We provide a `ParamaterReshaper` wrapper to reshape flat parameter vectors into PyTrees. These are compatible with popular JAX neural network libraries such as Flax and Haiku.
+
+```Python
+from evosax import ParameterReshaper
+from flax import linen as nn
+
+class MLP(nn.Module):
+    """Simple ReLU MLP."""
+
+    num_hidden_units: int
+    ...
+
+    @nn.compact
+    def __call__(self, obs):
+        ...
+        return ...
+
+network = MLP(64)
+policy_params = network.init(rng, jnp.zeros(4,), rng)
+param_reshaper = ParameterReshaper(policy_params["params"])
+
+# Get total number of parameters to evolve
+param_reshaper.total_params
+
+# Dictinory to vectorize rollouts over
+param_reshaper.vmap_dict
+
+# Get population candidates & reshape into pytrees
+x = strategy.ask(...)
+x_shaped = param_reshaper.reshape(x)
+```
+
+
+- **Flexible Fitness Shaping**:
+
+```Python
+from evosax import FitnessShaper
+
+# Instantiate jittable helper class for fitness shaping
+fit_shaper = FitnessShaper(centered_rank=True,
+                           z_score=True,
+                           weight_decay=0.01,
+                           maximize=True)
+fit_shaped = fit_shaper.apply(x, fitness) 
+```
+
 
 ## References & Other Great JAX-ES Tools 📝
 * 💻 [Evojax](https://github.com/google/evojax): JAX-ES library by Google Brain with great rollout wrappers.
