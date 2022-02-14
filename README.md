@@ -4,18 +4,16 @@
 [![codecov](https://codecov.io/gh/RobertTLange/evosax/branch/main/graph/badge.svg?token=5FUSX35KWO)](https://codecov.io/gh/RobertTLange/evosax)
 <a href="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true"><img src="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true" width="170" align="right" /></a>
 
-Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and autovectorization to scale ES to your favorite accelerators. The API leverages the classical `ask`, `evaluate`, `tell` cycle of ES. Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap` and `lax.scan`. It includes a vast set of both classic (e.g. CMA-ES, Differential Evolution, etc.) and modern neuroevolution (e.g. OpenAI-ES, Augmented RS, etc.) strategies. Get started here 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/getting_started.ipynb)
+Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and autovectorization to scale ES to your favorite accelerators. The API leverages the classical `ask`, `evaluate`, `tell` cycle of ES. Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap` and `lax.scan`. It includes a vast set of both classic (e.g. CMA-ES, Differential Evolution, etc.) and modern neuroevolution (e.g. OpenAI-ES, Augmented RS, etc.) strategies. Get started here 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/00_getting_started.ipynb)
 
 ## Basic `evosax` API Usage 🍲
 
 ```python
 import jax
 from evosax import CMA_ES
-from evosax.problems import ClassicFitness
 
 # Instantiate the search strategy
 rng = jax.random.PRNGKey(0)
-evaluator = ClassicFitness("rosenbrock", num_dims=2)
 strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
 params = strategy.default_params
 state = strategy.initialize(rng, params)
@@ -24,7 +22,7 @@ state = strategy.initialize(rng, params)
 for t in range(num_generations):
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
     x, state = strategy.ask(rng_gen, state, params)
-    fitness = evaluator.rollout(rng_eval, x)
+    fitness = ...  # Your population evaluation fct 
     state = strategy.tell(x, fitness, state, params)
 
 # Get best overall population member & its fitness
@@ -36,7 +34,7 @@ state["best_member"], state["best_fitness"]
 | Strategy | Reference | Import | Example |
 | --- | --- | ---  | --- |
 | OpenAI-ES | [Salimans et al. (2017)](https://arxiv.org/pdf/1703.03864.pdf) | [`Open_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/open_es.py) | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/03_cnn_mnist.ipynb)
-| PEPG | [Sehnke et al. (2010)](https://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=A64D1AE8313A364B814998E9E245B40A?doi=10.1.1.180.7104&rep=rep1&type=pdf) | [`PEPG_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/pepg_es.py)  | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/03_cnn_mnist.ipynb)
+| PGPE | [Sehnke et al. (2010)](https://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=A64D1AE8313A364B814998E9E245B40A?doi=10.1.1.180.7104&rep=rep1&type=pdf) | [`PEPG_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/pgpe_es.py)  | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/03_cnn_mnist.ipynb)
 | ARS | [Mania et al. (2018)](https://arxiv.org/pdf/1803.07055.pdf) | [`Augmented_RS`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/ars.py)  | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/03_cnn_mnist.ipynb)
 | CMA-ES | [Hansen (2016)](https://arxiv.org/abs/1604.00772) | [`CMA_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/cma_es.py) | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_classic_low_d.ipynb)
 | Simple Gaussian | [Rechenberg (1975)](https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506) | [`Simple_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/simple_es.py) | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_classic_low_d.ipynb)
@@ -64,15 +62,15 @@ pip install pip install git+https://github.com/RobertTLange/evosax.git@main
 In order to use JAX on your accelerators, you can find more details in the [JAX documentation](https://github.com/google/jax#installation).
 
 ## Examples 📖
-* 📓 [Classic ES Tasks](https://github.com/RobertTLange/evosax/blob/main/examples/01_classic_low_d.ipynb): Simple API introduction on Rosenbrock function.
-* 📓 [Pendulum-Control](https://github.com/RobertTLange/evosax/blob/main/examples/02_mlp_control.ipynb): Neuroevolution on the `Pendulum-v1` gym task.
-* 📓 [MNIST-Classifier](https://github.com/RobertTLange/evosax/blob/main/examples/03_cnn_mnist.ipynb): OpenES/PEPG/ARS on MNIST-MLP.
-* 📓 [LRateTune-PES](https://github.com/RobertTLange/evosax/blob/main/examples/04_mlp_pes.ipynb): Persistent ES on meta-learning problem.
-* 📓 [Quadratic-PBT](https://github.com/RobertTLange/evosax/blob/main/examples/05_quadratic_pbt.ipynb): Population-Based Training on quadratic problem.
+* 📓 [Classic ES Tasks](https://github.com/RobertTLange/evosax/blob/main/examples/01_classic_benchmark.ipynb): Simple API introduction on Rosenbrock function.
+* 📓 [Pendulum-Control](https://github.com/RobertTLange/evosax/blob/main/examples/02_mlp_control.ipynb): Neuroevolution on the `Pendulum-v1` gym task (MLP/LSTM controller).
+* 📓 [MNIST-Classifier](https://github.com/RobertTLange/evosax/blob/main/examples/03_cnn_mnist.ipynb): OpenES/PEPG/ARS on MNIST-All-CNN.
+* 📓 [LRateTune-PES](https://github.com/RobertTLange/evosax/blob/main/examples/04_mlp_pes.ipynb): Persistent ES on meta-learning problem as in [Vicol et al. (2021)](http://proceedings.mlr.press/v139/vicol21a.html).
+* 📓 [Quadratic-PBT](https://github.com/RobertTLange/evosax/blob/main/examples/05_quadratic_pbt.ipynb): PBT on toy quadratic problem as in [Jaderberg et al. (2017)](https://arxiv.org/abs/1711.09846).
 
 ## Key Selling Points 💵
 
-- **Strategy Diversity**: `evosax` implements a diverse set of both classic and modern neuroevolution strategies. All of them follow the same simple `ask`/`eval` API and come with tailored tools such as [ClipUp](https://arxiv.org/abs/2008.02387) optimization, parameter reshaping into PyTrees and fitness shaping (see below).
+- **Strategy Diversity**: `evosax` implements more than 10 classical and modern neuroevolution strategies. All of them follow the same simple `ask`/`eval` API and come with tailored tools such as the [ClipUp](https://arxiv.org/abs/2008.02387) optimizer, parameter reshaping into PyTrees and fitness shaping (see below).
 
 - **Vectorization/Parallelization of `ask`/`tell` Calls**: Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap`. This enables vectorized/parallel rollouts of different evolution strategies.
 
@@ -88,27 +86,29 @@ map_dict = {
     "lrate_decay": 0,
     ...
 }
+
+# Vmap-composed batch initialize, ask and tell functions 
 batch_init = jax.vmap(strategy.init, in_axes=(None, map_dict))
-batch_ask = jax.vmap(strategy.ask, in_axes=(None, 0, map_dict)) #
+batch_ask = jax.vmap(strategy.ask, in_axes=(None, 0, map_dict))
 batch_tell = jax.vmap(strategy.tell, in_axes=(0, 0, 0, map_dict))
 ```
 
-- **Scan Through Evolution Rollouts**: You can also `lax.scan` through entire `init`, `ask`, `eval`, `tell` loops for fast compilation:
+- **Scan Through Evolution Rollouts**: You can also `lax.scan` through entire `init`, `ask`, `eval`, `tell` loops for fast compilation of ES loops:
 
 ```Python
-@partial(jax.jit, static_argnums=(4,))
-def run_es_loop(rng num_steps):
+@partial(jax.jit, static_argnums=(1,))
+def run_es_loop(rng, num_steps):
     """Run evolution ask-eval-tell loop."""
     es_params = strategy.default_params
 
     def es_step(state_input, tmp):
-        """Helper function to lax.scan through."""
+        """Helper es step to lax.scan through."""
         rng, state = state_input
         rng, rng_iter = jax.random.split(rng)
         x, state = strategy.ask(rng_iter, state, es_params)
-        fitness = evaluate(x)
+        fitness = ...
         state = strategy.tell(y, fitness, state, es_params)
-        return [rng, state, hidden, -fitness], fitness[jnp.argmin(fitness)]
+        return [rng, state], fitness[jnp.argmin(fitness)]
 
     _, scan_out = jax.lax.scan(es_step,
                                [rng, state],
@@ -116,15 +116,13 @@ def run_es_loop(rng num_steps):
     return jnp.min(scan_out)
 ```
 
-- **Population Parameter Reshaping**: We provide a `ParamaterReshaper` wrapper to reshape flat parameter vectors into PyTrees. These are compatible with popular JAX neural network libraries such as Flax and Haiku.
+- **Population Parameter Reshaping**: We provide a `ParamaterReshaper` wrapper to reshape flat parameter vectors into PyTrees. The wrapper is compatible with JAX neural network libraries such as Flax/Haiku and makes it easier to afterwards evaluate network populations.
 
 ```Python
 from evosax import ParameterReshaper
 from flax import linen as nn
 
 class MLP(nn.Module):
-    """Simple ReLU MLP."""
-
     num_hidden_units: int
     ...
 
@@ -135,26 +133,22 @@ class MLP(nn.Module):
 
 network = MLP(64)
 policy_params = network.init(rng, jnp.zeros(4,), rng)
+
+# Initialize reshaper based on placeholder network shapes
 param_reshaper = ParameterReshaper(policy_params["params"])
 
-# Get total number of parameters to evolve
-param_reshaper.total_params
-
-# Dictinory to vectorize rollouts over
-param_reshaper.vmap_dict
-
-# Get population candidates & reshape into pytrees
+# Get population candidates & reshape into stacked pytrees
 x = strategy.ask(...)
 x_shaped = param_reshaper.reshape(x)
 ```
 
 
-- **Flexible Fitness Shaping**:
+- **Flexible Fitness Shaping**: By default `evosax` assumes that the fitness objective is to be minimized. If you would like to maximize instead, perform rank centering, z-scoring or add weight regularization you can use the `FitnessShaper`: 
 
 ```Python
 from evosax import FitnessShaper
 
-# Instantiate jittable helper class for fitness shaping
+# Instantiate jittable fitness shaper
 fit_shaper = FitnessShaper(centered_rank=True,
                            z_score=True,
                            weight_decay=0.01,

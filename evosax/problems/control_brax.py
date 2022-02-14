@@ -23,12 +23,13 @@ class BraxFitness(object):
         self.env = envs.create(env_name=self.env_name)
         self.action_shape = self.env.action_size
 
-    def set_apply_fn(self, network, recurrent: bool = False):
+    def set_apply_fn(self, network, carry_init=None):
         """Set the network forward function."""
         self.network = network
         # Set rollout function based on model architecture
-        if recurrent:
-            self.rollout = self.rollout_rnn
+        if carry_init is not None:
+            self.single_rollout = self.rollout_rnn
+            self.carry_init = carry_init
         else:
             self.rollout = self.rollout_ffw
 
@@ -66,7 +67,7 @@ class BraxFitness(object):
         # Reset the environment
         rng, rng_reset = jax.random.split(rng_input)
         state = self.env.reset(rng_reset)
-        hidden = self.network.initialize_carry()
+        hidden = self.carry_init()
 
         def policy_step(state_input, tmp):
             """lax.scan compatible step transition in jax env."""

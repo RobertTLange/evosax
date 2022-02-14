@@ -7,7 +7,7 @@ def test_fitness_shaping_rank():
     x = jnp.array([[1.0], [2.0], [3.0]])
     fit = jnp.array([0.0, 1.0, 2.0])
     fit_re = shaper.apply(x, fit)
-    assert (fit_re == jnp.array([-0.5, 0.0, 0.5])).all()
+    assert jnp.allclose(fit_re, jnp.array([-0.5, 0.0, 0.5]), atol=1e-03)
 
 
 def test_fitness_shaping_decay():
@@ -15,7 +15,9 @@ def test_fitness_shaping_decay():
     x = jnp.array([[1.0], [2.0], [3.0]])
     fit = jnp.array([0.0, 1.0, 2.0])
     fit_re = shaper.apply(x, fit)
-    assert (fit_re == jnp.array([0.01, 1 + 0.04, 2 + 0.09])).all()
+    assert jnp.allclose(
+        fit_re, jnp.array([0.01, 1 + 0.04, 2 + 0.09]), atol=1e-03
+    )
 
 
 def test_fitness_shaping_zscore():
@@ -23,7 +25,9 @@ def test_fitness_shaping_zscore():
     x = jnp.array([[1.0], [2.0], [3.0]])
     fit = jnp.array([0.0, 1.0, 2.0])
     fit_re = shaper.apply(x, fit)
-    assert (fit_re == jnp.array([-1.2247448, 0.0, 1.2247448])).all()
+    assert jnp.allclose(
+        fit_re, jnp.array([-1.2247448, 0.0, 1.2247448]), atol=1e-03
+    )
 
 
 def test_fitness_shaping_max():
@@ -31,4 +35,6 @@ def test_fitness_shaping_max():
     x = jnp.array([[1.0], [2.0], [3.0]])
     fit = jnp.array([0.0, 1.0, 2.0])
     fit_re = shaper.apply(x, fit)
-    assert (fit_re == jnp.array([-0.01, -(1 + 0.04), -(2 + 0.09)])).all()
+    assert jnp.allclose(
+        fit_re, jnp.array([-0.01, -(1 + 0.04), -(2 + 0.09)]), atol=1e-03
+    )

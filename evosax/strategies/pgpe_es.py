@@ -6,7 +6,7 @@ from ..strategy import Strategy
 from ..utils import GradientOptimizer
 
 
-class PEPG_ES(Strategy):
+class PGPE_ES(Strategy):
     def __init__(
         self,
         num_dims: int,

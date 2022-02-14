@@ -7,15 +7,20 @@ import matplotlib.pyplot as plt
 
 
 class ESLog(object):
-    def __init__(self, num_dims: int, num_generations: int, top_k: int):
+    def __init__(
+        self, num_dims: int, num_generations: int, top_k: int, maximize: bool
+    ):
         self.num_dims = num_dims
         self.num_generations = num_generations
         self.top_k = top_k
+        self.maximize = maximize
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(self) -> chex.ArrayTree:
         log = {
-            "top_fitness": jnp.zeros(self.top_k) + 1e10,
+            "top_fitness": jnp.zeros(self.top_k)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "top_params": jnp.zeros((self.top_k, self.num_dims)),
             "log_top_1": jnp.zeros(self.num_generations),
             "log_top_mean": jnp.zeros(self.num_generations),

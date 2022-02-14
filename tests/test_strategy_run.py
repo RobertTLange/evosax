@@ -24,7 +24,7 @@ def test_strategy_run(strategy_name):
     ]:
         evaluator = ClassicFitness("rosenbrock", 2)
         fitness_shaper = FitnessShaper()
-    elif strategy_name in ["Open_ES", "PEPG_ES", "Augmented_RS"]:
+    elif strategy_name in ["Open_ES", "PGPE_ES", "Augmented_RS"]:
         evaluator = ClassicFitness("quadratic", 2)
         fitness_shaper = FitnessShaper(z_score=True)
 
@@ -61,7 +61,7 @@ def test_strategy_scan(strategy_name):
     ]:
         evaluator = ClassicFitness("rosenbrock", 2)
         fitness_shaper = FitnessShaper()
-    elif strategy_name in ["Open_ES", "PEPG_ES", "Augmented_RS"]:
+    elif strategy_name in ["Open_ES", "PGPE_ES", "Augmented_RS"]:
         evaluator = ClassicFitness("quadratic", 2)
         fitness_shaper = FitnessShaper(z_score=True)
 

@@ -14,7 +14,7 @@ def pytest_generate_tests(metafunc):
                     "Differential_ES",
                     "PSO_ES",
                     "Open_ES",
-                    "PEPG_ES",
+                    "PGPE_ES",
                     "Augmented_RS"
                     # "PBT_ES",
                     # "Persistent_ES",

@@ -9,18 +9,19 @@ class GymFitness(object):
         self.num_env_steps = num_env_steps
 
         # Define the RL environment & network forward fucntion
-        # TODO: Make more general later on
+        # TODO: More on this later
         self.env = CartPole()
         self.env_params = self.env.default_params
         self.action_shape = self.env.action_shape
         self.input_shape = self.env.observation_shape
 
-    def set_apply_fn(self, network, recurrent: bool = False):
+    def set_apply_fn(self, network_apply, carry_init=None):
         """Set the network forward function."""
-        self.network = network
+        self.network = network_apply
         # Set rollout function based on model architecture
-        if recurrent:
+        if carry_init is not None:
             self.single_rollout = self.rollout_rnn
+            self.carry_init = carry_init
         else:
             self.single_rollout = self.rollout_ffw
         self.rollout = jax.vmap(self.single_rollout, in_axes=(0, None))
@@ -63,7 +64,7 @@ class GymFitness(object):
         # Reset the environment
         rng, rng_reset = jax.random.split(rng_input)
         obs, state = self.env.reset(rng_reset, self.env_params)
-        hidden = self.network.initialize_carry()
+        hidden = self.carry_init()
 
         def policy_step(state_input, tmp):
             """lax.scan compatible step transition in jax env."""
