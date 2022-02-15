@@ -1,11 +1,13 @@
 import jax
 import jax.numpy as jnp
+import chex
 
 
 class ClassicFitness(object):
     def __init__(self, problem_name: str = "rosenbrock", num_dims: int = 2):
         self.problem_name = problem_name
         self.num_dims = num_dims
+        assert self.num_dims >= 2
 
         if self.problem_name == "quadratic":
             self.eval = jax.jit(jax.vmap(quadratic_d_dim, 0))
@@ -28,13 +30,15 @@ class ClassicFitness(object):
         else:
             raise ValueError("Please provide a valid problem name.")
 
-    def rollout(self, rng_input, eval_params):
-        """Rollout a pendulum episode with lax.scan."""
+    def rollout(
+        self, rng_input: chex.PRNGKey, eval_params: chex.Array
+    ) -> chex.Array:
+        """Batch evaluate the proposal points."""
         fitness = self.eval(eval_params)
         return fitness
 
 
-def himmelblau_2_dim(x):
+def himmelblau_2_dim(x: chex.Array) -> chex.Array:
     """
     2-dim. Himmelblau function.
     f(x*)=0 - Minima at [3, 2], [-2.81, 3.13],
@@ -44,7 +48,7 @@ def himmelblau_2_dim(x):
     return (x[0] ** 2 + x[1] - 11) ** 2 + (x[0] + x[1] ** 2 - 7) ** 2
 
 
-def six_hump_camel_2_dim(x):
+def six_hump_camel_2_dim(x: chex.Array) -> chex.Array:
     """
     2-dim. 6-Hump Camel function.
     f(x*)=-1.0316 - Minimum at [0.0898, -0.7126], [-0.0898, 0.7126]
@@ -56,7 +60,7 @@ def six_hump_camel_2_dim(x):
     return p1 + p2 + p3
 
 
-def quadratic_d_dim(x):
+def quadratic_d_dim(x: chex.Array) -> chex.Array:
     """
     Simple 3-dim. quadratic function.
     f(x*)=0 - Minimum at [0.]ˆd
@@ -64,7 +68,7 @@ def quadratic_d_dim(x):
     return jnp.sum(jnp.square(x))
 
 
-def rosenbrock_d_dim(x):
+def rosenbrock_d_dim(x: chex.Array) -> chex.Array:
     """
     D-Dim. Rosenbrock function. x_i ∈ [-32.768, 32.768] or x_i ∈ [-5, 10]
     f(x*)=0 - Minumum at x*=a
@@ -75,7 +79,7 @@ def rosenbrock_d_dim(x):
     return jnp.sum((a - x_i) ** 2 + b * (x_p - x_sq) ** 2)
 
 
-def ackley_d_dim(x):
+def ackley_d_dim(x: chex.Array) -> chex.Array:
     """
     D-Dim. Ackley function. x_i ∈ [-32.768, 32.768]
     f(x*)=0 - Minimum at x*=[0,...,0]
@@ -91,7 +95,7 @@ def ackley_d_dim(x):
     )
 
 
-def griewank_d_dim(x):
+def griewank_d_dim(x: chex.Array) -> chex.Array:
     """
     D-Dim. Griewank function. x_i ∈ [-600, 600]
     f(x*)=0 - Minimum at x*=[0,...,0]
@@ -103,7 +107,7 @@ def griewank_d_dim(x):
     )
 
 
-def rastrigin_d_dim(x):
+def rastrigin_d_dim(x: chex.Array) -> chex.Array:
     """
     D-Dim. Rastrigin function. x_i ∈ [-5.12, 5.12]
     f(x*)=0 - Minimum at x*=[0,...,0]
@@ -112,7 +116,7 @@ def rastrigin_d_dim(x):
     return A * x.shape[0] + jnp.sum(x ** 2 - A * jnp.cos(2 * jnp.pi * x))
 
 
-def schwefel_d_dim(x):
+def schwefel_d_dim(x: chex.Array) -> chex.Array:
     """
     D-Dim. Schwefel function. x_i ∈ [-500, 500]
     f(x*)=0 - Minimum at x*=[420.9687,...,420.9687]

@@ -12,14 +12,15 @@ class FitnessShaper(object):
         weight_decay: float = 0.0,
         maximize: bool = False,
     ):
+        """JAX-compatible fitness shaping tool."""
         self.weight_decay = weight_decay
         self.centered_rank = centered_rank
         self.z_score = z_score
         self.maximize = maximize
 
     @partial(jax.jit, static_argnums=(0,))
-    def apply(self, x: chex.Array, fitness: chex.Array):
-        """Max objective trafo, rank shaping, z scoring and add weight decay."""
+    def apply(self, x: chex.Array, fitness: chex.Array) -> chex.Array:
+        """Max objective trafo, rank shaping, z scoring & add weight decay."""
         fitness = jax.lax.select(self.maximize, -1 * fitness, fitness)
         fitness = jax.lax.select(
             self.centered_rank, compute_centered_ranks(fitness), fitness
@@ -33,26 +34,25 @@ class FitnessShaper(object):
         return fitness + l2_fit_red
 
 
-def z_score_fitness(fitness: chex.Array):
+def z_score_fitness(fitness: chex.Array) -> chex.Array:
     """Make fitness 'Gaussian' by substracting mean and dividing by std."""
     return (fitness - jnp.mean(fitness)) / jnp.std(1e-10 + fitness)
 
 
-def compute_ranks(fitness: chex.Array):
-    """Return ranks in [0, len(fitness))."""
+def compute_ranks(fitness: chex.Array) -> chex.Array:
+    """Return fitness ranks in [0, len(fitness))."""
     ranks = jnp.zeros(len(fitness))
     ranks = ranks.at[fitness.argsort()].set(jnp.arange(len(fitness)))
     return ranks
 
 
-def compute_centered_ranks(fitness: chex.Array):
+def compute_centered_ranks(fitness: chex.Array) -> chex.Array:
     """Return ~ -0.5 to 0.5 centered ranks (best to worst - min!)."""
     y = compute_ranks(fitness)
     y /= fitness.size - 1
-    y -= 0.5
-    return y
+    return y - 0.5
 
 
-def compute_weight_norm(x: chex.Array):
-    """Compute L2-norm of weights. Assumes x to be (popsize, num_dims)."""
+def compute_weight_norm(x: chex.Array) -> chex.Array:
+    """Compute L2-norm of x_i. Assumes x to have shape (popsize, num_dims)."""
     return jnp.mean(x * x, axis=1)

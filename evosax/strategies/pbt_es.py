@@ -7,11 +7,13 @@ from ..strategy import Strategy
 
 class PBT_ES(Strategy):
     def __init__(self, num_dims: int, popsize: int):
-        """Synchronous version of Population-Based Training."""
+        """Synchronous Population-Based Training (Jaderberg et al., 2017)
+        Reference: https://arxiv.org/abs/1711.09846"""
         super().__init__(num_dims, popsize)
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
+        """Return default parameters of evolution strategy."""
         return {
             "noise_scale": 0.1,
             "truncation_selection": 0.2,
@@ -62,9 +64,7 @@ class PBT_ES(Strategy):
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
-        """
-        `tell` update to ES state. - Only copy if perfomance has improved.
-        """
+        """`tell` update to ES state. - Only copy if improved performance."""
         replace = fitness >= state["fitness"]
         state["archive"] = (
             jnp.expand_dims(replace, 1) * x
@@ -94,6 +94,7 @@ def single_member_explore(
     hyperparams: chex.Array,
     params: chex.ArrayTree,
 ) -> chex.Array:
+    """Perform multiplicative noise exploration."""
     explore_noise = (
         jax.random.normal(rng, hyperparams.shape) * params["noise_scale"]
     )

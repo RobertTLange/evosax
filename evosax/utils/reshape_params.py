@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Union
+from typing import Union, List
 from flax.core.frozen_dict import FrozenDict, unfreeze
 from flax.traverse_util import flatten_dict, unflatten_dict
 
@@ -38,6 +38,7 @@ class ParameterReshaper(object):
             # Classic problem case - no dict but raw array
             self.total_params = self.placeholder_params.shape[0]
 
+        # Special case for no identity mapping (no pytree reshaping)
         if identity:
             self.reshape = jax.jit(self.reshape_identity)
             self.reshape_single = jax.jit(self.reshape_single_flat)
@@ -45,20 +46,20 @@ class ParameterReshaper(object):
             self.reshape = jax.jit(self.reshape_network)
             self.reshape_single = jax.jit(self.reshape_single_net)
 
-    def reshape_identity(self, x: chex.Array):
+    def reshape_identity(self, x: chex.Array) -> chex.Array:
         """Return parameters w/o reshaping for evaluation."""
         return x
 
-    def reshape_network(self, x: chex.Array):
+    def reshape_network(self, x: chex.Array) -> chex.ArrayTree:
         """Perform reshaping for a 2D matrix (pop_members, params)."""
         vmap_shape = jax.vmap(self.flat_to_network, in_axes=(0,))
         return vmap_shape(x)
 
-    def reshape_single_flat(self, x: chex.Array):
+    def reshape_single_flat(self, x: chex.Array) -> chex.Array:
         """Perform reshaping for a 1D vector (params,)."""
         return x
 
-    def reshape_single_net(self, x: chex.Array):
+    def reshape_single_net(self, x: chex.Array) -> chex.ArrayTree:
         """Perform reshaping for a 1D vector (params,)."""
         unsqueezed_re = self.flat_to_network(x)
         return unsqueezed_re
@@ -89,7 +90,7 @@ class ParameterReshaper(object):
         )
 
 
-def get_total_params(params: chex.ArrayTree):
+def get_total_params(params: chex.ArrayTree) -> int:
     """Get total number of params in net. Loop over layer modules + params."""
     total_params = 0
     layer_keys = list(params.keys())
@@ -99,7 +100,7 @@ def get_total_params(params: chex.ArrayTree):
     return total_params
 
 
-def get_layer_ids(network_shape: chex.ArrayTree):
+def get_layer_ids(network_shape: chex.ArrayTree) -> List[int]:
     """Get indices to target when reshaping single flat net into dict."""
     layer_keys = list(network_shape.keys())
     l_id = [0]

@@ -7,6 +7,9 @@ from ..strategy import Strategy
 
 class CMA_ES(Strategy):
     def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
+        """CMA-ES (e.g. Hansen, 2016)
+        Reference: https://arxiv.org/abs/1604.00772
+        Inspired by: https://github.com/CyberAgentAILab/cmaes"""
         super().__init__(num_dims, popsize)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
@@ -14,6 +17,7 @@ class CMA_ES(Strategy):
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
+        """Return default parameters of evolution strategy."""
         weights_prime = jnp.array(
             [
                 jnp.log((self.popsize + 1) / 2) - jnp.log(i + 1)

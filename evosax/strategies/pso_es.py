@@ -7,10 +7,13 @@ from ..strategy import Strategy
 
 class PSO_ES(Strategy):
     def __init__(self, num_dims: int, popsize: int):
+        """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
+        Reference: https://ieeexplore.ieee.org/document/488968"""
         super().__init__(num_dims, popsize)
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
+        """Return default parameters of evolution strategy."""
         return {
             "inertia_coeff": 0.75,  # w momentum of velocity
             "cognitive_coeff": 1.5,  # c_1 cognitive "force" multiplier
@@ -20,11 +23,7 @@ class PSO_ES(Strategy):
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: chex.ArrayTree
     ) -> chex.ArrayTree:
-        """
-        `initialize` the differential evolution strategy.
-        Initialize all population members by randomly sampling
-        positions in search-space (defined in `params`).
-        """
+        """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.popsize, self.num_dims),
@@ -108,7 +107,7 @@ def single_member_velocity(
     social_coeff: float,
 ):
     """Update v_i(t+1) velocities based on: Inertia, Cognitive, Social."""
-    # Sampling one r1, r2 that is shared across dims of one member seems more robust!
+    # Sampling one shared r1, r2 across dims of one member seems more robust!
     # r1, r2 = jax.random.uniform(rng, (2, archive.shape[1]))
     r1, r2 = jax.random.uniform(rng, (2,))
     global_best_id = jnp.argmin(best_fitness)

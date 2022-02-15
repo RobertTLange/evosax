@@ -8,6 +8,9 @@ from ..utils import GradientOptimizer
 
 class Open_ES(Strategy):
     def __init__(self, num_dims: int, popsize: int, opt_name: str = "adam"):
+        """OpenAI-ES (Salimans et al. (2017)
+        Reference: https://arxiv.org/pdf/1703.03864.pdf
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
         super().__init__(num_dims, popsize)
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
@@ -15,7 +18,7 @@ class Open_ES(Strategy):
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
-        """Return default parameters of evolutionary strategy."""
+        """Return default parameters of evolution strategy."""
         es_params = {
             "sigma_init": 0.1,
             "sigma_decay": 0.999,
@@ -27,7 +30,7 @@ class Open_ES(Strategy):
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: chex.ArrayTree
     ) -> chex.ArrayTree:
-        """`initialize` the evolutionary strategy."""
+        """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),

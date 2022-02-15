@@ -1,6 +1,8 @@
 import jax
 import jax.numpy as jnp
 from brax import envs
+import chex
+from typing import Tuple
 
 
 class BraxFitness(object):
@@ -33,8 +35,10 @@ class BraxFitness(object):
         else:
             self.rollout = self.rollout_ffw
 
-    def rollout_ffw(self, rng_input, policy_params):
-        """Rollout a jitted gymnax episode with lax.scan."""
+    def rollout_ffw(
+        self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
+    ) -> chex.Array:
+        """Rollout a jitted brax episode with lax.scan for a feedforward policy."""
         # Reset the environment
         rng, rng_reset = jax.random.split(rng_input)
         state = self.env.reset(rng_reset)
@@ -62,8 +66,10 @@ class BraxFitness(object):
         ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
         return jnp.sum(rewards * ep_mask)
 
-    def rollout_rnn(self, rng_input, policy_params):
-        """Rollout a jitted gymnax episode with lax.scan."""
+    def rollout_rnn(
+        self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
+    ) -> chex.Array:
+        """Rollout a jitted episode with lax.scan for a recurrent policy."""
         # Reset the environment
         rng, rng_reset = jax.random.split(rng_input)
         state = self.env.reset(rng_reset)
@@ -93,7 +99,7 @@ class BraxFitness(object):
         return jnp.sum(rewards * ep_mask)
 
     @property
-    def input_shape(self):
+    def input_shape(self) -> Tuple[int]:
         """Get the shape of the observation."""
         rng = jax.random.PRNGKey(0)
         state = self.env.reset(rng)

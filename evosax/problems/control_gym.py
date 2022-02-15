@@ -27,7 +27,7 @@ class GymFitness(object):
         self.rollout = jax.vmap(self.single_rollout, in_axes=(0, None))
 
     def rollout_ffw(self, rng_input, policy_params):
-        """Rollout a pendulum episode with lax.scan."""
+        """Rollout an episode with lax.scan."""
         # Reset the environment
         rng_reset, rng_episode = jax.random.split(rng_input)
         obs, state = self.env.reset(rng_reset, self.env_params)
@@ -60,7 +60,7 @@ class GymFitness(object):
         return jnp.sum(rewards * ep_mask)
 
     def rollout_rnn(self, rng_input, policy_params):
-        """Rollout a jitted gymnax episode with lax.scan."""
+        """Rollout a jitted episode with lax.scan."""
         # Reset the environment
         rng, rng_reset = jax.random.split(rng_input)
         obs, state = self.env.reset(rng_reset, self.env_params)

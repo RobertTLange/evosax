@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import chex
+from typing import Tuple
 
 
 class SupervisedFitness(object):
@@ -13,14 +15,16 @@ class SupervisedFitness(object):
         """Set the network forward function."""
         self.network = network
 
-    def rollout(self, rng_input, network_params):
+    def rollout(
+        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
+    ) -> chex.ArrayTree:
         """Evaluate a network on a supervised learning task."""
         rng_net_train, rng_net_test, rng_sample = jax.random.split(rng_input, 3)
         X_train, y_train, X_test, y_test = self.dataloader.sample(rng_sample)
-        y_train_pred = self.network.apply(
+        y_train_pred = self.network(
             {"params": network_params}, X_train, rng_net_train
         )
-        y_test_pred = self.network.apply(
+        y_test_pred = self.network(
             {"params": network_params}, X_test, rng_net_test
         )
         train_loss, train_acc = loss_and_acc(y_train_pred, y_train)
@@ -33,12 +37,14 @@ class SupervisedFitness(object):
         }
 
     @property
-    def input_shape(self):
+    def input_shape(self) -> Tuple[int]:
         """Get the shape of the observation."""
         return (1,) + self.dataloader.data_shape
 
 
-def loss_and_acc(y_pred, y_true):
+def loss_and_acc(
+    y_pred: chex.Array, y_true: chex.Array
+) -> Tuple[chex.Array, chex.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
     num_classes = 10
@@ -49,7 +55,14 @@ def loss_and_acc(y_pred, y_true):
 
 
 class BatchLoader:
-    def __init__(self, X_train, y_train, X_test, y_test, batch_size):
+    def __init__(
+        self,
+        X_train: chex.Array,
+        y_train: chex.Array,
+        X_test: chex.Array,
+        y_test: chex.Array,
+        batch_size: int,
+    ):
         self.X_train = X_train
         self.y_train = y_train
         self.data_shape = self.X_train.shape[1:]
@@ -59,7 +72,9 @@ class BatchLoader:
         self.num_test_samples = X_test.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key):
+    def sample(
+        self, key: chex.PRNGKey
+    ) -> Tuple[chex.Array, chex.Array, chex.Array, chex.Array]:
         """Sample a single batch of X, y data."""
         train_idx = jax.random.choice(
             key,
@@ -226,7 +241,7 @@ def get_svhn_loaders():
 
 
 def get_array_data(problem_name: str = "MNIST"):
-    """Get raw mnist arrays to subsample from."""
+    """Get raw data arrays to subsample from."""
     if problem_name == "MNIST":
         test_loader, train_loader = get_mnist_loaders()
     elif problem_name == "FashionMNIST":
@@ -235,6 +250,8 @@ def get_array_data(problem_name: str = "MNIST"):
         test_loader, train_loader = get_cifar_loaders()
     elif problem_name == "SVHN":
         test_loader, train_loader = get_svhn_loaders()
+    else:
+        raise ValueError("Dataset is not supported.")
     for _, (train_data, train_target) in enumerate(train_loader):
         break
     for _, (test_data, test_target) in enumerate(test_loader):

@@ -7,13 +7,13 @@ from functools import partial
 
 class Strategy(object):
     def __init__(self, num_dims: int, popsize: int):
-        """Base Abstract Class for an Evolutionary Strategy."""
+        """Base Class for an Evolution Strategy."""
         self.num_dims = num_dims
         self.popsize = popsize
 
     @property
     def default_params(self) -> chex.ArrayTree:
-        """Return default parameters of evolutionary strategy."""
+        """Return default parameters of evolution strategy."""
         params = self.params_strategy
         # Add shared parameter clipping and archive init params
         params["clip_min"] = -jnp.finfo(jnp.float32).max
@@ -26,7 +26,7 @@ class Strategy(object):
     def initialize(
         self, rng: chex.PRNGKey, params: chex.ArrayTree
     ) -> chex.ArrayTree:
-        """`initialize` the evolutionary strategy."""
+        """`initialize` the evolution strategy."""
         # Initialize strategy based on strategy-specific initialize method
         state = self.initialize_strategy(rng, params)
 
@@ -49,6 +49,7 @@ class Strategy(object):
         """`ask` for new parameter candidates to evaluate next."""
         # Generate proposal based on strategy-specific ask method
         x, state = self.ask_strategy(rng, state, params)
+        # Clip proposal candidates into allowed range
         x_clipped = jnp.clip(
             jnp.squeeze(x), params["clip_min"], params["clip_max"]
         )
@@ -69,7 +70,7 @@ class Strategy(object):
         # Update the generation counter
         state["gen_counter"] += 1
 
-        # Check if there is a new best member
+        # Check if there is a new best member & update trackers
         best_in_gen = jnp.argmin(fitness)
         best_in_gen_fitness, best_in_gen_member = (
             fitness[best_in_gen],
@@ -87,13 +88,13 @@ class Strategy(object):
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: chex.ArrayTree
     ) -> chex.ArrayTree:
-        """Search-specific `initialize` method."""
+        """Search-specific `initialize` method. Returns initial state."""
         raise NotImplementedError
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> Tuple[chex.Array, chex.ArrayTree]:
-        """Search-specific `ask` request."""
+        """Search-specific `ask` request. Returns proposals & updated state."""
         raise NotImplementedError
 
     def tell_strategy(
@@ -103,5 +104,5 @@ class Strategy(object):
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
-        """Search-specific `tell` update."""
+        """Search-specific `tell` update. Returns updated state."""
         raise NotImplementedError

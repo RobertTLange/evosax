@@ -14,6 +14,8 @@ class Augmented_RS(Strategy):
         elite_ratio: float = 0.1,
         opt_name: str = "sgd",
     ):
+        """Augmented Random Search (Mania et al., 2018)
+        Reference: https://arxiv.org/pdf/1803.07055.pdf"""
         super().__init__(num_dims, popsize)
         assert not self.popsize & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
@@ -26,7 +28,7 @@ class Augmented_RS(Strategy):
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
-        """Return default parameters of evolutionary strategy."""
+        """Return default parameters of evolution strategy."""
         es_params = {
             "sigma_init": 0.1,
             "sigma_decay": 0.999,
@@ -38,7 +40,7 @@ class Augmented_RS(Strategy):
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: chex.ArrayTree
     ) -> chex.ArrayTree:
-        """`initialize` the evolutionary strategy."""
+        """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),

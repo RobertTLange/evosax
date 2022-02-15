@@ -3,13 +3,13 @@ import jax
 import jax.numpy as jnp
 import chex
 from functools import partial
-import matplotlib.pyplot as plt
 
 
 class ESLog(object):
     def __init__(
         self, num_dims: int, num_generations: int, top_k: int, maximize: bool
     ):
+        """Simple jittable logging tool for ES rollouts."""
         self.num_dims = num_dims
         self.num_generations = num_generations
         self.top_k = top_k
@@ -17,6 +17,7 @@ class ESLog(object):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(self) -> chex.ArrayTree:
+        """Initialize the logger storage."""
         log = {
             "top_fitness": jnp.zeros(self.top_k)
             - 1e10 * self.maximize
@@ -36,6 +37,7 @@ class ESLog(object):
     def update(
         self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
     ) -> chex.ArrayTree:
+        """Update the logging storage with newest data."""
         # Check if there are solutions better than current archive
         vals = jnp.hstack([log["top_fitness"], fitness])
         params = jnp.vstack([log["top_params"], x])
@@ -86,6 +88,8 @@ class ESLog(object):
         no_legend=False,
     ):
         """Plot fitness trajectory from evo logger over generations."""
+        import matplotlib.pyplot as plt
+
         if fig is None or ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(6, 3))
         int_range = jnp.arange(1, log["gen_counter"] + 1)

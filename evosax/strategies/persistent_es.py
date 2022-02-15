@@ -9,8 +9,8 @@ from ..utils import GradientOptimizer
 class Persistent_ES(Strategy):
     def __init__(self, num_dims: int, popsize: int, opt_name: str = "adam"):
         """Persistent ES (Vicol et al., 2021).
-        The code & example are heavily adopted from the supplementary material:
-        http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
+        Reference: http://proceedings.mlr.press/v139/vicol21a.html
+        Inspired by: http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
         """
         super().__init__(num_dims, popsize)
         assert not self.popsize & 1, "Population size must be even"
@@ -19,7 +19,7 @@ class Persistent_ES(Strategy):
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
-        """Return default parameters of evolutionary strategy."""
+        """Return default parameters of evolution strategy."""
         es_params = {
             "sigma_init": 0.1,  # Perturbation Std
             "sigma_decay": 0.999,
@@ -33,7 +33,7 @@ class Persistent_ES(Strategy):
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: chex.ArrayTree
     ) -> chex.ArrayTree:
-        """`initialize` the differential evolution strategy."""
+        """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),

@@ -10,7 +10,8 @@ def conv_relu_block(
     kernel_size: Tuple[int, int],
     strides: Tuple[int, int],
     padding: str = "SAME",
-):
+) -> chex.Array:
+    """Convolution layer + ReLU activation."""
     x = nn.Conv(
         features=features,
         kernel_size=kernel_size,
@@ -28,7 +29,8 @@ def conv_relu_pool_block(
     kernel_size: Tuple[int, int],
     strides: Tuple[int, int],
     padding: str = "SAME",
-):
+) -> chex.Array:
+    """Convolution layer + ReLU activation + Avg. Pooling."""
     x = nn.Conv(
         features=features,
         kernel_size=kernel_size,
@@ -42,7 +44,7 @@ def conv_relu_pool_block(
 
 
 class CNN(nn.Module):
-    """Basic CNN with Conv-ReLu-MaxPool."""
+    """Simple CNN Wrapper with Conv-ReLu-MaxPool blocks."""
 
     num_output_units: int = 10
     depth_1: int = 1
@@ -58,7 +60,7 @@ class CNN(nn.Module):
     model_name: str = "CNN"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey):
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey) -> chex.Array:
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_pool_block(
@@ -86,7 +88,8 @@ class CNN(nn.Module):
 
 
 class All_CNN_C(nn.Module):
-    """All-CNN-inspired architecture as in Springenberg et al. (2015)."""
+    """All-CNN-inspired architecture as in Springenberg et al. (2015).
+    Reference: https://arxiv.org/abs/1412.6806"""
 
     num_output_units: int = 10
     depth_1: int = 1
@@ -101,7 +104,7 @@ class All_CNN_C(nn.Module):
     model_name: str = "All_CNN_C"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey):
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey) -> chex.Array:
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_block(

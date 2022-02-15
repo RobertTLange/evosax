@@ -14,6 +14,9 @@ class PGPE_ES(Strategy):
         elite_ratio: float = 0.1,
         opt_name: str = "sgd",
     ):
+        """PGPE (e.g. Sehnke et al., 2010)
+        Reference: https://tinyurl.com/2p8bn956
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
         super().__init__(num_dims, popsize)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
@@ -25,6 +28,7 @@ class PGPE_ES(Strategy):
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
+        """Return default parameters of evolution strategy."""
         es_params = {
             "sigma_init": 0.10,  # initial standard deviation
             "sigma_decay": 0.999,  # Anneal standard deviation
@@ -38,11 +42,7 @@ class PGPE_ES(Strategy):
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: chex.Array
     ) -> chex.ArrayTree:
-        """
-        `initialize` the differential evolution strategy.
-        Initialize all population members by randomly sampling
-        positions in search-space (defined in `params`).
-        """
+        """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),
@@ -78,6 +78,7 @@ class PGPE_ES(Strategy):
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
+        """Update both mean and dim.-wise isotropic Gaussian scale."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state["mean"]) / state["sigma"]
         noise_1 = noise[: int(self.popsize / 2)]

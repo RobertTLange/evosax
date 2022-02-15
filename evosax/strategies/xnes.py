@@ -7,10 +7,9 @@ from ..strategy import Strategy
 
 class xNES(Strategy):
     def __init__(self, num_dims: int, popsize: int):
-        """Exponential Natural ES (Wierstra et al., 2014).
-        The code & example are heavily adopted from a scipy implementation:
-        https://github.com/chanshing/xnes
-        """
+        """Exponential Natural ES (Wierstra et al., 2014)
+        Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
+        Inspired by: https://github.com/chanshing/xnes"""
         super().__init__(num_dims, popsize)
 
     @property

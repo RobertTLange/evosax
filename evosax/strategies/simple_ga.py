@@ -7,12 +7,17 @@ from ..strategy import Strategy
 
 class Simple_GA(Strategy):
     def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
+        """Simple Genetic Algorithm (Such et al., 2017)
+        Reference: https://arxiv.org/abs/1712.06567
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
+
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
+        """Return default parameters of evolution strategy."""
         return {
             "cross_over_rate": 0.5,  # cross-over probability
             "sigma_init": 0.1,  # initial standard deviation
@@ -24,11 +29,7 @@ class Simple_GA(Strategy):
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: chex.Array
     ) -> chex.ArrayTree:
-        """
-        `initialize` the differential evolution strategy.
-        Initialize all population members by randomly sampling
-        positions in search-space (defined in `params`).
-        """
+        """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.elite_popsize, self.num_dims),

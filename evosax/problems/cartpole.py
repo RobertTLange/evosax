@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from jax import lax
 
-from typing import Tuple, Union
+from typing import Tuple
 import chex
 from functools import partial
 
@@ -52,7 +52,7 @@ class CartPole:
         return jax.lax.select(self.is_terminal(state, params), 0.0, 1.0)
 
     @property
-    def default_params(self):
+    def default_params(self) -> chex.ArrayTree:
         # Default environment parameters for CartPole-v1
         return {
             "gravity": 9.8,

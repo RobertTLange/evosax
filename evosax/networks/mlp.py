@@ -4,7 +4,7 @@ from .shared import identity_out, tanh_out, categorical_out, gaussian_out
 
 
 class MLP(nn.Module):
-    """Simple ReLU MLP."""
+    """Simple MLP Wrapper with flexible output head."""
 
     num_hidden_units: int = 64
     num_hidden_layers: int = 2
@@ -14,7 +14,7 @@ class MLP(nn.Module):
     model_name: str = "MLP"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey):
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey) -> chex.Array:
         for l in range(self.num_hidden_layers):
             x = nn.Dense(features=self.num_hidden_units)(x)
             if self.hidden_activation == "relu":
