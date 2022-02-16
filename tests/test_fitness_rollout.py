@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from evosax import CMA_ES, Augmented_RS, ParameterReshaper, NetworkMapper
-from evosax.problems import ClassicFitness, GymFitness, BraxFitness
+from evosax.problems import ClassicFitness, GymFitness, SupervisedFitness
 
 
 def test_classic_rollout(classic_name: str):
@@ -82,3 +82,45 @@ def test_gymnax_rec_rollout(gymnax_name: str):
     x_re = reshaper.reshape(x)
     fitness = rollout(rng_epi, x_re)
     assert fitness.shape == (20, 5)
+
+
+## To memory intensive to run on github action
+# def test_supervised_fitness():
+#     rng = jax.random.PRNGKey(0)
+#     evaluator = SupervisedFitness("MNIST", 4)
+#     network = NetworkMapper["CNN"](
+#         depth_1=1,
+#         depth_2=1,
+#         features_1=8,
+#         features_2=16,
+#         kernel_1=5,
+#         kernel_2=5,
+#         strides_1=1,
+#         strides_2=1,
+#         num_linear_layers=0,
+#         num_output_units=10,
+#     )
+#     pholder = jnp.zeros((1, 28, 28, 1))
+#     net_params = network.init(
+#         rng,
+#         x=pholder,
+#         rng=rng,
+#     )
+
+#     evaluator.set_apply_fn(network.apply)
+#     reshaper = ParameterReshaper(net_params["params"])
+#     strategy = Augmented_RS(
+#         popsize=2, num_dims=reshaper.total_params, elite_ratio=0.5
+#     )
+#     params = strategy.default_params
+#     state = strategy.initialize(rng, params)
+#     rollout = jax.jit(
+#         jax.vmap(evaluator.rollout, in_axes=(None, reshaper.vmap_dict))
+#     )
+
+#     # Run the ask-eval-tell loop
+#     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
+#     x, state = strategy.ask(rng_gen, state, params)
+#     x_re = reshaper.reshape(x)
+#     fitness = rollout(rng_eval, x_re)
+#     assert fitness.shape == (2,)

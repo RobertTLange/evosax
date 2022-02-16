@@ -15,10 +15,10 @@ def pytest_generate_tests(metafunc):
                     "PSO_ES",
                     "Open_ES",
                     "PGPE_ES",
-                    "Augmented_RS"
-                    # "PBT_ES",
-                    # "Persistent_ES",
-                    # "xNES",
+                    "Augmented_RS",
+                    "PBT_ES",
+                    "Persistent_ES",
+                    "xNES",
                 ],
             )
         else:

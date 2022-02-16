@@ -34,7 +34,7 @@ class PBT_ES(Strategy):
         state = {
             "archive": initialization,
             "fitness": jnp.zeros(self.popsize) - 20e10,
-            "copy_id": jnp.zeros(self.popsize),
+            "copy_id": jnp.zeros(self.popsize, dtype=jnp.int32),
         }
         return state
 
