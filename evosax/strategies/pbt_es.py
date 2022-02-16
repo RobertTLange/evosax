@@ -34,6 +34,7 @@ class PBT_ES(Strategy):
         state = {
             "archive": initialization,
             "fitness": jnp.zeros(self.popsize) - 20e10,
+            "copy_id": jnp.zeros(self.popsize),
         }
         return state
 
@@ -55,7 +56,8 @@ class PBT_ES(Strategy):
         hyperparams = jax.vmap(single_member_explore, in_axes=(0, 0, 0, None))(
             rng_members, exploit_bool, hyperparams, params
         )
-        return copy_id, hyperparams, state
+        state["copy_id"] = copy_id
+        return hyperparams, state
 
     def tell_strategy(
         self,

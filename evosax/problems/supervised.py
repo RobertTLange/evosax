@@ -256,4 +256,9 @@ def get_array_data(problem_name: str = "MNIST"):
         break
     for _, (test_data, test_target) in enumerate(test_loader):
         break
-    return train_data, train_target, test_data, test_target
+    return (
+        jnp.array(train_data),
+        jnp.array(train_target),
+        jnp.array(test_data),
+        jnp.array(test_target),
+    )

@@ -11,7 +11,7 @@ def test_fitness_shaping_rank():
 
 
 def test_fitness_shaping_decay():
-    shaper = FitnessShaper(weight_decay=0.01)
+    shaper = FitnessShaper(w_decay=0.01)
     x = jnp.array([[1.0], [2.0], [3.0]])
     fit = jnp.array([0.0, 1.0, 2.0])
     fit_re = shaper.apply(x, fit)
@@ -31,7 +31,7 @@ def test_fitness_shaping_zscore():
 
 
 def test_fitness_shaping_max():
-    shaper = FitnessShaper(weight_decay=0.01, maximize=True)
+    shaper = FitnessShaper(w_decay=0.01, maximize=True)
     x = jnp.array([[1.0], [2.0], [3.0]])
     fit = jnp.array([0.0, 1.0, 2.0])
     fit_re = shaper.apply(x, fit)

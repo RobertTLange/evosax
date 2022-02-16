@@ -22,18 +22,32 @@ class ESLog(object):
             "top_fitness": jnp.zeros(self.top_k)
             - 1e10 * self.maximize
             + 1e10 * (1 - self.maximize),
-            "top_params": jnp.zeros((self.top_k, self.num_dims)),
-            "log_top_1": jnp.zeros(self.num_generations),
-            "log_top_mean": jnp.zeros(self.num_generations),
-            "log_top_std": jnp.zeros(self.num_generations),
-            "log_gen_1": jnp.zeros(self.num_generations),
-            "log_gen_mean": jnp.zeros(self.num_generations),
-            "log_gen_std": jnp.zeros(self.num_generations),
+            "top_params": jnp.zeros((self.top_k, self.num_dims))
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "log_top_1": jnp.zeros(self.num_generations)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "log_top_mean": jnp.zeros(self.num_generations)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "log_top_std": jnp.zeros(self.num_generations)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "log_gen_1": jnp.zeros(self.num_generations)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "log_gen_mean": jnp.zeros(self.num_generations)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "log_gen_std": jnp.zeros(self.num_generations)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "gen_counter": 0,
         }
         return log
 
-    @partial(jax.jit, static_argnums=(0,))
+    # @partial(jax.jit, static_argnums=(0,))
     def update(
         self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
     ) -> chex.ArrayTree:
@@ -41,7 +55,10 @@ class ESLog(object):
         # Check if there are solutions better than current archive
         vals = jnp.hstack([log["top_fitness"], fitness])
         params = jnp.vstack([log["top_params"], x])
-        top_idx = vals.argsort()
+        top_idx = (
+            self.maximize * ((-1) * vals).argsort()
+            + ((1 - self.maximize) * vals).argsort()
+        )
         log["top_fitness"] = vals[top_idx[: self.top_k]]
         log["top_params"] = params[top_idx[: self.top_k]]
         log["log_top_1"] = jax.ops.index_update(
@@ -56,7 +73,10 @@ class ESLog(object):
             log["log_top_std"], log["gen_counter"], jnp.std(log["top_fitness"])
         )
         log["log_gen_1"] = jax.ops.index_update(
-            log["log_gen_1"], log["gen_counter"], jnp.min(fitness)
+            log["log_gen_1"],
+            log["gen_counter"],
+            self.maximize * jnp.max(fitness)
+            + (1 - self.maximize) * jnp.min(fitness),
         )
         log["log_gen_mean"] = jax.ops.index_update(
             log["log_gen_mean"], log["gen_counter"], jnp.mean(fitness)

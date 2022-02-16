@@ -9,11 +9,11 @@ class FitnessShaper(object):
         self,
         centered_rank: bool = False,
         z_score: bool = False,
-        weight_decay: float = 0.0,
+        w_decay: float = 0.0,
         maximize: bool = False,
     ):
         """JAX-compatible fitness shaping tool."""
-        self.weight_decay = weight_decay
+        self.w_decay = w_decay
         self.centered_rank = centered_rank
         self.z_score = z_score
         self.maximize = maximize
@@ -29,7 +29,7 @@ class FitnessShaper(object):
             self.z_score, z_score_fitness(fitness), fitness
         )
         # "Reduce" fitness based on L2 norm of parameters
-        l2_fit_red = self.weight_decay * compute_weight_norm(x)
+        l2_fit_red = self.w_decay * compute_weight_norm(x)
         l2_fit_red = jax.lax.select(self.maximize, -1 * l2_fit_red, l2_fit_red)
         return fitness + l2_fit_red
 
