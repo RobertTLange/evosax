@@ -162,7 +162,7 @@ fit_shaped = fit_shaper.apply(x, fitness)
 ## References & Other Great JAX-ES Tools 📝
 * 💻 [Evojax](https://github.com/google/evojax): JAX-ES library by Google Brain with great rollout wrappers.
 * 💻 [QDax](https://github.com/adaptive-intelligent-robotics/QDax): Quality-Diversity algorithms in JAX.
-* 💻 [Rob's Blog](https://roberttlange.github.io/posts/2020/12/neuroevolution-in-jax/): Tutorial on CMA-ES & leveraging JAX's primitives.
+* 💻 [Rob's Blog](https://roberttlange.github.io/posts/2021/02/cma-es-jax/): Tutorial on CMA-ES & leveraging JAX's primitives.
 
 ## Development 👷
 
