@@ -63,7 +63,7 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 
 ## Examples 📖
 * 📓 [Classic ES Tasks](https://github.com/RobertTLange/evosax/blob/main/examples/01_classic_benchmark.ipynb): API introduction on Rosenbrock function (CMA-ES, Simple GA, etc.).
-* 📓 [Pendulum-Control](https://github.com/RobertTLange/evosax/blob/main/examples/02_mlp_control.ipynb): OpenES & PEPG on the `CartPole-v1` gym task (MLP/LSTM controller).
+* 📓 [CartPol-Control](https://github.com/RobertTLange/evosax/blob/main/examples/02_mlp_control.ipynb): OpenES & PEPG on the `CartPole-v1` gym task (MLP/LSTM controller).
 * 📓 [MNIST-Classifier](https://github.com/RobertTLange/evosax/blob/main/examples/03_cnn_mnist.ipynb): OpenES on MNIST with CNN network.
 * 📓 [LRateTune-PES](https://github.com/RobertTLange/evosax/blob/main/examples/04_lrate_pes.ipynb): Persistent ES on meta-learning problem as in [Vicol et al. (2021)](http://proceedings.mlr.press/v139/vicol21a.html).
 * 📓 [Quadratic-PBT](https://github.com/RobertTLange/evosax/blob/main/examples/05_quadratic_pbt.ipynb): PBT on toy quadratic problem as in [Jaderberg et al. (2017)](https://arxiv.org/abs/1711.09846).
@@ -100,6 +100,7 @@ batch_tell = jax.vmap(strategy.tell, in_axes=(0, 0, 0, map_dict))
 def run_es_loop(rng, num_steps):
     """Run evolution ask-eval-tell loop."""
     es_params = strategy.default_params
+    state = strategy.initialize(rng, es_params)
 
     def es_step(state_input, tmp):
         """Helper es step to lax.scan through."""
@@ -166,5 +167,5 @@ fit_shaped = fit_shaper.apply(x, fitness)
 
 ## Development 👷
 
-You can run the test suite via `python -m pytest -vv tests/`. If you find a bug or are missing your favourite feature, feel free to create an issue and/or start [contributing](CONTRIBUTING.md) 🤗.
+You can run the test suite via `python -m pytest -vv --all`. If you find a bug or are missing your favourite feature, feel free to create an issue and/or start [contributing](CONTRIBUTING.md) 🤗.
 
