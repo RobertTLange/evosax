@@ -46,7 +46,6 @@ setup(
     url="https://github.com/RobertTLange/evosax",
     download_url=git_tar,
     classifiers=[
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
@@ -58,6 +57,6 @@ setup(
     include_package_data=True,
     zip_safe=False,
     platforms="any",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=requires,
 )
