@@ -30,6 +30,7 @@ Strategies = {
 
 from .utils import FitnessShaper, ParameterReshaper
 from .networks import NetworkMapper
+from .problems import ProblemMapper
 
 __all__ = [
     "Strategy",
@@ -48,4 +49,5 @@ __all__ = [
     "FitnessShaper",
     "ParameterReshaper",
     "NetworkMapper",
+    "ProblemMapper",
 ]
