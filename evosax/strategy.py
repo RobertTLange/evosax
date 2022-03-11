@@ -18,8 +18,8 @@ class Strategy(object):
         # Add shared parameter clipping and archive init params
         params["clip_min"] = -jnp.finfo(jnp.float32).max
         params["clip_max"] = jnp.finfo(jnp.float32).max
-        params["init_min"] = -2
-        params["init_max"] = 2
+        params["init_min"] = -0.0
+        params["init_max"] = 0.0
         return params
 
     @partial(jax.jit, static_argnums=(0,))

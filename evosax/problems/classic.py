@@ -1,41 +1,55 @@
 import jax
 import jax.numpy as jnp
 import chex
+from functools import partial
 
 
 class ClassicFitness(object):
-    def __init__(self, problem_name: str = "rosenbrock", num_dims: int = 2):
-        self.problem_name = problem_name
+    def __init__(
+        self,
+        fct_name: str = "rosenbrock",
+        num_dims: int = 2,
+        num_rollouts: int = 1,
+        noise_std: float = 0.0,
+    ):
+        self.fct_name = fct_name
         self.num_dims = num_dims
+        self.num_rollouts = num_rollouts
+        # Optional - add Gaussian noise to evaluation fitness
+        self.noise_std = noise_std
         assert self.num_dims >= 2
 
-        if self.problem_name == "quadratic":
-            self.eval = jax.jit(jax.vmap(quadratic_d_dim, 0))
-        elif self.problem_name == "rosenbrock":
-            self.eval = jax.jit(jax.vmap(rosenbrock_d_dim, 0))
-        elif self.problem_name == "ackley":
-            self.eval = jax.jit(jax.vmap(ackley_d_dim, 0))
-        elif self.problem_name == "griewank":
-            self.eval = jax.jit(jax.vmap(griewank_d_dim, 0))
-        elif self.problem_name == "rastrigin":
-            self.eval = jax.jit(jax.vmap(rastrigin_d_dim, 0))
-        elif self.problem_name == "schwefel":
-            self.eval = jax.jit(jax.vmap(schwefel_d_dim, 0))
-        elif self.problem_name == "himmelblau":
+        if self.fct_name == "quadratic":
+            self.eval = jax.vmap(quadratic_d_dim, 0)
+        elif self.fct_name == "rosenbrock":
+            self.eval = jax.vmap(rosenbrock_d_dim, 0)
+        elif self.fct_name == "ackley":
+            self.eval = jax.vmap(ackley_d_dim, 0)
+        elif self.fct_name == "griewank":
+            self.eval = jax.vmap(griewank_d_dim, 0)
+        elif self.fct_name == "rastrigin":
+            self.eval = jax.vmap(rastrigin_d_dim, 0)
+        elif self.fct_name == "schwefel":
+            self.eval = jax.vmap(schwefel_d_dim, 0)
+        elif self.fct_name == "himmelblau":
             assert self.num_dims == 2
-            self.eval = jax.jit(jax.vmap(himmelblau_2_dim, 0))
-        elif self.problem_name == "six-hump":
+            self.eval = jax.vmap(himmelblau_2_dim, 0)
+        elif self.fct_name == "six-hump":
             assert self.num_dims == 2
-            self.eval = jax.jit(jax.vmap(six_hump_camel_2_dim, 0))
+            self.eval = jax.vmap(six_hump_camel_2_dim, 0)
         else:
             raise ValueError("Please provide a valid problem name.")
 
+    @partial(jax.jit, static_argnums=(0,))
     def rollout(
         self, rng_input: chex.PRNGKey, eval_params: chex.Array
     ) -> chex.Array:
         """Batch evaluate the proposal points."""
-        fitness = self.eval(eval_params)
-        return fitness
+        fitness = self.eval(eval_params).reshape(eval_params.shape[0], 1)
+        noise = self.noise_std * jax.random.normal(
+            rng_input, (eval_params.shape[0], self.num_rollouts)
+        )
+        return (fitness + noise).squeeze()
 
 
 def himmelblau_2_dim(x: chex.Array) -> chex.Array:

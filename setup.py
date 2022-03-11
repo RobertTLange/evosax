@@ -33,7 +33,7 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 git_tar = f"https://github.com/RobertTLange/evosax/archive/v{verstr}.tar.gz"
 
-requires = ["jax>=0.3.0", "jaxlib>=0.3.0", "chex", "flax", "brax"]
+requires = ["jax>=0.3.0", "jaxlib>=0.3.0", "chex", "flax", "numpy"]
 
 setup(
     name="evosax",
@@ -59,4 +59,5 @@ setup(
     platforms="any",
     python_requires=">=3.7",
     install_requires=requires,
+    tests_requre=["brax"],
 )

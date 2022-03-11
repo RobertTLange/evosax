@@ -1,40 +1,68 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 class SupervisedFitness(object):
-    def __init__(self, problem_name: str = "MNIST", batch_size: int = 128):
+    def __init__(
+        self,
+        problem_name: str = "MNIST",
+        batch_size: int = 128,
+        test: bool = False,
+        n_devices: Optional[int] = None,
+    ):
         self.problem_name = problem_name
         self.batch_size = batch_size
-        data = get_array_data(self.problem_name)
+        self.test = test
+        self.num_classes = 10
+        data = get_array_data(self.problem_name, self.test)
         self.dataloader = BatchLoader(*data, batch_size=self.batch_size)
+        if n_devices is None:
+            self.n_devices = jax.local_device_count()
+        else:
+            self.n_devices = n_devices
 
-    def set_apply_fn(self, network):
+    def set_apply_fn(self, map_dict, network):
         """Set the network forward function."""
         self.network = network
+        self.rollout_pop = jax.vmap(self.rollout_ffw, in_axes=(None, map_dict))
+        # pmap over popmembers if > 1 device is available - otherwise pmap
+        if self.n_devices > 1:
+            self.rollout = self.rollout_pmap
+            print(
+                "More than one device detected. Please make sure that the ES"
+                " population size divides evenly across the number of devices"
+                " to pmap/parallelize over."
+            )
+        else:
+            self.rollout = jax.jit(self.rollout_pop)
 
-    def rollout(
+    def rollout_pmap(
+        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
+    ):
+        """Parallelize rollout across devices. Split keys/reshape correctly."""
+        keys_pmap = jnp.tile(rng_input, (self.n_devices, 1))
+        loss_dev, acc_dev = jax.pmap(self.rollout_pop)(
+            keys_pmap, network_params
+        )
+        loss_re = loss_dev.reshape(
+            -1,
+        )
+        acc_re = acc_dev.reshape(
+            -1,
+        )
+        return loss_re, acc_re
+
+    def rollout_ffw(
         self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Evaluate a network on a supervised learning task."""
-        rng_net_train, rng_net_test, rng_sample = jax.random.split(rng_input, 3)
-        X_train, y_train, X_test, y_test = self.dataloader.sample(rng_sample)
-        y_train_pred = self.network(
-            {"params": network_params}, X_train, rng_net_train
-        )
-        y_test_pred = self.network(
-            {"params": network_params}, X_test, rng_net_test
-        )
-        train_loss, train_acc = loss_and_acc(y_train_pred, y_train)
-        test_loss, test_acc = loss_and_acc(y_test_pred, y_test)
-        return {
-            "train_loss": train_loss,
-            "train_acc": train_acc,
-            "test_loss": test_loss,
-            "test_acc": test_acc,
-        }
+        rng_net, rng_sample = jax.random.split(rng_input)
+        X, y = self.dataloader.sample(rng_sample)
+        y_pred = self.network({"params": network_params}, X, rng_net)
+        loss, acc = loss_and_acc(y_pred, y, self.num_classes)
+        return loss, acc
 
     @property
     def input_shape(self) -> Tuple[int]:
@@ -43,11 +71,10 @@ class SupervisedFitness(object):
 
 
 def loss_and_acc(
-    y_pred: chex.Array, y_true: chex.Array
+    y_pred: chex.Array, y_true: chex.Array, num_classes
 ) -> Tuple[chex.Array, chex.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
-    num_classes = 10
     labels = jax.nn.one_hot(y_true, num_classes)
     loss = -jnp.sum(labels * jax.nn.log_softmax(y_pred))
     loss /= labels.shape[0]
@@ -57,46 +84,31 @@ def loss_and_acc(
 class BatchLoader:
     def __init__(
         self,
-        X_train: chex.Array,
-        y_train: chex.Array,
-        X_test: chex.Array,
-        y_test: chex.Array,
+        X: chex.Array,
+        y: chex.Array,
         batch_size: int,
     ):
-        self.X_train = X_train
-        self.y_train = y_train
-        self.data_shape = self.X_train.shape[1:]
-        self.num_train_samples = X_train.shape[0]
-        self.X_test = X_test
-        self.y_test = y_test
-        self.num_test_samples = X_test.shape[0]
+        self.X = X
+        self.y = y
+        self.data_shape = self.X.shape[1:]
+        self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(
-        self, key: chex.PRNGKey
-    ) -> Tuple[chex.Array, chex.Array, chex.Array, chex.Array]:
+    def sample(self, key: chex.PRNGKey) -> Tuple[chex.Array, chex.Array]:
         """Sample a single batch of X, y data."""
-        train_idx = jax.random.choice(
+        sample_idx = jax.random.choice(
             key,
             jnp.arange(self.num_train_samples),
             (self.batch_size,),
             replace=False,
         )
-        test_idx = jax.random.choice(
-            key,
-            jnp.arange(self.num_test_samples),
-            (self.batch_size,),
-            replace=False,
-        )
         return (
-            jnp.take(self.X_train, train_idx, axis=0),
-            jnp.take(self.y_train, train_idx, axis=0),
-            jnp.take(self.X_test, test_idx, axis=0),
-            jnp.take(self.y_test, test_idx, axis=0),
+            jnp.take(self.X, sample_idx, axis=0),
+            jnp.take(self.y, sample_idx, axis=0),
         )
 
 
-def get_mnist_loaders():
+def get_mnist_loaders(test: bool = False):
     try:
         import torch
         from torchvision import datasets, transforms
@@ -113,25 +125,18 @@ def get_mnist_loaders():
             transforms.Lambda(lambda x: x.permute(1, 2, 0)),
         ]
     )
-    test_eval_loader = torch.utils.data.DataLoader(
+    bs = 10000 if test else 60000
+    loader = torch.utils.data.DataLoader(
         datasets.MNIST(
-            "~/data", download=True, train=False, transform=transform
+            "~/data", download=True, train=not test, transform=transform
         ),
-        batch_size=10000,
-        shuffle=True,
+        batch_size=bs,
+        shuffle=False,
     )
-
-    train_eval_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(
-            "~/data", download=True, train=True, transform=transform
-        ),
-        batch_size=60000,
-        shuffle=True,
-    )
-    return test_eval_loader, train_eval_loader
+    return loader
 
 
-def get_fashion_loaders():
+def get_fashion_loaders(test: bool = False):
     try:
         import torch
         from torchvision import datasets, transforms
@@ -147,25 +152,19 @@ def get_fashion_loaders():
             transforms.Normalize((0.1307,), (0.3081,)),
         ]
     )
-    test_eval_loader = torch.utils.data.DataLoader(
+
+    bs = 10000 if test else 60000
+    loader = torch.utils.data.DataLoader(
         datasets.FashionMNIST(
-            "~/data", download=True, train=False, transform=transform
+            "~/data", download=True, train=not test, transform=transform
         ),
-        batch_size=10000,
-        shuffle=True,
+        batch_size=bs,
+        shuffle=False,
     )
-
-    train_eval_loader = torch.utils.data.DataLoader(
-        datasets.FashionMNIST(
-            "~/data", download=True, train=True, transform=transform
-        ),
-        batch_size=50000,
-        shuffle=True,
-    )
-    return test_eval_loader, train_eval_loader
+    return loader
 
 
-def get_cifar_loaders():
+def get_cifar_loaders(test: bool = False):
     """Get PyTorch Data Loaders for CIFAR-10."""
     try:
         import torch
@@ -186,20 +185,15 @@ def get_cifar_loaders():
         ]
     )
 
-    trainset = datasets.CIFAR10(
-        root="~/data", train=True, download=True, transform=transform
+    bs = 10000 if test else 50000
+    loader = torch.utils.data.DataLoader(
+        datasets.CIFAR10(
+            root="~/data", train=not test, download=True, transform=transform
+        ),
+        batch_size=bs,
+        shuffle=False,
     )
-    trainloader = torch.utils.data.DataLoader(
-        trainset, batch_size=50000, shuffle=True
-    )
-
-    testset = datasets.CIFAR10(
-        root="~/data", train=False, download=True, transform=transform
-    )
-    testloader = torch.utils.data.DataLoader(
-        testset, batch_size=10000, shuffle=False
-    )
-    return trainloader, testloader
+    return loader
 
 
 def normalize(data_tensor):
@@ -207,7 +201,7 @@ def normalize(data_tensor):
     return (data_tensor / 255.0) * 2.0 - 1.0
 
 
-def get_svhn_loaders():
+def get_svhn_loaders(test: bool = False):
     """Get PyTorch Data Loaders for SVHN."""
     try:
         import torch
@@ -224,41 +218,29 @@ def get_svhn_loaders():
         transforms.Lambda(lambda x: x.permute(1, 2, 0)),
     ]
 
-    trainset = datasets.SVHN(
-        root="~/data", train=True, download=True, transform=transform
+    bs = 26032 if test else 73257
+    loader = torch.utils.data.DataLoader(
+        datasets.SVHN(
+            root="~/data", train=not test, download=True, transform=transform
+        ),
+        batch_size=bs,
+        shuffle=False,
     )
-    trainloader = torch.utils.data.DataLoader(
-        trainset, batch_size=73257, shuffle=True
-    )
-
-    testset = datasets.SVHN(
-        root="~/data", train=False, download=True, transform=transform
-    )
-    testloader = torch.utils.data.DataLoader(
-        testset, batch_size=26032, shuffle=False
-    )
-    return trainloader, testloader
+    return loader
 
 
-def get_array_data(problem_name: str = "MNIST"):
+def get_array_data(problem_name: str = "MNIST", test: bool = False):
     """Get raw data arrays to subsample from."""
     if problem_name == "MNIST":
-        test_loader, train_loader = get_mnist_loaders()
+        loader = get_mnist_loaders(test)
     elif problem_name == "FashionMNIST":
-        test_loader, train_loader = get_fashion_loaders()
+        loader = get_fashion_loaders(test)
     elif problem_name == "CIFAR10":
-        test_loader, train_loader = get_cifar_loaders()
+        loader = get_cifar_loaders(test)
     elif problem_name == "SVHN":
-        test_loader, train_loader = get_svhn_loaders()
+        loader = get_svhn_loaders(test)
     else:
         raise ValueError("Dataset is not supported.")
-    for _, (train_data, train_target) in enumerate(train_loader):
+    for _, (data, target) in enumerate(loader):
         break
-    for _, (test_data, test_target) in enumerate(test_loader):
-        break
-    return (
-        jnp.array(train_data),
-        jnp.array(train_target),
-        jnp.array(test_data),
-        jnp.array(test_target),
-    )
+    return jnp.array(data), jnp.array(target)

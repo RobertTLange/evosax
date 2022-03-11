@@ -42,24 +42,11 @@ def pytest_generate_tests(metafunc):
         else:
             metafunc.parametrize("classic_name", ["rosenbrock"])
 
-    if "gymnax_name" in metafunc.fixturenames:
+    if "env_name" in metafunc.fixturenames:
         if metafunc.config.getoption("all"):
             metafunc.parametrize(
-                "gymnax_name",
-                [
-                    "CartPole-v1",
-                ],
+                "env_name",
+                ["CartPole-v1", "ant"],
             )
         else:
-            metafunc.parametrize("gymnax_name", ["CartPole-v1"])
-
-    if "brax_name" in metafunc.fixturenames:
-        if metafunc.config.getoption("all"):
-            metafunc.parametrize(
-                "brax_name",
-                [
-                    "ant",
-                ],
-            )
-        else:
-            metafunc.parametrize("brax_name", ["ant"])
+            metafunc.parametrize("env_name", ["CartPole-v1"])

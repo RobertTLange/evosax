@@ -28,7 +28,7 @@ Strategies = {
     "Augmented_RS": Augmented_RS,
 }
 
-from .utils import FitnessShaper, ParameterReshaper
+from .utils import FitnessShaper, ParameterReshaper, ESLog
 from .networks import NetworkMapper
 from .problems import ProblemMapper
 
@@ -48,6 +48,7 @@ __all__ = [
     "Strategies",
     "FitnessShaper",
     "ParameterReshaper",
+    "ESLog",
     "NetworkMapper",
     "ProblemMapper",
 ]

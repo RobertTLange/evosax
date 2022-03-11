@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Union, List
+from typing import Union, List, Optional
 from flax.core.frozen_dict import FrozenDict, unfreeze
 from flax.traverse_util import flatten_dict, unflatten_dict
 
@@ -11,6 +11,7 @@ class ParameterReshaper(object):
         self,
         placeholder_params: Union[chex.ArrayTree, None] = None,
         identity: bool = False,
+        n_devices: Optional[int] = None,
     ):
         """Reshape flat parameters vectors into generation eval shape."""
         # Get network shape to reshape
@@ -46,6 +47,17 @@ class ParameterReshaper(object):
             self.reshape = jax.jit(self.reshape_network)
             self.reshape_single = jax.jit(self.reshape_single_net)
 
+        if n_devices is None:
+            self.n_devices = jax.local_device_count()
+        else:
+            self.n_devices = n_devices
+        if self.n_devices > 1:
+            print(
+                "More than one device detected. Please make sure that the ES"
+                " population size divides evenly across the number of devices"
+                " to pmap/parallelize over."
+            )
+
     def reshape_identity(self, x: chex.Array) -> chex.Array:
         """Return parameters w/o reshaping for evaluation."""
         return x
@@ -53,7 +65,12 @@ class ParameterReshaper(object):
     def reshape_network(self, x: chex.Array) -> chex.ArrayTree:
         """Perform reshaping for a 2D matrix (pop_members, params)."""
         vmap_shape = jax.vmap(self.flat_to_network, in_axes=(0,))
-        return vmap_shape(x)
+        if self.n_devices > 1:
+            x = self.split_params_for_pmap(x)
+            map_shape = jax.pmap(vmap_shape)
+        else:
+            map_shape = vmap_shape
+        return map_shape(x)
 
     def reshape_single_flat(self, x: chex.Array) -> chex.Array:
         """Perform reshaping for a 1D vector (params,)."""
@@ -88,6 +105,10 @@ class ParameterReshaper(object):
         return unflatten_dict(
             {tuple(k.split("/")): v for k, v in new_nn.items()}
         )
+
+    def split_params_for_pmap(self, param: chex.Array) -> chex.Array:
+        """Helper reshapes param (bs, #params) into (#dev, bs/#dev, #params)."""
+        return jnp.stack(jnp.split(param, self.n_devices))
 
 
 def get_total_params(params: chex.ArrayTree) -> int:

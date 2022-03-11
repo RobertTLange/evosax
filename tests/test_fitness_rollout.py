@@ -1,12 +1,19 @@
 import jax
 import jax.numpy as jnp
 from evosax import CMA_ES, Augmented_RS, ParameterReshaper, NetworkMapper
-from evosax.problems import ClassicFitness, GymFitness, SupervisedFitness
+from evosax.problems import (
+    ClassicFitness,
+    GymFitness,
+    BraxFitness,
+    SupervisedFitness,
+)
 
 
 def test_classic_rollout(classic_name: str):
     rng = jax.random.PRNGKey(0)
-    evaluator = ClassicFitness(classic_name, num_dims=2)
+    evaluator = ClassicFitness(
+        classic_name, num_dims=2, num_rollouts=2, noise_std=0.1
+    )
     strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
@@ -15,51 +22,72 @@ def test_classic_rollout(classic_name: str):
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
     x, state = strategy.ask(rng_gen, state, params)
     fitness = evaluator.rollout(rng_eval, x)
-    assert fitness.shape == (20,)
+    assert fitness.shape == (20, 2)
 
 
-def test_gymnax_ffw_rollout(gymnax_name: str):
+def test_env_ffw_rollout(env_name: str):
     rng = jax.random.PRNGKey(0)
-    evaluator = GymFitness()
-    network = NetworkMapper["MLP"](
-        num_hidden_units=64,
-        num_hidden_layers=2,
-        num_output_units=2,
-        hidden_activation="relu",
-        output_activation="categorical",
-    )
-    pholder = jnp.zeros(evaluator.input_shape)
+    if env_name in ["CartPole-v1"]:
+        evaluator = GymFitness(env_name, num_env_steps=100, num_rollouts=10)
+        network = NetworkMapper["MLP"](
+            num_hidden_units=64,
+            num_hidden_layers=2,
+            num_output_units=evaluator.action_shape,
+            hidden_activation="relu",
+            output_activation="categorical",
+        )
+    else:
+        evaluator = BraxFitness(env_name, num_env_steps=100, num_rollouts=10)
+        network = NetworkMapper["MLP"](
+            num_hidden_units=64,
+            num_hidden_layers=2,
+            num_output_units=evaluator.action_shape,
+            hidden_activation="tanh",
+            output_activation="tanh",
+        )
+    pholder = jnp.zeros((1, evaluator.input_shape[0]))
     net_params = network.init(
         rng,
         x=pholder,
         rng=rng,
     )
-    evaluator.set_apply_fn(network.apply)
     reshaper = ParameterReshaper(net_params["params"])
+    evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
+
     strategy = Augmented_RS(
         popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5
     )
     params = strategy.default_params
     state = strategy.initialize(rng, params)
-    rollout = jax.vmap(evaluator.rollout, in_axes=(None, reshaper.vmap_dict))
     # Run the ask-eval-tell loop
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    rng_epi = jax.random.split(rng_eval, 5)
     x, state = strategy.ask(rng_gen, state, params)
     x_re = reshaper.reshape(x)
-    fitness = rollout(rng_epi, x_re)
-    assert fitness.shape == (20, 5)
+    fitness = evaluator.rollout(rng_eval, x_re)
+
+    # Assert shape (#popmembers, #rollouts)
+    assert fitness.shape == (20, 10)
 
 
-def test_gymnax_rec_rollout(gymnax_name: str):
+def test_env_rec_rollout(env_name: str):
     rng = jax.random.PRNGKey(0)
-    evaluator = GymFitness()
-    network = NetworkMapper["LSTM"](
-        num_hidden_units=64,
-        num_output_units=2,
-        output_activation="categorical",
-    )
-    pholder = jnp.zeros(evaluator.input_shape)
+    if env_name in ["CartPole-v1"]:
+        evaluator = GymFitness(env_name, num_env_steps=100, num_rollouts=10)
+        network = NetworkMapper["LSTM"](
+            num_hidden_units=64,
+            num_output_units=evaluator.action_shape,
+            output_activation="categorical",
+        )
+
+    else:
+        evaluator = BraxFitness(env_name, num_env_steps=100, num_rollouts=10)
+        network = NetworkMapper["LSTM"](
+            num_hidden_units=64,
+            num_output_units=evaluator.action_shape,
+            output_activation="tanh",
+        )
+
+    pholder = jnp.zeros((1, evaluator.input_shape[0]))
     carry_init = network.initialize_carry()
     net_params = network.init(
         rng,
@@ -67,60 +95,62 @@ def test_gymnax_rec_rollout(gymnax_name: str):
         carry=carry_init,
         rng=rng,
     )
-    evaluator.set_apply_fn(network.apply, network.initialize_carry)
     reshaper = ParameterReshaper(net_params["params"])
+    evaluator.set_apply_fn(
+        reshaper.vmap_dict, network.apply, network.initialize_carry
+    )
     strategy = Augmented_RS(
         popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5
     )
     params = strategy.default_params
     state = strategy.initialize(rng, params)
-    rollout = jax.vmap(evaluator.rollout, in_axes=(None, reshaper.vmap_dict))
+
     # Run the ask-eval-tell loop
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    rng_epi = jax.random.split(rng_eval, 5)
     x, state = strategy.ask(rng_gen, state, params)
     x_re = reshaper.reshape(x)
-    fitness = rollout(rng_epi, x_re)
-    assert fitness.shape == (20, 5)
+    fitness = evaluator.rollout(rng_eval, x_re)
+
+    # Assert shape (#popmembers, #rollouts)
+    assert fitness.shape == (20, 10)
 
 
-## To memory intensive to run on github action
-# def test_supervised_fitness():
-#     rng = jax.random.PRNGKey(0)
-#     evaluator = SupervisedFitness("MNIST", 4)
-#     network = NetworkMapper["CNN"](
-#         depth_1=1,
-#         depth_2=1,
-#         features_1=8,
-#         features_2=16,
-#         kernel_1=5,
-#         kernel_2=5,
-#         strides_1=1,
-#         strides_2=1,
-#         num_linear_layers=0,
-#         num_output_units=10,
-#     )
-#     pholder = jnp.zeros((1, 28, 28, 1))
-#     net_params = network.init(
-#         rng,
-#         x=pholder,
-#         rng=rng,
-#     )
+# To memory intensive to run on github action
+def test_supervised_fitness():
+    rng = jax.random.PRNGKey(0)
+    evaluator = SupervisedFitness("MNIST", 4, test=True)
+    network = NetworkMapper["CNN"](
+        depth_1=1,
+        depth_2=1,
+        features_1=8,
+        features_2=16,
+        kernel_1=5,
+        kernel_2=5,
+        strides_1=1,
+        strides_2=1,
+        num_linear_layers=0,
+        num_output_units=10,
+    )
+    pholder = jnp.zeros((1, 28, 28, 1))
+    net_params = network.init(
+        rng,
+        x=pholder,
+        rng=rng,
+    )
 
-#     evaluator.set_apply_fn(network.apply)
-#     reshaper = ParameterReshaper(net_params["params"])
-#     strategy = Augmented_RS(
-#         popsize=2, num_dims=reshaper.total_params, elite_ratio=0.5
-#     )
-#     params = strategy.default_params
-#     state = strategy.initialize(rng, params)
-#     rollout = jax.jit(
-#         jax.vmap(evaluator.rollout, in_axes=(None, reshaper.vmap_dict))
-#     )
+    reshaper = ParameterReshaper(net_params["params"])
+    evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
 
-#     # Run the ask-eval-tell loop
-#     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-#     x, state = strategy.ask(rng_gen, state, params)
-#     x_re = reshaper.reshape(x)
-#     fitness = rollout(rng_eval, x_re)
-#     assert fitness.shape == (2,)
+    strategy = Augmented_RS(
+        popsize=4, num_dims=reshaper.total_params, elite_ratio=0.5
+    )
+    params = strategy.default_params
+    state = strategy.initialize(rng, params)
+
+    # Run the ask-eval-tell loop
+    rng, rng_gen, rng_eval = jax.random.split(rng, 3)
+    x, state = strategy.ask(rng_gen, state, params)
+    x_re = reshaper.reshape(x)
+    loss, acc = evaluator.rollout(rng_eval, x_re)
+    assert loss.shape == (4,)
+    assert acc.shape == (4,)
