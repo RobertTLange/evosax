@@ -94,7 +94,7 @@ class Simple_GA(Strategy):
         # Update mutation epsilon - multiplicative decay
         state["sigma"] = jax.lax.select(
             state["sigma"] > params["sigma_limit"],
-            state["sigma"] * params["sigma_limit"],
+            state["sigma"] * params["sigma_decay"],
             state["sigma"],
         )
         return state

@@ -59,5 +59,5 @@ setup(
     platforms="any",
     python_requires=">=3.7",
     install_requires=requires,
-    tests_requre=["brax"],
+    tests_requre=["brax", "torch", "torchvision"],
 )
