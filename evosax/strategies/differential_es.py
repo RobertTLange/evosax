@@ -11,6 +11,7 @@ class Differential_ES(Strategy):
         Reference: https://tinyurl.com/4pje5a74"""
         assert popsize > 6
         super().__init__(num_dims, popsize)
+        self.strategy_name = "Differential_ES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

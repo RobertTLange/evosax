@@ -25,6 +25,7 @@ class Augmented_RS(Strategy):
         self.elite_popsize = int(self.popsize / 2 * self.elite_ratio)
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
+        self.strategy_name = "Augmented_RS"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

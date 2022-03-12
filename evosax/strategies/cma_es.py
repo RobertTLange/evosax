@@ -14,6 +14,7 @@ class CMA_ES(Strategy):
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
+        self.strategy_name = "CMA_ES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

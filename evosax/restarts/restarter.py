@@ -12,6 +12,16 @@ class RestartWrapper(object):
         self.stop_criteria = stop_criteria
 
     @property
+    def num_dims(self) -> int:
+        """Get number of problem dimensions from base strategy."""
+        return self.base_strategy.num_dims
+
+    @property
+    def popsize(self) -> int:
+        """Get population size from base strategy."""
+        return self.base_strategy.popsize
+
+    @property
     def default_params(self) -> chex.ArrayTree:
         """Return default parameters of evolution strategy."""
         base_params = self.base_strategy.default_params
@@ -60,6 +70,7 @@ class RestartWrapper(object):
             restart_state,
             state,
         )
+        new_state["restarted"] = restart_bool
         return new_state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -76,7 +87,6 @@ class RestartWrapper(object):
             restart_bool > 0, min_gen_criterion(fitness, state, params)
         )
 
-    @partial(jax.jit, static_argnums=(0,))
     def restart(
         self,
         rng: chex.PRNGKey,
