@@ -77,13 +77,13 @@ class CMA_ES(Strategy):
             "mu_eff": mu_eff,
             "c_1": c_1,
             "c_mu": c_mu,
-            "c_m": 1,
+            "c_m": 1.0,
             "c_sigma": c_sigma,
             "d_sigma": d_sigma,
             "c_c": c_c,
             "chi_n": chi_n,
             "weights": weights,
-            "sigma_init": 1,
+            "sigma_init": 1.0,
             "weights_truncated": weights_truncated,
             "init_min": 0.0,
             "init_max": 0.0,
@@ -305,47 +305,3 @@ def eigen_decomposition(
 #     assert c_sigma < 1, "invalid lrate for cum. of step-size c."
 #     assert c_c <= 1, "invalid lrate for cum. of rank-one update"
 #     return
-#
-#
-# def check_termination(values, params, state):
-#     """ Check whether to terminate CMA-ES loop. """
-#     dC = jnp.diag(memory["C"])
-#     C, B, D = eigen_decomposition(memory["C"], memory["B"], memory["D"])
-#
-#     # Stop if generation fct values of recent generation is below thresh.
-#     if (memory["generation"] > params["min_generations"]
-#         and jnp.max(values) - jnp.min(values) < params["tol_fun"]):
-#         print("TERMINATE ----> Convergence/No progress in objective")
-#         return True
-#
-#     # Stop if std of normal distrib is smaller than tolx in all coordinates
-#     # and pc is smaller than tolx in all components.
-#     if jnp.all(memory["sigma"] * dC < params["tol_x"]) and np.all(
-#         memory["sigma"] * memory["p_c"] < params["tol_x"]):
-#         print("TERMINATE ----> Convergence/Search variance too small")
-#         return True
-#
-#     # Stop if detecting divergent behavior.
-#     if memory["sigma"] * jnp.max(D) > params["tol_x_up"]:
-#         print("TERMINATE ----> Stepsize sigma exploded")
-#         return True
-#
-#     # No effect coordinates: stop if adding 0.2-standard deviations
-#     # in any single coordinate does not change m.
-#     if jnp.any(memory["mean"] == memory["mean"] + (0.2 * memory["sigma"] * jnp.sqrt(dC))):
-#         print("TERMINATE ----> No effect when adding std to mean")
-#         return True
-#
-#     # No effect axis: stop if adding 0.1-standard deviation vector in
-#     # any principal axis direction of C does not change m.
-#     if jnp.all(memory["mean"] == memory["mean"] + (0.1 * memory["sigma"]
-#                                 * D[0] * B[:, 0])):
-#         print("TERMINATE ----> No effect when adding std to mean")
-#         return True
-#
-#     # Stop if the condition number of the covariance matrix exceeds 1e14.
-#     condition_cov = jnp.max(D) / jnp.min(D)
-#     if condition_cov > params["tol_condition_C"]:
-#         print("TERMINATE ----> C condition number exploded")
-#         return True
-#     return False
