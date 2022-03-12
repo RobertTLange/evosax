@@ -19,6 +19,8 @@ class Differential_ES(Strategy):
             "num_diff_vectors": 1,  # [1, 2]
             "crossover_rate": 0.9,  # cross-over probability [0, 1]
             "diff_w": 0.8,  # differential weight (F) [0, 2]
+            "init_min": -0.1,
+            "init_max": 0.1,
         }
 
     def initialize_strategy(

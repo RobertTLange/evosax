@@ -18,6 +18,8 @@ class PSO_ES(Strategy):
             "inertia_coeff": 0.75,  # w momentum of velocity
             "cognitive_coeff": 1.5,  # c_1 cognitive "force" multiplier
             "social_coeff": 2.0,  # c_2 social "force" multiplier
+            "init_min": -0.1,
+            "init_max": 0.1,
         }
 
     def initialize_strategy(

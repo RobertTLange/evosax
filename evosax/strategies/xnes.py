@@ -25,6 +25,8 @@ class xNES(Strategy):
             "eta_bmat": 3
             * (3 + jnp.log(self.num_dims))
             * (1.0 / (5 * self.num_dims * jnp.sqrt(self.num_dims))),
+            "init_min": 0.0,
+            "init_max": 0.0,
         }
         return params
 

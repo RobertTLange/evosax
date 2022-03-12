@@ -17,6 +17,8 @@ class PBT_ES(Strategy):
         return {
             "noise_scale": 0.1,
             "truncation_selection": 0.2,
+            "init_min": 0.0,
+            "init_max": 0.1,
         }
 
     def initialize_strategy(

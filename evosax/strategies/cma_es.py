@@ -85,6 +85,8 @@ class CMA_ES(Strategy):
             "weights": weights,
             "sigma_init": 1,
             "weights_truncated": weights_truncated,
+            "init_min": 0.0,
+            "init_max": 0.0,
         }
         return params
 

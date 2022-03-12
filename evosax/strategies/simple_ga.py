@@ -24,6 +24,8 @@ class Simple_GA(Strategy):
             "sigma_decay": 0.999,  # anneal standard deviation
             "sigma_limit": 0.01,  # stop annealing if less than this
             "forget_best": False,  # forget the historical best elites
+            "init_min": 0.0,
+            "init_max": 0.0,
         }
 
     def initialize_strategy(

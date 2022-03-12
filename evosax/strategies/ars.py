@@ -33,6 +33,8 @@ class Augmented_RS(Strategy):
             "sigma_init": 0.1,
             "sigma_decay": 0.999,
             "sigma_limit": 0.01,
+            "init_min": 0.0,
+            "init_max": 0.0,
         }
         params = {**es_params, **self.optimizer.default_params}
         return params

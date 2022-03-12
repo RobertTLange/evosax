@@ -27,6 +27,8 @@ class Simple_ES(Strategy):
             "c_sigma": 0.1,  # Learning rate for population std
             "weights": weights,  # Weights for population members
             "sigma_init": 1,  # Standard deviation
+            "init_min": 0.0,
+            "init_max": 0.0,
         }
 
     def initialize_strategy(

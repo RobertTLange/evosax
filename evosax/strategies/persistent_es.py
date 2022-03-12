@@ -26,6 +26,8 @@ class Persistent_ES(Strategy):
             "sigma_limit": 0.1,
             "T": 100,  # Total inner problem length
             "K": 10,  # Truncation length for partial unrolls
+            "init_min": 0.0,
+            "init_max": 0.0,
         }
         params = {**es_params, **self.optimizer.default_params}
         return params

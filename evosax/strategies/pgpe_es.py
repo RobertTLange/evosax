@@ -35,6 +35,8 @@ class PGPE_ES(Strategy):
             "sigma_limit": 0.01,  # Stop annealing if less than this
             "sigma_lrate": 0.20,  # Learning rate for std
             "sigma_max_change": 0.2,  # Clip adaptive sigma to 20%
+            "init_min": 0.0,
+            "init_max": 0.0,
         }
         params = {**es_params, **self.optimizer.default_params}
         return params
