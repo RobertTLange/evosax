@@ -10,6 +10,7 @@ class PSO_ES(Strategy):
         """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
         Reference: https://ieeexplore.ieee.org/document/488968"""
         super().__init__(num_dims, popsize)
+        self.strategy_name = "PSO_ES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

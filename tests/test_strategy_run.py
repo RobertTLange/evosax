@@ -14,12 +14,8 @@ def test_strategy_run(strategy_name):
     Strat = Strategies[strategy_name]
     # PBT also returns copy ID integer - treat separately
     popsize = 20
-    if strategy_name in ["Open_ES", "PGPE_ES", "Augmented_RS"]:
-        evaluator = ClassicFitness("quadratic", 2)
-        fitness_shaper = FitnessShaper(z_score=True)
-    else:
-        evaluator = ClassicFitness("rosenbrock", 2)
-        fitness_shaper = FitnessShaper()
+    evaluator = ClassicFitness("rosenbrock", 2)
+    fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
     strategy = Strat(popsize=popsize, num_dims=2)
@@ -44,13 +40,8 @@ def test_strategy_scan(strategy_name):
     Strat = Strategies[strategy_name]
     # PBT also returns copy ID integer - treat separately
     popsize = 20
-
-    if strategy_name in ["Open_ES", "PGPE_ES", "Augmented_RS"]:
-        evaluator = ClassicFitness("quadratic", 2)
-        fitness_shaper = FitnessShaper(z_score=True)
-    else:
-        evaluator = ClassicFitness("rosenbrock", 2)
-        fitness_shaper = FitnessShaper()
+    evaluator = ClassicFitness("rosenbrock", 2)
+    fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
     strategy = Strat(popsize=popsize, num_dims=2)

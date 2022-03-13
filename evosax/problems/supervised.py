@@ -31,9 +31,9 @@ class SupervisedFitness(object):
         if self.n_devices > 1:
             self.rollout = self.rollout_pmap
             print(
-                "More than one device detected. Please make sure that the ES"
-                " population size divides evenly across the number of devices"
-                " to pmap/parallelize over."
+                "SupervisedFitness: More than one device detected. Please make"
+                " sure that the ES population size divides evenly across the"
+                " number of devices to pmap/parallelize over."
             )
         else:
             self.rollout = jax.jit(self.rollout_pop)

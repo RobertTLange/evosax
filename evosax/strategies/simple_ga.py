@@ -14,6 +14,7 @@ class Simple_GA(Strategy):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
+        self.strategy_name = "Simple_GA"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

@@ -10,6 +10,7 @@ class PBT_ES(Strategy):
         """Synchronous Population-Based Training (Jaderberg et al., 2017)
         Reference: https://arxiv.org/abs/1711.09846"""
         super().__init__(num_dims, popsize)
+        self.strategy_name = "PBT_ES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

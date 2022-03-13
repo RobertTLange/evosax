@@ -19,6 +19,7 @@ def pytest_generate_tests(metafunc):
                     "PBT_ES",
                     "Persistent_ES",
                     "xNES",
+                    "Sep_CMA_ES",
                 ],
             )
         else:
