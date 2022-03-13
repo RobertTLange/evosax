@@ -5,6 +5,7 @@ from .termination import spread_criterion
 
 class Simple_Restarter(RestartWrapper):
     def __init__(self, base_strategy, stop_criteria=[spread_criterion]):
+        """Simple Restart Strategy - Only reinitialize the state."""
         super().__init__(base_strategy, stop_criteria)
 
     @property
@@ -20,5 +21,6 @@ class Simple_Restarter(RestartWrapper):
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
+        """Simple restart by state initialization."""
         re_state = self.base_strategy.initialize(rng, params)
         return re_state

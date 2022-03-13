@@ -48,9 +48,9 @@ class GymFitness(object):
         if self.n_devices > 1:
             self.rollout_map = self.rollout_pmap
             print(
-                "More than one device detected. Please make sure that the ES"
-                " population size divides evenly across the number of devices"
-                " to pmap/parallelize over."
+                "GymFitness: More than one device detected. Please make sure"
+                " that the ES population size divides evenly across the number"
+                " of devices to pmap/parallelize over."
             )
         else:
             self.rollout_map = self.rollout_pop

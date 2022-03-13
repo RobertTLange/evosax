@@ -8,6 +8,7 @@ from .termination import min_gen_criterion
 
 class RestartWrapper(object):
     def __init__(self, base_strategy, stop_criteria=[]):
+        """Base Class for a Restart Strategy."""
         self.base_strategy = base_strategy
         self.stop_criteria = stop_criteria
 

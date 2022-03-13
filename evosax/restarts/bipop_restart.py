@@ -13,6 +13,9 @@ class BIPOP_Restarter(RestartWrapper):
         base_strategy,
         stop_criteria=[spread_criterion],
     ):
+        """Bi-Population Restarts (Hansen, 2009) - Interlaced population sizes.
+        Reference: https://hal.inria.fr/inria-00382093/document
+        Inspired by: https://tinyurl.com/44y3ryhf"""
         super().__init__(base_strategy, stop_criteria)
         self.default_popsize = self.base_strategy.popsize
 
@@ -47,6 +50,7 @@ class BIPOP_Restarter(RestartWrapper):
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
+        # TODO: Cannot jit! Re-definition of strategy with different popsizes.
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
             popsize=state["active_popsize"], num_dims=self.num_dims
         )
