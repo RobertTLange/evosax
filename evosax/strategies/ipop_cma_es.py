@@ -3,21 +3,21 @@ import chex
 from typing import Tuple
 from functools import partial
 from .cma_es import CMA_ES
-from ..restarts import BIPOP_Restarter
+from ..restarts import IPOP_Restarter
 from ..restarts.termination import cma_criterion
 
 
-class BIPOP_CMA_ES(object):
+class IPOP_CMA_ES(object):
     def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
-        """BIPOP-CMA-ES (Hansen, 2009).
-        Reference: https://hal.inria.fr/inria-00382093/document
-        Inspired by: https://tinyurl.com/44y3ryhf"""
-        self.strategy_name = "BIPOP_CMA_ES"
+        """IPOP-CMA-ES (Auer & Hansen, 2005).
+        Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
+        """
+        self.strategy_name = "IPOP_CMA_ES"
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
             num_dims=num_dims, popsize=popsize, elite_ratio=elite_ratio
         )
-        self.wrapped_strategy = BIPOP_Restarter(
+        self.wrapped_strategy = IPOP_Restarter(
             self.strategy, stop_critera=[cma_criterion]
         )
 

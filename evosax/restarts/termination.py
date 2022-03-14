@@ -20,6 +20,13 @@ def spread_criterion(
     return fit_var_too_low
 
 
+def cma_criterion(
+    fitness: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
+) -> bool:
+    """Termination criterion specific to the CMA-ES strategy."""
+    return False
+
+
 # def cma_criterion(
 #     fitness: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
 # ):

@@ -14,8 +14,8 @@ class IPOP_Restarter(RestartWrapper):
         stop_criteria=[spread_criterion],
     ):
         """Increasing-Population Restarts (Auer & Hansen, 2005).
-        Reference: https://hal.inria.fr/inria-00382093/document
-        Inspired by: https://tinyurl.com/44y3ryhf"""
+        Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
+        """
         super().__init__(base_strategy, stop_criteria)
         self.default_popsize = self.base_strategy.popsize
 
