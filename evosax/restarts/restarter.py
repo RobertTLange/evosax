@@ -42,7 +42,7 @@ class RestartWrapper(object):
         """`initialize` the evolution strategy."""
         state = self.base_strategy.initialize(rng, params)
         state["restart_counter"] = 0
-        state["restarted"] = False
+        state["restart_next"] = False
         return state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -50,13 +50,23 @@ class RestartWrapper(object):
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
-        x, state = self.base_strategy.ask(rng, state, params)
+        rng_ask, rng_restart = jax.random.split(rng)
+        restart_state = self.restart(rng_restart, state, params)
+        # Simple tree map - jittable if state dimensions are static
+        # Otherwise restart wrapper has to overwrite `ask`
+        new_state = jax.tree_multimap(
+            lambda x, y: jax.lax.select(state["restart_next"], x, y),
+            restart_state,
+            state,
+        )
+        new_state["best_fitness"] = state["best_fitness"]
+        new_state["best_member"] = state["best_member"]
+        x, state = self.base_strategy.ask(rng_ask, new_state, params)
         return x, state
 
     @partial(jax.jit, static_argnums=(0,))
     def tell(
         self,
-        rng: chex.PRNGKey,
         x: chex.Array,
         fitness: chex.Array,
         state: chex.ArrayTree,
@@ -64,15 +74,8 @@ class RestartWrapper(object):
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
         state = self.base_strategy.tell(x, fitness, state, params)
-        restart_bool = self.stop(fitness, state, params)
-        restart_state = self.restart(rng, fitness, state, params)
-        new_state = jax.tree_multimap(
-            lambda x, y: jax.lax.select(restart_bool, x, y),
-            restart_state,
-            state,
-        )
-        new_state["restarted"] = restart_bool
-        return new_state
+        state["restart_next"] = self.stop(fitness, state, params)
+        return state
 
     @partial(jax.jit, static_argnums=(0,))
     def stop(
@@ -88,26 +91,23 @@ class RestartWrapper(object):
             restart_bool > 0, min_gen_criterion(fitness, state, params)
         )
 
+    @partial(jax.jit, static_argnums=(0,))
     def restart(
         self,
         rng: chex.PRNGKey,
-        fitness: chex.Array,
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """Restart state for next generations."""
-        new_state = self.restart_strategy(rng, fitness, state, params)
+        new_state = self.restart_strategy(rng, state, params)
         # Copy over important parts of state from previous strategy
-        new_state["best_fitness"] = state["best_fitness"]
-        new_state["best_member"] = state["best_member"]
         new_state["restart_counter"] = state["restart_counter"] + 1
-        new_state["restarted"] = True
+        new_state["restart_next"] = False
         return new_state
 
     def restart_strategy(
         self,
         rng: chex.PRNGKey,
-        fitness: chex.Array,
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:

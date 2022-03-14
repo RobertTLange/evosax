@@ -17,10 +17,9 @@ class Simple_Restarter(RestartWrapper):
     def restart_strategy(
         self,
         rng: chex.PRNGKey,
-        fitness: chex.Array,
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """Simple restart by state initialization."""
-        re_state = self.base_strategy.initialize(rng, params)
-        return re_state
+        new_state = self.base_strategy.initialize(rng, params)
+        return new_state

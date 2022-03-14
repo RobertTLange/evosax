@@ -1,3 +1,14 @@
+### TODO
+
+- [ ] Update notebooks for new rollout wrappers
+- [ ] Add restart wrapper notebook
+- [ ] Update selling points with restarts
+- [ ] Add batch strategy wrapper
+- [ ] Add Amalgalm-IDEA strategies
+- [ ] Refone default hyperparameters
+- [ ] Decide if `rng` should be provided in `tell` method
+- [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
+
 ### [v0.0.4] - [Unreleased]
 
 ##### Added

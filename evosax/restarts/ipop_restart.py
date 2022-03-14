@@ -7,13 +7,13 @@ from .termination import spread_criterion
 from .. import Strategies
 
 
-class BIPOP_Restarter(RestartWrapper):
+class IPOP_Restarter(RestartWrapper):
     def __init__(
         self,
         base_strategy,
         stop_criteria=[spread_criterion],
     ):
-        """Bi-Population Restarts (Hansen, 2009) - Interlaced population sizes.
+        """Increasing-Population Restarts (Auer & Hansen, 2005).
         Reference: https://hal.inria.fr/inria-00382093/document
         Inspired by: https://tinyurl.com/44y3ryhf"""
         super().__init__(base_strategy, stop_criteria)
@@ -37,12 +37,8 @@ class BIPOP_Restarter(RestartWrapper):
         state = self.base_strategy.initialize(rng, params)
         state["restart_counter"] = 0
         state["restart_next"] = False
-        # Add BIPOP-specific state elements to PyTree
+        # Add IPOP-specific state elements to PyTree
         state["active_popsize"] = self.base_strategy.popsize
-        state["restart_large_counter"] = 0
-        state["large_eval_budget"] = 0
-        state["small_eval_budget"] = 0
-        state["small_pop_active"] = True
         return state
 
     def ask(
@@ -64,35 +60,9 @@ class BIPOP_Restarter(RestartWrapper):
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
-        """Reinstantiate a new strategy with interlaced population sizes."""
-        # Track number of evals depending on active population
-        large_eval_budget = jax.lax.select(
-            state["small_pop_active"],
-            state["large_eval_budget"],
-            state["large_eval_budget"]
-            + state["active_popsize"] * state["gen_counter"],
-        )
-        small_eval_budget = jax.lax.select(
-            state["small_pop_active"],
-            state["small_eval_budget"]
-            + state["active_popsize"] * state["gen_counter"],
-            state["small_eval_budget"],
-        )
-        small_pop_active = small_eval_budget < large_eval_budget
-
-        # Update the population size based on active population size
-        pop_mult = params["popsize_multiplier"] ** (
-            state["restart_large_counter"] + 1
-        )
-        small_popsize = jax.lax.floor(
-            self.default_popsize * pop_mult ** (jax.random.uniform(rng) ** 2)
-        ).astype(int)
-        large_popsize = self.default_popsize * pop_mult
-
+        """Reinstantiate a new strategy with increased population sizes."""
         # Reinstantiate new strategy - based on name of previous strategy
-        active_popsize = jax.lax.select(
-            small_pop_active, small_popsize, large_popsize
-        )
+        active_popsize = state["active_popsize"] * params["popsize_multiplier"]
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
@@ -106,12 +76,5 @@ class BIPOP_Restarter(RestartWrapper):
             "restart_counter",
         ]:
             new_state[k] = state[k]
-
-        new_state["small_pop_active"] = small_pop_active
-        new_state["large_eval_budget"] = large_eval_budget
-        new_state["small_eval_budget"] = small_eval_budget
-        new_state["restart_large_counter"] = (
-            state["restart_large_counter"] + 1 - small_pop_active
-        )
         new_state["active_popsize"] = active_popsize
         return new_state
