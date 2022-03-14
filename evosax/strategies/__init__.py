@@ -10,6 +10,7 @@ from .persistent_es import Persistent_ES
 from .xnes import xNES
 from .ars import Augmented_RS
 from .sep_cma_es import Sep_CMA_ES
+from .bipop_cma_es import BIPOP_CMA_ES
 
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     "xNES",
     "Augmented_RS",
     "Sep_CMA_ES",
+    "BIPOP_CMA_ES",
 ]
