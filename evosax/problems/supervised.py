@@ -7,16 +7,16 @@ from typing import Tuple, Optional
 class SupervisedFitness(object):
     def __init__(
         self,
-        problem_name: str = "MNIST",
+        task_name: str = "MNIST",
         batch_size: int = 128,
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
-        self.problem_name = problem_name
+        self.task_name = task_name
         self.batch_size = batch_size
         self.test = test
         self.num_classes = 10
-        data = get_array_data(self.problem_name, self.test)
+        data = get_array_data(self.task_name, self.test)
         self.dataloader = BatchLoader(*data, batch_size=self.batch_size)
         if n_devices is None:
             self.n_devices = jax.local_device_count()
@@ -229,15 +229,15 @@ def get_svhn_loaders(test: bool = False):
     return loader
 
 
-def get_array_data(problem_name: str = "MNIST", test: bool = False):
+def get_array_data(task_name: str = "MNIST", test: bool = False):
     """Get raw data arrays to subsample from."""
-    if problem_name == "MNIST":
+    if task_name == "MNIST":
         loader = get_mnist_loaders(test)
-    elif problem_name == "FashionMNIST":
+    elif task_name == "FashionMNIST":
         loader = get_fashion_loaders(test)
-    elif problem_name == "CIFAR10":
+    elif task_name == "CIFAR10":
         loader = get_cifar_loaders(test)
-    elif problem_name == "SVHN":
+    elif task_name == "SVHN":
         loader = get_svhn_loaders(test)
     else:
         raise ValueError("Dataset is not supported.")
