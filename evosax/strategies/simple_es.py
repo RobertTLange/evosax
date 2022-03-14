@@ -36,12 +36,6 @@ class Simple_ES(Strategy):
         self, rng: chex.PRNGKey, params: chex.Array
     ) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
-        initialization = jax.random.uniform(
-            rng,
-            (self.popsize, self.num_dims),
-            minval=params["init_min"],
-            maxval=params["init_max"],
-        )
         state = {
             "mean": jnp.zeros(self.num_dims),
             "sigma": jnp.repeat(params["sigma_init"], self.num_dims),
