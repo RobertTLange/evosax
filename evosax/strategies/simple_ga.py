@@ -14,6 +14,7 @@ class Simple_GA(Strategy):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
+        self.strategy_name = "Simple_GA"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
@@ -39,6 +40,7 @@ class Simple_GA(Strategy):
             maxval=params["init_max"],
         )
         state = {
+            "mean": initialization.mean(axis=0),
             "archive": initialization,
             "fitness": jnp.zeros(self.elite_popsize) + 20e10,
             "sigma": params["sigma_init"],
@@ -99,6 +101,8 @@ class Simple_GA(Strategy):
             state["sigma"] * params["sigma_decay"],
             state["sigma"],
         )
+        # Keep mean across stored archive around for evaluation protocol
+        state["mean"] = state["archive"].mean(axis=0)
         return state
 
 

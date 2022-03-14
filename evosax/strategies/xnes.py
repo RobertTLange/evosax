@@ -11,6 +11,7 @@ class xNES(Strategy):
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
         Inspired by: https://github.com/chanshing/xnes"""
         super().__init__(num_dims, popsize)
+        self.strategy_name = "xNES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

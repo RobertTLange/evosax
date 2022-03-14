@@ -13,6 +13,7 @@ class Simple_ES(Strategy):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
+        self.strategy_name = "Simple_ES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
@@ -26,7 +27,7 @@ class Simple_ES(Strategy):
             "c_m": 1.0,  # Learning rate for population mean
             "c_sigma": 0.1,  # Learning rate for population std
             "weights": weights,  # Weights for population members
-            "sigma_init": 1,  # Standard deviation
+            "sigma_init": 1.0,  # Standard deviation
             "init_min": 0.0,
             "init_max": 0.0,
         }
@@ -35,15 +36,7 @@ class Simple_ES(Strategy):
         self, rng: chex.PRNGKey, params: chex.Array
     ) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
-        initialization = jax.random.uniform(
-            rng,
-            (self.popsize, self.num_dims),
-            minval=params["init_min"],
-            maxval=params["init_max"],
-        )
         state = {
-            "archive": initialization,
-            "fitness": jnp.zeros(self.elite_popsize) - 20e10,
             "mean": jnp.zeros(self.num_dims),
             "sigma": jnp.repeat(params["sigma_init"], self.num_dims),
         }

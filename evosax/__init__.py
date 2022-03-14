@@ -11,6 +11,7 @@ from .strategies import (
     Persistent_ES,
     xNES,
     Augmented_RS,
+    Sep_CMA_ES,
 )
 
 
@@ -26,6 +27,7 @@ Strategies = {
     "Persistent_ES": Persistent_ES,
     "xNES": xNES,
     "Augmented_RS": Augmented_RS,
+    "Sep_CMA_ES": Sep_CMA_ES,
 }
 
 from .utils import FitnessShaper, ParameterReshaper, ESLog
@@ -45,6 +47,7 @@ __all__ = [
     "Persistent_ES",
     "xNES",
     "Augmented_RS",
+    "Sep_CMA_ES",
     "Strategies",
     "FitnessShaper",
     "ParameterReshaper",

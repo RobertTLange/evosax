@@ -9,6 +9,7 @@ from .pbt_es import PBT_ES
 from .persistent_es import Persistent_ES
 from .xnes import xNES
 from .ars import Augmented_RS
+from .sep_cma_es import Sep_CMA_ES
 
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "Persistent_ES",
     "xNES",
     "Augmented_RS",
+    "Sep_CMA_ES",
 ]

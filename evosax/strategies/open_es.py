@@ -15,6 +15,7 @@ class Open_ES(Strategy):
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
+        self.strategy_name = "Open_ES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
