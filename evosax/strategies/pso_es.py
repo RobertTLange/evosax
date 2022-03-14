@@ -34,6 +34,7 @@ class PSO_ES(Strategy):
             maxval=params["init_max"],
         )
         state = {
+            "mean": initialization.mean(axis=0),
             "archive": initialization,
             "fitness": jnp.zeros(self.popsize) + 20e10,
             "velocity": jnp.zeros((self.popsize, self.num_dims)),
@@ -95,6 +96,9 @@ class PSO_ES(Strategy):
         state["best_archive_fitness"] = (
             replace * fitness + (1 - replace) * state["best_archive_fitness"]
         )
+
+        # Keep mean across stored archive around for evaluation protocol
+        state["mean"] = state["archive"].mean(axis=0)
         return state
 
 

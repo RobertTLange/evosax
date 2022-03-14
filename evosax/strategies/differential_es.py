@@ -39,6 +39,7 @@ class Differential_ES(Strategy):
             maxval=params["init_max"],
         )
         state = {
+            "mean": initialization.mean(axis=0),
             "archive": initialization,
             "fitness": jnp.zeros(self.popsize) + 20e10,
         }
@@ -87,6 +88,8 @@ class Differential_ES(Strategy):
             + (1 - jnp.expand_dims(replace, 1)) * state["archive"]
         )
         state["fitness"] = replace * fitness + (1 - replace) * state["fitness"]
+        # Keep mean across stored archive around for evaluation protocol
+        state["mean"] = state["archive"].mean(axis=0)
         return state
 
 
