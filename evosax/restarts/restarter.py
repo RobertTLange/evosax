@@ -91,7 +91,6 @@ class RestartWrapper(object):
             restart_bool > 0, min_gen_criterion(fitness, state, params)
         )
 
-    @partial(jax.jit, static_argnums=(0,))
     def restart(
         self,
         rng: chex.PRNGKey,

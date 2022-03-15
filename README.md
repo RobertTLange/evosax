@@ -15,15 +15,15 @@ from evosax import CMA_ES
 # Instantiate the search strategy
 rng = jax.random.PRNGKey(0)
 strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
-params = strategy.default_params
-state = strategy.initialize(rng, params)
+es_params = strategy.default_params
+state = strategy.initialize(rng, es_params)
 
 # Run ask-eval-tell loop - NOTE: By default minimization!
 for t in range(num_generations):
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    x, state = strategy.ask(rng_gen, state, params)
+    x, state = strategy.ask(rng_gen, state, es_params)
     fitness = ...  # Your population evaluation fct 
-    state = strategy.tell(x, fitness, state, params)
+    state = strategy.tell(x, fitness, state, es_params)
 
 # Get best overall population member & its fitness
 state["best_member"], state["best_fitness"]
@@ -162,7 +162,24 @@ fit_shaper = FitnessShaper(centered_rank=True,
 fit_shaped = fit_shaper.apply(x, fitness) 
 ```
 
-- **Strategy Restart Wrappers**: *Work in progress*
+- **Strategy Restart Wrappers**: *Work in progress* - Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change.
+
+```Python
+from evosax import CMA_ES
+from evosax.restarts import BIPOP_Restarter
+from evosax.restarts.termination import cma_criterion
+
+# Instantiate Base CMA ES & wrap with BIPOP restarts
+strategy = CMA(num_dims, popsize, elite_ratio)
+re_strategy = BIPOP_Restarter(strategy, stop_criteria=[cma_criterion])
+state = re_strategy.initialize(rng, es_params)
+
+# ask/tell loop - restarts are automatically handled 
+rng, rng_gen, rng_eval = jax.random.split(rng, 3)
+x, state = re_strategy.ask(rng_gen, state, params)
+fitness = ...  # Your population evaluation fct 
+state = strategy.tell(x, fitness, state, params)
+```
 
 ## Resources & Other Great JAX-ES Tools 📝
 * 📺 [Rob's MLC Research Jam Talk](https://www.youtube.com/watch?v=Wn6Lq2bexlA&t=51s): Small motivation talk at the ML Collective Research Jam.

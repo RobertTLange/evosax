@@ -1,13 +1,24 @@
 ### TODO
 
+- [ ] Change network wrapper to work with list of hidden neurons?
 - [ ] Update notebooks for new rollout wrappers
 - [ ] Add restart wrapper notebook
 - [ ] Update selling points with restarts
 - [ ] Add batch strategy wrapper
-- [ ] Add Amalgalm-IDEA strategies
-- [ ] Refone default hyperparameters
-- [ ] Decide if `rng` should be provided in `tell` method
+- [ ] Refine default hyperparameters based on gridsearches
 - [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
+- More strategies
+    - [ ] Amalgalm-IDEA strategies
+        - [ ] independent
+        - [ ] bayesian
+        - [ ] full
+    - [ ] Large-scale CMA-ES variants
+        - [ ] Cholesky CMA-ES
+        - [ ] LMA-CMA
+        - [ ] VkD-CMA
+        - [ ] RmES
+    - [ ] sNES (separable)
+
 
 ### [v0.0.4] - [Unreleased]
 
@@ -15,10 +26,13 @@
 
 - New strategies:
     - Separable CMA-ES strategy (`Sep_CMA_ES` following Ros & Hansen, 2008).
+    - BIPOP-CMA-ES (`BIPOP_CMA_ES`)
+    - IPOP-CMA-ES (`IPOP_CMA_ES`)
 - Restart wrappers: 
     - Base restart class.
     - Simple reinit restart strategy.
     - BIPOP strategy with interleaved small/large populations.
+    - IPOP strategy with growing population size.
 
 ##### Changed
 

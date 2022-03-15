@@ -12,6 +12,8 @@ from .strategies import (
     xNES,
     Augmented_RS,
     Sep_CMA_ES,
+    BIPOP_CMA_ES,
+    IPOP_CMA_ES,
 )
 
 
@@ -28,6 +30,8 @@ Strategies = {
     "xNES": xNES,
     "Augmented_RS": Augmented_RS,
     "Sep_CMA_ES": Sep_CMA_ES,
+    "BIPOP_CMA_ES": BIPOP_CMA_ES,
+    "IPOP_CMA_ES": IPOP_CMA_ES,
 }
 
 from .utils import FitnessShaper, ParameterReshaper, ESLog
@@ -48,6 +52,8 @@ __all__ = [
     "xNES",
     "Augmented_RS",
     "Sep_CMA_ES",
+    "BIPOP_CMA_ES",
+    "IPOP_CMA_ES",
     "Strategies",
     "FitnessShaper",
     "ParameterReshaper",

@@ -3,8 +3,6 @@ import chex
 from typing import Tuple
 from functools import partial
 from .cma_es import CMA_ES
-from ..restarts import IPOP_Restarter
-from ..restarts.termination import cma_criterion
 
 
 class IPOP_CMA_ES(object):
@@ -17,8 +15,11 @@ class IPOP_CMA_ES(object):
         self.strategy = CMA_ES(
             num_dims=num_dims, popsize=popsize, elite_ratio=elite_ratio
         )
+        from ..restarts import IPOP_Restarter
+        from ..restarts.termination import cma_criterion, spread_criterion
+
         self.wrapped_strategy = IPOP_Restarter(
-            self.strategy, stop_critera=[cma_criterion]
+            self.strategy, stop_criteria=[spread_criterion, cma_criterion]
         )
 
     @property
