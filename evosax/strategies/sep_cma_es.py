@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
+from ..utils.eigen_decomp import diag_eigen_decomp
 
 
 class Sep_CMA_ES(Strategy):
@@ -100,7 +101,7 @@ class Sep_CMA_ES(Strategy):
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
-        D = eigen_decomposition(state["C"], state["D"])
+        D = diag_eigen_decomp(state["C"], state["D"])
         x = sample(
             rng,
             state["mean"],
@@ -171,7 +172,7 @@ def update_p_sigma(
     params: chex.ArrayTree,
 ) -> Tuple[chex.Array, None]:
     """Update evolution path for covariance matrix."""
-    D = eigen_decomposition(C, D)
+    D = diag_eigen_decomp(C, D)
     p_sigma_new = (1 - params["c_sigma"]) * p_sigma + jnp.sqrt(
         params["c_sigma"] * (2 - params["c_sigma"]) * params["mu_eff"]
     ) * (y_w / D)
@@ -253,11 +254,3 @@ def sample(
     y = jnp.swapaxes(y, 1, 0)
     x = mean + sigma * y  # ~ N(m, σ^2 C)
     return x
-
-
-def eigen_decomposition(C: chex.Array, D: chex.Array) -> chex.Array:
-    """Perform simplified decomposition of covariance matrix."""
-    if D is not None:
-        return D
-    D = jnp.sqrt(jnp.where(C < 0, 1e-20, C))
-    return D

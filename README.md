@@ -162,16 +162,20 @@ fit_shaper = FitnessShaper(centered_rank=True,
 fit_shaped = fit_shaper.apply(x, fitness) 
 ```
 
-- **Strategy Restart Wrappers**: *Work in progress* - Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change.
+- **Strategy Restart Wrappers**: *Work in progress* - You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change.
 
 ```Python
 from evosax import CMA_ES
 from evosax.restarts import BIPOP_Restarter
-from evosax.restarts.termination import cma_criterion
 
-# Instantiate Base CMA ES & wrap with BIPOP restarts
+# Define a termination criterion (kwargs - )
+def std_criterion(fitness, state, params):
+    """Restart strategy if fitness std across population is small.""""
+    return fitness.std() < 0.001
+
+# Instantiate Base CMA-ES & wrap with BIPOP restarts
 strategy = CMA(num_dims, popsize, elite_ratio)
-re_strategy = BIPOP_Restarter(strategy, stop_criteria=[cma_criterion])
+re_strategy = BIPOP_Restarter(strategy, stop_criteria=[std_criterion])
 state = re_strategy.initialize(rng, es_params)
 
 # ask/tell loop - restarts are automatically handled 

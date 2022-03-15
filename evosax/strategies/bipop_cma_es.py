@@ -25,7 +25,11 @@ class BIPOP_CMA_ES(object):
     @property
     def default_params(self) -> chex.ArrayTree:
         """Return default parameters of evolution strategy."""
-        return self.wrapped_strategy.default_params
+        re_params = self.wrapped_strategy.default_params
+        re_params["tol_x"] = 1e-12
+        re_params["tol_x_up"] = 1e4
+        re_params["tol_condition_C"] = 1e14
+        return re_params
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(

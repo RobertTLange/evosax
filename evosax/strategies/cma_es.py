@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
+from ..utils.eigen_decomp import full_eigen_decomp
 
 
 class CMA_ES(Strategy):
@@ -117,7 +118,7 @@ class CMA_ES(Strategy):
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
-        C, B, D = eigen_decomposition(state["C"], state["B"], state["D"])
+        C, B, D = full_eigen_decomp(state["C"], state["B"], state["D"])
         x = sample(
             rng,
             state["mean"],
@@ -191,7 +192,7 @@ def update_p_sigma(
     params: chex.ArrayTree,
 ) -> Tuple[chex.Array, chex.Array, chex.Array, None, None]:
     """Update evolution path for covariance matrix."""
-    C, B, D = eigen_decomposition(C, B, D)
+    C, B, D = full_eigen_decomp(C, B, D)
     C_2 = B.dot(jnp.diag(1 / D)).dot(B.T)  # C^(-1/2) = B D^(-1) B^T
     p_sigma_new = (1 - params["c_sigma"]) * p_sigma + jnp.sqrt(
         params["c_sigma"] * (2 - params["c_sigma"]) * params["mu_eff"]
@@ -281,28 +282,3 @@ def sample(
     y = jnp.swapaxes(y, 1, 0)
     x = mean + sigma * y  # ~ N(m, σ^2 C)
     return x
-
-
-def eigen_decomposition(
-    C: chex.Array, B: chex.Array, D: chex.Array
-) -> Tuple[chex.Array, chex.Array, chex.Array]:
-    """Perform eigendecomposition of covariance matrix."""
-    if B is not None and D is not None:
-        return C, B, D
-    C = (C + C.T) / 2  # Make sure matrix is symmetric
-    D2, B = jnp.linalg.eigh(C)
-    D = jnp.sqrt(jnp.where(D2 < 0, 1e-20, D2))
-    C = jnp.dot(jnp.dot(B, jnp.diag(D ** 2)), B.T)
-    return C, B, D
-
-
-# def check_initialization(params):
-#     """ Check lrates and other params of CMA-ES at initialization. """
-#     assert population_size > 0, "popsize must be non-zero positive value."
-#     assert n_dim > 1, "The dimension of mean must be larger than 1"
-#     assert sigma > 0, "sigma must be non-zero positive value"
-#     assert c_1 <= 1 - c_mu, "invalid lrate for the rank-one update"
-#     assert c_mu <= 1 - c_1, "invalid lrate for the rank-μ update"
-#     assert c_sigma < 1, "invalid lrate for cum. of step-size c."
-#     assert c_c <= 1, "invalid lrate for cum. of rank-one update"
-#     return

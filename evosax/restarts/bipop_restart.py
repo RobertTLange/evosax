@@ -24,7 +24,7 @@ class BIPOP_Restarter(RestartWrapper):
         """Return default parameters for strategy restarting."""
         re_params = {
             "min_num_gens": 50,
-            "min_fitness_spread": 0.1,
+            "min_fitness_spread": 1e-12,
             "popsize_multiplier": 2,
         }
         return re_params
