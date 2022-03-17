@@ -87,7 +87,7 @@ class Augmented_RS(Strategy):
 
         fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
         # Add small constant to ensure non-zero division stability
-        sigma_fitness = jnp.std(fitness_elite) + 1e-08
+        sigma_fitness = jnp.std(fitness_elite) + 1e-05
         fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
         fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
 

@@ -152,7 +152,7 @@ x_shaped = param_reshaper.reshape(x)
 ```Python
 from evosax import FitnessShaper
 
-# Instantiate jittable fitness shaper
+# Instantiate jittable fitness shaper (e.g. for Open ES)
 fit_shaper = FitnessShaper(centered_rank=True,
                            z_score=True,
                            weight_decay=0.01,
@@ -182,7 +182,7 @@ state = re_strategy.initialize(rng, es_params)
 rng, rng_gen, rng_eval = jax.random.split(rng, 3)
 x, state = re_strategy.ask(rng_gen, state, params)
 fitness = ...  # Your population evaluation fct 
-state = strategy.tell(x, fitness, state, params)
+state = re_strategy.tell(x, fitness, state, params)
 ```
 
 ## Resources & Other Great JAX-ES Tools 📝

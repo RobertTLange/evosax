@@ -54,8 +54,6 @@ class PGPE_ES(Strategy):
         )
         es_state = {
             "mean": initialization,
-            "fitness": jnp.zeros(self.popsize) - 20e10,
-            "lrate": params["lrate_init"],
             "sigma": jnp.ones(self.num_dims) * params["sigma_init"],
         }
         state = {**es_state, **self.optimizer.initialize(params)}
@@ -93,7 +91,7 @@ class PGPE_ES(Strategy):
         fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
         fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
 
-        theta_grad = 1.0 / (self.elite_popsize) * fit_diff_noise
+        theta_grad = 1.0 / self.elite_popsize * fit_diff_noise
         # Grad update using optimizer instance - decay lrate if desired
         state = self.optimizer.step(theta_grad, state, params)
         state = self.optimizer.update(state, params)

@@ -14,9 +14,9 @@ class FitnessShaper(object):
     ):
         """JAX-compatible fitness shaping tool."""
         self.w_decay = w_decay
-        self.centered_rank = centered_rank
-        self.z_score = z_score
-        self.maximize = maximize
+        self.centered_rank = bool(centered_rank)
+        self.z_score = bool(z_score)
+        self.maximize = bool(maximize)
 
     @partial(jax.jit, static_argnums=(0,))
     def apply(self, x: chex.Array, fitness: chex.Array) -> chex.Array:
@@ -36,7 +36,7 @@ class FitnessShaper(object):
 
 def z_score_fitness(fitness: chex.Array) -> chex.Array:
     """Make fitness 'Gaussian' by substracting mean and dividing by std."""
-    return (fitness - jnp.mean(fitness)) / jnp.std(1e-10 + fitness)
+    return (fitness - jnp.mean(fitness)) / jnp.std(1e-05 + fitness)
 
 
 def compute_ranks(fitness: chex.Array) -> chex.Array:

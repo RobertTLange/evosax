@@ -14,8 +14,10 @@ class SupervisedFitness(object):
     ):
         self.task_name = task_name
         self.batch_size = batch_size
+        self.steps_per_member = 1
         self.test = test
         self.num_classes = 10
+        self.action_shape = 10
         data = get_array_data(self.task_name, self.test)
         self.dataloader = BatchLoader(*data, batch_size=self.batch_size)
         if n_devices is None:
@@ -36,7 +38,16 @@ class SupervisedFitness(object):
                 " number of devices to pmap/parallelize over."
             )
         else:
-            self.rollout = jax.jit(self.rollout_pop)
+            self.rollout = jax.jit(self.rollout_vmap)
+
+    def rollout_vmap(
+        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
+    ):
+        """Vectorize rollout. Reshape output correctly."""
+        loss, acc = self.rollout_pop(rng_input, network_params)
+        loss_re = loss.reshape(-1, 1)
+        acc_re = acc.reshape(-1, 1)
+        return loss_re, acc_re
 
     def rollout_pmap(
         self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
@@ -46,12 +57,8 @@ class SupervisedFitness(object):
         loss_dev, acc_dev = jax.pmap(self.rollout_pop)(
             keys_pmap, network_params
         )
-        loss_re = loss_dev.reshape(
-            -1,
-        )
-        acc_re = acc_dev.reshape(
-            -1,
-        )
+        loss_re = loss_dev.reshape(-1, 1)
+        acc_re = acc_dev.reshape(-1, 1)
         return loss_re, acc_re
 
     def rollout_ffw(
@@ -62,7 +69,8 @@ class SupervisedFitness(object):
         X, y = self.dataloader.sample(rng_sample)
         y_pred = self.network({"params": network_params}, X, rng_net)
         loss, acc = loss_and_acc(y_pred, y, self.num_classes)
-        return loss, acc
+        # Return negative loss to maximize!
+        return -1 * loss, acc
 
     @property
     def input_shape(self) -> Tuple[int]:

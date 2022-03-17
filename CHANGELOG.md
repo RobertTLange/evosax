@@ -1,16 +1,15 @@
 ### TODO
 
+- [ ] Change fitness reshaping to be part of strategy - makes storage of best fitness better (no trafo stored)?
 - [ ] Change network wrapper to work with list of hidden neurons?
 - [ ] Update notebooks for new rollout wrappers
 - [ ] Add restart wrapper notebook
-- [ ] Update selling points with restarts
 - [ ] Add batch strategy wrapper
 - [ ] Refine default hyperparameters based on gridsearches
 - [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
 - More strategies
-    - [ ] Amalgalm-IDEA strategies
+    - [ ] iAmalgam-IDEA strategies
         - [ ] independent
-        - [ ] bayesian
         - [ ] full
     - [ ] Large-scale CMA-ES variants
         - [ ] Cholesky CMA-ES
@@ -26,13 +25,13 @@
 
 - New strategies:
     - Separable CMA-ES strategy (`Sep_CMA_ES` following Ros & Hansen, 2008).
-    - BIPOP-CMA-ES (`BIPOP_CMA_ES`)
-    - IPOP-CMA-ES (`IPOP_CMA_ES`)
+    - BIPOP-CMA-ES (`BIPOP_CMA_ES`, following Hansen, 2009)
+    - IPOP-CMA-ES (`IPOP_CMA_ES`, following Auer & Hansen, 2005)
 - Restart wrappers: 
-    - Base restart class.
-    - Simple reinit restart strategy.
-    - BIPOP strategy with interleaved small/large populations.
-    - IPOP strategy with growing population size.
+    - Base restart class (`RestartWrapper`).
+    - Simple reinit restart strategy (`Simple_Restarter`).
+    - BIPOP strategy with interleaved small/large populations (`BIPOP_Restarter`).
+    - IPOP strategy with growing population size (`IPOP_Restarter`).
 
 ##### Changed
 
@@ -44,6 +43,7 @@
 
 - Fix `BraxFitness` rollout wrapper and add train/test option.
 - Fix small bug related to sigma decay in `Simple_GA`.
+- Increase numerical stability constant to 1e-05 for z-scoring fitness reshaping. Everything smaller did not work robustly. 
 
 ### [v0.0.3] - 21/02/2021
 
