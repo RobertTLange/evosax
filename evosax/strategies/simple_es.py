@@ -20,9 +20,7 @@ class Simple_ES(Strategy):
         """Return default parameters of evolution strategy."""
         # Only parents have positive weight - equal weighting!
         weights = jnp.zeros(self.popsize)
-        weights = jax.ops.index_update(
-            weights, jax.ops.index[: self.elite_popsize], 1 / self.elite_popsize
-        )
+        weights = weights.at[: self.elite_popsize].set(1 / self.elite_popsize)
         return {
             "c_m": 1.0,  # Learning rate for population mean
             "c_sigma": 0.1,  # Learning rate for population std

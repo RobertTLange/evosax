@@ -61,28 +61,33 @@ class ESLog(object):
         )
         log["top_fitness"] = vals[top_idx[: self.top_k]]
         log["top_params"] = params[top_idx[: self.top_k]]
-        log["log_top_1"] = jax.ops.index_update(
-            log["log_top_1"], log["gen_counter"], log["top_fitness"][0]
+        log["log_top_1"] = (
+            log["log_top_1"].at[log["gen_counter"]].set(log["top_fitness"][0])
         )
-        log["log_top_mean"] = jax.ops.index_update(
-            log["log_top_mean"],
-            log["gen_counter"],
-            jnp.mean(log["top_fitness"]),
+        log["log_top_mean"] = (
+            log["log_top_mean"]
+            .at[log["gen_counter"]]
+            .set(jnp.mean(log["top_fitness"]))
         )
-        log["log_top_std"] = jax.ops.index_update(
-            log["log_top_std"], log["gen_counter"], jnp.std(log["top_fitness"])
+
+        log["log_top_std"] = (
+            log["log_top_std"]
+            .at[log["gen_counter"]]
+            .set(jnp.std(log["top_fitness"]))
         )
-        log["log_gen_1"] = jax.ops.index_update(
-            log["log_gen_1"],
-            log["gen_counter"],
-            self.maximize * jnp.max(fitness)
-            + (1 - self.maximize) * jnp.min(fitness),
+        log["log_gen_1"] = (
+            log["log_gen_1"]
+            .at[log["gen_counter"]]
+            .set(
+                self.maximize * jnp.max(fitness)
+                + (1 - self.maximize) * jnp.min(fitness)
+            )
         )
-        log["log_gen_mean"] = jax.ops.index_update(
-            log["log_gen_mean"], log["gen_counter"], jnp.mean(fitness)
+        log["log_gen_mean"] = (
+            log["log_gen_mean"].at[log["gen_counter"]].set(jnp.mean(fitness))
         )
-        log["log_gen_std"] = jax.ops.index_update(
-            log["log_gen_std"], log["gen_counter"], jnp.std(fitness)
+        log["log_gen_std"] = (
+            log["log_gen_std"].at[log["gen_counter"]].set(jnp.std(fitness))
         )
         log["gen_counter"] += 1
         return log

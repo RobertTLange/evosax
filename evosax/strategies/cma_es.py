@@ -54,9 +54,7 @@ class CMA_ES(Strategy):
             1 / positive_sum * weights_prime,
             min_alpha / negative_sum * weights_prime,
         )
-        weights_truncated = jax.ops.index_update(
-            weights, jax.ops.index[self.elite_popsize :], 0
-        )
+        weights_truncated = weights.at[self.elite_popsize :].set(0)
 
         # lrate for cumulation of step-size control and rank-one update
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)

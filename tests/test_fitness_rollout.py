@@ -152,5 +152,5 @@ def test_supervised_fitness():
     x, state = strategy.ask(rng_gen, state, params)
     x_re = reshaper.reshape(x)
     loss, acc = evaluator.rollout(rng_eval, x_re)
-    assert loss.shape == (4,)
-    assert acc.shape == (4,)
+    assert loss.shape == (4, 1)
+    assert acc.shape == (4, 1)
