@@ -21,6 +21,7 @@ def pytest_generate_tests(metafunc):
                     "xNES",
                     "Sep_CMA_ES",
                     "Full_iAMaLGaM",
+                    "Indep_iAMaLGaM",
                 ],
             )
         else:

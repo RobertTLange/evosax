@@ -13,6 +13,7 @@ from .sep_cma_es import Sep_CMA_ES
 from .bipop_cma_es import BIPOP_CMA_ES
 from .ipop_cma_es import IPOP_CMA_ES
 from .full_iamalgam import Full_iAMaLGaM
+from .indep_iamalgam import Indep_iAMaLGaM
 
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "BIPOP_CMA_ES",
     "IPOP_CMA_ES",
     "Full_iAMaLGaM",
+    "Indep_iAMaLGaM",
 ]
