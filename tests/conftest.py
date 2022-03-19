@@ -20,6 +20,7 @@ def pytest_generate_tests(metafunc):
                     "Persistent_ES",
                     "xNES",
                     "Sep_CMA_ES",
+                    "Full_iAMaLGaM",
                 ],
             )
         else:

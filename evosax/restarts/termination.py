@@ -60,3 +60,10 @@ def cma_criterion(
     cond_condition_cov = jnp.max(D) / jnp.min(D) > params["tol_condition_C"]
     cma_term += cond_condition_cov
     return cma_term > 0
+
+
+def amalgam_criterion(
+    fitness: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
+) -> bool:
+    """Termination criterion for iAMaLGaM algorithm (Bosman et al. 2013)"""
+    return state["c_mult"] < 1e-10
