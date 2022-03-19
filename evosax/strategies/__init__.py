@@ -12,6 +12,7 @@ from .ars import Augmented_RS
 from .sep_cma_es import Sep_CMA_ES
 from .bipop_cma_es import BIPOP_CMA_ES
 from .ipop_cma_es import IPOP_CMA_ES
+from .full_iamalgam import Full_iAMaLGaM
 
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "Sep_CMA_ES",
     "BIPOP_CMA_ES",
     "IPOP_CMA_ES",
+    "Full_iAMaLGaM",
 ]

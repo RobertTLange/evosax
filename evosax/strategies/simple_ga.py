@@ -24,7 +24,6 @@ class Simple_GA(Strategy):
             "sigma_init": 0.1,  # initial standard deviation
             "sigma_decay": 0.999,  # anneal standard deviation
             "sigma_limit": 0.01,  # stop annealing if less than this
-            "forget_best": False,  # forget the historical best elites
             "init_min": 0.0,
             "init_max": 0.0,
         }
@@ -58,9 +57,7 @@ class Simple_GA(Strategy):
             if random number > co-rate
           - Additionally add noise on top of all elite parameters
         """
-        rng, rng_eps = jax.random.split(rng)
-        rng, rng_idx_a = jax.random.split(rng)
-        rng, rng_idx_b = jax.random.split(rng)
+        rng, rng_eps, rng_idx_a, rng_idx_b = jax.random.split(rng, 4)
         rng_mate = jax.random.split(rng, self.popsize)
         epsilon = (
             jax.random.normal(rng_eps, (self.popsize, self.num_dims))

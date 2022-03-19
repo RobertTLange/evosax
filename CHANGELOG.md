@@ -13,7 +13,6 @@
 - More strategies
     - [ ] iAmalgam-IDEA strategies
         - [ ] independent
-        - [ ] full
     - [ ] Large-scale CMA-ES variants
         - [ ] LMA-CMA
         - [ ] VkD-CMA
@@ -29,6 +28,7 @@
     - Separable CMA-ES strategy (`Sep_CMA_ES` following Ros & Hansen, 2008).
     - BIPOP-CMA-ES (`BIPOP_CMA_ES`, following Hansen, 2009)
     - IPOP-CMA-ES (`IPOP_CMA_ES`, following Auer & Hansen, 2005)
+    - Full-iAMaLGaM (`Full_iAMaLGaM`, following Bosman et al., 2013)
 - Restart wrappers: 
     - Base restart class (`RestartWrapper`).
     - Simple reinit restart strategy (`Simple_Restarter`).
