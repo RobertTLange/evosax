@@ -2,6 +2,7 @@
 
 - [ ] Change fitness reshaping to be part of strategy - makes storage of best fitness better (no trafo stored)? -> For OpenES as option?
     - ES log can do that job as well!
+- [ ] Rename strategies
 - [ ] Change network wrapper to work with list of hidden neurons?
 - [ ] Update notebooks for new rollout wrappers
 - [ ] Add brax example
@@ -11,12 +12,12 @@
 - [ ] Refine default hyperparameters based on gridsearches
 - [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
 - More strategies
-    - [ ] iAmalgam-IDEA strategies
-        - [ ] independent
     - [ ] Large-scale CMA-ES variants
-        - [ ] LMA-CMA
+        - [ ] LM-CMA
         - [ ] VkD-CMA
         - [ ] RmES
+        - [ ] MA-ES
+        - [ ] LM-MA-ES
     - [ ] sNES (separable)
 
 

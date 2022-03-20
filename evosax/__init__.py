@@ -16,6 +16,7 @@ from .strategies import (
     IPOP_CMA_ES,
     Full_iAMaLGaM,
     Indep_iAMaLGaM,
+    MA_ES,
 )
 
 
@@ -36,6 +37,7 @@ Strategies = {
     "IPOP_CMA_ES": IPOP_CMA_ES,
     "Full_iAMaLGaM": Full_iAMaLGaM,
     "Indep_iAMaLGaM": Indep_iAMaLGaM,
+    "MA_ES": MA_ES,
 }
 
 from .utils import FitnessShaper, ParameterReshaper, ESLog
@@ -60,6 +62,7 @@ __all__ = [
     "IPOP_CMA_ES",
     "Full_iAMaLGaM",
     "Indep_iAMaLGaM",
+    "MA_ES",
     "Strategies",
     "FitnessShaper",
     "ParameterReshaper",

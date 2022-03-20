@@ -145,7 +145,6 @@ class Sep_CMA_ES(Strategy):
         state["C"] = C
         state["D"] = D
         state["p_c"] = p_c
-        state["C"] = C
         state["sigma"] = sigma
         return state
 

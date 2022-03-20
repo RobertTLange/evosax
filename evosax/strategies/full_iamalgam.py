@@ -7,7 +7,7 @@ from ..strategy import Strategy
 
 class Full_iAMaLGaM(Strategy):
     def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.35):
-        """(Iterative) AMaLGaM (Bosman et al., 2013)
+        """(Iterative) AMaLGaM (Bosman et al., 2013) - Full Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
         super().__init__(num_dims, popsize)

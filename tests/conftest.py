@@ -22,6 +22,7 @@ def pytest_generate_tests(metafunc):
                     "Sep_CMA_ES",
                     "Full_iAMaLGaM",
                     "Indep_iAMaLGaM",
+                    "MA_ES",
                 ],
             )
         else:
