@@ -15,6 +15,7 @@ from .ipop_cma_es import IPOP_CMA_ES
 from .full_iamalgam import Full_iAMaLGaM
 from .indep_iamalgam import Indep_iAMaLGaM
 from .ma_es import MA_ES
+from .lm_ma_es import LM_MA_ES
 
 
 __all__ = [
@@ -35,4 +36,5 @@ __all__ = [
     "Full_iAMaLGaM",
     "Indep_iAMaLGaM",
     "MA_ES",
+    "LM_MA_ES",
 ]

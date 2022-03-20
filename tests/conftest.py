@@ -23,6 +23,7 @@ def pytest_generate_tests(metafunc):
                     "Full_iAMaLGaM",
                     "Indep_iAMaLGaM",
                     "MA_ES",
+                    "LM_MA_ES",
                 ],
             )
         else:

@@ -16,8 +16,6 @@
         - [ ] LM-CMA
         - [ ] VkD-CMA
         - [ ] RmES
-        - [ ] MA-ES
-        - [ ] LM-MA-ES
     - [ ] sNES (separable)
 
 
@@ -30,6 +28,7 @@
     - BIPOP-CMA-ES (`BIPOP_CMA_ES`, following Hansen, 2009)
     - IPOP-CMA-ES (`IPOP_CMA_ES`, following Auer & Hansen, 2005)
     - Full-iAMaLGaM (`Full_iAMaLGaM`, following Bosman et al., 2013)
+    - MA-ES (`MA_ES`, following Bayer & Sendhoff, 2017)
 - Restart wrappers: 
     - Base restart class (`RestartWrapper`).
     - Simple reinit restart strategy (`Simple_Restarter`).
