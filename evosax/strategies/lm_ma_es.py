@@ -97,7 +97,6 @@ class LM_MA_ES(Strategy):
             "c_c": c_c,
             "c_d": c_d,
             "chi_n": chi_n,
-            "weights": weights,
             "sigma_init": 1.0,
             "weights_truncated": weights_truncated,
             "mu_w": mu_w,

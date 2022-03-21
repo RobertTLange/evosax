@@ -158,6 +158,7 @@ def get_fashion_loaders(test: bool = False):
         [
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,)),
+            transforms.Lambda(lambda x: x.permute(1, 2, 0)),
         ]
     )
 

@@ -29,6 +29,7 @@
     - IPOP-CMA-ES (`IPOP_CMA_ES`, following Auer & Hansen, 2005)
     - Full-iAMaLGaM (`Full_iAMaLGaM`, following Bosman et al., 2013)
     - MA-ES (`MA_ES`, following Bayer & Sendhoff, 2017)
+    - LM-MA-ES (`LM_MA_ES`, following Loshchilov et al., 2017)
 - Restart wrappers: 
     - Base restart class (`RestartWrapper`).
     - Simple reinit restart strategy (`Simple_Restarter`).

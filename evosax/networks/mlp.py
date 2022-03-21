@@ -1,6 +1,12 @@
 from flax import linen as nn
 import chex
-from .shared import identity_out, tanh_out, categorical_out, gaussian_out
+from .shared import (
+    identity_out,
+    tanh_out,
+    categorical_out,
+    gaussian_out,
+    default_bias_init,
+)
 
 
 class MLP(nn.Module):
@@ -16,7 +22,10 @@ class MLP(nn.Module):
     @nn.compact
     def __call__(self, x: chex.Array, rng: chex.PRNGKey) -> chex.Array:
         for l in range(self.num_hidden_layers):
-            x = nn.Dense(features=self.num_hidden_units)(x)
+            x = nn.Dense(
+                features=self.num_hidden_units,
+                bias_init=default_bias_init(),
+            )(x)
             if self.hidden_activation == "relu":
                 x = nn.relu(x)
             elif self.hidden_activation == "tanh":

@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from flax import linen as nn
 import chex
 from typing import Tuple
+from .shared import default_bias_init
 
 
 def conv_relu_block(
@@ -18,6 +19,7 @@ def conv_relu_block(
         strides=strides,
         use_bias=False,
         padding=padding,
+        bias_init=default_bias_init(),
     )(x)
     x = nn.relu(x)
     return x
@@ -37,6 +39,7 @@ def conv_relu_pool_block(
         strides=strides,
         use_bias=True,
         padding=padding,
+        bias_init=default_bias_init(),
     )(x)
     x = nn.relu(x)
     x = nn.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
@@ -81,9 +84,15 @@ class CNN(nn.Module):
         x = x.reshape((x.shape[0], -1))
         # Squeeze and linear layers
         for l in range(self.num_linear_layers):
-            x = nn.Dense(features=self.num_hidden_units)(x)
+            x = nn.Dense(
+                features=self.num_hidden_units,
+                bias_init=default_bias_init(),
+            )(x)
             x = nn.relu(x)
-        x = nn.Dense(features=self.num_output_units)(x)
+        x = nn.Dense(
+            features=self.num_output_units,
+            bias_init=default_bias_init(),
+        )(x)
         return x
 
 
