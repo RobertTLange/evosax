@@ -5,7 +5,7 @@ from typing import Tuple
 from ..strategy import Strategy
 
 
-class Simple_ES(Strategy):
+class SimpleES(Strategy):
     def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
         """Simple Gaussian Evolution Strategy (Rechenberg, 1975)
         Reference: https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506
@@ -13,7 +13,7 @@ class Simple_ES(Strategy):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
-        self.strategy_name = "Simple_ES"
+        self.strategy_name = "SimpleES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

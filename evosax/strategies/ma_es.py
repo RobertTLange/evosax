@@ -78,7 +78,7 @@ class MA_ES(Strategy):
             "c_sigma": c_sigma,
             "d_sigma": d_sigma,
             "chi_n": chi_n,
-            "sigma_init": 1.0,
+            "sigma_init": 0.065,
             "weights_truncated": weights_truncated,
             "init_min": 0.0,
             "init_max": 0.0,

@@ -21,7 +21,7 @@ class Full_iAMaLGaM(Strategy):
             / (self.popsize - self.elite_popsize)
         )
         self.ams_popsize = int(alpha_ams * (self.popsize - 1))
-        self.strategy_name = "Full_AMaLGaM"
+        self.strategy_name = "Full_iAMaLGaM"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

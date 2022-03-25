@@ -6,7 +6,7 @@ from ..strategy import Strategy
 from ..utils import GradientOptimizer
 
 
-class Open_ES(Strategy):
+class OpenES(Strategy):
     def __init__(self, num_dims: int, popsize: int, opt_name: str = "adam"):
         """OpenAI-ES (Salimans et al. (2017)
         Reference: https://arxiv.org/pdf/1703.03864.pdf
@@ -15,13 +15,13 @@ class Open_ES(Strategy):
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.strategy_name = "Open_ES"
+        self.strategy_name = "OpenES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
         """Return default parameters of evolution strategy."""
         es_params = {
-            "sigma_init": 0.1,
+            "sigma_init": 0.04,
             "sigma_decay": 0.999,
             "sigma_limit": 0.01,
             "init_min": 0.0,

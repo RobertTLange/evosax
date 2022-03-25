@@ -6,7 +6,7 @@ from ..strategy import Strategy
 from ..utils import GradientOptimizer
 
 
-class PGPE_ES(Strategy):
+class PGPE(Strategy):
     def __init__(
         self,
         num_dims: int,
@@ -25,13 +25,13 @@ class PGPE_ES(Strategy):
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.strategy_name = "PGPE_ES"
+        self.strategy_name = "PGPE"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
         """Return default parameters of evolution strategy."""
         es_params = {
-            "sigma_init": 0.10,  # initial standard deviation
+            "sigma_init": 0.03,  # initial standard deviation
             "sigma_decay": 0.999,  # Anneal standard deviation
             "sigma_limit": 0.01,  # Stop annealing if less than this
             "sigma_lrate": 0.20,  # Learning rate for std

@@ -26,7 +26,7 @@ class Indep_iAMaLGaM(Strategy):
             / (self.popsize - self.elite_popsize)
         )
         self.ams_popsize = int(alpha_ams * (self.popsize - 1))
-        self.strategy_name = "Indep_AMaLGaM"
+        self.strategy_name = "Indep_iAMaLGaM"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

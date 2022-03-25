@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from evosax import CMA_ES, Augmented_RS, ParameterReshaper, NetworkMapper
+from evosax import CMA_ES, ARS, ParameterReshaper, NetworkMapper
 from evosax.problems import (
     ClassicFitness,
     GymFitness,
@@ -54,9 +54,7 @@ def test_env_ffw_rollout(env_name: str):
     reshaper = ParameterReshaper(net_params["params"])
     evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
 
-    strategy = Augmented_RS(
-        popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5
-    )
+    strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
     # Run the ask-eval-tell loop
@@ -99,9 +97,7 @@ def test_env_rec_rollout(env_name: str):
     evaluator.set_apply_fn(
         reshaper.vmap_dict, network.apply, network.initialize_carry
     )
-    strategy = Augmented_RS(
-        popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5
-    )
+    strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
 
@@ -141,9 +137,7 @@ def test_supervised_fitness():
     reshaper = ParameterReshaper(net_params["params"])
     evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
 
-    strategy = Augmented_RS(
-        popsize=4, num_dims=reshaper.total_params, elite_ratio=0.5
-    )
+    strategy = ARS(popsize=4, num_dims=reshaper.total_params, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
 

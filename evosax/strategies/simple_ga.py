@@ -5,7 +5,7 @@ from typing import Tuple
 from ..strategy import Strategy
 
 
-class Simple_GA(Strategy):
+class SimpleGA(Strategy):
     def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
         """Simple Genetic Algorithm (Such et al., 2017)
         Reference: https://arxiv.org/abs/1712.06567
@@ -14,14 +14,14 @@ class Simple_GA(Strategy):
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
-        self.strategy_name = "Simple_GA"
+        self.strategy_name = "SimpleGA"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
         """Return default parameters of evolution strategy."""
         return {
             "cross_over_rate": 0.5,  # cross-over probability
-            "sigma_init": 0.1,  # initial standard deviation
+            "sigma_init": 0.07,  # initial standard deviation
             "sigma_decay": 0.999,  # anneal standard deviation
             "sigma_limit": 0.01,  # stop annealing if less than this
             "init_min": 0.0,

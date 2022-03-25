@@ -41,6 +41,7 @@
 - Both `ParamReshaper` and the rollout wrappers now support `pmap` over the population member dimension.
 - Add `mean` state component to all strategies (also non-GD-based) for smoother evaluation protocols.
 - Add `strategy_name` to all strategies.
+- Major renaming of strategies to more parsimonious version (e.g. `PSO_ES` -> `PSO`)
 
 ##### Fixed
 

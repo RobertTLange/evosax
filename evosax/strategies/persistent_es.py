@@ -6,7 +6,7 @@ from ..strategy import Strategy
 from ..utils import GradientOptimizer
 
 
-class Persistent_ES(Strategy):
+class PersistentES(Strategy):
     def __init__(self, num_dims: int, popsize: int, opt_name: str = "adam"):
         """Persistent ES (Vicol et al., 2021).
         Reference: http://proceedings.mlr.press/v139/vicol21a.html
@@ -16,7 +16,7 @@ class Persistent_ES(Strategy):
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.strategy_name = "Persistent_ES"
+        self.strategy_name = "PersistentES"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

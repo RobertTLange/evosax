@@ -5,12 +5,12 @@ from typing import Tuple
 from ..strategy import Strategy
 
 
-class PBT_ES(Strategy):
+class PBT(Strategy):
     def __init__(self, num_dims: int, popsize: int):
         """Synchronous Population-Based Training (Jaderberg et al., 2017)
         Reference: https://arxiv.org/abs/1711.09846"""
         super().__init__(num_dims, popsize)
-        self.strategy_name = "PBT_ES"
+        self.strategy_name = "PBT"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:

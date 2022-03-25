@@ -1,14 +1,14 @@
-from .simple_ga import Simple_GA
-from .simple_es import Simple_ES
+from .simple_ga import SimpleGA
+from .simple_es import SimpleES
 from .cma_es import CMA_ES
-from .differential_es import Differential_ES
-from .pso_es import PSO_ES
-from .open_es import Open_ES
-from .pgpe_es import PGPE_ES
-from .pbt_es import PBT_ES
-from .persistent_es import Persistent_ES
+from .de import DE
+from .pso import PSO
+from .open_es import OpenES
+from .pgpe import PGPE
+from .pbt import PBT
+from .persistent_es import PersistentES
 from .xnes import xNES
-from .ars import Augmented_RS
+from .ars import ARS
 from .sep_cma_es import Sep_CMA_ES
 from .bipop_cma_es import BIPOP_CMA_ES
 from .ipop_cma_es import IPOP_CMA_ES
@@ -19,17 +19,17 @@ from .lm_ma_es import LM_MA_ES
 
 
 __all__ = [
-    "Simple_GA",
-    "Simple_ES",
+    "SimpleGA",
+    "SimpleES",
     "CMA_ES",
-    "Differential_ES",
-    "PSO_ES",
-    "Open_ES",
-    "PGPE_ES",
-    "PBT_ES",
-    "Persistent_ES",
+    "DE",
+    "PSO",
+    "OpenES",
+    "PGPE",
+    "PBT",
+    "PersistentES",
     "xNES",
-    "Augmented_RS",
+    "ARS",
     "Sep_CMA_ES",
     "BIPOP_CMA_ES",
     "IPOP_CMA_ES",

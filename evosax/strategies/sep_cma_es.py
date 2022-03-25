@@ -70,7 +70,7 @@ class Sep_CMA_ES(Strategy):
             "chi_n": chi_n,
             "weights": weights,
             "weights_truncated": weights_truncated,
-            "sigma_init": 1.0,
+            "sigma_init": 0.065,
             "init_min": 0.0,
             "init_max": 0.0,
         }

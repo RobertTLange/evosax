@@ -5,12 +5,12 @@ from typing import Tuple
 from ..strategy import Strategy
 
 
-class PSO_ES(Strategy):
+class PSO(Strategy):
     def __init__(self, num_dims: int, popsize: int):
         """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
         Reference: https://ieeexplore.ieee.org/document/488968"""
         super().__init__(num_dims, popsize)
-        self.strategy_name = "PSO_ES"
+        self.strategy_name = "PSO"
 
     @property
     def params_strategy(self) -> chex.ArrayTree:
