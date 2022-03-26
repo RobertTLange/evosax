@@ -19,7 +19,9 @@ class BIPOP_CMA_ES(object):
         from ..restarts.termination import spread_criterion, cma_criterion
 
         self.wrapped_strategy = BIPOP_Restarter(
-            self.strategy, stop_criteria=[spread_criterion, cma_criterion]
+            self.strategy,
+            stop_criteria=[spread_criterion, cma_criterion],
+            strategy_kwargs={"elite_ratio": elite_ratio},
         )
 
     @property
@@ -42,7 +44,19 @@ class BIPOP_CMA_ES(object):
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
-        return self.wrapped_strategy.ask(rng, state, params)
+        x, state = self.wrapped_strategy.ask(rng, state, params)
+        for k in [
+            "weights_truncated",
+            "weights",
+            "mu_eff",
+            "c_1",
+            "c_mu",
+            "c_c",
+            "c_sigma",
+            "d_sigma",
+        ]:
+            params[k] = self.wrapped_strategy.default_params[k]
+        return x, state
 
     @partial(jax.jit, static_argnums=(0,))
     def tell(

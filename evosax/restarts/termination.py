@@ -31,6 +31,7 @@ def cma_criterion(
     """
     cma_term = 0
     dC = jnp.diag(state["C"])
+    # Note: Criterion requires full covariance matrix for decomposition!
     C, B, D = full_eigen_decomp(state["C"], state["B"], state["D"])
 
     # Stop if std of normal distrib is smaller than tolx in all coordinates

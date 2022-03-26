@@ -12,12 +12,14 @@ class BIPOP_Restarter(RestartWrapper):
         self,
         base_strategy,
         stop_criteria=[spread_criterion],
+        strategy_kwargs: dict = {},
     ):
         """Bi-Population Restarts (Hansen, 2009) - Interlaced population sizes.
         Reference: https://hal.inria.fr/inria-00382093/document
         Inspired by: https://tinyurl.com/44y3ryhf"""
         super().__init__(base_strategy, stop_criteria)
         self.default_popsize = self.base_strategy.popsize
+        self.strategy_kwargs = strategy_kwargs
 
     @property
     def restart_params(self) -> chex.ArrayTree:
@@ -96,8 +98,11 @@ class BIPOP_Restarter(RestartWrapper):
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
-            popsize=active_popsize, num_dims=self.num_dims
+            popsize=int(active_popsize),
+            num_dims=self.num_dims,
+            **self.strategy_kwargs
         )
+
         new_state = self.base_strategy.initialize(rng, params)
         # Overwrite new state with old preservables
         for k in [

@@ -4,7 +4,11 @@ from .termination import spread_criterion
 
 
 class Simple_Restarter(RestartWrapper):
-    def __init__(self, base_strategy, stop_criteria=[spread_criterion]):
+    def __init__(
+        self,
+        base_strategy,
+        stop_criteria=[spread_criterion],
+    ):
         """Simple Restart Strategy - Only reinitialize the state."""
         super().__init__(base_strategy, stop_criteria)
 

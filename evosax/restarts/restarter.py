@@ -98,8 +98,8 @@ class RestartWrapper(object):
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """Restart state for next generations."""
-        new_state = self.restart_strategy(rng, state, params)
         # Copy over important parts of state from previous strategy
+        new_state = self.restart_strategy(rng, state, params)
         new_state["restart_counter"] = state["restart_counter"] + 1
         new_state["restart_next"] = False
         return new_state

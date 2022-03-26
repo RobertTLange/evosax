@@ -1,15 +1,10 @@
-### TODO
+### Work-in-Progress
 
-- [ ] Change fitness reshaping to be part of strategy - makes storage of best fitness better (no trafo stored)? -> For OpenES as option?
-    - ES log can do that job as well!
-- [ ] Rename strategies
-- [ ] Change network wrapper to work with list of hidden neurons?
-- [ ] Update notebooks for new rollout wrappers
-- [ ] Add brax example
-- [ ] Add restart wrapper notebook
+- [ ] Make `weights` and `weights_truncated` part of CMA-ES state due to shape dependence
+    - [ ] Clean up BIPOP/IPOP ask afterwards
+- [ ] Add brax example notebook
 - [ ] Add batch strategy wrapper
-    - [ ] Open issue for Lucas to work on
-- [ ] Refine default hyperparameters based on gridsearches
+- [ ] Change network wrapper to work with list of hidden neurons?
 - [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
 - More strategies
     - [ ] Large-scale CMA-ES variants
@@ -19,7 +14,7 @@
     - [ ] sNES (separable)
 
 
-### [v0.0.4] - [Unreleased]
+### [v0.0.4] - [26/03/2022]
 
 ##### Added
 
@@ -50,11 +45,11 @@
 - Increase numerical stability constant to 1e-05 for z-scoring fitness reshaping. Everything smaller did not work robustly.
 - Get rid of deprecated `index_update` and use `at[].set()`
 
-### [v0.0.3] - 21/02/2021
+### [v0.0.3] - 21/02/2022
 
 - Fix Python version requirements for evojax integration. Needs to be >3.6 since JAX versions stopped supporting 3.6.
 
-### [v0.0.2] - 17/02/2021
+### [v0.0.2] - 17/02/2022
 
 - First public release including 11 strategies, rollout/network wrappers, utilities.
 
