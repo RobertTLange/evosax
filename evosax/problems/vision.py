@@ -4,7 +4,7 @@ import chex
 from typing import Tuple, Optional
 
 
-class SupervisedFitness(object):
+class VisionFitness(object):
     def __init__(
         self,
         task_name: str = "MNIST",
