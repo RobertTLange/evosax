@@ -8,7 +8,7 @@ from functools import partial
 class SequenceFitness(object):
     def __init__(
         self,
-        task_name: str = "SMNIST",
+        task_name: str = "SeqMNIST",
         batch_size: int = 128,
         test: bool = False,
         num_rnn_steps: Optional[int] = None,
@@ -20,7 +20,7 @@ class SequenceFitness(object):
         self.test = test
 
         # Setup task-specific input/output shapes and loss fn
-        if self.task_name == "SMNIST":
+        if self.task_name == "SeqMNIST":
             self.action_shape = 10
             self.num_rnn_steps = 784
             self.loss_fn = partial(loss_and_acc, num_classes=10)
@@ -230,7 +230,7 @@ def get_adding_data(test: bool = False):
 
 def get_array_data(task_name: str = "SMNIST", test: bool = False):
     """Get raw data arrays to subsample from."""
-    if task_name == "SMNIST":
+    if task_name == "SeqMNIST":
         loader = get_smnist_loaders(test)
         for _, (data, target) in enumerate(loader):
             break
