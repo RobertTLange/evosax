@@ -4,7 +4,7 @@ import chex
 from typing import Tuple, Optional
 
 
-class SupervisedFitness(object):
+class VisionFitness(object):
     def __init__(
         self,
         task_name: str = "MNIST",
@@ -33,7 +33,7 @@ class SupervisedFitness(object):
         if self.n_devices > 1:
             self.rollout = self.rollout_pmap
             print(
-                "SupervisedFitness: More than one device detected. Please make"
+                "VisionFitness: More than one device detected. Please make"
                 " sure that the ES population size divides evenly across the"
                 " number of devices to pmap/parallelize over."
             )
@@ -79,7 +79,7 @@ class SupervisedFitness(object):
 
 
 def loss_and_acc(
-    y_pred: chex.Array, y_true: chex.Array, num_classes
+    y_pred: chex.Array, y_true: chex.Array, num_classes: int
 ) -> Tuple[chex.Array, chex.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
@@ -123,7 +123,7 @@ def get_mnist_loaders(test: bool = False):
     except ModuleNotFoundError as err:
         raise ModuleNotFoundError(
             f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `SupervisedFitness` module."
+            "to use the `VisionFitness` module."
         )
 
     transform = transforms.Compose(
@@ -151,7 +151,7 @@ def get_fashion_loaders(test: bool = False):
     except ModuleNotFoundError as err:
         raise ModuleNotFoundError(
             f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `SupervisedFitness` module."
+            "to use the `VisionFitness` module."
         )
 
     transform = transforms.Compose(
@@ -181,7 +181,7 @@ def get_cifar_loaders(test: bool = False):
     except ModuleNotFoundError as err:
         raise ModuleNotFoundError(
             f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `SupervisedFitness` module."
+            "to use the `VisionFitness` module."
         )
 
     transform = transforms.Compose(
@@ -218,7 +218,7 @@ def get_svhn_loaders(test: bool = False):
     except ModuleNotFoundError as err:
         raise ModuleNotFoundError(
             f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `SupervisedFitness` module."
+            "to use the `VisionFitness` module."
         )
 
     transform = [

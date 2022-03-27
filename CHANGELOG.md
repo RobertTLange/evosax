@@ -1,10 +1,9 @@
 ### Work-in-Progress
 
-- [ ] Make `weights` and `weights_truncated` part of CMA-ES state due to shape dependence
-    - [ ] Clean up BIPOP/IPOP ask afterwards
 - [ ] Add brax example notebook
 - [ ] Add batch strategy wrapper
 - [ ] Change network wrapper to work with list of hidden neurons?
+- [ ] Make `weights` and `weights_truncated` part of CMA-ES state due to shape dependence, Clean up BIPOP/IPOP ask afterwards
 - [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
 - More strategies
     - [ ] Large-scale CMA-ES variants
@@ -13,16 +12,16 @@
         - [ ] RmES
     - [ ] sNES (separable)
 
-### [v0.0.4] - [26/03/2022]
+### [v0.0.5] - [TBD]
 
 ##### Added
 
-- Add `spring_legacy` option to Brax rollout wrappers
-
+- Add sequential problems (SeqMNIST and MNIST) to evaluation wrappers.
 ##### Changed
 
 ##### Fixed
 
+- Add `spring_legacy` option to Brax rollout wrappers.
 ### [v0.0.4] - [26/03/2022]
 
 ##### Added

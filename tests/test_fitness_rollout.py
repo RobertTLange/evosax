@@ -5,7 +5,8 @@ from evosax.problems import (
     ClassicFitness,
     GymFitness,
     BraxFitness,
-    SupervisedFitness,
+    VisionFitness,
+    SequenceFitness,
 )
 
 
@@ -111,10 +112,9 @@ def test_env_rec_rollout(env_name: str):
     assert fitness.shape == (20, 10)
 
 
-# To memory intensive to run on github action
-def test_supervised_fitness():
+def test_vision_fitness():
     rng = jax.random.PRNGKey(0)
-    evaluator = SupervisedFitness("MNIST", 4, test=True)
+    evaluator = VisionFitness("MNIST", 4, test=True)
     network = NetworkMapper["CNN"](
         depth_1=1,
         depth_2=1,
@@ -148,3 +148,36 @@ def test_supervised_fitness():
     loss, acc = evaluator.rollout(rng_eval, x_re)
     assert loss.shape == (4, 1)
     assert acc.shape == (4, 1)
+
+
+def test_sequence_fitness():
+    rng = jax.random.PRNGKey(0)
+    evaluator = SequenceFitness(task_name="Addition", batch_size=10, test=False)
+    network = NetworkMapper["LSTM"](
+        num_hidden_units=100,
+        num_output_units=evaluator.action_shape,
+    )
+    params = network.init(
+        rng,
+        x=jnp.ones([1, evaluator.input_shape[0]]),
+        carry=network.initialize_carry(),
+        rng=rng,
+    )
+    param_reshaper = ParameterReshaper(params["params"])
+    evaluator.set_apply_fn(
+        param_reshaper.vmap_dict,
+        network.apply,
+        network.initialize_carry,
+    )
+
+    strategy = ARS(param_reshaper.total_params, 4)
+    (param_reshaper.total_params)
+    es_params = strategy.default_params
+    es_state = strategy.initialize(rng, es_params)
+
+    x, es_state = strategy.ask(rng, es_state, es_params)
+    reshaped_params = param_reshaper.reshape(x)
+    # Rollout population performance, reshape fitness & update strategy.
+    loss, perf = evaluator.rollout(rng, reshaped_params)
+    assert loss.shape == (4, 1)
+    assert perf.shape == (4, 1)
