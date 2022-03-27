@@ -13,6 +13,15 @@
         - [ ] RmES
     - [ ] sNES (separable)
 
+### [v0.0.4] - [26/03/2022]
+
+##### Added
+
+- Add `spring_legacy` option to Brax rollout wrappers
+
+##### Changed
+
+##### Fixed
 
 ### [v0.0.4] - [26/03/2022]
 

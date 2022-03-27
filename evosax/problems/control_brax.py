@@ -12,6 +12,7 @@ class BraxFitness(object):
         env_name: str = "ant",
         num_env_steps: int = 1000,
         num_rollouts: int = 16,
+        legacy_spring: bool = True,
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
@@ -41,7 +42,9 @@ class BraxFitness(object):
 
         # Define the RL environment & network forward fucntion
         self.env = envs.create(
-            env_name=self.env_name, episode_length=num_env_steps
+            env_name=self.env_name,
+            episode_length=num_env_steps,
+            legacy_spring=legacy_spring,
         )
         self.action_shape = self.env.action_size
         self.input_shape = (self.env.observation_size,)
