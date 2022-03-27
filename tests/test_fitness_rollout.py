@@ -5,7 +5,7 @@ from evosax.problems import (
     ClassicFitness,
     GymFitness,
     BraxFitness,
-    SupervisedFitness,
+    VisionFitness,
 )
 
 
@@ -112,9 +112,9 @@ def test_env_rec_rollout(env_name: str):
 
 
 # To memory intensive to run on github action
-def test_supervised_fitness():
+def test_vision_fitness():
     rng = jax.random.PRNGKey(0)
-    evaluator = SupervisedFitness("MNIST", 4, test=True)
+    evaluator = VisionFitness("MNIST", 4, test=True)
     network = NetworkMapper["CNN"](
         depth_1=1,
         depth_2=1,
