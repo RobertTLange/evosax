@@ -83,7 +83,7 @@ class xNES(Strategy):
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
-        # By default the ES maximizes the objective
+        # By default the xNES maximizes the objective
         fitness_re = -fitness
         isort = fitness_re.argsort()
         sorted_fitness = fitness_re[isort]
