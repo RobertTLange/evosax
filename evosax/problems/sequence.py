@@ -11,7 +11,6 @@ class SequenceFitness(object):
         task_name: str = "SeqMNIST",
         batch_size: int = 128,
         test: bool = False,
-        num_rnn_steps: Optional[int] = None,
         n_devices: Optional[int] = None,
     ):
         self.task_name = task_name
@@ -22,13 +21,8 @@ class SequenceFitness(object):
         # Setup task-specific input/output shapes and loss fn
         if self.task_name == "SeqMNIST":
             self.action_shape = 10
-            self.num_rnn_steps = 784
             self.loss_fn = partial(loss_and_acc, num_classes=10)
         elif self.task_name == "Addition":
-            if num_rnn_steps is not None:
-                self.num_rnn_steps = num_rnn_steps
-            else:
-                self.num_rnn_steps = 150
             self.action_shape = 1
             self.loss_fn = loss_and_mae
         else:
@@ -36,6 +30,8 @@ class SequenceFitness(object):
 
         data = get_array_data(self.task_name, self.test)
         self.dataloader = BatchLoader(*data, batch_size=self.batch_size)
+        self.num_rnn_steps = self.dataloader.data_shape[1]
+
         if n_devices is None:
             self.n_devices = jax.local_device_count()
         else:
@@ -80,7 +76,7 @@ class SequenceFitness(object):
 
     def rollout_rnn(
         self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    ) -> Tuple[float, float]:
         """Evaluate a network on a supervised learning task."""
         rng, rng_sample = jax.random.split(rng_input)
         X, y = self.dataloader.sample(rng_sample)
@@ -115,7 +111,7 @@ class SequenceFitness(object):
             carry = [network_params, hidden, rng, t + 1]
             return carry, pred
 
-        # Scan over image length (784)
+        # Scan over image length (784)/sequence
         _, scan_out = jax.lax.scan(
             rnn_step, [network_params, hidden, rng, 0], (), self.num_rnn_steps
         )
@@ -143,9 +139,9 @@ def loss_and_mae(
     y_pred: chex.Array, y_true: chex.Array
 ) -> Tuple[chex.Array, chex.Array]:
     """Compute mean squared error loss and mean absolute error."""
-    loss = jnp.mean((y_pred - y_true) ** 2)
-    mae = jnp.mean(jnp.abs(y_pred - y_true))
-    return loss, mae
+    loss = jnp.mean((y_pred.squeeze() - y_true) ** 2)
+    mae = jnp.mean(jnp.abs(y_pred.squeeze() - y_true))
+    return loss, -mae
 
 
 class BatchLoader:
@@ -210,7 +206,7 @@ def get_adding_data(test: bool = False):
     Reference:  Martens & Sutskever. ICML, 2011.
     """
     rng = jax.random.PRNGKey(0)
-    bs = 10000 if test else 100000
+    bs = 100000 if test else 10000
     T = 150
 
     def get_single_addition(rng, T):

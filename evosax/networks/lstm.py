@@ -2,7 +2,13 @@ from flax import linen as nn
 import jax
 import chex
 from typing import Tuple
-from .shared import identity_out, tanh_out, categorical_out, gaussian_out
+from .shared import (
+    identity_out,
+    tanh_out,
+    categorical_out,
+    gaussian_out,
+    default_bias_init,
+)
 
 
 class LSTM(nn.Module):
@@ -17,7 +23,7 @@ class LSTM(nn.Module):
     def __call__(
         self, x: chex.Array, carry: chex.ArrayTree, rng: chex.PRNGKey
     ) -> Tuple[Tuple[chex.ArrayTree, chex.ArrayTree], chex.Array]:
-        lstm_state, x = nn.LSTMCell()(carry, x)
+        lstm_state, x = nn.LSTMCell(bias_init=default_bias_init())(carry, x)
         if self.output_activation == "identity":
             x = identity_out(x, self.num_output_units)
         elif self.output_activation == "tanh":
