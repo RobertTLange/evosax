@@ -4,6 +4,7 @@ import chex
 from typing import Optional, Tuple
 from functools import partial
 from .. import Strategies
+from .protocol import Protocol
 
 
 class BatchStrategy(object):
@@ -14,8 +15,10 @@ class BatchStrategy(object):
         popsize: int,
         num_subpops: int,
         strategy_kwargs: dict = {},
+        communication: str = "independent",
         n_devices: Optional[int] = None,
     ):
+        """Parallelization/vectorization of ES across subpopulations."""
         self.num_subpops = num_subpops
         self.strategy_name = strategy_name
         self.num_dims = num_dims
@@ -23,6 +26,9 @@ class BatchStrategy(object):
         self.sub_popsize = int(popsize / num_subpops)
         self.strategy = Strategies[self.strategy_name](
             popsize=self.sub_popsize, num_dims=self.num_dims, **strategy_kwargs
+        )
+        self.protocol = Protocol(
+            communication, self.num_dims, self.num_subpops, self.sub_popsize
         )
 
         if n_devices is None:
@@ -80,11 +86,8 @@ class BatchStrategy(object):
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
-        # Reshape flat fitness/search vector into subpopulation array then tell
-        # batch_fitness -> Shape: (subpops, popsize_per_subpop)
-        # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)
-        batch_fitness = fitness.reshape(self.num_subpops, self.sub_popsize)
-        batch_x = x.reshape(self.num_subpops, self.sub_popsize, self.num_dims)
+        # Communicate and reshape information between subpopulations
+        batch_fitness, batch_x = self.protocol.broadcast(x, fitness)
         state = jax.vmap(self.strategy.tell, in_axes=(0, 0, 0, 0))(
             batch_x, batch_fitness, state, params
         )
