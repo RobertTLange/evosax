@@ -53,9 +53,9 @@ class ParameterReshaper(object):
             self.n_devices = n_devices
         if self.n_devices > 1:
             print(
-                "ParameterReshaper: More than one device detected. Please make"
-                " sure that the ES population size divides evenly across the"
-                " number of devices to pmap/parallelize over."
+                f"ParameterReshaper: {self.n_devices} devices detected. Please"
+                " make sure that the ES population size divides evenly across"
+                " the number of devices to pmap/parallelize over."
             )
 
     def reshape_identity(self, x: chex.Array) -> chex.Array:

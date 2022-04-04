@@ -74,9 +74,9 @@ class BraxFitness(object):
         if self.n_devices > 1:
             self.rollout_map = self.rollout_pmap
             print(
-                "BraxFitness: More than one device detected. Please make sure"
-                " that the ES population size divides evenly across the number"
-                " of devices to pmap/parallelize over."
+                f"BraxFitness: {self.n_devices} devices detected. Please make"
+                " sure that the ES population size divides evenly across the"
+                " number of devices to pmap/parallelize over."
             )
         else:
             self.rollout_map = self.rollout_pop

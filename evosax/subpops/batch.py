@@ -37,9 +37,10 @@ class BatchStrategy(object):
             self.n_devices = n_devices
         if self.n_devices > 1:
             print(
-                "BatchStrategy: More than one device detected. Please make sure"
-                " that the number of ES subpopulations divides evenly across"
-                " the number of devices to pmap/parallelize over."
+                f"BatchStrategy: {self.n_devices} devices detected. Please make"
+                " sure that the number of ES subpopulations"
+                f" ({self.num_subpops}) divides evenly across the number of"
+                " devices to pmap/parallelize over."
             )
 
     @property
@@ -86,9 +87,18 @@ class BatchStrategy(object):
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
+        # Reshape flat fitness/search vector into subpopulation array then tell
+        # batch_fitness -> Shape: (subpops, popsize_per_subpop)
+        # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)
+        # Base independent update of each strategy only with subpop-specific data
+        batch_fitness = fitness.reshape(self.num_subpops, self.sub_popsize)
+        batch_x = x.reshape(self.num_subpops, self.sub_popsize, self.num_dims)
+
         # Communicate and reshape information between subpopulations
-        batch_fitness, batch_x = self.protocol.broadcast(x, fitness)
+        b_x_comm, b_fitness_comm = self.protocol.broadcast(
+            batch_x, batch_fitness
+        )
         state = jax.vmap(self.strategy.tell, in_axes=(0, 0, 0, 0))(
-            batch_x, batch_fitness, state, params
+            b_x_comm, b_fitness_comm, state, params
         )
         return state

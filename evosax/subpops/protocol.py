@@ -1,5 +1,7 @@
+import jax
 import chex
 from typing import Tuple
+from functools import partial
 
 
 class Protocol(object):
@@ -18,14 +20,19 @@ class Protocol(object):
 
         if self.communication == "independent":
             self.broadcast = self.independent
+        elif self.communication == "best":
+            self.broadcast = self.best
 
+    @partial(jax.jit, static_argnums=(0,))
     def independent(
-        self, x: chex.Array, fitness: chex.Array
+        self, batch_x: chex.Array, batch_fitness: chex.Array
     ) -> Tuple[chex.Array, chex.ArrayTree]:
-        # Reshape flat fitness/search vector into subpopulation array then tell
-        # batch_fitness -> Shape: (subpops, popsize_per_subpop)
-        # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)
-        # Base independent update of each strategy only with subpop-specific data
-        batch_fitness = fitness.reshape(self.num_subpops, self.sub_popsize)
-        batch_x = x.reshape(self.num_subpops, self.sub_popsize, self.num_dims)
-        return batch_fitness, batch_x
+        """Simply return non-altered candidates & fitness."""
+        return batch_x, batch_fitness
+
+    @partial(jax.jit, static_argnums=(0,))
+    def best(
+        self, batch_x: chex.Array, batch_fitness: chex.Array
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        """Share same best members with all populations."""
+        return batch_x, batch_fitness

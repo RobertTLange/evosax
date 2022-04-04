@@ -8,7 +8,7 @@ class VisionFitness(object):
     def __init__(
         self,
         task_name: str = "MNIST",
-        batch_size: int = 128,
+        batch_size: int = 1024,
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
@@ -33,7 +33,7 @@ class VisionFitness(object):
         if self.n_devices > 1:
             self.rollout = self.rollout_pmap
             print(
-                "VisionFitness: More than one device detected. Please make"
+                f"VisionFitness: {self.n_devices} devices detected. Please make"
                 " sure that the ES population size divides evenly across the"
                 " number of devices to pmap/parallelize over."
             )
