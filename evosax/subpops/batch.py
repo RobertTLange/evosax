@@ -44,14 +44,14 @@ class BatchStrategy(object):
             )
             # Set device-mapped core functionality
             self.initialize = self.initialize_pmap
-            self.ask = self.ask_pmap
+            self.ask_map = self.ask_pmap
             self.tell_map = self.tell_pmap
             self.num_subpops_per_device = int(self.num_subpops / self.n_devices)
             self.popsize_per_device = int(self.popsize / self.n_devices)
         else:
             # Set auto-vectorize core functionality
             self.initialize = self.initialize_vmap
-            self.ask = self.ask_vmap
+            self.ask_map = self.ask_vmap
             self.tell_map = self.tell_vmap
             self.num_subpops_per_device = self.num_subpops
             self.popsize_per_device = self.popsize
@@ -93,6 +93,14 @@ class BatchStrategy(object):
             state_pmap,
         )
         return state
+
+    @partial(jax.jit, static_argnums=(0,))
+    def ask(
+        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        """`ask` for new parameter candidates."""
+        x, state = self.ask_map(rng, state, params)
+        return x, state
 
     @partial(jax.jit, static_argnums=(0,))
     def ask_vmap(

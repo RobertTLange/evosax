@@ -20,19 +20,14 @@ class Protocol(object):
 
         if self.communication == "independent":
             self.broadcast = self.independent
-        elif self.communication == "best":
-            self.broadcast = self.best
+        else:
+            raise ValueError(
+                "Only implemented independent subpopulations for now."
+            )
 
     @partial(jax.jit, static_argnums=(0,))
     def independent(
         self, batch_x: chex.Array, batch_fitness: chex.Array
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """Simply return non-altered candidates & fitness."""
-        return batch_x, batch_fitness
-
-    @partial(jax.jit, static_argnums=(0,))
-    def best(
-        self, batch_x: chex.Array, batch_fitness: chex.Array
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
-        """Share same best members with all populations."""
         return batch_x, batch_fitness
