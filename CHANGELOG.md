@@ -1,5 +1,6 @@
 ### Work-in-Progress
 
+- [ ] Add batch/meta strategy notebook
 - [ ] Add brax example notebook
 - [ ] Add batch strategy wrapper
 - [ ] Change network wrapper to work with list of hidden neurons?
@@ -9,19 +10,30 @@
     - [ ] Large-scale CMA-ES variants
         - [ ] LM-CMA
         - [ ] VkD-CMA
-        - [ ] RmES
     - [ ] sNES (separable)
+- Encoding methods - via special reshape wrappers
+    - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
+    - [ ] Hypernetworks (Ha - start with simple MLP)
 
 ### [v0.0.5] - [TBD]
 
 ##### Added
 
-- Add sequential problems (SeqMNIST and MNIST) to evaluation wrappers.
+- Adds sequential problems (SeqMNIST and MNIST) to evaluation wrappers.
+- Adds Acrobot task to `GymFitness` rollout wrappers.
+- New strategies:
+    - RmES (`RmES` following Li & Zhang, 2008).
+- Adds simultaneous batch strategy functionalities:
+    - `BatchStrategy`: `vmap`/`pmap` distributed subpopulation rollout
+    - `Protocol`: Communication protocol between subpopulations
+    - `MetaStrategy`: Stack one ES on top of subpopulations to control hyperparameters
+
 ##### Changed
 
 ##### Fixed
 
 - Add `spring_legacy` option to Brax rollout wrappers.
+
 ### [v0.0.4] - [26/03/2022]
 
 ##### Added

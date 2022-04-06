@@ -3,7 +3,8 @@ import jax.numpy as jnp
 from functools import partial
 from typing import Optional
 import chex
-from .cartpole import CartPole
+from .gym.cartpole import CartPole
+from .gym.acrobot import Acrobot
 
 
 class GymFitness(object):
@@ -22,7 +23,15 @@ class GymFitness(object):
         self.test = test
 
         # Define the RL environment & network forward fucntion
-        self.env = CartPole()
+        if self.env_name == "CartPole-v1":
+            self.env = CartPole()
+        elif self.env_name == "Acrobot-v1":
+            self.env = Acrobot()
+        else:
+            raise ValueError(
+                "Gym environment has to be either 'CartPole-v1' or"
+                " 'Acrobot-v1'."
+            )
         self.env_params = self.env.default_params
         self.action_shape = self.env.action_shape
         self.input_shape = self.env.observation_shape
@@ -48,9 +57,9 @@ class GymFitness(object):
         if self.n_devices > 1:
             self.rollout_map = self.rollout_pmap
             print(
-                "GymFitness: More than one device detected. Please make sure"
-                " that the ES population size divides evenly across the number"
-                " of devices to pmap/parallelize over."
+                f"GymFitness: {self.n_devices} devices detected. Please make"
+                " sure that the ES population size divides evenly across the"
+                " number of devices to pmap/parallelize over."
             )
         else:
             self.rollout_map = self.rollout_pop

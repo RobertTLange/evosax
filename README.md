@@ -168,7 +168,7 @@ fit_shaper = FitnessShaper(centered_rank=True,
 fit_shaped = fit_shaper.apply(x, fitness) 
 ```
 
-- **Strategy Restart Wrappers**: *Work in progress* - You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change.
+- **Strategy Restart Wrappers**: You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change.
 
 ```Python
 from evosax import CMA_ES
