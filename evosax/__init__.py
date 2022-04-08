@@ -47,6 +47,7 @@ Strategies = {
 from .utils import FitnessShaper, ParameterReshaper, ESLog
 from .networks import NetworkMapper
 from .problems import ProblemMapper
+from .subpops import BatchStrategy, Protocol, MetaStrategy
 
 __all__ = [
     "Strategy",
@@ -75,4 +76,7 @@ __all__ = [
     "ESLog",
     "NetworkMapper",
     "ProblemMapper",
+    "BatchStrategy",
+    "Protocol",
+    "MetaStrategy"
 ]
