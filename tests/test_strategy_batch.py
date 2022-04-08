@@ -102,4 +102,5 @@ def test_protocol_best_subpop_strategy():
     # CMA_ES doesn't keep track of members at all except for the best seen so far...
     # Not sure how to tell if all members of the best subpop are actually being shared
     # assert (state["members"][np.random.randint(5)] == state["members"][np.random.randint(5)]).all()
+    assert (state["best_member"][np.random.randint(5)] == state["best_member"][np.random.randint(5)]).all()
     assert (state["best_fitness"] == np.repeat(best_fitness, (5))).all()
