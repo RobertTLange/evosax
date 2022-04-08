@@ -1,8 +1,5 @@
 import sys
 
-if sys.path[0] != '':
-    sys.path.insert(0, '')
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -74,36 +71,6 @@ def test_meta_strategy():
         inner_es_params, fitness, meta_state, meta_es_params
     )
     assert meta_state["mean"].shape == (2,)
-
-
-def test_protocol_global_best_strategy():
-    rng = jax.random.PRNGKey(0)
-    batch_strategy = BatchStrategy(
-        strategy_name="CMA_ES",
-        num_dims=2,
-        popsize=100,
-        num_subpops=5,
-        strategy_kwargs={"elite_ratio": 0.5},
-        communication='global_best',
-    )
-    es_params = batch_strategy.default_params
-    state = batch_strategy.initialize(rng, es_params)
-    assert state["mean"].shape == (5, 2)
-
-    x, state = batch_strategy.ask(rng, state, es_params)
-    assert x.shape == (100, 2)
-
-    fitness = jnp.ones(100)
-
-    best_ind = np.random.randint(100)
-    best_fitness = 0
-    fitness = fitness.at[best_ind].set(best_fitness)
-
-    state = batch_strategy.tell(x, fitness, state, es_params)
-
-    assert state["mean"].shape == (5, 2)
-    assert (state["best_member"][np.random.randint(5)] == state["best_member"][np.random.randint(5)]).all()
-    assert (state["best_fitness"] == np.repeat(best_fitness, (5))).all()
 
 
 def test_protocol_best_subpop_strategy():
