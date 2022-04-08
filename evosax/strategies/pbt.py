@@ -100,9 +100,7 @@ def single_member_explore(
     params: chex.ArrayTree,
 ) -> chex.Array:
     """Perform multiplicative noise exploration."""
-    explore_noise = (
-        jax.random.normal(rng, hyperparams.shape) * params["noise_scale"]
-    )
+    explore_noise = jax.random.normal(rng, hyperparams.shape) * params["noise_scale"]
     hyperparams_explore = jax.lax.select(
         exploit_bool, hyperparams + explore_noise, hyperparams
     )

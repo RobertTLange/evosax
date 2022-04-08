@@ -32,9 +32,7 @@ class RmES(Strategy):
                     (jnp.log(self.elite_popsize + 1) - jnp.log(i + 1))
                     / (
                         self.elite_popsize * jnp.log(self.elite_popsize + 1)
-                        - jnp.sum(
-                            jnp.log(jnp.arange(1, self.elite_popsize + 1))
-                        )
+                        - jnp.sum(jnp.log(jnp.arange(1, self.elite_popsize + 1)))
                     )
                 )
                 for i in range(self.elite_popsize)
@@ -110,9 +108,7 @@ class RmES(Strategy):
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
-        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()][
-            : self.elite_popsize
-        ]
+        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()][: self.elite_popsize]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
         mean = update_mean(state["mean"], sorted_solutions, params)
         p_sigma = update_p_sigma(
@@ -202,9 +198,7 @@ def update_P_matrix(
     i_min = jnp.argmin(t_gap[:-1] - t_gap[1:])
     for i in range(memory_size - 1):
         replace_bool = i >= i_min
-        P_c2 = jax.lax.select(
-            replace_bool, P_c2.at[:, i].set(P_c2[:, i + 1]), P_c2
-        )
+        P_c2 = jax.lax.select(replace_bool, P_c2.at[:, i].set(P_c2[:, i + 1]), P_c2)
         t_gap_c2 = jax.lax.select(
             replace_bool, t_gap_c2.at[i].set(t_gap_c2[i + 1]), t_gap_c2
         )
@@ -218,9 +212,7 @@ def update_P_matrix(
     return P, t_gap
 
 
-def update_sigma(
-    sigma: float, s_rank_rate: float, params: chex.ArrayTree
-) -> float:
+def update_sigma(sigma: float, s_rank_rate: float, params: chex.ArrayTree) -> float:
     """Update stepsize sigma."""
     sigma_new = sigma * jnp.exp(s_rank_rate / params["d_sigma"])
     return sigma_new
@@ -244,8 +236,7 @@ def sample(
         update_bool = gen_counter > j
         new_z = (
             jnp.sqrt(1 - c_cov) * z
-            + (jnp.sqrt(c_cov) * P[:, j])[:, jnp.newaxis]
-            * r[:, j][:, jnp.newaxis]
+            + (jnp.sqrt(c_cov) * P[:, j])[:, jnp.newaxis] * r[:, j][:, jnp.newaxis]
         )
         z = jax.lax.select(update_bool, new_z, z)
     z = jnp.swapaxes(z, 1, 0)

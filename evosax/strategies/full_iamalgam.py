@@ -15,10 +15,7 @@ class Full_iAMaLGaM(Strategy):
         self.elite_ratio = elite_ratio
         self.elite_popsize = int(self.popsize * self.elite_ratio)
         alpha_ams = (
-            0.5
-            * self.elite_ratio
-            * self.popsize
-            / (self.popsize - self.elite_popsize)
+            0.5 * self.elite_ratio * self.popsize / (self.popsize - self.elite_popsize)
         )
         self.ams_popsize = int(alpha_ams * (self.popsize - 1))
         self.strategy_name = "Full_iAMaLGaM"
@@ -29,14 +26,10 @@ class Full_iAMaLGaM(Strategy):
         a_0_sigma, a_1_sigma, a_2_sigma = -1.1, 1.2, 1.6
         a_0_shift, a_1_shift, a_2_shift = -1.2, 0.31, 0.5
         eta_sigma = 1 - jnp.exp(
-            a_0_sigma
-            * self.elite_popsize ** a_1_sigma
-            / (self.num_dims ** a_2_sigma)
+            a_0_sigma * self.elite_popsize ** a_1_sigma / (self.num_dims ** a_2_sigma)
         )
         eta_shift = 1 - jnp.exp(
-            a_0_shift
-            * self.elite_popsize ** a_1_shift
-            / (self.num_dims ** a_2_shift)
+            a_0_shift * self.elite_popsize ** a_1_shift / (self.num_dims ** a_2_shift)
         )
 
         params = {
@@ -82,9 +75,7 @@ class Full_iAMaLGaM(Strategy):
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
         rng_sample, rng_ams = jax.random.split(rng)
-        x = sample(
-            rng_sample, state["mean"], state["C"], state["sigma"], self.popsize
-        )
+        x = sample(rng_sample, state["mean"], state["C"], state["sigma"], self.popsize)
         x_ams = anticipated_mean_shift(
             rng_ams,
             x,
@@ -181,9 +172,9 @@ def standard_deviation_ratio(
 ) -> float:
     """SDR - relate dist. of improvements to mean in param space."""
     # Compute avg. member for candidates that improve fitness -> SDR
-    x_avg_imp = jnp.sum(
-        improvements[:, jnp.newaxis] * members_elite, axis=0
-    ) / jnp.sum(improvements)
+    x_avg_imp = jnp.sum(improvements[:, jnp.newaxis] * members_elite, axis=0) / jnp.sum(
+        improvements
+    )
     # Expensive! Can we somehow reuse this in sampling step?
     L = jax.scipy.linalg.cholesky(C)
     conditioned_diff = jnp.linalg.inv(L) @ (x_avg_imp - mean)
@@ -238,9 +229,7 @@ def update_mean_amalgam(
 ) -> Tuple[chex.Array, chex.Array]:
     """Iterative update of mean and mean shift based on elite and history."""
     new_mean = jnp.mean(members_elite, axis=0)
-    new_mean_shift = (1 - eta_shift) * mean_shift + eta_shift * (
-        new_mean - mean
-    )
+    new_mean_shift = (1 - eta_shift) * mean_shift + eta_shift * (new_mean - mean)
     return new_mean, new_mean_shift
 
 
@@ -252,7 +241,5 @@ def update_cov_amalgam(
 ) -> chex.Array:
     """Iterative update of mean and mean shift based on elite and history."""
     S_bar = members_elite - mean
-    new_C = (1 - eta_sigma) * C + eta_sigma * (
-        S_bar.T @ S_bar
-    ) / members_elite.shape[0]
+    new_C = (1 - eta_sigma) * C + eta_sigma * (S_bar.T @ S_bar) / members_elite.shape[0]
     return new_C

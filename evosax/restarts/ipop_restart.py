@@ -32,9 +32,7 @@ class IPOP_Restarter(RestartWrapper):
         return re_params
 
     @partial(jax.jit, static_argnums=(0,))
-    def initialize(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def initialize(self, rng: chex.PRNGKey, params: chex.ArrayTree) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         state = self.base_strategy.initialize(rng, params)
         state["restart_counter"] = 0
@@ -68,9 +66,7 @@ class IPOP_Restarter(RestartWrapper):
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
-            popsize=int(active_popsize),
-            num_dims=self.num_dims,
-            **self.strategy_kwargs
+            popsize=int(active_popsize), num_dims=self.num_dims, **self.strategy_kwargs
         )
 
         new_state = self.base_strategy.initialize(rng, params)

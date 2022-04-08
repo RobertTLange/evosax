@@ -21,9 +21,7 @@ class Strategy(object):
         return params
 
     @partial(jax.jit, static_argnums=(0,))
-    def initialize(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def initialize(self, rng: chex.PRNGKey, params: chex.ArrayTree) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         # Initialize strategy based on strategy-specific initialize method
         state = self.initialize_strategy(rng, params)
@@ -48,9 +46,7 @@ class Strategy(object):
         # Generate proposal based on strategy-specific ask method
         x, state = self.ask_strategy(rng, state, params)
         # Clip proposal candidates into allowed range
-        x_clipped = jnp.clip(
-            jnp.squeeze(x), params["clip_min"], params["clip_max"]
-        )
+        x_clipped = jnp.clip(jnp.squeeze(x), params["clip_min"], params["clip_max"])
         return x_clipped, state
 
     @partial(jax.jit, static_argnums=(0,))

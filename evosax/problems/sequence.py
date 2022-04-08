@@ -53,23 +53,17 @@ class SequenceFitness(object):
         else:
             self.rollout = jax.jit(self.rollout_vmap)
 
-    def rollout_vmap(
-        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ):
+    def rollout_vmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
         """Vectorize rollout. Reshape output correctly."""
         loss, perf = self.rollout_pop(rng_input, network_params)
         loss_re = loss.reshape(-1, 1)
         perf_re = perf.reshape(-1, 1)
         return loss_re, perf_re
 
-    def rollout_pmap(
-        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ):
+    def rollout_pmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
         """Parallelize rollout across devices. Split keys/reshape correctly."""
         keys_pmap = jnp.tile(rng_input, (self.n_devices, 1))
-        loss_dev, perf_dev = jax.pmap(self.rollout_pop)(
-            keys_pmap, network_params
-        )
+        loss_dev, perf_dev = jax.pmap(self.rollout_pop)(keys_pmap, network_params)
         loss_re = loss_dev.reshape(-1, 1)
         perf_re = perf_dev.reshape(-1, 1)
         return loss_re, perf_re
@@ -191,9 +185,7 @@ def get_smnist_loaders(test: bool = False):
     )
     bs = 10000 if test else 60000
     loader = torch.utils.data.DataLoader(
-        datasets.MNIST(
-            "~/data", download=True, train=not test, transform=transform
-        ),
+        datasets.MNIST("~/data", download=True, train=not test, transform=transform),
         batch_size=bs,
         shuffle=False,
     )
@@ -212,9 +204,7 @@ def get_adding_data(test: bool = False):
     def get_single_addition(rng, T):
         rng_numb, rng_mask = jax.random.split(rng)
         numbers = jax.random.uniform(rng_numb, (T,), minval=0, maxval=1)
-        mask_ids = jax.random.choice(
-            rng_mask, jnp.arange(T), (2,), replace=False
-        )
+        mask_ids = jax.random.choice(rng_mask, jnp.arange(T), (2,), replace=False)
         mask = jnp.zeros(T).at[mask_ids].set(1)
         target = jnp.sum(mask * numbers)
         return jnp.stack([numbers, mask], axis=1), target

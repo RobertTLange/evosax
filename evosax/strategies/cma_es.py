@@ -29,9 +29,9 @@ class CMA_ES(Strategy):
         mu_eff = (jnp.sum(weights_prime[: self.elite_popsize]) ** 2) / jnp.sum(
             weights_prime[: self.elite_popsize] ** 2
         )
-        mu_eff_minus = (
-            jnp.sum(weights_prime[self.elite_popsize :]) ** 2
-        ) / jnp.sum(weights_prime[self.elite_popsize :] ** 2)
+        mu_eff_minus = (jnp.sum(weights_prime[self.elite_popsize :]) ** 2) / jnp.sum(
+            weights_prime[self.elite_popsize :] ** 2
+        )
 
         # lrates for rank-one and rank-μ C updates
         alpha_cov = 2
@@ -60,17 +60,14 @@ class CMA_ES(Strategy):
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
         d_sigma = (
             1
-            + 2
-            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
         c_c = (4 + mu_eff / self.num_dims) / (
             self.num_dims + 4 + 2 * mu_eff / self.num_dims
         )
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.num_dims ** 2))
         )
 
         params = {
@@ -253,13 +250,10 @@ def update_covariance(
     return C
 
 
-def update_sigma(
-    sigma: float, norm_p_sigma: float, params: chex.ArrayTree
-) -> float:
+def update_sigma(sigma: float, norm_p_sigma: float, params: chex.ArrayTree) -> float:
     """Update stepsize sigma."""
     sigma_new = sigma * jnp.exp(
-        (params["c_sigma"] / params["d_sigma"])
-        * (norm_p_sigma / params["chi_n"] - 1)
+        (params["c_sigma"] / params["d_sigma"]) * (norm_p_sigma / params["chi_n"] - 1)
     )
     return sigma_new
 

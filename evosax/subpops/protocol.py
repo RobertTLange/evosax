@@ -21,9 +21,7 @@ class Protocol(object):
         if self.communication == "independent":
             self.broadcast = self.independent
         else:
-            raise ValueError(
-                "Only implemented independent subpopulations for now."
-            )
+            raise ValueError("Only implemented independent subpopulations for now.")
 
     @partial(jax.jit, static_argnums=(0,))
     def independent(

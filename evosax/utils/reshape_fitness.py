@@ -25,9 +25,7 @@ class FitnessShaper(object):
         fitness = jax.lax.select(
             self.centered_rank, compute_centered_ranks(fitness), fitness
         )
-        fitness = jax.lax.select(
-            self.z_score, z_score_fitness(fitness), fitness
-        )
+        fitness = jax.lax.select(self.z_score, z_score_fitness(fitness), fitness)
         # "Reduce" fitness based on L2 norm of parameters
         l2_fit_red = self.w_decay * compute_weight_norm(x)
         l2_fit_red = jax.lax.select(self.maximize, -1 * l2_fit_red, l2_fit_red)

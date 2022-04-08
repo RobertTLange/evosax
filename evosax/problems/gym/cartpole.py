@@ -28,9 +28,7 @@ class CartPole:
     ) -> Tuple[chex.Array, chex.ArrayTree, float, bool]:
         """Performs step transitions in the environment."""
         key, key_reset = jax.random.split(key)
-        obs_st, state_st, reward, done, info = self.step_env(
-            key, state, action, params
-        )
+        obs_st, state_st, reward, done, info = self.step_env(key, state, action, params)
         obs_re, state_re = self.reset_env(key_reset, params)
         # Auto-reset environment based on termination
         state = jax.tree_multimap(
@@ -76,29 +74,20 @@ class CartPole:
         params: chex.ArrayTree,
     ) -> Tuple[chex.Array, chex.ArrayTree, float, bool, chex.ArrayTree]:
         """Performs step transitions in the environment."""
-        force = params["force_mag"] * action - params["force_mag"] * (
-            1 - action
-        )
+        force = params["force_mag"] * action - params["force_mag"] * (1 - action)
         costheta = jnp.cos(state["theta"])
         sintheta = jnp.sin(state["theta"])
 
         temp = (
-            force
-            + params["polemass_length"] * state["theta_dot"] ** 2 * sintheta
+            force + params["polemass_length"] * state["theta_dot"] ** 2 * sintheta
         ) / params["total_mass"]
         thetaacc = (params["gravity"] * sintheta - costheta * temp) / (
             params["length"]
-            * (
-                4.0 / 3.0
-                - params["masspole"] * costheta ** 2 / params["total_mass"]
-            )
+            * (4.0 / 3.0 - params["masspole"] * costheta ** 2 / params["total_mass"])
         )
         xacc = (
             temp
-            - params["polemass_length"]
-            * thetaacc
-            * costheta
-            / params["total_mass"]
+            - params["polemass_length"] * thetaacc * costheta / params["total_mass"]
         )
 
         # Only default Euler integration option available here!
@@ -133,9 +122,7 @@ class CartPole:
         self, key: chex.PRNGKey, params: chex.ArrayTree
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """Performs resetting of environment."""
-        init_state = jax.random.uniform(
-            key, minval=-0.05, maxval=0.05, shape=(4,)
-        )
+        init_state = jax.random.uniform(key, minval=-0.05, maxval=0.05, shape=(4,))
         state = {
             "x": init_state[0],
             "x_dot": init_state[1],
@@ -152,9 +139,7 @@ class CartPole:
             [state["x"], state["x_dot"], state["theta"], state["theta_dot"]]
         )
 
-    def is_terminal(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> bool:
+    def is_terminal(self, state: chex.ArrayTree, params: chex.ArrayTree) -> bool:
         """Check whether state is terminal."""
         # Check termination criteria
         done1 = jnp.logical_or(

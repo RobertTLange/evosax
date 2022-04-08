@@ -34,9 +34,7 @@ class IPOP_CMA_ES(object):
         return re_params
 
     @partial(jax.jit, static_argnums=(0,))
-    def initialize(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def initialize(self, rng: chex.PRNGKey, params: chex.ArrayTree) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         return self.wrapped_strategy.initialize(rng, params)
 

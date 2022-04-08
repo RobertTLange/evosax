@@ -19,9 +19,7 @@ class BraxFitness(object):
         try:
             from brax import envs
         except ImportError:
-            raise ImportError(
-                "You need to install `brax` to use its fitness rollouts."
-            )
+            raise ImportError("You need to install `brax` to use its fitness rollouts.")
         self.env_name = env_name
         self.num_env_steps = num_env_steps
         self.num_rollouts = num_rollouts
@@ -67,9 +65,7 @@ class BraxFitness(object):
 
         # vmap over stochastic evaluations
         self.rollout_repeats = jax.vmap(self.single_rollout, in_axes=(0, None))
-        self.rollout_pop = jax.vmap(
-            self.rollout_repeats, in_axes=(None, map_dict)
-        )
+        self.rollout_pop = jax.vmap(self.rollout_repeats, in_axes=(None, map_dict))
         # pmap over popmembers if > 1 device is available - otherwise pmap
         if self.n_devices > 1:
             self.rollout_map = self.rollout_pmap
@@ -91,9 +87,7 @@ class BraxFitness(object):
         obs_re = obs_dev.reshape(
             -1, self.num_rollouts, self.num_env_steps, self.env.observation_size
         )
-        masks_re = masks_dev.reshape(
-            -1, self.num_rollouts, self.num_env_steps, 1
-        )
+        masks_re = masks_dev.reshape(-1, self.num_rollouts, self.num_env_steps, 1)
         return rew_re, obs_re, masks_re
 
     @partial(jax.jit, static_argnums=(0,))
@@ -103,9 +97,7 @@ class BraxFitness(object):
         scores, all_obs, masks = self.rollout_map(rng_pop, policy_params)
         # Update normalization parameters if train case!
         if not self.test:
-            obs_re = all_obs.reshape(
-                -1, self.num_env_steps, self.input_shape[0]
-            )
+            obs_re = all_obs.reshape(-1, self.num_env_steps, self.input_shape[0])
             obs_re = jnp.swapaxes(obs_re, 0, 1)
             masks_re = masks.reshape(-1, self.num_env_steps, 1)
             masks_re = jnp.swapaxes(masks_re, 0, 1)
@@ -127,12 +119,8 @@ class BraxFitness(object):
             state, policy_params, rng = state_input
             rng, rng_net = jax.random.split(rng)
             org_obs = state.obs
-            norm_obs = self.obs_normalizer.normalize_obs(
-                org_obs, self.obs_params
-            )
-            action = self.network(
-                {"params": policy_params}, norm_obs, rng=rng_net
-            )
+            norm_obs = self.obs_normalizer.normalize_obs(org_obs, self.obs_params)
+            action = self.network({"params": policy_params}, norm_obs, rng=rng_net)
             next_s = self.env.step(state, action)
             carry = [next_s, policy_params, rng]
             return carry, [state.reward, state.done, org_obs]
@@ -161,9 +149,7 @@ class BraxFitness(object):
             state, policy_params, rng, hidden = state_input
             rng, rng_net = jax.random.split(rng)
             org_obs = state.obs
-            norm_obs = self.obs_normalizer.normalize_obs(
-                state.obs, self.obs_params
-            )
+            norm_obs = self.obs_normalizer.normalize_obs(state.obs, self.obs_params)
             hidden, action = self.network(
                 {"params": policy_params}, norm_obs, hidden, rng_net
             )

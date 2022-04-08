@@ -123,9 +123,7 @@ class xNES(Strategy):
 
         state["sigma_old"] = state["sigma"]
         state["mean"] += (
-            params["eta_mean"]
-            * state["sigma"]
-            * jnp.dot(state["bmat"], dj_delta)
+            params["eta_mean"] * state["sigma"] * jnp.dot(state["bmat"], dj_delta)
         )
         state["sigma"] = state["sigma_old"] * jnp.exp(
             0.5 * state["eta_sigma"] * dj_sigma
@@ -156,9 +154,7 @@ class xNES(Strategy):
         cov_ = sigma_ ** 2 * bbmat
 
         p0 = jax.scipy.stats.multivariate_normal.logpdf(z_try, mean=mu, cov=cov)
-        p1 = jax.scipy.stats.multivariate_normal.logpdf(
-            z_try, mean=mu, cov=cov_
-        )
+        p1 = jax.scipy.stats.multivariate_normal.logpdf(z_try, mean=mu, cov=cov_)
         w = jnp.exp(p1 - p0)
 
         # Mann-Whitney. It is assumed z_try was in ascending order.

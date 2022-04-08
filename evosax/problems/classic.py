@@ -41,9 +41,7 @@ class ClassicFitness(object):
             raise ValueError("Please provide a valid problem name.")
 
     @partial(jax.jit, static_argnums=(0,))
-    def rollout(
-        self, rng_input: chex.PRNGKey, eval_params: chex.Array
-    ) -> chex.Array:
+    def rollout(self, rng_input: chex.PRNGKey, eval_params: chex.Array) -> chex.Array:
         """Batch evaluate the proposal points."""
         fitness = self.eval(eval_params).reshape(eval_params.shape[0], 1)
         noise = self.noise_std * jax.random.normal(
@@ -135,6 +133,4 @@ def schwefel_d_dim(x: chex.Array) -> chex.Array:
     D-Dim. Schwefel function. x_i ∈ [-500, 500]
     f(x*)=0 - Minimum at x*=[420.9687,...,420.9687]
     """
-    return 418.9829 * x.shape[0] - jnp.sum(
-        x * jnp.sin(jnp.sqrt(jnp.absolute(x)))
-    )
+    return 418.9829 * x.shape[0] - jnp.sum(x * jnp.sin(jnp.sqrt(jnp.absolute(x))))

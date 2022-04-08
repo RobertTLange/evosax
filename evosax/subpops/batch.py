@@ -72,9 +72,7 @@ class BatchStrategy(object):
     ) -> chex.ArrayTree:
         """Auto-vectorized `initialize` for the batch evolution strategy."""
         batch_rng = jax.random.split(rng, self.num_subpops_per_device)
-        state = jax.vmap(self.strategy.initialize, in_axes=(0, 0))(
-            batch_rng, params
-        )
+        state = jax.vmap(self.strategy.initialize, in_axes=(0, 0))(batch_rng, params)
         return state
 
     def initialize_pmap(
@@ -156,9 +154,7 @@ class BatchStrategy(object):
         batch_x = x.reshape(self.num_subpops, self.sub_popsize, self.num_dims)
 
         # Communicate and reshape information between subpopulations
-        b_x_comm, b_fitness_comm = self.protocol.broadcast(
-            batch_x, batch_fitness
-        )
+        b_x_comm, b_fitness_comm = self.protocol.broadcast(batch_x, batch_fitness)
 
         # Update the strategy (vectorize vs device parallel)
         state = self.tell_map(b_x_comm, b_fitness_comm, state, params)

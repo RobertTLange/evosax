@@ -109,9 +109,7 @@ def single_member_ask(
     # A bit of an awkward hack - sample one additional member to avoid
     # using same vector as x - check condition and select extra if needed
     # Also always sample 6 members - for case where we want two diff vectors
-    row_ids = jax.random.choice(
-        rng, jnp.arange(archive.shape[0]), (6,), replace=False
-    )
+    row_ids = jax.random.choice(rng, jnp.arange(archive.shape[0]), (6,), replace=False)
     a = jax.lax.select(
         row_ids[0] == member_id, archive[row_ids[5]], archive[row_ids[0]]
     )

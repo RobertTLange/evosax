@@ -61,9 +61,7 @@ class MetaStrategy(BatchStrategy):
         inner_params: chex.ArrayTree,
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for meta-parameters of different subpopulations."""
-        meta_x, meta_state = self.meta_strategy.ask(
-            rng, meta_state, meta_params
-        )
+        meta_x, meta_state = self.meta_strategy.ask(rng, meta_state, meta_params)
         meta_x = meta_x.reshape(-1, self.num_meta_dims)
         for i, k in enumerate(self.meta_params):
             inner_params[k] = meta_x[:, i]

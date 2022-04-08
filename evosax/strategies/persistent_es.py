@@ -58,8 +58,7 @@ class PersistentES(Strategy):
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         pos_perts = (
-            jax.random.normal(rng, (self.popsize // 2, self.num_dims))
-            * state["sigma"]
+            jax.random.normal(rng, (self.popsize // 2, self.num_dims)) * state["sigma"]
         )
         neg_perts = -pos_perts
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)
@@ -77,9 +76,7 @@ class PersistentES(Strategy):
     ) -> chex.ArrayTree:
         """`tell` update to ES state."""
         theta_grad = jnp.mean(
-            state["pert_accum"]
-            * fitness.reshape(-1, 1)
-            / (state["sigma"] ** 2),
+            state["pert_accum"] * fitness.reshape(-1, 1) / (state["sigma"] ** 2),
             axis=0,
         )
         # Grad update using optimizer instance - decay lrate if desired

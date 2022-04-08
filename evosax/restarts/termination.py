@@ -15,9 +15,7 @@ def spread_criterion(
     fitness: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
 ) -> bool:
     """Stop if min/max fitness spread of recent generation is below thresh."""
-    fit_var_too_low = (
-        jnp.max(fitness) - jnp.min(fitness) < params["min_fitness_spread"]
-    )
+    fit_var_too_low = jnp.max(fitness) - jnp.min(fitness) < params["min_fitness_spread"]
     return fit_var_too_low
 
 

@@ -31,9 +31,7 @@ class SGD_Optimizer(object):
         state["mean"] -= state["lrate"] * state["m"]
         return state
 
-    def update(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def update(self, state: chex.ArrayTree, params: chex.ArrayTree) -> chex.ArrayTree:
         """Exponentially decay the learning rate if desired."""
         state["lrate"] *= params["lrate_decay"]
         state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
@@ -71,22 +69,16 @@ class Adam_Optimizer(object):
         self, grads: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Perform a simple Adam GD step."""
-        state["m"] = (1 - params["beta_1"]) * grads + params["beta_1"] * state[
-            "m"
+        state["m"] = (1 - params["beta_1"]) * grads + params["beta_1"] * state["m"]
+        state["v"] = (1 - params["beta_2"]) * (grads ** 2) + params["beta_2"] * state[
+            "v"
         ]
-        state["v"] = (1 - params["beta_2"]) * (grads ** 2) + params[
-            "beta_2"
-        ] * state["v"]
         mhat = state["m"] / (1 - params["beta_1"] ** (state["gen_counter"] + 1))
         vhat = state["v"] / (1 - params["beta_2"] ** (state["gen_counter"] + 1))
-        state["mean"] -= (
-            state["lrate"] * mhat / (jnp.sqrt(vhat) + params["eps"])
-        )
+        state["mean"] -= state["lrate"] * mhat / (jnp.sqrt(vhat) + params["eps"])
         return state
 
-    def update(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def update(self, state: chex.ArrayTree, params: chex.ArrayTree) -> chex.ArrayTree:
         """Exponentially decay the learning rate if desired."""
         state["lrate"] *= params["lrate_decay"]
         state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
@@ -124,18 +116,14 @@ class RMSProp_Optimizer(object):
         self, grads: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Perform a simple RMSprop GD step."""
-        state["v"] = (1 - params["beta"]) * (grads ** 2) + params[
-            "beta"
-        ] * state["v"]
+        state["v"] = (1 - params["beta"]) * (grads ** 2) + params["beta"] * state["v"]
         state["m"] = params["momentum"] * state["m"] + grads / (
             jnp.sqrt(state["v"]) + params["eps"]
         )
         state["mean"] -= state["lrate"] * state["m"]
         return state
 
-    def update(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def update(self, state: chex.ArrayTree, params: chex.ArrayTree) -> chex.ArrayTree:
         """Exponentially decay the learning rate if desired."""
         state["lrate"] *= params["lrate_decay"]
         state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
@@ -190,9 +178,7 @@ class ClipUp_Optimizer(object):
         state["mean"] -= state["lrate"] * state["m"]
         return state
 
-    def update(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def update(self, state: chex.ArrayTree, params: chex.ArrayTree) -> chex.ArrayTree:
         """Exponentially decay the learning rate if desired."""
         state["lrate"] *= params["lrate_decay"]
         state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])

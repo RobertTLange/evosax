@@ -36,9 +36,7 @@ class RestartWrapper(object):
         return re_params
 
     @partial(jax.jit, static_argnums=(0,))
-    def initialize(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def initialize(self, rng: chex.PRNGKey, params: chex.ArrayTree) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         state = self.base_strategy.initialize(rng, params)
         state["restart_counter"] = 0

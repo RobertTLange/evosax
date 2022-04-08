@@ -18,8 +18,7 @@ class ParameterReshaper(object):
         self.placeholder_params = placeholder_params
         if type(placeholder_params) == dict:
             flat_params = {
-                "/".join(k): v
-                for k, v in flatten_dict(self.placeholder_params).items()
+                "/".join(k): v for k, v in flatten_dict(self.placeholder_params).items()
             }
             self.unflat_shape = jax.tree_map(jnp.shape, self.placeholder_params)
             self.network_shape = jax.tree_map(jnp.shape, flat_params)
@@ -28,8 +27,7 @@ class ParameterReshaper(object):
         elif type(placeholder_params) == FrozenDict:
             self.placeholder_params = unfreeze(self.placeholder_params)
             flat_params = {
-                "/".join(k): v
-                for k, v in flatten_dict(self.placeholder_params).items()
+                "/".join(k): v for k, v in flatten_dict(self.placeholder_params).items()
             }
             self.unflat_shape = jax.tree_map(jnp.shape, self.placeholder_params)
             self.network_shape = jax.tree_map(jnp.shape, flat_params)
@@ -102,9 +100,7 @@ class ParameterReshaper(object):
             p_reshaped = p_flat.reshape(self.network_shape[p_k])
             # Place reshaped params into dict and increase counter
             new_nn[p_k] = p_reshaped
-        return unflatten_dict(
-            {tuple(k.split("/")): v for k, v in new_nn.items()}
-        )
+        return unflatten_dict({tuple(k.split("/")): v for k, v in new_nn.items()})
 
     def split_params_for_pmap(self, param: chex.Array) -> chex.Array:
         """Helper reshapes param (bs, #params) into (#dev, bs/#dev, #params)."""

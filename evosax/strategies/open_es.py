@@ -70,9 +70,7 @@ class OpenES(Strategy):
         """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state["mean"]) / state["sigma"]
-        theta_grad = (
-            1.0 / (self.popsize * state["sigma"]) * jnp.dot(noise.T, fitness)
-        )
+        theta_grad = 1.0 / (self.popsize * state["sigma"]) * jnp.dot(noise.T, fitness)
 
         # Grad update using optimizer instance - decay lrate if desired
         state = self.optimizer.step(theta_grad, state, params)

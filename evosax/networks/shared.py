@@ -38,9 +38,7 @@ def categorical_out(
     return x_out
 
 
-def gaussian_out(
-    rng: chex.PRNGKey, x: chex.Array, num_output_units: int
-) -> chex.Array:
+def gaussian_out(rng: chex.PRNGKey, x: chex.Array, num_output_units: int) -> chex.Array:
     """Simple affine layers for mean and log var + gaussian sample."""
     x_mean = nn.Dense(
         features=num_output_units,

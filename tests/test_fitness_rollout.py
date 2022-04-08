@@ -12,9 +12,7 @@ from evosax.problems import (
 
 def test_classic_rollout(classic_name: str):
     rng = jax.random.PRNGKey(0)
-    evaluator = ClassicFitness(
-        classic_name, num_dims=2, num_rollouts=2, noise_std=0.1
-    )
+    evaluator = ClassicFitness(classic_name, num_dims=2, num_rollouts=2, noise_std=0.1)
     strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
@@ -95,9 +93,7 @@ def test_env_rec_rollout(env_name: str):
         rng=rng,
     )
     reshaper = ParameterReshaper(net_params["params"])
-    evaluator.set_apply_fn(
-        reshaper.vmap_dict, network.apply, network.initialize_carry
-    )
+    evaluator.set_apply_fn(reshaper.vmap_dict, network.apply, network.initialize_carry)
     strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)

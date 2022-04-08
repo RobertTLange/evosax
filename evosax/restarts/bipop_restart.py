@@ -32,9 +32,7 @@ class BIPOP_Restarter(RestartWrapper):
         return re_params
 
     @partial(jax.jit, static_argnums=(0,))
-    def initialize(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def initialize(self, rng: chex.PRNGKey, params: chex.ArrayTree) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         state = self.base_strategy.initialize(rng, params)
         state["restart_counter"] = 0
@@ -71,36 +69,28 @@ class BIPOP_Restarter(RestartWrapper):
         large_eval_budget = jax.lax.select(
             state["small_pop_active"],
             state["large_eval_budget"],
-            state["large_eval_budget"]
-            + state["active_popsize"] * state["gen_counter"],
+            state["large_eval_budget"] + state["active_popsize"] * state["gen_counter"],
         )
         small_eval_budget = jax.lax.select(
             state["small_pop_active"],
-            state["small_eval_budget"]
-            + state["active_popsize"] * state["gen_counter"],
+            state["small_eval_budget"] + state["active_popsize"] * state["gen_counter"],
             state["small_eval_budget"],
         )
         small_pop_active = small_eval_budget < large_eval_budget
 
         # Update the population size based on active population size
-        pop_mult = params["popsize_multiplier"] ** (
-            state["restart_large_counter"] + 1
-        )
+        pop_mult = params["popsize_multiplier"] ** (state["restart_large_counter"] + 1)
         small_popsize = jax.lax.floor(
             self.default_popsize * pop_mult ** (jax.random.uniform(rng) ** 2)
         ).astype(int)
         large_popsize = self.default_popsize * pop_mult
 
         # Reinstantiate new strategy - based on name of previous strategy
-        active_popsize = jax.lax.select(
-            small_pop_active, small_popsize, large_popsize
-        )
+        active_popsize = jax.lax.select(small_pop_active, small_popsize, large_popsize)
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
-            popsize=int(active_popsize),
-            num_dims=self.num_dims,
-            **self.strategy_kwargs
+            popsize=int(active_popsize), num_dims=self.num_dims, **self.strategy_kwargs
         )
 
         new_state = self.base_strategy.initialize(rng, params)

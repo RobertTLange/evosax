@@ -29,9 +29,7 @@ class Sep_CMA_ES(Strategy):
         )
         weights = weights_prime / jnp.sum(weights_prime)
         weights_truncated = jnp.zeros(self.popsize)
-        weights_truncated = weights_truncated.at[: self.elite_popsize].set(
-            weights
-        )
+        weights_truncated = weights_truncated.at[: self.elite_popsize].set(weights)
         mu_eff = 1 / jnp.sum(weights ** 2)
 
         # lrates for rank-one and rank-μ C updates
@@ -39,24 +37,19 @@ class Sep_CMA_ES(Strategy):
         c_1 = alpha_cov / ((self.num_dims + 1.3) ** 2 + mu_eff)
         c_mu_full = 2 / mu_eff / ((self.num_dims + jnp.sqrt(2)) ** 2) + (
             1 - 1 / mu_eff
-        ) * jnp.minimum(
-            1, (2 * mu_eff - 1) / ((self.num_dims + 2) ** 2 + mu_eff)
-        )
+        ) * jnp.minimum(1, (2 * mu_eff - 1) / ((self.num_dims + 2) ** 2 + mu_eff))
         c_mu = (self.num_dims + 2) / 3 * c_mu_full
 
         # lrate for cumulation of step-size control and rank-one update
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 3)
         d_sigma = (
             1
-            + 2
-            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
         c_c = 4 / (self.num_dims + 4)
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.num_dims ** 2))
         )
 
         params = {
@@ -228,13 +221,10 @@ def update_covariance(
     return C
 
 
-def update_sigma(
-    sigma: float, norm_p_sigma: float, params: chex.ArrayTree
-) -> float:
+def update_sigma(sigma: float, norm_p_sigma: float, params: chex.ArrayTree) -> float:
     """Update stepsize sigma."""
     sigma_new = sigma * jnp.exp(
-        (params["c_sigma"] / params["d_sigma"])
-        * (norm_p_sigma / params["chi_n"] - 1)
+        (params["c_sigma"] / params["d_sigma"]) * (norm_p_sigma / params["chi_n"] - 1)
     )
     return sigma_new
 

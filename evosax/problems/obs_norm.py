@@ -39,9 +39,7 @@ def normalize(
 
     variance = running_var / (obs_steps + 1.0)
     variance = jnp.clip(variance, std_min_value, std_max_value)
-    return jnp.clip(
-        (obs - running_mean) / jnp.sqrt(variance), -clip_value, clip_value
-    )
+    return jnp.clip((obs - running_mean) / jnp.sqrt(variance), -clip_value, clip_value)
 
 
 def update_obs_params(
@@ -98,9 +96,7 @@ class ObsNormalizer(object):
         self.is_dummy = dummy
 
     @partial(jax.jit, static_argnums=(0,))
-    def normalize_obs(
-        self, obs: jnp.ndarray, obs_params: jnp.ndarray
-    ) -> jnp.ndarray:
+    def normalize_obs(self, obs: jnp.ndarray, obs_params: jnp.ndarray) -> jnp.ndarray:
         """Normalize the given observation.
 
         Args:

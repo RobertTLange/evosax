@@ -28,9 +28,9 @@ class MA_ES(Strategy):
         mu_eff = (jnp.sum(weights_prime[: self.elite_popsize]) ** 2) / jnp.sum(
             weights_prime[: self.elite_popsize] ** 2
         )
-        mu_eff_minus = (
-            jnp.sum(weights_prime[self.elite_popsize :]) ** 2
-        ) / jnp.sum(weights_prime[self.elite_popsize :] ** 2)
+        mu_eff_minus = (jnp.sum(weights_prime[self.elite_popsize :]) ** 2) / jnp.sum(
+            weights_prime[self.elite_popsize :] ** 2
+        )
 
         # lrates for rank-one and rank-μ C updates
         alpha_cov = 2
@@ -59,15 +59,12 @@ class MA_ES(Strategy):
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
         d_sigma = (
             1
-            + 2
-            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
 
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.num_dims ** 2))
         )
 
         params = {
@@ -130,9 +127,7 @@ class MA_ES(Strategy):
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
         sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        mean, z_k = update_mean(
-            state["mean"], state["sigma"], sorted_solutions, params
-        )
+        mean, z_k = update_mean(state["mean"], state["sigma"], sorted_solutions, params)
 
         p_sigma, norm_p_sigma = update_p_sigma(z_k, state["p_sigma"], params)
         M = update_M_matrix(state["M"], state["p_sigma"], z_k, params)
@@ -180,10 +175,7 @@ def update_M_matrix(
     rank_one = jnp.outer(p_sigma, p_sigma)
     rank_mu = jnp.sum(
         jnp.array(
-            [
-                w * jnp.outer(z, z)
-                for w, z in zip(params["weights_truncated"], z_k)
-            ]
+            [w * jnp.outer(z, z) for w, z in zip(params["weights_truncated"], z_k)]
         ),
         axis=0,
     )
@@ -195,13 +187,10 @@ def update_M_matrix(
     return M_new
 
 
-def update_sigma(
-    sigma: float, norm_p_sigma: float, params: chex.ArrayTree
-) -> float:
+def update_sigma(sigma: float, norm_p_sigma: float, params: chex.ArrayTree) -> float:
     """Update stepsize sigma."""
     sigma_new = sigma * jnp.exp(
-        (params["c_sigma"] / params["d_sigma"])
-        * (norm_p_sigma / params["chi_n"] - 1)
+        (params["c_sigma"] / params["d_sigma"]) * (norm_p_sigma / params["chi_n"] - 1)
     )
     return sigma_new
 

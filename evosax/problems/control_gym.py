@@ -29,8 +29,7 @@ class GymFitness(object):
             self.env = Acrobot()
         else:
             raise ValueError(
-                "Gym environment has to be either 'CartPole-v1' or"
-                " 'Acrobot-v1'."
+                "Gym environment has to be either 'CartPole-v1' or" " 'Acrobot-v1'."
             )
         self.env_params = self.env.default_params
         self.action_shape = self.env.action_shape
@@ -50,9 +49,7 @@ class GymFitness(object):
         else:
             self.single_rollout = self.rollout_ffw
         self.rollout_repeats = jax.vmap(self.single_rollout, in_axes=(0, None))
-        self.rollout_pop = jax.vmap(
-            self.rollout_repeats, in_axes=(None, map_dict)
-        )
+        self.rollout_pop = jax.vmap(self.rollout_repeats, in_axes=(None, map_dict))
         # pmap over popmembers if > 1 device is available - otherwise pmap
         if self.n_devices > 1:
             self.rollout_map = self.rollout_pmap
@@ -64,9 +61,7 @@ class GymFitness(object):
         else:
             self.rollout_map = self.rollout_pop
 
-    def rollout_pmap(
-        self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
-    ):
+    def rollout_pmap(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Parallelize rollout across devices. Split keys/reshape correctly."""
         keys_pmap = jnp.tile(rng_input, (self.n_devices, 1, 1))
         rew_dev = jax.pmap(self.rollout_pop)(keys_pmap, policy_params)
@@ -79,9 +74,7 @@ class GymFitness(object):
         rng_pop = jax.random.split(rng_input, self.num_rollouts)
         return self.rollout_map(rng_pop, policy_params)
 
-    def rollout_ffw(
-        self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
-    ):
+    def rollout_ffw(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Rollout an episode with lax.scan."""
         # Reset the environment
         rng_reset, rng_episode = jax.random.split(rng_input)
@@ -114,9 +107,7 @@ class GymFitness(object):
         ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
         return jnp.sum(rewards * ep_mask)
 
-    def rollout_rnn(
-        self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
-    ):
+    def rollout_rnn(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Rollout a jitted episode with lax.scan."""
         # Reset the environment
         rng, rng_reset = jax.random.split(rng_input)

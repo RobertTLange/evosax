@@ -48,9 +48,7 @@ class Acrobot:
     ) -> Tuple[chex.Array, chex.ArrayTree, float, bool]:
         """Performs step transitions in the environment."""
         key, key_reset = jax.random.split(key)
-        obs_st, state_st, reward, done, info = self.step_env(
-            key, state, action, params
-        )
+        obs_st, state_st, reward, done, info = self.step_env(key, state, action, params)
         obs_re, state_re = self.reset_env(key_reset, params)
         # Auto-reset environment based on termination
         state = jax.tree_multimap(
@@ -104,9 +102,7 @@ class Acrobot:
         velocity_1 = jnp.clip(ns[2], -params["max_vel_1"], params["max_vel_1"])
         velocity_2 = jnp.clip(ns[3], -params["max_vel_2"], params["max_vel_2"])
 
-        done_angle = (
-            -jnp.cos(joint_angle1) - jnp.cos(joint_angle2 + joint_angle1) > 1.0
-        )
+        done_angle = -jnp.cos(joint_angle1) - jnp.cos(joint_angle2 + joint_angle1) > 1.0
         reward = -1.0 * (1 - done_angle)
 
         # Update state dict and evaluate termination conditions
@@ -131,9 +127,7 @@ class Acrobot:
         self, key: chex.PRNGKey, params: chex.ArrayTree
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """Reset environment state by sampling initial position."""
-        init_state = jax.random.uniform(
-            key, shape=(4,), minval=-0.1, maxval=0.1
-        )
+        init_state = jax.random.uniform(key, shape=(4,), minval=-0.1, maxval=0.1)
         state = {
             "joint_angle1": init_state[0],
             "joint_angle2": init_state[1],
@@ -157,9 +151,7 @@ class Acrobot:
             ]
         )
 
-    def is_terminal(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> bool:
+    def is_terminal(self, state: chex.ArrayTree, params: chex.ArrayTree) -> bool:
         """Check whether state is terminal."""
         # Check termination and construct updated state
         done_angle = (
@@ -198,10 +190,7 @@ def dsdt(s_augmented: chex.Array, params: chex.ArrayTree) -> chex.Array:
         + phi2
     )
     ddtheta2 = (
-        a
-        + d2 / d1 * phi1
-        - m2 * l1 * lc2 * dtheta1 ** 2 * jnp.sin(theta2)
-        - phi2
+        a + d2 / d1 * phi1 - m2 * l1 * lc2 * dtheta1 ** 2 * jnp.sin(theta2) - phi2
     ) / (m2 * lc2 ** 2 + I2 - d2 ** 2 / d1)
     ddtheta1 = -(d2 * ddtheta2 + phi1) / d1
     return jnp.array([dtheta1, dtheta2, ddtheta1, ddtheta2, 0.0])
@@ -214,9 +203,7 @@ def wrap(x, m, M):
     diff_x_m = x - m
     go_down = diff_x_M > 0
     go_up = diff_x_m < 0
-    how_often = (
-        jnp.ceil(diff_x_M / diff) * go_down + jnp.ceil(diff_x_m / diff) * go_up
-    )
+    how_often = jnp.ceil(diff_x_M / diff) * go_down + jnp.ceil(diff_x_m / diff) * go_up
     x_out = x - how_often * diff * go_down + how_often * diff * go_up
     return x_out
 
