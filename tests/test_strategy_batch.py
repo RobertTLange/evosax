@@ -100,7 +100,7 @@ def test_protocol_global_best_strategy():
     fitness = fitness.at[best_ind].set(best_fitness)
 
     state = batch_strategy.tell(x, fitness, state, es_params)
-    pdb.set_trace()
+
     assert state["mean"].shape == (5, 2)
     assert (state["best_member"][np.random.randint(5)] == state["best_member"][np.random.randint(5)]).all()
     assert (state["best_fitness"] == np.repeat(best_fitness, (5))).all()
