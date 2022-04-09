@@ -23,12 +23,15 @@
 - Adds Acrobot task to `GymFitness` rollout wrappers.
 - New strategies:
     - RmES (`RmES` following Li & Zhang, 2008).
+    - Gradientless Descent (`GLD` following Golovin et al., 2020).
 - Adds simultaneous batch strategy functionalities:
     - `BatchStrategy`: `vmap`/`pmap` distributed subpopulation rollout
     - `Protocol`: Communication protocol between subpopulations
     - `MetaStrategy`: Stack one ES on top of subpopulations to control hyperparameters
 
 ##### Changed
+
+- Renamed `crossover_rate` to `cross_over_rate` in DE to make consistent with `SimpleGA`.
 
 ##### Fixed
 
