@@ -17,6 +17,7 @@ from .indep_iamalgam import Indep_iAMaLGaM
 from .ma_es import MA_ES
 from .lm_ma_es import LM_MA_ES
 from .rm_es import RmES
+from .gld import GLD
 
 
 __all__ = [
@@ -39,4 +40,5 @@ __all__ = [
     "MA_ES",
     "LM_MA_ES",
     "RmES",
+    "GLD",
 ]
