@@ -25,6 +25,7 @@ def pytest_generate_tests(metafunc):
                     "MA_ES",
                     "LM_MA_ES",
                     "RmES",
+                    "GLD",
                 ],
             )
         else:
