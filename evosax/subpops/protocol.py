@@ -3,7 +3,6 @@ import chex
 import jax.numpy as jnp
 from typing import Tuple
 from functools import partial
-import pdb
 
 
 class Protocol(object):
