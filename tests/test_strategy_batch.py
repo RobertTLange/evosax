@@ -33,7 +33,7 @@ def test_meta_strategy():
     meta_strategy = MetaStrategy(
         meta_strategy_name="CMA_ES",
         inner_strategy_name="DE",
-        meta_params=["diff_w", "crossover_rate"],
+        meta_params=["diff_w", "cross_over_rate"],
         num_dims=2,
         popsize=100,
         num_subpops=10,
