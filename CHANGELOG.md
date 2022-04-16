@@ -36,6 +36,7 @@
 ##### Fixed
 
 - Add `spring_legacy` option to Brax rollout wrappers.
+- Fix Brax rollout wrapper reward masking.
 
 ### [v0.0.4] - [26/03/2022]
 
