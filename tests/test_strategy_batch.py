@@ -43,7 +43,7 @@ def test_meta_strategy():
     meta_strategy = MetaStrategy(
         meta_strategy_name="CMA_ES",
         inner_strategy_name="DE",
-        meta_params=["diff_w", "crossover_rate"],
+        meta_params=["diff_w", "cross_over_rate"],
         num_dims=num_dims,
         popsize=popsize,
         num_subpops=num_subpops,
@@ -91,7 +91,7 @@ def test_protocol_best_subpop_strategy():
         popsize=100,
         num_subpops=5,
         strategy_kwargs={"elite_ratio": 0.5},
-        communication='best_subpop',
+        communication="best_subpop",
     )
     es_params = batch_strategy.default_params
     state = batch_strategy.initialize(rng, es_params)
@@ -112,5 +112,8 @@ def test_protocol_best_subpop_strategy():
     # CMA_ES doesn't keep track of members at all except for the best seen so far...
     # Not sure how to tell if all members of the best subpop are actually being shared
     # assert (state["members"][np.random.randint(5)] == state["members"][np.random.randint(5)]).all()
-    assert (state["best_member"][np.random.randint(5)] == state["best_member"][np.random.randint(5)]).all()
+    assert (
+        state["best_member"][np.random.randint(5)]
+        == state["best_member"][np.random.randint(5)]
+    ).all()
     assert (state["best_fitness"] == np.repeat(best_fitness, (5))).all()

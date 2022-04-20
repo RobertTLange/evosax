@@ -13,6 +13,7 @@ class BraxFitness(object):
         num_env_steps: int = 1000,
         num_rollouts: int = 16,
         legacy_spring: bool = True,
+        normalize: bool = False,
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
@@ -48,7 +49,9 @@ class BraxFitness(object):
         )
         self.action_shape = self.env.action_size
         self.input_shape = (self.env.observation_size,)
-        self.obs_normalizer = ObsNormalizer(self.input_shape, dummy=True)
+        self.obs_normalizer = ObsNormalizer(
+            self.input_shape, dummy=not normalize
+        )
         self.obs_params = self.obs_normalizer.get_init_params()
         if n_devices is None:
             self.n_devices = jax.local_device_count()
@@ -96,22 +99,33 @@ class BraxFitness(object):
         )
         return rew_re, obs_re, masks_re
 
-    @partial(jax.jit, static_argnums=(0,))
     def rollout(self, rng_input, policy_params):
         """Placeholder fn call for rolling out a population for multi-evals."""
         rng_pop = jax.random.split(rng_input, self.num_rollouts)
-        scores, all_obs, masks = self.rollout_map(rng_pop, policy_params)
+        scores, all_obs, masks = jax.jit(self.rollout_map)(
+            rng_pop, policy_params
+        )
         # Update normalization parameters if train case!
         if not self.test:
             obs_re = all_obs.reshape(
-                -1, self.num_env_steps, self.input_shape[0]
+                self.num_env_steps, -1, self.input_shape[0]
             )
-            obs_re = jnp.swapaxes(obs_re, 0, 1)
-            masks_re = masks.reshape(-1, self.num_env_steps, 1)
-            masks_re = jnp.swapaxes(masks_re, 0, 1)
+            masks_re = masks.reshape(self.num_env_steps, -1)
             self.obs_params = self.obs_normalizer.update_normalization_params(
-                obs_buffer=obs_re, obs_mask=masks_re, obs_params=self.obs_params
+                obs_buffer=obs_re,
+                obs_mask=masks_re,
+                obs_params=self.obs_params,
             )
+
+        # obs_steps = self.obs_params[0]
+        # running_mean, running_var = jnp.split(self.obs_params[1:], 2)
+        # print(
+        #     float(scores.mean()),
+        #     float(masks.mean()),
+        #     obs_steps,
+        #     running_mean.mean(),
+        #     running_var.mean() / (obs_steps + 1),
+        # )
         return scores
 
     def rollout_ffw(
@@ -124,7 +138,7 @@ class BraxFitness(object):
 
         def policy_step(state_input, tmp):
             """lax.scan compatible step transition in jax env."""
-            state, policy_params, rng = state_input
+            state, policy_params, rng, cum_reward, valid_mask = state_input
             rng, rng_net = jax.random.split(rng)
             org_obs = state.obs
             norm_obs = self.obs_normalizer.normalize_obs(
@@ -134,18 +148,22 @@ class BraxFitness(object):
                 {"params": policy_params}, norm_obs, rng=rng_net
             )
             next_s = self.env.step(state, action)
-            carry = [next_s, policy_params, rng]
-            return carry, [state.reward, state.done, org_obs]
+            new_cum_reward = cum_reward + next_s.reward * valid_mask
+            new_valid_mask = valid_mask * (1 - next_s.done.ravel())
+            carry = [next_s, policy_params, rng, new_cum_reward, new_valid_mask]
+            return carry, [new_valid_mask, org_obs]
 
         # Scan over episode step loop
-        _, scan_out = jax.lax.scan(
-            policy_step, [state, policy_params, rng], (), self.num_env_steps
+        carry_out, scan_out = jax.lax.scan(
+            policy_step,
+            [state, policy_params, rng, jnp.array([0.0]), jnp.array([1.0])],
+            (),
+            self.num_env_steps,
         )
         # Return masked sum of rewards accumulated by agent in episode
-        rewards, dones, all_obs = scan_out[0], scan_out[1], scan_out[2]
-        rewards = rewards.reshape(self.num_env_steps, 1)
-        ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
-        return jnp.sum(rewards), all_obs, ep_mask
+        ep_mask, all_obs = scan_out[0], scan_out[1]
+        cum_return = carry_out[-2].squeeze()
+        return cum_return, all_obs, ep_mask
 
     def rollout_rnn(
         self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
@@ -158,7 +176,14 @@ class BraxFitness(object):
 
         def policy_step(state_input, tmp):
             """lax.scan compatible step transition in jax env."""
-            state, policy_params, rng, hidden = state_input
+            (
+                state,
+                policy_params,
+                rng,
+                hidden,
+                cum_reward,
+                valid_mask,
+            ) = state_input
             rng, rng_net = jax.random.split(rng)
             org_obs = state.obs
             norm_obs = self.obs_normalizer.normalize_obs(
@@ -168,18 +193,33 @@ class BraxFitness(object):
                 {"params": policy_params}, norm_obs, hidden, rng_net
             )
             next_s = self.env.step(state, action)
-            carry = [next_s, policy_params, rng, hidden]
-            return carry, [state.reward, state.done, org_obs]
+            new_cum_reward = cum_reward + next_s.reward * valid_mask
+            new_valid_mask = valid_mask * (1 - next_s.done.ravel())
+            carry = [
+                next_s,
+                policy_params,
+                rng,
+                hidden,
+                new_cum_reward,
+                new_valid_mask,
+            ]
+            return carry, [new_valid_mask, org_obs]
 
         # Scan over episode step loop
-        _, scan_out = jax.lax.scan(
+        carry_out, scan_out = jax.lax.scan(
             policy_step,
-            [state, policy_params, rng, hidden],
+            [
+                state,
+                policy_params,
+                rng,
+                hidden,
+                jnp.array([0.0]),
+                jnp.array([1.0]),
+            ],
             (),
             self.num_env_steps,
         )
         # Return masked sum of rewards accumulated by agent in episode
-        rewards, dones, all_obs = scan_out[0], scan_out[1], scan_out[2]
-        rewards = rewards.reshape(self.num_env_steps, 1)
-        ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
-        return jnp.sum(rewards), all_obs, ep_mask
+        ep_mask, all_obs = scan_out[0], scan_out[1]
+        cum_return = carry_out[-2].squeeze()
+        return cum_return, all_obs, ep_mask

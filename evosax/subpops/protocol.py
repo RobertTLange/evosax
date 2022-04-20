@@ -21,13 +21,12 @@ class Protocol(object):
 
         if self.communication == "independent":
             self.broadcast = self.independent
-        elif self.communication == "global_best":
-            self.broadcast = self.global_best
         elif self.communication == "best_subpop":
             self.broadcast = self.best_subpop
         else:
             raise ValueError(
-                f"{self.communication} is not currently an implemented protocol."
+                f"{self.communication} is not currently an implemented"
+                " protocol."
             )
 
     @partial(jax.jit, static_argnums=(0,))
@@ -37,7 +36,6 @@ class Protocol(object):
         """Simply return non-altered candidates & fitness."""
         return batch_x, batch_fitness
 
-
     @partial(jax.jit, static_argnums=(0,))
     def best_subpop(
         self, batch_x: chex.Array, batch_fitness: chex.Array
@@ -46,7 +44,9 @@ class Protocol(object):
         to the same as the subpop containing the globally best. Tie currently goes
         to whichever candidate comes first"""
         global_best_arg = batch_fitness.argmin()
-        best_subpop_ind = jnp.unravel_index(global_best_arg, batch_fitness.shape)[0]
+        best_subpop_ind = jnp.unravel_index(
+            global_best_arg, batch_fitness.shape
+        )[0]
 
         best_subpop_x = batch_x[best_subpop_ind]
         best_subpop_fitness = batch_fitness[best_subpop_ind]
@@ -56,4 +56,3 @@ class Protocol(object):
             batch_fitness = batch_fitness.at[i].set(best_subpop_fitness)
 
         return batch_x, batch_fitness
-

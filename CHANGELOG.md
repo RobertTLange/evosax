@@ -11,6 +11,7 @@
         - [ ] LM-CMA
         - [ ] VkD-CMA
     - [ ] sNES (separable)
+    - [ ] Simulated Annealing (https://www.sciencedirect.com/science/article/pii/S1877050915035759)
 - Encoding methods - via special reshape wrappers
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
