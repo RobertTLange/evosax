@@ -53,7 +53,7 @@ state["best_member"], state["best_fitness"]
 | LM-MA-ES | [Loshchilov et al. (2017)](https://arxiv.org/pdf/1705.06693.pdf) | [`LM_MA_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/lm_ma_es.py)  | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_classic_benchmark.ipynb)
 | RmES | [Li & Zhang (2017)](https://ieeexplore.ieee.org/document/8080257) | [`RmES`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/rm_es.py)  | *TBC*
 | GLD | [Golovin et al. (2019)](https://arxiv.org/pdf/1911.06317.pdf) | [`GLD`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/gld.py)  | *TBC*
-| Simulated Annealing | [Rasdi Rere et al. (2015)](https://www.sciencedirect.com/science/article/pii/S1877050915035759) | [`GLD`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/sim_anneal.py)  | *TBC*
+| Simulated Annealing | [Rasdi Rere et al. (2015)](https://www.sciencedirect.com/science/article/pii/S1877050915035759) | [`SimAnneal`](https://github.com/RobertTLange/evosax/tree/main/evosax/strategies/sim_anneal.py)  | *TBC*
 
 ## Installation ⏳
 
@@ -196,6 +196,28 @@ rng, rng_gen, rng_eval = jax.random.split(rng, 3)
 x, state = re_strategy.ask(rng_gen, state, params)
 fitness = ...  # Your population evaluation fct 
 state = re_strategy.tell(x, fitness, state, params)
+```
+
+- **Batch Strategy Rollouts**: *Work-in-progress*. We are currently also working on different ways of incorporating multiple subpopulations with different communication protocols.
+
+```Python
+from evosax import BatchStrategy
+
+# Instantiates 5 CMA-ES subpops of 20 members
+strategy = BatchStrategy(
+        strategy_name="CMA_ES",
+        num_dims=4096,
+        popsize=100,
+        num_subpops=5,
+        strategy_kwargs={"elite_ratio": 0.5},
+        communication="best_subpop",
+    )
+params = strategy.default_params
+state = strategy.initialize(rng, params)
+# Ask for evaluation candidates of different subpopulation ES
+x, state = strategy.ask(rng_iter, state, params)
+fitness = ...
+state = strategy.tell(x, fitness, state, params)
 ```
 
 ## Resources & Other Great JAX-ES Tools 📝
