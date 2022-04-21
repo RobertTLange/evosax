@@ -20,6 +20,7 @@ from .strategies import (
     LM_MA_ES,
     RmES,
     GLD,
+    SimAnneal,
 )
 
 
@@ -44,6 +45,7 @@ Strategies = {
     "LM_MA_ES": LM_MA_ES,
     "RmES": RmES,
     "GLD": GLD,
+    "SimAnneal": SimAnneal,
 }
 
 from .utils import FitnessShaper, ParameterReshaper, ESLog
@@ -73,6 +75,7 @@ __all__ = [
     "LM_MA_ES",
     "RmES",
     "GLD",
+    "SimAnneal",
     "Strategies",
     "FitnessShaper",
     "ParameterReshaper",
@@ -81,5 +84,5 @@ __all__ = [
     "ProblemMapper",
     "BatchStrategy",
     "Protocol",
-    "MetaStrategy"
+    "MetaStrategy",
 ]

@@ -18,6 +18,7 @@ from .ma_es import MA_ES
 from .lm_ma_es import LM_MA_ES
 from .rm_es import RmES
 from .gld import GLD
+from .sim_anneal import SimAnneal
 
 
 __all__ = [
@@ -41,4 +42,5 @@ __all__ = [
     "LM_MA_ES",
     "RmES",
     "GLD",
+    "SimAnneal",
 ]

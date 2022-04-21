@@ -11,7 +11,6 @@
         - [ ] LM-CMA
         - [ ] VkD-CMA
     - [ ] sNES (separable)
-    - [ ] Simulated Annealing (https://www.sciencedirect.com/science/article/pii/S1877050915035759)
 - Encoding methods - via special reshape wrappers
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
@@ -25,6 +24,7 @@
 - New strategies:
     - RmES (`RmES` following Li & Zhang, 2008).
     - Gradientless Descent (`GLD` following Golovin et al., 2020).
+    - Simulated Annealing (`SimAnneal` following Rasdi Rere et al., 2015)
 - Adds simultaneous batch strategy functionalities:
     - `BatchStrategy`: `vmap`/`pmap` distributed subpopulation rollout
     - `Protocol`: Communication protocol between subpopulations
