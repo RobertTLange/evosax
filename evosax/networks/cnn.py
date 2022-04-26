@@ -17,7 +17,7 @@ def conv_relu_block(
         features=features,
         kernel_size=kernel_size,
         strides=strides,
-        use_bias=False,
+        use_bias=True,
         padding=padding,
         bias_init=default_bias_init(),
     )(x)
@@ -52,9 +52,9 @@ class CNN(nn.Module):
     num_output_units: int = 10
     depth_1: int = 1
     depth_2: int = 1
-    features_1: int = 16
-    features_2: int = 8
-    kernel_1: int = 3
+    features_1: int = 8
+    features_2: int = 16
+    kernel_1: int = 5
     kernel_2: int = 5
     strides_1: int = 1
     strides_2: int = 1
@@ -103,9 +103,9 @@ class All_CNN_C(nn.Module):
     num_output_units: int = 10
     depth_1: int = 1
     depth_2: int = 1
-    features_1: int = 16
-    features_2: int = 8
-    kernel_1: int = 3
+    features_1: int = 8
+    features_2: int = 16
+    kernel_1: int = 5
     kernel_2: int = 5
     strides_1: int = 1
     strides_2: int = 1
@@ -139,6 +139,7 @@ class All_CNN_C(nn.Module):
             strides=(1, 1),
             use_bias=True,
             padding="SAME",
+            bias_init=default_bias_init(),
         )(x)
 
         # Global average pooling -> logits

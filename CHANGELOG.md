@@ -33,6 +33,7 @@
 ##### Changed
 
 - Renamed `crossover_rate` to `cross_over_rate` in DE to make consistent with `SimpleGA`.
+- Add option to add optional `env_params` to `GymFitness`, `seq_length` to addition and `permute_seq` for S-MNIST problem.
 
 ##### Fixed
 

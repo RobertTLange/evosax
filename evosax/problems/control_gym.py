@@ -13,6 +13,7 @@ class GymFitness(object):
         env_name: str = "CartPole-v1",
         num_env_steps: int = 200,
         num_rollouts: int = 16,
+        env_params: Optional[dict] = None,
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
@@ -33,6 +34,9 @@ class GymFitness(object):
                 " 'Acrobot-v1'."
             )
         self.env_params = self.env.default_params
+        if env_params is not None:
+            for k, v in env_params.items():
+                self.env_params[k] = v
         self.action_shape = self.env.action_shape
         self.input_shape = self.env.observation_shape
         if n_devices is None:

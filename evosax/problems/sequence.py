@@ -10,6 +10,8 @@ class SequenceFitness(object):
         self,
         task_name: str = "SeqMNIST",
         batch_size: int = 128,
+        seq_length: int = 150,  # Sequence length in addition task
+        permute_seq: bool = False,  # Permuted S-MNIST task option
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
@@ -21,14 +23,20 @@ class SequenceFitness(object):
         # Setup task-specific input/output shapes and loss fn
         if self.task_name == "SeqMNIST":
             self.action_shape = 10
+            self.permute_seq = permute_seq
+            self.seq_length = 784
             self.loss_fn = partial(loss_and_acc, num_classes=10)
         elif self.task_name == "Addition":
             self.action_shape = 1
+            self.permute_seq = False
+            self.seq_length = seq_length
             self.loss_fn = loss_and_mae
         else:
             raise ValueError("Dataset is not supported.")
 
-        data = get_array_data(self.task_name, self.test)
+        data = get_array_data(
+            self.task_name, self.seq_length, self.permute_seq, self.test
+        )
         self.dataloader = BatchLoader(*data, batch_size=self.batch_size)
         self.num_rnn_steps = self.dataloader.data_shape[1]
 
@@ -200,14 +208,13 @@ def get_smnist_loaders(test: bool = False):
     return loader
 
 
-def get_adding_data(test: bool = False):
+def get_adding_data(T: int = 150, test: bool = False):
     """
     Sample a mask, [0, 1] samples and sum of targets for len T.
     Reference:  Martens & Sutskever. ICML, 2011.
     """
     rng = jax.random.PRNGKey(0)
     bs = 100000 if test else 10000
-    T = 150
 
     def get_single_addition(rng, T):
         rng_numb, rng_mask = jax.random.split(rng)
@@ -224,14 +231,28 @@ def get_adding_data(test: bool = False):
     return data, target
 
 
-def get_array_data(task_name: str = "SMNIST", test: bool = False):
+def get_array_data(
+    task_name: str = "SMNIST",
+    seq_length: int = 150,
+    permute_seq: bool = False,
+    test: bool = False,
+):
     """Get raw data arrays to subsample from."""
     if task_name == "SeqMNIST":
         loader = get_smnist_loaders(test)
         for _, (data, target) in enumerate(loader):
             break
+        data, target = jnp.array(data), jnp.array(target)
+
+        # Permute the sequence of the pixels if desired.
+        if permute_seq:  # bs, T - fix permutation by seed
+            rng = jax.random.PRNGKey(0)
+            idx = jnp.arange(784)
+            idx_perm = jax.random.permutation(rng, idx)
+            data = data.at[:].set(data[:, idx_perm])
     elif task_name == "Addition":
-        data, target = get_adding_data(test)
+        data, target = get_adding_data(seq_length, test)
+        data, target = jnp.array(data), jnp.array(target)
     else:
         raise ValueError("Dataset is not supported.")
-    return jnp.array(data), jnp.array(target)
+    return data, target
