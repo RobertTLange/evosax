@@ -2,7 +2,7 @@ import jax.numpy as jnp
 from flax import linen as nn
 import chex
 from typing import Tuple
-from .shared import default_bias_init
+from .shared import default_bias_init, kernel_init_fn
 
 
 def conv_relu_block(
@@ -11,6 +11,7 @@ def conv_relu_block(
     kernel_size: Tuple[int, int],
     strides: Tuple[int, int],
     padding: str = "SAME",
+    kernel_init_type: str = "lecun_normal",
 ) -> chex.Array:
     """Convolution layer + ReLU activation."""
     x = nn.Conv(
@@ -20,6 +21,7 @@ def conv_relu_block(
         use_bias=True,
         padding=padding,
         bias_init=default_bias_init(),
+        kernel_init=kernel_init_fn[kernel_init_type](),
     )(x)
     x = nn.relu(x)
     return x
@@ -31,6 +33,7 @@ def conv_relu_pool_block(
     kernel_size: Tuple[int, int],
     strides: Tuple[int, int],
     padding: str = "SAME",
+    kernel_init_type: str = "lecun_normal",
 ) -> chex.Array:
     """Convolution layer + ReLU activation + Avg. Pooling."""
     x = nn.Conv(
@@ -40,6 +43,7 @@ def conv_relu_pool_block(
         use_bias=True,
         padding=padding,
         bias_init=default_bias_init(),
+        kernel_init=kernel_init_fn[kernel_init_type](),
     )(x)
     x = nn.relu(x)
     x = nn.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
@@ -60,6 +64,7 @@ class CNN(nn.Module):
     strides_2: int = 1
     num_linear_layers: int = 1
     num_hidden_units: int = 16
+    kernel_init_type: str = "lecun_normal"
     model_name: str = "CNN"
 
     @nn.compact
@@ -71,6 +76,7 @@ class CNN(nn.Module):
                 self.features_1,
                 (self.kernel_1, self.kernel_1),
                 (self.strides_1, self.strides_1),
+                kernel_init_type=self.kernel_init_type,
             )
 
         # Block In 2:
@@ -80,6 +86,7 @@ class CNN(nn.Module):
                 self.features_2,
                 (self.kernel_2, self.kernel_2),
                 (self.strides_2, self.strides_2),
+                kernel_init_type=self.kernel_init_type,
             )
         x = x.reshape((x.shape[0], -1))
         # Squeeze and linear layers
@@ -87,11 +94,13 @@ class CNN(nn.Module):
             x = nn.Dense(
                 features=self.num_hidden_units,
                 bias_init=default_bias_init(),
+                kernel_init=kernel_init_fn[self.kernel_init_type](),
             )(x)
             x = nn.relu(x)
         x = nn.Dense(
             features=self.num_output_units,
             bias_init=default_bias_init(),
+            kernel_init=kernel_init_fn[self.kernel_init_type](),
         )(x)
         return x
 
@@ -110,6 +119,7 @@ class All_CNN_C(nn.Module):
     strides_1: int = 1
     strides_2: int = 1
     final_window: Tuple[int, int] = (28, 28)
+    kernel_init_type: str = "lecun_normal"
     model_name: str = "All_CNN_C"
 
     @nn.compact
@@ -121,6 +131,7 @@ class All_CNN_C(nn.Module):
                 self.features_1,
                 (self.kernel_1, self.kernel_1),
                 (self.strides_1, self.strides_1),
+                kernel_init_type=self.kernel_init_type,
             )
 
         # Block In 2:
@@ -130,6 +141,7 @@ class All_CNN_C(nn.Module):
                 self.features_2,
                 (self.kernel_2, self.kernel_2),
                 (self.strides_2, self.strides_2),
+                kernel_init_type=self.kernel_init_type,
             )
 
         # Block Out: 1 × 1 conv. num_outputs-ReLu ×n
@@ -140,6 +152,7 @@ class All_CNN_C(nn.Module):
             use_bias=True,
             padding="SAME",
             bias_init=default_bias_init(),
+            kernel_init=kernel_init_fn[self.kernel_init_type](),
         )(x)
 
         # Global average pooling -> logits

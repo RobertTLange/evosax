@@ -34,6 +34,7 @@
 
 - Renamed `crossover_rate` to `cross_over_rate` in DE to make consistent with `SimpleGA`.
 - Add option to add optional `env_params` to `GymFitness`, `seq_length` to addition and `permute_seq` for S-MNIST problem.
+- Network classes now support different initializers for the kernels using the `kernel_init_type` string option. By default we follow flax's choice in `lecun_normal`.
 
 ##### Fixed
 

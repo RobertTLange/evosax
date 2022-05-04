@@ -4,6 +4,7 @@ import chex
 from typing import Optional
 from functools import partial
 from .obs_norm import ObsNormalizer
+from .modified_ant import create_modified_ant_env
 
 
 class BraxFitness(object):
@@ -29,7 +30,7 @@ class BraxFitness(object):
         self.steps_per_member = num_env_steps * num_rollouts
         self.test = test
 
-        assert self.env_name in [
+        if self.env_name in [
             "ant",
             "halfcheetah",
             "hopper",
@@ -39,14 +40,16 @@ class BraxFitness(object):
             "fetch",
             "grasp",
             "ur5e",
-        ]
+        ]:
+            # Define the RL environment & network forward fucntion
+            self.env = envs.create(
+                env_name=self.env_name,
+                episode_length=num_env_steps,
+                legacy_spring=legacy_spring,
+            )
+        elif self.env_name == "modified-ant":
+            self.env = create_modified_ant_env()
 
-        # Define the RL environment & network forward fucntion
-        self.env = envs.create(
-            env_name=self.env_name,
-            episode_length=num_env_steps,
-            legacy_spring=legacy_spring,
-        )
         self.action_shape = self.env.action_size
         self.input_shape = (self.env.observation_size,)
         self.obs_normalizer = ObsNormalizer(

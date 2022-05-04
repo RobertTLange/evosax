@@ -6,6 +6,7 @@ from .shared import (
     categorical_out,
     gaussian_out,
     default_bias_init,
+    kernel_init_fn,
 )
 
 
@@ -17,6 +18,7 @@ class MLP(nn.Module):
     num_output_units: int = 1
     hidden_activation: str = "relu"
     output_activation: str = "identity"
+    kernel_init_type: str = "lecun_normal"
     model_name: str = "MLP"
 
     @nn.compact
@@ -24,6 +26,7 @@ class MLP(nn.Module):
         for l in range(self.num_hidden_layers):
             x = nn.Dense(
                 features=self.num_hidden_units,
+                kernel_init=kernel_init_fn[self.kernel_init_type](),
                 bias_init=default_bias_init(),
             )(x)
             if self.hidden_activation == "relu":
@@ -36,10 +39,14 @@ class MLP(nn.Module):
                 x = nn.softplus(x)
 
         if self.output_activation == "identity":
-            return identity_out(x, self.num_output_units)
+            return identity_out(x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "tanh":
-            return tanh_out(x, self.num_output_units)
+            return tanh_out(x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "categorical":
-            return categorical_out(rng, x, self.num_output_units)
+            return categorical_out(
+                rng, x, self.num_output_units, self.kernel_init_type
+            )
         elif self.output_activation == "gaussian":
-            return gaussian_out(rng, x, self.num_output_units)
+            return gaussian_out(
+                rng, x, self.num_output_units, self.kernel_init_type
+            )
