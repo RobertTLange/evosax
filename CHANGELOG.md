@@ -1,8 +1,8 @@
 ### Work-in-Progress
 
+- [ ] Make modified ant more flexible with config dict
 - [ ] Add batch/meta strategy notebook
-- [ ] Add brax example notebook
-- [ ] Add batch strategy wrapper
+- [ ] Add brax example notebook with visualization
 - [ ] Change network wrapper to work with list of hidden neurons?
 - [ ] Make `weights` and `weights_truncated` part of CMA-ES state due to shape dependence, Clean up BIPOP/IPOP ask afterwards
 - [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
@@ -12,15 +12,17 @@
         - [ ] VkD-CMA
     - [ ] sNES (separable)
 - Encoding methods - via special reshape wrappers
+    - [ ] Random projection embeddings (Gaussian, Rademacher)
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
 
-### [v0.0.5] - [TBD]
+### [v0.0.5] - [22/05/2022]
 
 ##### Added
 
 - Adds sequential problems (SeqMNIST and MNIST) to evaluation wrappers.
 - Adds Acrobot task to `GymFitness` rollout wrappers.
+- Adds modified Ant environment to Brax rollout.
 - New strategies:
     - RmES (`RmES` following Li & Zhang, 2008).
     - Gradientless Descent (`GLD` following Golovin et al., 2020).

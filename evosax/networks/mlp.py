@@ -1,5 +1,6 @@
 from flax import linen as nn
 import chex
+from typing import Optional
 from .shared import (
     identity_out,
     tanh_out,
@@ -22,7 +23,9 @@ class MLP(nn.Module):
     model_name: str = "MLP"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey) -> chex.Array:
+    def __call__(
+        self, x: chex.Array, rng: Optional[chex.PRNGKey] = None
+    ) -> chex.Array:
         for l in range(self.num_hidden_layers):
             x = nn.Dense(
                 features=self.num_hidden_units,
