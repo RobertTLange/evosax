@@ -22,6 +22,9 @@ from .strategies import (
     GLD,
     SimAnneal,
 )
+from .utils import FitnessShaper, ParameterReshaper, ESLog
+from .networks import NetworkMapper
+from .problems import ProblemMapper
 
 
 Strategies = {
@@ -47,10 +50,6 @@ Strategies = {
     "GLD": GLD,
     "SimAnneal": SimAnneal,
 }
-
-from .utils import FitnessShaper, ParameterReshaper, ESLog
-from .networks import NetworkMapper
-from .problems import ProblemMapper
 
 __all__ = [
     "Strategy",

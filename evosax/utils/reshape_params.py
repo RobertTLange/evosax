@@ -9,7 +9,7 @@ from flax.traverse_util import flatten_dict, unflatten_dict
 class ParameterReshaper(object):
     def __init__(
         self,
-        placeholder_params: Union[chex.ArrayTree, None] = None,
+        placeholder_params: Union[chex.ArrayTree, chex.Array],
         identity: bool = False,
         n_devices: Optional[int] = None,
     ):
