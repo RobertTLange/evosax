@@ -3,8 +3,8 @@ import jax.numpy as jnp
 from functools import partial
 from typing import Optional
 import chex
-from .gym.cartpole import CartPole
-from .gym.acrobot import Acrobot
+from .cartpole import CartPole
+from .acrobot import Acrobot
 
 
 class GymFitness(object):

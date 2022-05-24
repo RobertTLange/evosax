@@ -34,7 +34,15 @@ class State:
 - Think about restructuring everything for more scalability!
     - Want to be able to pmap ask/tell call so that parameters are directly sampled on device? But this is probably not so easy for tell call since we need simple all reduce way to aggregate results w/o drastic memory increase. Gradients are sooo much easier to deal with in a distributed setting (simply average across devices) :) 
 
+### [v0.0.8] - [24/05/2022]
+
+##### Fixed
+
+- Fix gym import bug and codecov patch tolerance.
+
 ### [v0.0.7] - [24/05/2022]
+
+##### Fixed
 
 - Bug due to `subpops` import in `experimental`.
 

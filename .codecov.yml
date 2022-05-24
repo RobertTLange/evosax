@@ -11,6 +11,9 @@ coverage:
     project: # settings affecting project coverage
       default:
         threshold: 5%  # allow for 5% reduction of coverage without failing
+    patch:
+      default:
+        target: 80%  # new contributions should have a coverage at least equal to target
 
 comment:
   layout: "reach, diff, files"
