@@ -19,6 +19,7 @@
 - Encoding methods - via special reshape wrappers
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
+    - `RandomDecoder` embeddings (Gaussian, Rademacher)
 
 - Add encoding/decoding notebook
 
@@ -33,15 +34,18 @@ class State:
 - Think about restructuring everything for more scalability!
     - Want to be able to pmap ask/tell call so that parameters are directly sampled on device? But this is probably not so easy for tell call since we need simple all reduce way to aggregate results w/o drastic memory increase. Gradients are sooo much easier to deal with in a distributed setting (simply average across devices) :) 
 
-### [v0.0.6] - [TBC]
+### [v0.0.6] - [24/05/2022]
 
 ##### Added
 
-- Encoding methods - via special reshape wrappers
-    - `RandomDecoder` embeddings (Gaussian, Rademacher)
+- Adds basic encoding method in `experimental` - via special reshape wrappers: `RandomDecoder` embeddings (Gaussian, Rademacher)
 
+##### Fixed
+
+- Fix import of modified ant environment. Broke due to optional brax dependence.
 ##### Changed
 
+- Restructure batch strategies into `experimental`
 - Make ant modified more flexible with configuration dict option (`modify_dict`)
 
 ### [v0.0.5] - [22/05/2022]

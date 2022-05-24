@@ -2,9 +2,7 @@ import jax
 import jax.numpy as jnp
 import chex
 from typing import Optional
-from functools import partial
 from .obs_norm import ObsNormalizer
-from .modified_ant import create_modified_ant_env
 
 
 class BraxFitness(object):
@@ -49,6 +47,8 @@ class BraxFitness(object):
                 legacy_spring=legacy_spring,
             )
         elif self.env_name == "modified-ant":
+            from .modified_ant import create_modified_ant_env
+
             self.env = create_modified_ant_env(modify_dict)
 
         self.action_shape = self.env.action_size
