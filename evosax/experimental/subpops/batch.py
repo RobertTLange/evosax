@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Optional, Tuple
 from functools import partial
-from .. import Strategies
+from ... import Strategies
 from .protocol import Protocol
 
 

@@ -4,7 +4,7 @@ from typing import Optional, Tuple, List
 import chex
 from functools import partial
 from .batch import BatchStrategy
-from .. import Strategies
+from ... import Strategies
 
 
 class MetaStrategy(BatchStrategy):

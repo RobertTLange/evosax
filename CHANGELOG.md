@@ -34,11 +34,15 @@ class State:
 - Think about restructuring everything for more scalability!
     - Want to be able to pmap ask/tell call so that parameters are directly sampled on device? But this is probably not so easy for tell call since we need simple all reduce way to aggregate results w/o drastic memory increase. Gradients are sooo much easier to deal with in a distributed setting (simply average across devices) :) 
 
+### [v0.0.7] - [24/05/2022]
+
+- Bug due to `subpops` import in `experimental`.
+
 ### [v0.0.6] - [24/05/2022]
 
 ##### Added
 
-- Adds basic encoding method in `experimental` - via special reshape wrappers: `RandomDecoder` embeddings (Gaussian, Rademacher)
+- Adds basic indirect encoding method in `experimental` - via special reshape wrappers: `RandomDecoder` embeddings (Gaussian, Rademacher)
 
 ##### Fixed
 
