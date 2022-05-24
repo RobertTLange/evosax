@@ -1,5 +1,4 @@
 # Repo-specific excludes
-experimental
 cma_es_grid.sh
 eval/
 

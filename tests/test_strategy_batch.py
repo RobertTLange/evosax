@@ -1,10 +1,7 @@
-import sys
-
 import jax
 import jax.numpy as jnp
 import numpy as np
-from evosax.subpops import BatchStrategy, MetaStrategy
-import pdb
+from evosax.experimental.subpops import BatchStrategy, MetaStrategy
 
 
 def test_batch_strategy():

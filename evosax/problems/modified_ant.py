@@ -93,309 +93,309 @@ class ModifiedAnt(env.Env):
 
 
 _CONFIG_MODIFIED = """
-bodies {
+bodies {{
   name: "$ Torso"
-  colliders {
-    capsule {
+  colliders {{
+    capsule {{
       radius: 0.25
       length: 0.5
       end: 1
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
-  mass: 15
-}
-bodies {
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
+  mass: {torso_mass}
+}}
+bodies {{
   name: "Aux 1"
-  colliders {
-    rotation { x: 90 y: -45 }
-    capsule {
+  colliders {{
+    rotation {{ x: 90 y: -45 }}
+    capsule {{
       radius: 0.08
       length: 0.4428427219390869
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-}
-bodies {
+}}
+bodies {{
   name: "$ Body 4"
-  colliders {
-    rotation { x: 90 y: -45 }
-    capsule {
+  colliders {{
+    rotation {{ x: 90 y: -45 }}
+    capsule {{
       radius: 0.08
       length: 0.7256854176521301
       end: -1
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-}
-bodies {
+}}
+bodies {{
   name: "Aux 2"
-  colliders {
-    rotation { x: 90 y: 45 }
-    capsule {
+  colliders {{
+    rotation {{ x: 90 y: 45 }}
+    capsule {{
       radius: 0.08
       length: 0.4428427219390869
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-}
-bodies {
+}}
+bodies {{
   name: "$ Body 7"
-  colliders {
-    rotation { x: 90 y: 45 }
-    capsule {
+  colliders {{
+    rotation {{ x: 90 y: 45 }}
+    capsule {{
       radius: 0.08
       length: 0.7256854176521301
       end: -1
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-}
-bodies {
+}}
+bodies {{
   name: "Aux 3"
-  colliders {
-    rotation { x: -90 y: 45 }
-    capsule {
+  colliders {{
+    rotation {{ x: -90 y: 45 }}
+    capsule {{
       radius: 0.08
       length: 0.4428427219390869
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-}
-bodies {
+}}
+bodies {{
   name: "$ Body 10"
-  colliders {
-    rotation { x: -90 y: 45 }
-    capsule {
+  colliders {{
+    rotation {{ x: -90 y: 45 }}
+    capsule {{
       radius: 0.08
       length: 0.7256854176521301
       end: -1
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-}
-bodies {
+}}
+bodies {{
   name: "Aux 4"
-  colliders {
-    rotation { x: -90 y: -45 }
-    capsule {
+  colliders {{
+    rotation {{ x: -90 y: -45 }}
+    capsule {{
       radius: 0.08
       length: 0.4428427219390869
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-}
-bodies {
+}}
+bodies {{
   name: "$ Body 13"
-  colliders {
-    rotation { x: -90 y: -45 }
-    capsule {
+  colliders {{
+    rotation {{ x: -90 y: -45 }}
+    capsule {{
       radius: 0.08
       length: 0.7256854176521301
       end: -1
-    }
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+    }}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-}
-bodies {
+}}
+bodies {{
   name: "Ground"
-  colliders {
-    plane {}
-  }
-  inertia { x: 1.0 y: 1.0 z: 1.0 }
+  colliders {{
+    plane {{}}
+  }}
+  inertia {{ x: 1.0 y: 1.0 z: 1.0 }}
   mass: 1
-  frozen { all: true }
-}
-joints {
+  frozen {{ all: true }}
+}}
+joints {{
   name: "$ Torso_Aux 1"
-  parent_offset { x: 0.2 y: 0.2 }
-  child_offset { x: -0.1 y: -0.1 }
+  parent_offset {{ x: 0.2 y: 0.2 }}
+  child_offset {{ x: -0.1 y: -0.1 }}
   parent: "$ Torso"
   child: "Aux 1"
   stiffness: 18000.0
   angular_damping: 20
   spring_damping: 80
-  angle_limit { min: -30.0 max: 30.0 }
-  rotation { y: -90 }
-}
-joints {
+  angle_limit {{ min: -30.0 max: 30.0 }}
+  rotation {{ y: -90 }}
+}}
+joints {{
   name: "Aux 1_$ Body 4"
-  parent_offset { x: 0.1 y: 0.1 }
-  child_offset { x: -0.2 y: -0.2 }
+  parent_offset {{ x: 0.1 y: 0.1 }}
+  child_offset {{ x: -0.2 y: -0.2 }}
   parent: "Aux 1"
   child: "$ Body 4"
   stiffness: 18000.0
   angular_damping: 20
   spring_damping: 80
-  rotation: { z: 135 }
-  angle_limit {
+  rotation: {{ z: 135 }}
+  angle_limit {{
     min: 30.0
     max: 70.0
-  }
-}
-joints {
+  }}
+}}
+joints {{
   name: "$ Torso_Aux 2"
-  parent_offset { x: -0.2 y: 0.2 }
-  child_offset { x: 0.1 y: -0.1 }
+  parent_offset {{ x: -0.2 y: 0.2 }}
+  child_offset {{ x: 0.1 y: -0.1 }}
   parent: "$ Torso"
   child: "Aux 2"
   stiffness: 18000.0
   angular_damping: 20
   spring_damping: 80
-  rotation { y: -90 }
-  angle_limit { min: -30.0 max: 30.0 }
-}
-joints {
+  rotation {{ y: -90 }}
+  angle_limit {{ min: -30.0 max: 30.0 }}
+}}
+joints {{
   name: "Aux 2_$ Body 7"
-  parent_offset { x: -0.1 y: 0.1 }
-  child_offset { x: 0.2 y: -0.2 }
+  parent_offset {{ x: -0.1 y: 0.1 }}
+  child_offset {{ x: 0.2 y: -0.2 }}
   parent: "Aux 2"
   child: "$ Body 7"
   stiffness: 18000.0
   angular_damping: 20
   spring_damping: 80
-  rotation { z: 45 }
-  angle_limit { min: -70.0 max: -30.0 }
-}
-joints {
+  rotation {{ z: 45 }}
+  angle_limit {{ min: -70.0 max: -30.0 }}
+}}
+joints {{
   name: "$ Torso_Aux 3"
-  parent_offset { x: -0.2 y: -0.2 }
-  child_offset { x: 0.1 y: 0.1 }
+  parent_offset {{ x: -0.2 y: -0.2 }}
+  child_offset {{ x: 0.1 y: 0.1 }}
   parent: "$ Torso"
   child: "Aux 3"
   stiffness: 18000.0
   angular_damping: 20
   spring_damping: 80
-  rotation { y: -90 }
-  angle_limit { min: -30.0 max: 30.0 }
-}
-joints {
+  rotation {{ y: -90 }}
+  angle_limit {{ min: -30.0 max: 30.0 }}
+}}
+joints {{
   name: "Aux 3_$ Body 10"
-  parent_offset { x: -0.1 y: -0.1 }
-  child_offset {
+  parent_offset {{ x: -0.1 y: -0.1 }}
+  child_offset {{
     x: 0.2
     y: 0.2
-  }
+  }}
   parent: "Aux 3"
   child: "$ Body 10"
   stiffness: 18000.0
   angular_damping: 20
   spring_damping: 80
-  rotation { z: 135 }
-  angle_limit { min: -70.0 max: -30.0 }
-}
-joints {
+  rotation {{ z: 135 }}
+  angle_limit {{ min: -70.0 max: -30.0 }}
+}}
+joints {{
   name: "$ Torso_Aux 4"
-  parent_offset { x: 0.2 y: -0.2 }
-  child_offset { x: -0.1 y: 0.1 }
+  parent_offset {{ x: 0.2 y: -0.2 }}
+  child_offset {{ x: -0.1 y: 0.1 }}
   parent: "$ Torso"
   child: "Aux 4"
   stiffness: 18000.0
   angular_damping: 20
   spring_damping: 80
-  rotation { y: -90 }
-  angle_limit { min: -30.0 max: 30.0 }
-}
-joints {
+  rotation {{ y: -90 }}
+  angle_limit {{ min: -30.0 max: 30.0 }}
+}}
+joints {{
   name: "Aux 4_$ Body 13"
-  parent_offset { x: 0.1 y: -0.1 }
-  child_offset { x: -0.2 y: 0.2 }
+  parent_offset {{ x: 0.1 y: -0.1 }}
+  child_offset {{ x: -0.2 y: 0.2 }}
   parent: "Aux 4"
   child: "$ Body 13"
   stiffness: 18000.0
   angular_damping: 20
   spring_damping: 80
-  rotation { z: 45 }
-  angle_limit { min: 30.0 max: 70.0 }
-}
-actuators {
+  rotation {{ z: 45 }}
+  angle_limit {{ min: 30.0 max: 70.0 }}
+}}
+actuators {{
   name: "$ Torso_Aux 1"
   joint: "$ Torso_Aux 1"
   strength: 350.0
-  torque {}
-}
-actuators {
+  torque {{}}
+}}
+actuators {{
   name: "Aux 1_$ Body 4"
   joint: "Aux 1_$ Body 4"
   strength: 350.0
-  torque {}
-}
-actuators {
+  torque {{}}
+}}
+actuators {{
   name: "$ Torso_Aux 2"
   joint: "$ Torso_Aux 2"
   strength: 350.0
-  torque {}
-}
-actuators {
+  torque {{}}
+}}
+actuators {{
   name: "Aux 2_$ Body 7"
   joint: "Aux 2_$ Body 7"
   strength: 350.0
-  torque {}
-}
-actuators {
+  torque {{}}
+}}
+actuators {{
   name: "$ Torso_Aux 3"
   joint: "$ Torso_Aux 3"
   strength: 350.0
-  torque {}
-}
-actuators {
+  torque {{}}
+}}
+actuators {{
   name: "Aux 3_$ Body 10"
   joint: "Aux 3_$ Body 10"
   strength: 350.0
-  torque {}
-}
-actuators {
+  torque {{}}
+}}
+actuators {{
   name: "$ Torso_Aux 4"
   joint: "$ Torso_Aux 4"
   strength: 350.0
-  torque {}
-}
-actuators {
+  torque {{}}
+}}
+actuators {{
   name: "Aux 4_$ Body 13"
   joint: "Aux 4_$ Body 13"
   strength: 350.0
-  torque {}
-}
+  torque {{}}
+}}
 friction: 1.0
-gravity { z: -9.8 }
+gravity {{ z: -9.8 }}
 angular_damping: -0.05
 baumgarte_erp: 0.1
-collide_include {
+collide_include {{
   first: "$ Torso"
   second: "Ground"
-}
-collide_include {
+}}
+collide_include {{
   first: "$ Body 4"
   second: "Ground"
-}
-collide_include {
+}}
+collide_include {{
   first: "$ Body 7"
   second: "Ground"
-}
-collide_include {
+}}
+collide_include {{
   first: "$ Body 10"
   second: "Ground"
-}
-collide_include {
+}}
+collide_include {{
   first: "$ Body 13"
   second: "Ground"
-}
-dt: 0.05
+}}
+dt: {dt}
 substeps: 10
 dynamics_mode: "legacy_spring"
 """
 
 
 def create_modified_ant_env(
-    config: str = _CONFIG_MODIFIED,
+    modify_dict: dict = {},
     episode_length: int = 1000,
     action_repeat: int = 1,
     auto_reset: bool = True,
@@ -404,6 +404,12 @@ def create_modified_ant_env(
     **kwargs
 ):
     """Creates a config modified Ant Env with a specified brax system."""
+    default_settings = {"torso_mass": 15, "dt": 0.05}
+    for k, v in default_settings.items():
+        if k not in modify_dict.keys():
+            modify_dict[k] = v
+    config = _CONFIG_MODIFIED.format(**modify_dict)
+
     env = ModifiedAnt(config, **kwargs)
     if episode_length is not None:
         env = wrappers.EpisodeWrapper(env, episode_length, action_repeat)

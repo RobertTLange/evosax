@@ -26,12 +26,12 @@ def test_reshape_lstm():
     assert reshaper.total_params == 851
 
     # Test population batch matrix reshaping
-    test_params = jnp.zeros((100, 531))
+    test_params = jnp.zeros((100, 851))
     out = reshaper.reshape(test_params)
     assert out["LSTMCell_0"]["hf"]["kernel"].shape == (100, 10, 10)
 
     # Test single network vector reshaping
-    test_single = jnp.zeros(531)
+    test_single = jnp.zeros(851)
     out = reshaper.reshape_single(test_single)
     assert out["LSTMCell_0"]["hf"]["kernel"].shape == (10, 10)
 

@@ -1,20 +1,52 @@
 ### Work-in-Progress
 
-- [ ] Make modified ant more flexible with config dict
 - [ ] Add batch/meta strategy notebook
+
 - [ ] Add brax example notebook with visualization
+
 - [ ] Change network wrapper to work with list of hidden neurons?
+
 - [ ] Make `weights` and `weights_truncated` part of CMA-ES state due to shape dependence, Clean up BIPOP/IPOP ask afterwards
+
 - [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
+
 - More strategies
     - [ ] Large-scale CMA-ES variants
         - [ ] LM-CMA
         - [ ] VkD-CMA
     - [ ] sNES (separable)
+
 - Encoding methods - via special reshape wrappers
-    - [ ] Random projection embeddings (Gaussian, Rademacher)
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
+    - `RandomDecoder` embeddings (Gaussian, Rademacher)
+
+- Add encoding/decoding notebook
+
+- Think about restructuring `es_state` and `es_params` into flax data structures via 
+```
+from flax import struct
+@struct.dataclass
+class State:
+    ...
+```
+
+- Think about restructuring everything for more scalability!
+    - Want to be able to pmap ask/tell call so that parameters are directly sampled on device? But this is probably not so easy for tell call since we need simple all reduce way to aggregate results w/o drastic memory increase. Gradients are sooo much easier to deal with in a distributed setting (simply average across devices) :) 
+
+### [v0.0.6] - [24/05/2022]
+
+##### Added
+
+- Adds basic encoding method in `experimental` - via special reshape wrappers: `RandomDecoder` embeddings (Gaussian, Rademacher)
+
+##### Fixed
+
+- Fix import of modified ant environment. Broke due to optional brax dependence.
+##### Changed
+
+- Restructure batch strategies into `experimental`
+- Make ant modified more flexible with configuration dict option (`modify_dict`)
 
 ### [v0.0.5] - [22/05/2022]
 
