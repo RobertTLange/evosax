@@ -95,7 +95,7 @@ class GymFitness(object):
             """lax.scan compatible step transition in jax env."""
             obs, state, policy_params, rng = state_input
             rng, rng_step, rng_net = jax.random.split(rng, 3)
-            action = self.network({"params": policy_params}, obs, rng=rng_net)
+            action = self.network(policy_params, obs, rng=rng_net)
             # action = jnp.nan_to_num(action, nan=0.0)
             next_o, next_s, reward, done, _ = self.env.step(
                 rng_step, state, action, self.env_params
@@ -131,9 +131,7 @@ class GymFitness(object):
             """lax.scan compatible step transition in jax env."""
             obs, state, policy_params, rng, hidden = state_input
             rng, rng_step, rng_net = jax.random.split(rng, 3)
-            hidden, action = self.network(
-                {"params": policy_params}, obs, hidden, rng_net
-            )
+            hidden, action = self.network(policy_params, obs, hidden, rng_net)
             next_o, next_s, reward, done, _ = self.env.step(
                 rng_step, state, action, self.env_params
             )

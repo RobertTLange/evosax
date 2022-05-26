@@ -148,9 +148,7 @@ class BraxFitness(object):
             norm_obs = self.obs_normalizer.normalize_obs(
                 org_obs, self.obs_params
             )
-            action = self.network(
-                {"params": policy_params}, norm_obs, rng=rng_net
-            )
+            action = self.network(policy_params, norm_obs, rng=rng_net)
             next_s = self.env.step(state, action)
             new_cum_reward = cum_reward + next_s.reward * valid_mask
             new_valid_mask = valid_mask * (1 - next_s.done.ravel())
@@ -194,7 +192,7 @@ class BraxFitness(object):
                 state.obs, self.obs_params
             )
             hidden, action = self.network(
-                {"params": policy_params}, norm_obs, hidden, rng_net
+                policy_params, norm_obs, hidden, rng_net
             )
             next_s = self.env.step(state, action)
             new_cum_reward = cum_reward + next_s.reward * valid_mask

@@ -52,7 +52,7 @@ def test_env_ffw_rollout(env_name: str):
         x=pholder,
         rng=rng,
     )
-    reshaper = ParameterReshaper(net_params["params"])
+    reshaper = ParameterReshaper(net_params)
     evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
 
     strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
@@ -94,7 +94,7 @@ def test_env_rec_rollout(env_name: str):
         carry=carry_init,
         rng=rng,
     )
-    reshaper = ParameterReshaper(net_params["params"])
+    reshaper = ParameterReshaper(net_params)
     evaluator.set_apply_fn(
         reshaper.vmap_dict, network.apply, network.initialize_carry
     )
@@ -134,7 +134,7 @@ def test_vision_fitness():
         rng=rng,
     )
 
-    reshaper = ParameterReshaper(net_params["params"])
+    reshaper = ParameterReshaper(net_params)
     evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
 
     strategy = ARS(popsize=4, num_dims=reshaper.total_params, elite_ratio=0.5)
@@ -163,7 +163,7 @@ def test_sequence_fitness():
         carry=network.initialize_carry(),
         rng=rng,
     )
-    param_reshaper = ParameterReshaper(params["params"])
+    param_reshaper = ParameterReshaper(params)
     evaluator.set_apply_fn(
         param_reshaper.vmap_dict,
         network.apply,

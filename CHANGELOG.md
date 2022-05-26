@@ -1,13 +1,10 @@
 ### Work-in-Progress
 
 - [ ] Add batch/meta strategy notebook
-
 - [ ] Add brax example notebook with visualization
-
+- [ ] Add encoding/decoding notebook
 - [ ] Change network wrapper to work with list of hidden neurons?
-
 - [ ] Make `weights` and `weights_truncated` part of CMA-ES state due to shape dependence, Clean up BIPOP/IPOP ask afterwards
-
 - [ ] How can we make restart wrappers be jittable (problem of non-static population sizes)?
 
 - More strategies
@@ -19,9 +16,6 @@
 - Encoding methods - via special reshape wrappers
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
-    - `RandomDecoder` embeddings (Gaussian, Rademacher)
-
-- Add encoding/decoding notebook
 
 - Think about restructuring `es_state` and `es_params` into flax data structures via 
 ```
@@ -33,6 +27,16 @@ class State:
 
 - Think about restructuring everything for more scalability!
     - Want to be able to pmap ask/tell call so that parameters are directly sampled on device? But this is probably not so easy for tell call since we need simple all reduce way to aggregate results w/o drastic memory increase. Gradients are sooo much easier to deal with in a distributed setting (simply average across devices) :) 
+
+### [v0.0.9] - [TBC]
+
+##### Added
+
+##### Fixed
+
+##### Changed
+
+- Change problem wrappers to work with `{"params": ...}` dictionary. No longer need to define `ParameterReshaper(net_params["params"])` to work without preselecting "params". Changed tests and notebooks accordingly.
 
 ### [v0.0.8] - [24/05/2022]
 

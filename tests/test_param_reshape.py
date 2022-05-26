@@ -21,19 +21,19 @@ def test_reshape_lstm():
         rng=rng,
     )
 
-    reshaper = ParameterReshaper(net_params["params"])
+    reshaper = ParameterReshaper(net_params)
     # net_params["params"]["LSTMCell_0"].keys()
     assert reshaper.total_params == 851
 
     # Test population batch matrix reshaping
     test_params = jnp.zeros((100, 851))
     out = reshaper.reshape(test_params)
-    assert out["LSTMCell_0"]["hf"]["kernel"].shape == (100, 10, 10)
+    assert out["params"]["LSTMCell_0"]["hf"]["kernel"].shape == (100, 10, 10)
 
     # Test single network vector reshaping
     test_single = jnp.zeros(851)
     out = reshaper.reshape_single(test_single)
-    assert out["LSTMCell_0"]["hf"]["kernel"].shape == (10, 10)
+    assert out["params"]["LSTMCell_0"]["hf"]["kernel"].shape == (10, 10)
 
 
 def test_reshape_mlp():
@@ -52,18 +52,18 @@ def test_reshape_mlp():
         rng=rng,
     )
 
-    reshaper = ParameterReshaper(net_params["params"])
+    reshaper = ParameterReshaper(net_params)
     assert reshaper.total_params == (10 * 64 + 64 + 64 * 64 + 64 + 64 + 1)
 
     # Test population batch matrix reshaping
     test_params = jnp.zeros((100, 4929))
     out = reshaper.reshape(test_params)
-    assert out["Dense_0"]["kernel"].shape == (100, 10, 64)
+    assert out["params"]["Dense_0"]["kernel"].shape == (100, 10, 64)
 
     # Test single network vector reshaping
     test_single = jnp.zeros(4929)
     out = reshaper.reshape_single(test_single)
-    assert out["Dense_0"]["kernel"].shape == (10, 64)
+    assert out["params"]["Dense_0"]["kernel"].shape == (10, 64)
 
 
 def test_reshape_cnn():
@@ -88,15 +88,15 @@ def test_reshape_cnn():
         rng=rng,
     )
 
-    reshaper = ParameterReshaper(net_params["params"])
+    reshaper = ParameterReshaper(net_params)
     assert reshaper.total_params == 9826
 
     # Test population batch matrix reshaping
     test_params = jnp.zeros((100, 9826))
     out = reshaper.reshape(test_params)
-    assert out["Conv_0"]["kernel"].shape == (100, 3, 3, 1, 16)
+    assert out["params"]["Conv_0"]["kernel"].shape == (100, 3, 3, 1, 16)
 
     # Test single network vector reshaping
     test_single = jnp.zeros(9826)
     out = reshaper.reshape_single(test_single)
-    assert out["Conv_0"]["kernel"].shape == (3, 3, 1, 16)
+    assert out["params"]["Conv_0"]["kernel"].shape == (3, 3, 1, 16)
