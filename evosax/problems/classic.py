@@ -76,7 +76,7 @@ def six_hump_camel_2_dim(x: chex.Array) -> chex.Array:
 
 def quadratic_d_dim(x: chex.Array) -> chex.Array:
     """
-    Simple 3-dim. quadratic function.
+    Simple D-dim. quadratic function.
     f(x*)=0 - Minimum at [0.]ˆd
     """
     return jnp.sum(jnp.square(x))

@@ -15,6 +15,7 @@ class RandomDecoder(Decoder):
         identity: bool = False,
         n_devices: Optional[int] = None,
     ):
+        """Random Projection Decoder (Gaussian/Rademacher random matrix)."""
         super().__init__(
             num_encoding_dims, placeholder_params, identity, n_devices
         )
