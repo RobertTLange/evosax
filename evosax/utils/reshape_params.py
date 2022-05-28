@@ -12,13 +12,15 @@ class ParameterReshaper(object):
         placeholder_params: Union[chex.ArrayTree, chex.Array],
         identity: bool = False,
         n_devices: Optional[int] = None,
+        separator: str = '$',
     ):
         """Reshape flat parameters vectors into generation eval shape."""
+        self._separator = separator
         # Get network shape to reshape
         self.placeholder_params = placeholder_params
         if type(placeholder_params) == dict:
             flat_params = {
-                "/".join(k): v
+                self._separator.join(k): v
                 for k, v in flatten_dict(self.placeholder_params).items()
             }
             self.unflat_shape = jax.tree_map(jnp.shape, self.placeholder_params)
@@ -28,7 +30,7 @@ class ParameterReshaper(object):
         elif type(placeholder_params) == FrozenDict:
             self.placeholder_params = unfreeze(self.placeholder_params)
             flat_params = {
-                "/".join(k): v
+                self._separator.join(k): v
                 for k, v in flatten_dict(self.placeholder_params).items()
             }
             self.unflat_shape = jax.tree_map(jnp.shape, self.placeholder_params)
@@ -103,7 +105,7 @@ class ParameterReshaper(object):
             # Place reshaped params into dict and increase counter
             new_nn[p_k] = p_reshaped
         return unflatten_dict(
-            {tuple(k.split("/")): v for k, v in new_nn.items()}
+            {tuple(k.split(self._separator)): v for k, v in new_nn.items()}
         )
 
     def split_params_for_pmap(self, param: chex.Array) -> chex.Array:
