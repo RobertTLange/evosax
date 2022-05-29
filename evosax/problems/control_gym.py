@@ -3,8 +3,6 @@ import jax.numpy as jnp
 from functools import partial
 from typing import Optional
 import chex
-from .cartpole import CartPole
-from .acrobot import Acrobot
 
 
 class GymFitness(object):
@@ -13,7 +11,7 @@ class GymFitness(object):
         env_name: str = "CartPole-v1",
         num_env_steps: int = 200,
         num_rollouts: int = 16,
-        env_params: Optional[dict] = None,
+        env_params: dict = {},
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
@@ -23,22 +21,16 @@ class GymFitness(object):
         self.steps_per_member = num_env_steps * num_rollouts
         self.test = test
 
-        # Define the RL environment & network forward fucntion
-        if self.env_name == "CartPole-v1":
-            self.env = CartPole()
-        elif self.env_name == "Acrobot-v1":
-            self.env = Acrobot()
-        else:
-            raise ValueError(
-                "Gym environment has to be either 'CartPole-v1' or"
-                " 'Acrobot-v1'."
+        try:
+            import gymnax
+        except ImportError:
+            raise ImportError(
+                "You need to install `gymnax` to use its fitness rollouts."
             )
-        self.env_params = self.env.default_params
-        if env_params is not None:
-            for k, v in env_params.items():
-                self.env_params[k] = v
-        self.action_shape = self.env.action_shape
-        self.input_shape = self.env.observation_shape
+
+        # Define the RL environment & replace default parameters if desired
+        self.env, self.env_params = gymnax.make(env_name)
+        self.env_params.replace(**env_params)
         if n_devices is None:
             self.n_devices = jax.local_device_count()
         else:

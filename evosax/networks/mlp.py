@@ -45,6 +45,7 @@ class MLP(nn.Module):
             return identity_out(x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "tanh":
             return tanh_out(x, self.num_output_units, self.kernel_init_type)
+        # Categorical and gaussian output heads require rng for sampling
         elif self.output_activation == "categorical":
             return categorical_out(
                 rng, x, self.num_output_units, self.kernel_init_type

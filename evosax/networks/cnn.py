@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from flax import linen as nn
 import chex
-from typing import Tuple
+from typing import Tuple, Optional
 from .shared import default_bias_init, kernel_init_fn
 
 
@@ -68,7 +68,9 @@ class CNN(nn.Module):
     model_name: str = "CNN"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey) -> chex.Array:
+    def __call__(
+        self, x: chex.Array, rng: Optional[chex.PRNGKey] = None
+    ) -> chex.Array:
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_pool_block(
@@ -123,7 +125,9 @@ class All_CNN_C(nn.Module):
     model_name: str = "All_CNN_C"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey) -> chex.Array:
+    def __call__(
+        self, x: chex.Array, rng: Optional[chex.PRNGKey] = None
+    ) -> chex.Array:
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_block(
