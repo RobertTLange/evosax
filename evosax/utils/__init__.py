@@ -9,17 +9,17 @@ from .reshape_fitness import FitnessShaper
 
 # Import Gradient Based Optimizer step functions
 from .optimizer import (
-    SGD_Optimizer,
-    Adam_Optimizer,
-    RMSProp_Optimizer,
-    ClipUp_Optimizer,
+    SGD,
+    Adam,
+    RMSProp,
+    ClipUp,
 )
 
 GradientOptimizer = {
-    "sgd": SGD_Optimizer,
-    "adam": Adam_Optimizer,
-    "rmsprop": RMSProp_Optimizer,
-    "clipup": ClipUp_Optimizer,
+    "sgd": SGD,
+    "adam": Adam,
+    "rmsprop": RMSProp,
+    "clipup": ClipUp,
 }
 
 
@@ -28,8 +28,8 @@ __all__ = [
     "ParameterReshaper",
     "FitnessShaper",
     "GradientOptimizer",
-    "SGD_Optimizer",
-    "Adam_Optimizer",
-    "RMSProp_Optimizer",
-    "ClipUp_Optimizer",
+    "SGD",
+    "Adam",
+    "RMSProp",
+    "ClipUp",
 ]

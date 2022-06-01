@@ -58,6 +58,11 @@ class ParameterReshaper(object):
                 " the number of devices to pmap/parallelize over."
             )
 
+        print(
+            f"ParameterReshaper: {self.total_params} parameters detected for"
+            " optimization."
+        )
+
     def reshape_identity(self, x: chex.Array) -> chex.Array:
         """Return parameters w/o reshaping for evaluation."""
         return x

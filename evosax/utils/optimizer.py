@@ -3,33 +3,35 @@ import jax.numpy as jnp
 import chex
 
 
-class SGD_Optimizer(object):
+class Optimizer(object):
     def __init__(self, num_dims: int):
-        """Simple JAX-Compatible SGD + Momentum optimizer."""
-        self.opt_name = "sgd"
+        """Simple JAX-Compatible Optimizer Class."""
         self.num_dims = num_dims
 
     @property
     def default_params(self) -> chex.ArrayTree:
-        """Return default SGD+Momentum parameters."""
-        return {
+        """Return shared and optimizer-specific default parameters."""
+        params_shared = {
             "lrate_init": 0.01,
             "lrate_decay": 0.999,
             "lrate_limit": 0.001,
-            "momentum": 0.9,
+            # TODO: Add gradient clipping - select leads to more compute
+            # "use_clip_by_global_norm": False,
+            # "clip_global_norm": 5,
+            # "use_clip_by_value": False,
+            # "clip_value": 5,
         }
+        return {**params_shared, **self.params_opt}
 
     def initialize(self, params: chex.ArrayTree) -> chex.ArrayTree:
-        """Initialize the momentum trace of the optimizer."""
-        return {"m": jnp.zeros(self.num_dims), "lrate": params["lrate_init"]}
+        """Initialize the optimizer state."""
+        return self.initialize_opt(params)
 
     def step(
         self, grads: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> chex.ArrayTree:
-        """Perform a simple SGD + Momentum step."""
-        state["m"] = grads + params["momentum"] * state["m"]
-        state["mean"] -= state["lrate"] * state["m"]
-        return state
+        """Perform a gradient-based update step."""
+        return self.step_opt(grads, state, params)
 
     def update(
         self, state: chex.ArrayTree, params: chex.ArrayTree
@@ -39,27 +41,65 @@ class SGD_Optimizer(object):
         state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
         return state
 
+    @property
+    def params_opt(self) -> chex.ArrayTree:
+        """Optimizer-specific hyperparameters."""
+        raise NotImplementedError
 
-class Adam_Optimizer(object):
+    def initialize_opt(self, params: chex.ArrayTree) -> chex.ArrayTree:
+        """Optimizer-specific initialization of optimizer state."""
+        raise NotImplementedError
+
+    def step_opt(
+        self, grads: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
+        """Optimizer-specific step to update parameter estimates."""
+        raise NotImplementedError
+
+
+class SGD(Optimizer):
+    def __init__(self, num_dims: int):
+        """Simple JAX-Compatible SGD + Momentum optimizer."""
+        super().__init__(num_dims)
+        self.opt_name = "sgd"
+
+    @property
+    def params_opt(self) -> chex.ArrayTree:
+        """Return default SGD+Momentum parameters."""
+        return {
+            "momentum": 0.9,
+        }
+
+    def initialize_opt(self, params: chex.ArrayTree) -> chex.ArrayTree:
+        """Initialize the momentum trace of the optimizer."""
+        return {"m": jnp.zeros(self.num_dims), "lrate": params["lrate_init"]}
+
+    def step_opt(
+        self, grads: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
+    ) -> chex.ArrayTree:
+        """Perform a simple SGD + Momentum step."""
+        state["m"] = grads + params["momentum"] * state["m"]
+        state["mean"] -= state["lrate"] * state["m"]
+        return state
+
+
+class Adam(Optimizer):
     def __init__(self, num_dims: int):
         """JAX-Compatible Adam Optimizer (Kingma & Ba, 2015)
         Reference: https://arxiv.org/abs/1412.6980"""
+        super().__init__(num_dims)
         self.opt_name = "adam"
-        self.num_dims = num_dims
 
     @property
-    def default_params(self) -> chex.ArrayTree:
+    def params_opt(self) -> chex.ArrayTree:
         """Return default Adam parameters."""
         return {
-            "lrate_init": 0.01,
-            "lrate_decay": 0.999,
-            "lrate_limit": 0.001,
-            "beta_1": 0.99,  # beta_1 outer step
-            "beta_2": 0.999,  # beta_2 outer step
-            "eps": 1e-8,  # eps constant outer step,
+            "beta_1": 0.99,
+            "beta_2": 0.999,
+            "eps": 1e-8,
         }
 
-    def initialize(self, params: chex.ArrayTree) -> chex.ArrayTree:
+    def initialize_opt(self, params: chex.ArrayTree) -> chex.ArrayTree:
         """Initialize the m, v trace of the optimizer."""
         return {
             "m": jnp.zeros(self.num_dims),
@@ -67,7 +107,7 @@ class Adam_Optimizer(object):
             "lrate": params["lrate_init"],
         }
 
-    def step(
+    def step_opt(
         self, grads: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Perform a simple Adam GD step."""
@@ -84,35 +124,24 @@ class Adam_Optimizer(object):
         )
         return state
 
-    def update(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
-        """Exponentially decay the learning rate if desired."""
-        state["lrate"] *= params["lrate_decay"]
-        state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
-        return state
 
-
-class RMSProp_Optimizer(object):
+class RMSProp(Optimizer):
     def __init__(self, num_dims: int):
         """JAX-Compatible RMSProp Optimizer (Hinton et al., 2012)
         Reference: https://tinyurl.com/2sbbcnrv"""
+        super().__init__(num_dims)
         self.opt_name = "rmsprop"
-        self.num_dims = num_dims
 
     @property
-    def default_params(self) -> chex.ArrayTree:
+    def params_opt(self) -> chex.ArrayTree:
         """Return default RMSProp parameters."""
         return {
-            "lrate_init": 0.01,
-            "lrate_decay": 0.999,
-            "lrate_limit": 0.001,
             "momentum": 0.9,
             "beta": 0.99,
-            "eps": 1e-8,  # eps constant outer step,
+            "eps": 1e-8,
         }
 
-    def initialize(self, params: chex.ArrayTree) -> chex.ArrayTree:
+    def initialize_opt(self, params: chex.ArrayTree) -> chex.ArrayTree:
         """Initialize the m, v trace of the optimizer."""
         return {
             "m": jnp.zeros(self.num_dims),
@@ -120,7 +149,7 @@ class RMSProp_Optimizer(object):
             "lrate": params["lrate_init"],
         }
 
-    def step(
+    def step_opt(
         self, grads: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Perform a simple RMSprop GD step."""
@@ -133,24 +162,16 @@ class RMSProp_Optimizer(object):
         state["mean"] -= state["lrate"] * state["m"]
         return state
 
-    def update(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
-        """Exponentially decay the learning rate if desired."""
-        state["lrate"] *= params["lrate_decay"]
-        state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
-        return state
 
-
-class ClipUp_Optimizer(object):
+class ClipUp(Optimizer):
     def __init__(self, num_dims: int):
         """JAX-Compatible ClipUp Optimizer (Toklu et al., 2020)
         Reference: https://arxiv.org/abs/2008.02387"""
+        super().__init__(num_dims)
         self.opt_name = "clipup"
-        self.num_dims = num_dims
 
     @property
-    def default_params(self) -> chex.ArrayTree:
+    def params_opt(self) -> chex.ArrayTree:
         """Return default ClipUp parameters."""
         return {
             "lrate_init": 0.15,
@@ -160,14 +181,14 @@ class ClipUp_Optimizer(object):
             "momentum": 0.9,
         }
 
-    def initialize(self, params: chex.ArrayTree) -> chex.ArrayTree:
+    def initialize_opt(self, params: chex.ArrayTree) -> chex.ArrayTree:
         """Initialize the momentum trace of the optimizer."""
         return {
             "m": jnp.zeros(self.num_dims),
             "lrate": params["lrate_init"],
         }
 
-    def step(
+    def step_opt(
         self, grads: chex.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Perform a ClipUp step. mom = 0.9, lrate = vmax/2, vmax = small"""
@@ -188,12 +209,4 @@ class ClipUp_Optimizer(object):
         # Clip the update velocity and apply the update
         state["m"] = clip(velocity, params["max_speed"])
         state["mean"] -= state["lrate"] * state["m"]
-        return state
-
-    def update(
-        self, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
-        """Exponentially decay the learning rate if desired."""
-        state["lrate"] *= params["lrate_decay"]
-        state["lrate"] = jnp.maximum(state["lrate"], params["lrate_limit"])
         return state

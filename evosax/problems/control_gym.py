@@ -31,6 +31,9 @@ class GymFitness(object):
         # Define the RL environment & replace default parameters if desired
         self.env, self.env_params = gymnax.make(env_name)
         self.env_params.replace(**env_params)
+        self.action_shape = self.env.num_actions
+        self.input_shape = self.env.observation_space(self.env_params).shape
+
         if n_devices is None:
             self.n_devices = jax.local_device_count()
         else:
