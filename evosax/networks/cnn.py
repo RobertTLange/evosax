@@ -1,8 +1,16 @@
+import jax
 import jax.numpy as jnp
 from flax import linen as nn
 import chex
 from typing import Tuple, Optional
-from .shared import default_bias_init, kernel_init_fn
+from .shared import (
+    identity_out,
+    tanh_out,
+    categorical_out,
+    gaussian_out,
+    default_bias_init,
+    kernel_init_fn,
+)
 
 
 def conv_relu_block(
@@ -51,7 +59,7 @@ def conv_relu_pool_block(
 
 
 class CNN(nn.Module):
-    """Simple CNN Wrapper with Conv-ReLu-MaxPool blocks."""
+    """Simple CNN Wrapper with Conv-ReLu-AvgPool blocks."""
 
     num_output_units: int = 10
     depth_1: int = 1
@@ -64,6 +72,8 @@ class CNN(nn.Module):
     strides_2: int = 1
     num_linear_layers: int = 1
     num_hidden_units: int = 16
+    hidden_activation: str = "relu"
+    output_activation: str = "identity"
     kernel_init_type: str = "lecun_normal"
     model_name: str = "CNN"
 
@@ -71,6 +81,10 @@ class CNN(nn.Module):
     def __call__(
         self, x: chex.Array, rng: Optional[chex.PRNGKey] = None
     ) -> chex.Array:
+        # Add batch dimension if only processing single 3d array
+        if len(x.shape) < 4:
+            x = jnp.expand_dims(x, 0)
+
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_pool_block(
@@ -90,7 +104,8 @@ class CNN(nn.Module):
                 (self.strides_2, self.strides_2),
                 kernel_init_type=self.kernel_init_type,
             )
-        x = x.reshape((x.shape[0], -1))
+        # Flatten the output into vector for Dense Readout
+        x = x.reshape(x.shape[0], -1)
         # Squeeze and linear layers
         for l in range(self.num_linear_layers):
             x = nn.Dense(
@@ -98,13 +113,30 @@ class CNN(nn.Module):
                 bias_init=default_bias_init(),
                 kernel_init=kernel_init_fn[self.kernel_init_type](),
             )(x)
-            x = nn.relu(x)
-        x = nn.Dense(
-            features=self.num_output_units,
-            bias_init=default_bias_init(),
-            kernel_init=kernel_init_fn[self.kernel_init_type](),
-        )(x)
-        return x
+            if self.hidden_activation == "relu":
+                x = nn.relu(x)
+            elif self.hidden_activation == "tanh":
+                x = nn.tanh(x)
+            elif self.hidden_activation == "gelu":
+                x = nn.gelu(x)
+            elif self.hidden_activation == "softplus":
+                x = nn.softplus(x)
+
+        if self.output_activation == "identity":
+            x = identity_out(x, self.num_output_units, self.kernel_init_type)
+        elif self.output_activation == "tanh":
+            x = tanh_out(x, self.num_output_units, self.kernel_init_type)
+        # Categorical and gaussian output heads require rng for sampling
+        elif self.output_activation == "categorical":
+            x = categorical_out(
+                rng, x, self.num_output_units, self.kernel_init_type
+            )
+        elif self.output_activation == "gaussian":
+            x = gaussian_out(
+                rng, x, self.num_output_units, self.kernel_init_type
+            )
+        # Squeeze away extra dimension - e.g. single action output for RL
+        return x.squeeze()
 
 
 class All_CNN_C(nn.Module):
@@ -121,6 +153,7 @@ class All_CNN_C(nn.Module):
     strides_1: int = 1
     strides_2: int = 1
     final_window: Tuple[int, int] = (28, 28)
+    output_activation: str = "identity"
     kernel_init_type: str = "lecun_normal"
     model_name: str = "All_CNN_C"
 
@@ -128,6 +161,9 @@ class All_CNN_C(nn.Module):
     def __call__(
         self, x: chex.Array, rng: Optional[chex.PRNGKey] = None
     ) -> chex.Array:
+        # Add batch dimension if only processing single 3d array
+        if len(x.shape) < 4:
+            x = jnp.expand_dims(x, 0)
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_block(
@@ -164,4 +200,11 @@ class All_CNN_C(nn.Module):
             x, window_shape=self.final_window, strides=None, padding="VALID"
         )
         x = jnp.squeeze(x, axis=(1, 2))
-        return x
+
+        if self.output_activation == "tanh":
+            x = nn.tanh(x)
+        # Categorical head requires rng for sampling
+        elif self.output_activation == "categorical":
+            x = jax.random.categorical(rng, x)
+        # No gaussian option implemented so far - need second 1x1 conv + pool
+        return x.squeeze()

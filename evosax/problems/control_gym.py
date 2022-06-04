@@ -33,7 +33,6 @@ class GymFitness(object):
         self.env_params.replace(**env_params)
         self.action_shape = self.env.num_actions
         self.input_shape = self.env.observation_space(self.env_params).shape
-
         if n_devices is None:
             self.n_devices = jax.local_device_count()
         else:
