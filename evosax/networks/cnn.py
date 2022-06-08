@@ -84,6 +84,9 @@ class CNN(nn.Module):
         # Add batch dimension if only processing single 3d array
         if len(x.shape) < 4:
             x = jnp.expand_dims(x, 0)
+            batch_case = False
+        else:
+            batch_case = True
 
         # Block In 1:
         for i in range(self.depth_1):
@@ -136,7 +139,10 @@ class CNN(nn.Module):
                 rng, x, self.num_output_units, self.kernel_init_type
             )
         # Squeeze away extra dimension - e.g. single action output for RL
-        return x.squeeze()
+        if not batch_case:
+            return x.squeeze()
+        else:
+            return x
 
 
 class All_CNN_C(nn.Module):
@@ -164,6 +170,9 @@ class All_CNN_C(nn.Module):
         # Add batch dimension if only processing single 3d array
         if len(x.shape) < 4:
             x = jnp.expand_dims(x, 0)
+            batch_case = False
+        else:
+            batch_case = True
         # Block In 1:
         for i in range(self.depth_1):
             x = conv_relu_block(
@@ -207,4 +216,8 @@ class All_CNN_C(nn.Module):
         elif self.output_activation == "categorical":
             x = jax.random.categorical(rng, x)
         # No gaussian option implemented so far - need second 1x1 conv + pool
-        return x.squeeze()
+        # Squeeze away extra dimension - e.g. single action output for RL
+        if not batch_case:
+            return x.squeeze()
+        else:
+            return x

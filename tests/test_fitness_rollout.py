@@ -127,6 +127,7 @@ def test_vision_fitness():
         num_linear_layers=0,
         num_output_units=10,
     )
+    # Channel last configuration for conv!
     pholder = jnp.zeros((1, 28, 28, 1))
     net_params = network.init(
         rng,

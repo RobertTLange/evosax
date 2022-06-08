@@ -9,16 +9,15 @@ class GymFitness(object):
     def __init__(
         self,
         env_name: str = "CartPole-v1",
-        num_env_steps: int = 200,
+        num_env_steps: Optional[int] = None,
         num_rollouts: int = 16,
+        env_kwargs: dict = {},
         env_params: dict = {},
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
         self.env_name = env_name
-        self.num_env_steps = num_env_steps
         self.num_rollouts = num_rollouts
-        self.steps_per_member = num_env_steps * num_rollouts
         self.test = test
 
         try:
@@ -29,8 +28,15 @@ class GymFitness(object):
             )
 
         # Define the RL environment & replace default parameters if desired
-        self.env, self.env_params = gymnax.make(env_name)
+        self.env, self.env_params = gymnax.make(env_name, env_kwargs)
         self.env_params.replace(**env_params)
+
+        if num_env_steps is None:
+            self.num_env_steps = self.env_params.max_steps_in_episode
+        else:
+            self.num_env_steps = num_env_steps
+        self.steps_per_member = self.num_env_steps * num_rollouts
+
         self.action_shape = self.env.num_actions
         self.input_shape = self.env.observation_space(self.env_params).shape
         if n_devices is None:
