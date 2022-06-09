@@ -3,6 +3,24 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from functools import partial
+from flax import struct
+
+
+# @struct.dataclass
+# class EvoState:
+#     mean: chex.Array
+#     sigma: float
+#     opt_state: OptState
+
+
+# @struct.dataclass
+# class EvoParams:
+#     sigma_init: float = 0.03
+#     sigma_decay: float = 0.999
+#     sigma_limit: float = 0.01
+#     opt_params: OptParams
+#     init_min: float = 0.0
+#     init_max: float = 0.0
 
 
 class Strategy(object):

@@ -29,7 +29,7 @@ def pytest_generate_tests(metafunc):
                 ],
             )
         else:
-            metafunc.parametrize("strategy_name", ["CMA_ES"])
+            metafunc.parametrize("strategy_name", ["PGPE"])
 
     if "classic_name" in metafunc.fixturenames:
         if metafunc.config.getoption("all"):

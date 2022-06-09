@@ -39,7 +39,7 @@ class PGPE(Strategy):
             "init_min": 0.0,
             "init_max": 0.0,
         }
-        params = {**es_params, **self.optimizer.default_params}
+        params = {**es_params, "opt_params": self.optimizer.default_params}
         return params
 
     def initialize_strategy(
@@ -56,7 +56,10 @@ class PGPE(Strategy):
             "mean": initialization,
             "sigma": jnp.ones(self.num_dims) * params["sigma_init"],
         }
-        state = {**es_state, **self.optimizer.initialize(params)}
+        state = {
+            **es_state,
+            "opt_state": self.optimizer.initialize(params["opt_params"]),
+        }
         return state
 
     def ask_strategy(
@@ -93,8 +96,11 @@ class PGPE(Strategy):
 
         theta_grad = 1.0 / self.elite_popsize * fit_diff_noise
         # Grad update using optimizer instance - decay lrate if desired
-        state = self.optimizer.step(theta_grad, state, params)
-        state = self.optimizer.update(state, params)
+        mean_new, opt_state = self.optimizer.step(
+            state["mean"], theta_grad, state["opt_state"], params["opt_params"]
+        )
+        opt_state = self.optimizer.update(opt_state, params["opt_params"])
+
         # Update sigma vector
         S = (
             noise_1 * noise_1
@@ -115,4 +121,6 @@ class PGPE(Strategy):
         state["sigma"] -= change_sigma
         state["sigma"] *= params["sigma_decay"]
         state["sigma"] = jnp.maximum(state["sigma"], params["sigma_limit"])
+        state["mean"] = mean_new
+        state["opt_state"] = opt_state
         return state
