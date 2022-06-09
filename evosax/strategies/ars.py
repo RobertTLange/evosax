@@ -50,6 +50,7 @@ class ARS(Strategy):
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "ARS"
 
+    @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         return EvoParams(opt_params=self.optimizer.default_params)

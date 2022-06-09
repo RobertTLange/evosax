@@ -36,7 +36,7 @@ class Strategy(object):
     @property
     def default_params(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        params = self.params_strategy()
+        params = self.params_strategy
         return params
 
     @partial(jax.jit, static_argnums=(0,))
@@ -50,17 +50,6 @@ class Strategy(object):
 
         # Initialize strategy based on strategy-specific initialize method
         state = self.initialize_strategy(rng, params)
-
-        # Add best performing parameters/fitness tracker/generation counter
-        # best_member = jax.random.uniform(
-        #     rng,
-        #     (self.num_dims,),
-        #     minval=params.init_min,
-        #     maxval=params.init_max,
-        # )
-        # Set best fitness to large value - ES minimizes by default!
-        # state.best_fitness = jnp.finfo(jnp.float32).max
-        # state.gen_counter = 0
         return state
 
     @partial(jax.jit, static_argnums=(0,))

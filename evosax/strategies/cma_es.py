@@ -52,7 +52,7 @@ class CMA_ES(Strategy):
         self.elite_popsize = int(self.popsize * self.elite_ratio)
         self.strategy_name = "CMA_ES"
 
-    @partial(jax.jit, static_argnums=(0,))
+    @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         weights_prime = jnp.array(
