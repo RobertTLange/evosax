@@ -3,7 +3,30 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
-from ..utils import GradientOptimizer
+from ..utils import GradientOptimizer, OptState, OptParams
+from flax import struct
+
+
+@struct.dataclass
+class EvoState:
+    mean: chex.Array
+    sigma: float
+    opt_state: OptState
+    best_member: chex.Array
+    best_fitness: float
+    gen_counter: int
+
+
+@struct.dataclass
+class EvoParams:
+    opt_params: OptParams
+    sigma_init: float = 0.03
+    sigma_decay: float = 0.999
+    sigma_limit: float = 0.01
+    init_min: float = 0.0
+    init_max: float = 0.0
+    clip_min: float = -jnp.finfo(jnp.float32).max
+    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class ARS(Strategy):
@@ -27,42 +50,34 @@ class ARS(Strategy):
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "ARS"
 
-    @property
-    def params_strategy(self) -> chex.ArrayTree:
+    def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        es_params = {
-            "sigma_init": 0.03,
-            "sigma_decay": 0.999,
-            "sigma_limit": 0.01,
-            "init_min": 0.0,
-            "init_max": 0.0,
-        }
-        params = {**es_params, "opt_params": self.optimizer.default_params}
-        return params
+        return EvoParams(opt_params=self.optimizer.default_params)
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: EvoParams
+    ) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),
-            minval=params["init_min"],
-            maxval=params["init_max"],
+            minval=params.init_min,
+            maxval=params.init_max,
         )
-        es_state = {
-            "mean": initialization,
-            "sigma": params["sigma_init"],
-        }
-        state = {
-            **es_state,
-            "opt_state": self.optimizer.initialize(params["opt_params"]),
-        }
+
+        state = EvoState(
+            mean=initialization,
+            sigma=params.sigma_init,
+            opt_state=self.optimizer.initialize(params.opt_params),
+            best_fitness=jnp.finfo(jnp.float32).max,
+            best_member=initialization,
+            gen_counter=0,
+        )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+    ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
@@ -70,19 +85,19 @@ class ARS(Strategy):
             (int(self.popsize / 2), self.num_dims),
         )
         z = jnp.concatenate([z_plus, -1.0 * z_plus])
-        x = state["mean"] + state["sigma"] * z
+        x = state.mean + state.sigma * z
         return x, state
 
     def tell_strategy(
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: EvoState,
+        params: EvoParams,
+    ) -> EvoState:
         """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
-        noise = (x - state["mean"]) / state["sigma"]
+        noise = (x - state.mean) / state.sigma
         noise_1 = noise[: int(self.popsize / 2)]
         fit_1 = fitness[: int(self.popsize / 2)]
         fit_2 = fitness[int(self.popsize / 2) :]
@@ -93,17 +108,21 @@ class ARS(Strategy):
         sigma_fitness = jnp.std(fitness_elite) + 1e-05
         fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
         fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
-
         theta_grad = 1.0 / (self.elite_popsize * sigma_fitness) * fit_diff_noise
-        # print(jnp.linalg.norm(theta_grad), sigma_fitness)
+
         # Grad update using optimizer instance - decay lrate if desired
-        mean_new, opt_state = self.optimizer.step(
-            state["mean"], theta_grad, state["opt_state"], params["opt_params"]
+        mean, opt_state = self.optimizer.step(
+            state.mean, theta_grad, state.opt_state, params.opt_params
         )
-        opt_state = self.optimizer.update(opt_state, params["opt_params"])
+        opt_state = self.optimizer.update(opt_state, params.opt_params)
+
         # Update lrate and standard deviation based on min and decay
-        state["sigma"] *= params["sigma_decay"]
-        state["sigma"] = jnp.maximum(state["sigma"], params["sigma_limit"])
-        state["mean"] = mean_new
-        state["opt_state"] = opt_state
-        return state
+        sigma = state.sigma * params.sigma_decay
+        sigma = jnp.maximum(sigma, params.sigma_limit)
+
+        return state.replace(
+            mean=mean,
+            sigma=sigma,
+            opt_state=opt_state,
+            gen_counter=state.gen_counter + 1,
+        )
