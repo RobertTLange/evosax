@@ -1,9 +1,42 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional
 from ..strategy import Strategy
 from ..utils.eigen_decomp import diag_eigen_decomp
+from flax import struct
+
+
+@struct.dataclass
+class EvoState:
+    p_sigma: chex.Array
+    p_c: chex.Array
+    C: chex.Array
+    D: Optional[chex.Array]
+    mean: chex.Array
+    sigma: float
+    best_member: chex.Array
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
+
+
+@struct.dataclass
+class EvoParams:
+    mu_eff: float
+    c_1: float
+    c_mu: float
+    c_sigma: float
+    d_sigma: float
+    c_c: float
+    chi_n: float
+    weights: chex.Array
+    weights_truncated: chex.Array
+    c_m: float = 1.0
+    sigma_init: float = 0.065
+    init_min: float = 0.0
+    init_max: float = 0.0
+    clip_min: float = -jnp.finfo(jnp.float32).max
+    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class Sep_CMA_ES(Strategy):
@@ -19,7 +52,7 @@ class Sep_CMA_ES(Strategy):
         self.strategy_name = "Sep_CMA_ES"
 
     @property
-    def params_strategy(self) -> chex.ArrayTree:
+    def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         weights_prime = jnp.array(
             [
@@ -58,108 +91,98 @@ class Sep_CMA_ES(Strategy):
             - (1.0 / (4.0 * self.num_dims))
             + 1.0 / (21.0 * (self.num_dims ** 2))
         )
-
-        params = {
-            "mu_eff": mu_eff,
-            "c_1": c_1,
-            "c_mu": c_mu,
-            "c_m": 1.0,
-            "c_sigma": c_sigma,
-            "d_sigma": d_sigma,
-            "c_c": c_c,
-            "chi_n": chi_n,
-            "weights": weights,
-            "weights_truncated": weights_truncated,
-            "sigma_init": 0.065,
-            "init_min": 0.0,
-            "init_max": 0.0,
-        }
+        params = EvoParams(
+            mu_eff=mu_eff,
+            c_1=c_1,
+            c_mu=c_mu,
+            c_sigma=c_sigma,
+            d_sigma=d_sigma,
+            c_c=c_c,
+            chi_n=chi_n,
+            weights=weights,
+            weights_truncated=weights_truncated,
+        )
         return params
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: EvoParams
+    ) -> EvoState:
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),
-            minval=params["init_min"],
-            maxval=params["init_max"],
+            minval=params.init_min,
+            maxval=params.init_max,
         )
-        state = {
-            "p_sigma": jnp.zeros(self.num_dims),
-            "p_c": jnp.zeros(self.num_dims),
-            "sigma": params["sigma_init"],
-            "mean": initialization,
-            "C": jnp.ones(self.num_dims),
-            "D": None,
-        }
+        state = EvoState(
+            p_sigma=jnp.zeros(self.num_dims),
+            p_c=jnp.zeros(self.num_dims),
+            sigma=params.sigma_init,
+            mean=initialization,
+            C=jnp.ones(self.num_dims),
+            D=None,
+            best_member=initialization,
+        )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+    ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        D = diag_eigen_decomp(state["C"], state["D"])
+        D = diag_eigen_decomp(state.C, state.D)
         x = sample(
             rng,
-            state["mean"],
-            state["sigma"],
+            state.mean,
+            state.sigma,
             D,
             self.num_dims,
             self.popsize,
         )
-        state["D"] = D
-        return x, state
+        return x, state.replace(D=D)
 
     def tell_strategy(
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: EvoState,
+        params: EvoParams,
+    ) -> EvoState:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
         sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
         y_k, y_w, mean = update_mean(
-            state["mean"], state["sigma"], sorted_solutions, params
+            state.mean, state.sigma, sorted_solutions, params
         )
 
         p_sigma, D = update_p_sigma(
-            state["C"], state["D"], state["p_sigma"], y_w, params
+            state.C, state.D, state.p_sigma, y_w, params
         )
 
         p_c, norm_p_sigma, h_sigma = update_p_c(
-            mean, p_sigma, state["p_c"], state["gen_counter"] + 1, y_w, params
+            mean, p_sigma, state.p_c, state.gen_counter + 1, y_w, params
         )
 
-        C = update_covariance(p_c, state["C"], y_k, h_sigma, params)
-        sigma = update_sigma(state["sigma"], norm_p_sigma, params)
-
-        state["mean"] = mean
-        state["p_sigma"] = p_sigma
-        state["C"] = C
-        state["D"] = D
-        state["p_c"] = p_c
-        state["sigma"] = sigma
-        return state
+        C = update_covariance(p_c, state.C, y_k, h_sigma, params)
+        sigma = update_sigma(state.sigma, norm_p_sigma, params)
+        return state.replace(
+            mean=mean, p_sigma=p_sigma, C=C, D=C, p_c=p_c, sigma=sigma
+        )
 
 
 def update_mean(
     mean: chex.Array,
     sigma: float,
     sorted_solutions: chex.Array,
-    params: chex.ArrayTree,
+    params: EvoParams,
 ) -> Tuple[chex.Array, chex.Array, chex.Array]:
     """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = (x_k - mean) / sigma  # ~ N(0, C)
-    y_w = jnp.sum(y_k.T * params["weights_truncated"], axis=1)
-    mean += params["c_m"] * sigma * y_w
+    y_w = jnp.sum(y_k.T * params.weights_truncated, axis=1)
+    mean += params.c_m * sigma * y_w
     return y_k, y_w, mean
 
 
@@ -168,12 +191,12 @@ def update_p_sigma(
     D: chex.Array,
     p_sigma: chex.Array,
     y_w: chex.Array,
-    params: chex.ArrayTree,
+    params: EvoParams,
 ) -> Tuple[chex.Array, None]:
     """Update evolution path for covariance matrix."""
     D = diag_eigen_decomp(C, D)
-    p_sigma_new = (1 - params["c_sigma"]) * p_sigma + jnp.sqrt(
-        params["c_sigma"] * (2 - params["c_sigma"]) * params["mu_eff"]
+    p_sigma_new = (1 - params.c_sigma) * p_sigma + jnp.sqrt(
+        params.c_sigma * (2 - params.c_sigma) * params.mu_eff
     ) * (y_w / D)
     _D = None
     return p_sigma_new, _D
@@ -185,17 +208,17 @@ def update_p_c(
     p_c: chex.Array,
     gen_counter: int,
     y_w: chex.Array,
-    params: chex.ArrayTree,
+    params: EvoParams,
 ) -> Tuple[chex.Array, float, float]:
     """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
     h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
-        1 - (1 - params["c_sigma"]) ** (2 * (gen_counter))
+        1 - (1 - params.c_sigma) ** (2 * (gen_counter))
     )
-    h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * params["chi_n"]
+    h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * params.chi_n
     h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
-    p_c_new = (1 - params["c_c"]) * p_c + h_sigma * jnp.sqrt(
-        params["c_c"] * (2 - params["c_c"]) * params["mu_eff"]
+    p_c_new = (1 - params.c_c) * p_c + h_sigma * jnp.sqrt(
+        params.c_c * (2 - params.c_c) * params.mu_eff
     ) * y_w
     return p_c_new, norm_p_sigma, h_sigma
 
@@ -205,36 +228,33 @@ def update_covariance(
     C: chex.Array,
     y_k: chex.Array,
     h_sigma: float,
-    params: chex.ArrayTree,
+    params: EvoParams,
 ) -> chex.Array:
     """Update cov. matrix estimator using rank 1 + μ updates."""
-    delta_h_sigma = (1 - h_sigma) * params["c_c"] * (2 - params["c_c"])
+    delta_h_sigma = (1 - h_sigma) * params.c_c * (2 - params.c_c)
     rank_one = p_c ** 2
     rank_mu = jnp.sum(
-        jnp.array([w * (y ** 2) for w, y in zip(params["weights"], y_k)]),
+        jnp.array([w * (y ** 2) for w, y in zip(params.weights, y_k)]),
         axis=0,
     )
     C = (
         (
             1
-            + params["c_1"] * delta_h_sigma
-            - params["c_1"]
-            - params["c_mu"] * jnp.sum(params["weights"])
+            + params.c_1 * delta_h_sigma
+            - params.c_1
+            - params.c_mu * jnp.sum(params.weights)
         )
         * C
-        + params["c_1"] * rank_one
-        + params["c_mu"] * rank_mu
+        + params.c_1 * rank_one
+        + params.c_mu * rank_mu
     )
     return C
 
 
-def update_sigma(
-    sigma: float, norm_p_sigma: float, params: chex.ArrayTree
-) -> float:
+def update_sigma(sigma: float, norm_p_sigma: float, params: EvoParams) -> float:
     """Update stepsize sigma."""
     sigma_new = sigma * jnp.exp(
-        (params["c_sigma"] / params["d_sigma"])
-        * (norm_p_sigma / params["chi_n"] - 1)
+        (params.c_sigma / params.d_sigma) * (norm_p_sigma / params.chi_n - 1)
     )
     return sigma_new
 

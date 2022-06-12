@@ -3,6 +3,41 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
+from flax import struct
+
+
+@struct.dataclass
+class EvoState:
+    p_sigma: chex.Array
+    mean: chex.Array
+    sigma: float
+    P: chex.Array
+    t_gap: chex.Array
+    s_rank_rate: float
+    fitness_archive: chex.Array
+    best_member: chex.Array
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
+
+
+@struct.dataclass
+class EvoParams:
+    weights: chex.Array
+    c_cov: float
+    c_c: float
+    c_sigma: float
+    mu_eff: float
+    c_m: float = 1.0
+    sigma_init: float = 1.0
+    sigma_limit: float = 0.001
+    t_uncorr: int = 20
+    q_star: float = 0.325
+    c_s: float = 0.3
+    d_sigma: float = 1.0
+    init_min: float = 0.0
+    init_max: float = 0.0
+    clip_min: float = -jnp.finfo(jnp.float32).max
+    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class RmES(Strategy):
@@ -24,7 +59,7 @@ class RmES(Strategy):
         self.strategy_name = "RmES"
 
     @property
-    def params_strategy(self) -> chex.ArrayTree:
+    def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         weights = jnp.array(
             [
@@ -43,60 +78,52 @@ class RmES(Strategy):
         mu_eff = 1 / jnp.sum(weights ** 2)
         c_cov = 1 / (3 * jnp.sqrt(self.num_dims) + 5)
         c_c = 2 / (self.num_dims + 7)
-        params = {
-            "weights": weights,
-            "c_cov": c_cov,
-            "c_c": c_c,
-            "c_m": 1.0,
-            "c_sigma": jnp.minimum(2 / (self.num_dims + 7), 0.05),
-            "mu_eff": mu_eff,
-            "sigma_init": 1.0,
-            "sigma_limit": 0.001,
-            "t_uncorr": 20,
-            "q_star": 0.325,
-            "c_s": 0.3,
-            "d_sigma": 1.0,
-            "init_min": 0.0,
-            "init_max": 0.0,
-        }
+        params = EvoParams(
+            weights=weights,
+            c_cov=c_cov,
+            c_c=c_c,
+            c_sigma=jnp.minimum(2 / (self.num_dims + 7), 0.05),
+            mu_eff=mu_eff,
+        )
         return params
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: EvoParams
+    ) -> EvoState:
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),
-            minval=params["init_min"],
-            maxval=params["init_max"],
+            minval=params.init_min,
+            maxval=params.init_max,
         )
-        state = {
-            "p_sigma": jnp.zeros(self.num_dims),
-            "sigma": params["sigma_init"],
-            "mean": initialization,
-            "P": jnp.zeros((self.num_dims, self.memory_size)),
-            "t_gap": jnp.zeros(self.memory_size),
-            "s_rank_rate": 0,
+        state = EvoState(
+            p_sigma=jnp.zeros(self.num_dims),
+            sigma=params.sigma_init,
+            mean=initialization,
+            P=jnp.zeros((self.num_dims, self.memory_size)),
+            t_gap=jnp.zeros(self.memory_size),
+            s_rank_rate=0.0,
             # Store previous generations fitness for rank-based success rule
-            "fitness_archive": jnp.zeros(self.popsize) + 1e20,
-        }
+            fitness_archive=jnp.zeros(self.popsize) + 1e20,
+            best_member=initialization,
+        )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+    ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             rng,
-            state["mean"],
-            state["sigma"],
-            state["P"],
+            state.mean,
+            state.sigma,
+            state.P,
             self.num_dims,
             self.popsize,
-            params["c_cov"],
-            state["gen_counter"],
+            params.c_cov,
+            state.gen_counter,
         )
         return x, state
 
@@ -104,9 +131,9 @@ class RmES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: EvoState,
+        params: EvoParams,
+    ) -> EvoState:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
@@ -114,50 +141,51 @@ class RmES(Strategy):
             : self.elite_popsize
         ]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        mean = update_mean(state["mean"], sorted_solutions, params)
+        mean = update_mean(state.mean, sorted_solutions, params)
         p_sigma = update_p_sigma(
-            state["mean"],
+            state.mean,
             mean,
-            state["sigma"],
-            state["p_sigma"],
+            state.sigma,
+            state.p_sigma,
             params,
         )
         P, t_gap = update_P_matrix(
-            state["P"],
-            state["p_sigma"],
-            state["t_gap"],
-            params["t_uncorr"],
-            state["gen_counter"],
+            state.P,
+            state.p_sigma,
+            state.t_gap,
+            params.t_uncorr,
+            state.gen_counter,
         )
 
         s_rank_rate = rank_success_rule(
             fitness,
-            state["fitness_archive"],
-            state["s_rank_rate"],
-            params["q_star"],
-            params["weights"],
-            params["c_s"],
+            state.fitness_archive,
+            state.s_rank_rate,
+            params.q_star,
+            params.weights,
+            params.c_s,
         )
-        sigma = update_sigma(state["sigma"], s_rank_rate, params)
-        sigma = jnp.maximum(sigma, params["sigma_limit"])
-        state["mean"] = mean
-        state["p_sigma"] = p_sigma
-        state["P"] = P
-        state["t_gap"] = t_gap
-        state["sigma"] = sigma
-        state["s_rank_rate"] = s_rank_rate
-        state["fitness_archive"] = fitness
-        return state
+        sigma = update_sigma(state.sigma, s_rank_rate, params)
+        sigma = jnp.maximum(sigma, params.sigma_limit)
+        return state.replace(
+            mean=mean,
+            p_sigma=p_sigma,
+            P=P,
+            t_gap=t_gap,
+            sigma=sigma,
+            s_rank_rate=s_rank_rate,
+            fitness_archive=fitness,
+        )
 
 
 def update_mean(
     mean: chex.Array,
     sorted_solutions: chex.Array,
-    params: chex.ArrayTree,
+    params: EvoParams,
 ) -> chex.Array:
     """Update mean of strategy."""
-    mean = (1 - params["c_m"]) * mean + params["c_m"] * jnp.sum(
-        sorted_solutions[:, 1:].T * params["weights"], axis=1
+    mean = (1 - params.c_m) * mean + params.c_m * jnp.sum(
+        sorted_solutions[:, 1:].T * params.weights, axis=1
     )
     return mean
 
@@ -170,8 +198,8 @@ def update_p_sigma(
     params: chex.ArrayTree,
 ) -> chex.Array:
     """Update evolution path for covariance matrix."""
-    p_sigma_new = (1 - params["c_sigma"]) * p_sigma + jnp.sqrt(
-        params["c_sigma"] * (2 - params["c_sigma"]) * params["mu_eff"]
+    p_sigma_new = (1 - params.c_sigma) * p_sigma + jnp.sqrt(
+        params.c_sigma * (2 - params.c_sigma) * params.mu_eff
     ) * (mean - mean_old) / sigma
     return p_sigma_new
 
@@ -218,11 +246,9 @@ def update_P_matrix(
     return P, t_gap
 
 
-def update_sigma(
-    sigma: float, s_rank_rate: float, params: chex.ArrayTree
-) -> float:
+def update_sigma(sigma: float, s_rank_rate: float, params: EvoParams) -> float:
     """Update stepsize sigma."""
-    sigma_new = sigma * jnp.exp(s_rank_rate / params["d_sigma"])
+    sigma_new = sigma * jnp.exp(s_rank_rate / params.d_sigma)
     return sigma_new
 
 

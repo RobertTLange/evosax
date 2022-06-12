@@ -3,6 +3,30 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
+from flax import struct
+
+
+@struct.dataclass
+class EvoState:
+    mean: chex.Array
+    archive: chex.Array
+    fitness: chex.Array
+    sigma: chex.Array
+    best_member: chex.Array
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
+
+
+@struct.dataclass
+class EvoParams:
+    cross_over_rate: float = 0.5
+    sigma_init: float = 0.07
+    sigma_decay: float = 0.999
+    sigma_limit: float = 0.01
+    init_min: float = 0.0
+    init_max: float = 0.0
+    clip_min: float = -jnp.finfo(jnp.float32).max
+    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class SimpleGA(Strategy):
@@ -17,38 +41,32 @@ class SimpleGA(Strategy):
         self.strategy_name = "SimpleGA"
 
     @property
-    def params_strategy(self) -> chex.ArrayTree:
+    def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return {
-            "cross_over_rate": 0.5,  # cross-over probability
-            "sigma_init": 0.07,  # initial standard deviation
-            "sigma_decay": 0.999,  # anneal standard deviation
-            "sigma_limit": 0.01,  # stop annealing if less than this
-            "init_min": 0.0,
-            "init_max": 0.0,
-        }
+        return EvoParams()
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: chex.Array
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: EvoParams
+    ) -> EvoState:
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.elite_popsize, self.num_dims),
-            minval=params["init_min"],
-            maxval=params["init_max"],
+            minval=params.init_min,
+            maxval=params.init_max,
         )
-        state = {
-            "mean": initialization.mean(axis=0),
-            "archive": initialization,
-            "fitness": jnp.zeros(self.elite_popsize) + 20e10,
-            "sigma": params["sigma_init"],
-        }
+        state = EvoState(
+            mean=initialization.mean(axis=0),
+            archive=initialization,
+            fitness=jnp.zeros(self.elite_popsize) + jnp.finfo(jnp.float32).max,
+            sigma=params.sigma_init,
+            best_member=initialization.mean(axis=0),
+        )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+    ) -> Tuple[chex.Array, EvoState]:
         """
         `ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
@@ -61,46 +79,48 @@ class SimpleGA(Strategy):
         rng_mate = jax.random.split(rng, self.popsize)
         epsilon = (
             jax.random.normal(rng_eps, (self.popsize, self.num_dims))
-            * state["sigma"]
+            * state.sigma
         )
         elite_ids = jnp.arange(self.elite_popsize)
         idx_a = jax.random.choice(rng_idx_a, elite_ids, (self.popsize,))
         idx_b = jax.random.choice(rng_idx_b, elite_ids, (self.popsize,))
-        members_a = state["archive"][idx_a]
-        members_b = state["archive"][idx_b]
-        y = jax.vmap(single_mate, in_axes=(0, 0, 0, None))(
-            rng_mate, members_a, members_b, params["cross_over_rate"]
+        members_a = state.archive[idx_a]
+        members_b = state.archive[idx_b]
+        x = jax.vmap(single_mate, in_axes=(0, 0, 0, None))(
+            rng_mate, members_a, members_b, params.cross_over_rate
         )
-        y += epsilon
-        return jnp.squeeze(y), state
+        x += epsilon
+        return jnp.squeeze(x), state
 
     def tell_strategy(
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: EvoState,
+        params: EvoParams,
+    ) -> EvoState:
         """
         `tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """
         # Combine current elite and recent generation info
-        fitness = jnp.concatenate([fitness, state["fitness"]])
-        solution = jnp.concatenate([x, state["archive"]])
+        fitness = jnp.concatenate([fitness, state.fitness])
+        solution = jnp.concatenate([x, state.archive])
         # Select top elite from total archive info
         idx = jnp.argsort(fitness)[0 : self.elite_popsize]
-        state["fitness"] = fitness[idx]
-        state["archive"] = solution[idx]
+        fitness = fitness[idx]
+        archive = solution[idx]
         # Update mutation epsilon - multiplicative decay
-        state["sigma"] = jax.lax.select(
-            state["sigma"] > params["sigma_limit"],
-            state["sigma"] * params["sigma_decay"],
-            state["sigma"],
+        sigma = jax.lax.select(
+            state.sigma > params.sigma_limit,
+            state.sigma * params.sigma_decay,
+            state.sigma,
         )
         # Keep mean across stored archive around for evaluation protocol
-        state["mean"] = state["archive"].mean(axis=0)
-        return state
+        mean = archive.mean(axis=0)
+        return state.replace(
+            fitness=fitness, archive=archive, sigma=sigma, mean=mean
+        )
 
 
 def single_mate(

@@ -3,6 +3,31 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
+from flax import struct
+
+
+@struct.dataclass
+class EvoState:
+    mean: chex.Array
+    archive: chex.Array
+    fitness: chex.Array
+    velocity: chex.Array
+    best_archive: chex.Array
+    best_archive_fitness: chex.Array
+    best_member: chex.Array
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
+
+
+@struct.dataclass
+class EvoParams:
+    inertia_coeff: float = 0.75  # w momentum of velocity
+    cognitive_coeff: float = 1.5  # c_1 cognitive "force" multiplier
+    social_coeff: float = 2.0  # c_2 social "force" multiplier
+    init_min: float = -0.1
+    init_max: float = 0.1
+    clip_min: float = -jnp.finfo(jnp.float32).max
+    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class PSO(Strategy):
@@ -13,39 +38,35 @@ class PSO(Strategy):
         self.strategy_name = "PSO"
 
     @property
-    def params_strategy(self) -> chex.ArrayTree:
+    def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return {
-            "inertia_coeff": 0.75,  # w momentum of velocity
-            "cognitive_coeff": 1.5,  # c_1 cognitive "force" multiplier
-            "social_coeff": 2.0,  # c_2 social "force" multiplier
-            "init_min": -0.1,
-            "init_max": 0.1,
-        }
+        return EvoParams()
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: EvoParams
+    ) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.popsize, self.num_dims),
-            minval=params["init_min"],
-            maxval=params["init_max"],
+            minval=params.init_min,
+            maxval=params.init_max,
         )
-        state = {
-            "mean": initialization.mean(axis=0),
-            "archive": initialization,
-            "fitness": jnp.zeros(self.popsize) + 20e10,
-            "velocity": jnp.zeros((self.popsize, self.num_dims)),
-        }
-        state["best_archive"] = state["archive"][:]
-        state["best_archive_fitness"] = state["fitness"][:]
+        state = EvoState(
+            mean=initialization.mean(axis=0),
+            archive=initialization,
+            fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
+            velocity=jnp.zeros((self.popsize, self.num_dims)),
+            best_archive=initialization,
+            best_archive_fitness=jnp.zeros(self.popsize)
+            + jnp.finfo(jnp.float32).max,
+            best_member=initialization.mean(axis=0),
+        )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+    ) -> Tuple[chex.Array, EvoState]:
         """
         `ask` for new proposed candidates to evaluate next.
         1. Update v_i(t+1) velocities base on:
@@ -62,44 +83,44 @@ class PSO(Strategy):
         )(
             rng_members,
             member_ids,
-            state["archive"],
-            state["velocity"],
-            state["best_archive"],
-            state["best_archive_fitness"],
-            params["inertia_coeff"],
-            params["cognitive_coeff"],
-            params["social_coeff"],
+            state.archive,
+            state.velocity,
+            state.best_archive,
+            state.best_archive_fitness,
+            params.inertia_coeff,
+            params.cognitive_coeff,
+            params.social_coeff,
         )
         # Update particle positions with velocity
-        y = state["archive"] + vel
-        state["velocity"] = vel
-        return jnp.squeeze(y), state
+        x = state.archive + vel
+        return jnp.squeeze(x), state.replace(velocity=vel)
 
     def tell_strategy(
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: EvoState,
+        params: EvoParams,
+    ) -> EvoState:
         """
         `tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """
-        state["fitness"] = fitness
-        state["archive"] = x
-        replace = fitness <= state["best_archive_fitness"]
-        state["best_archive"] = (
+        replace = fitness <= state.best_archive_fitness
+        best_archive = (
             jnp.expand_dims(replace, 1) * x
-            + (1 - jnp.expand_dims(replace, 1)) * state["best_archive"]
+            + (1 - jnp.expand_dims(replace, 1)) * state.best_archive
         )
-        state["best_archive_fitness"] = (
-            replace * fitness + (1 - replace) * state["best_archive_fitness"]
+        best_archive_fitness = (
+            replace * fitness + (1 - replace) * state.best_archive_fitness
         )
-
-        # Keep mean across stored archive around for evaluation protocol
-        state["mean"] = state["archive"].mean(axis=0)
-        return state
+        return state.replace(
+            mean=x.mean(axis=0),
+            fitness=fitness,
+            archive=x,
+            best_archive=best_archive,
+            best_archive_fitness=best_archive_fitness,
+        )
 
 
 def single_member_velocity(
