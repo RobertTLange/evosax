@@ -10,8 +10,8 @@ from flax import struct
 class EvoState:
     mean: chex.Array
     best_member: chex.Array
-    best_fitness: float
-    gen_counter: int
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
 
 
 @struct.dataclass
@@ -50,8 +50,6 @@ class GLD(Strategy):
         state = EvoState(
             mean=initialization,
             best_member=initialization,
-            best_fitness=jnp.finfo(jnp.float32).max,
-            gen_counter=0,
         )
         return state
 

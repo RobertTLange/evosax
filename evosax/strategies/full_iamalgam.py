@@ -15,8 +15,8 @@ class EvoState:
     c_mult: float
     sigma: float
     best_member: chex.Array
-    best_fitness: float
-    gen_counter: int
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
 
 
 @struct.dataclass
@@ -93,9 +93,7 @@ class Full_iAMaLGaM(Strategy):
             sigma=params.sigma_init,
             nis_counter=0,
             c_mult=params.c_mult_init,
-            best_fitness=jnp.finfo(jnp.float32).max,
             best_member=initialization,
-            gen_counter=0,
         )
         return state
 

@@ -13,8 +13,8 @@ class EvoState:
     sigma: float
     opt_state: OptState
     best_member: chex.Array
-    best_fitness: float
-    gen_counter: int
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
 
 
 @struct.dataclass
@@ -70,9 +70,7 @@ class ARS(Strategy):
             mean=initialization,
             sigma=params.sigma_init,
             opt_state=self.optimizer.initialize(params.opt_params),
-            best_fitness=jnp.finfo(jnp.float32).max,
             best_member=initialization,
-            gen_counter=0,
         )
         return state
 
@@ -120,10 +118,4 @@ class ARS(Strategy):
         # Update lrate and standard deviation based on min and decay
         sigma = state.sigma * params.sigma_decay
         sigma = jnp.maximum(sigma, params.sigma_limit)
-
-        return state.replace(
-            mean=mean,
-            sigma=sigma,
-            opt_state=opt_state,
-            gen_counter=state.gen_counter + 1,
-        )
+        return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)

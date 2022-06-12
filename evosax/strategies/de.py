@@ -12,8 +12,8 @@ class EvoState:
     archive: chex.Array
     fitness_archive: chex.Array
     best_member: chex.Array
-    best_fitness: float
-    gen_counter: int
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
 
 
 @struct.dataclass
@@ -59,8 +59,6 @@ class DE(Strategy):
             archive=initialization,
             fitness_archive=jnp.zeros(self.popsize) + 20e10,
             best_member=initialization.mean(axis=0),
-            best_fitness=jnp.finfo(jnp.float32).max,
-            gen_counter=0,
         )
         return state
 
