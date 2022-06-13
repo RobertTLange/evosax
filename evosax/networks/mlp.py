@@ -26,6 +26,14 @@ class MLP(nn.Module):
     def __call__(
         self, x: chex.Array, rng: Optional[chex.PRNGKey] = None
     ) -> chex.Array:
+        # Flatten a single 3d image into a plain flat vector
+        if len(x.shape) == 3:
+            x = x.reshape(-1)
+        # Flatten a batch of 3d images into a batch of flat vectors
+        elif len(x.shape) == 4:
+            x = x.reshape(x.shape[0], -1)
+
+        # Loop over dense layers in forward pass
         for l in range(self.num_hidden_layers):
             x = nn.Dense(
                 features=self.num_hidden_units,
@@ -45,6 +53,7 @@ class MLP(nn.Module):
             return identity_out(x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "tanh":
             return tanh_out(x, self.num_output_units, self.kernel_init_type)
+        # Categorical and gaussian output heads require rng for sampling
         elif self.output_activation == "categorical":
             return categorical_out(
                 rng, x, self.num_output_units, self.kernel_init_type

@@ -1,8 +1,20 @@
 import jax
 import chex
-from typing import Tuple
+from typing import Tuple, Optional
 from functools import partial
 from .cma_es import CMA_ES
+from ..restarts.restarter import WrapperState, WrapperParams
+from flax import struct
+
+
+@struct.dataclass
+class RestartParams:
+    min_num_gens: int = 50
+    min_fitness_spread: float = 1e-12
+    popsize_multiplier: int = 2
+    tol_x: float = 1e-12
+    tol_x_up: float = 1e4
+    tol_condition_C: float = 1e14
 
 
 class IPOP_CMA_ES(object):
@@ -25,37 +37,26 @@ class IPOP_CMA_ES(object):
         )
 
     @property
-    def default_params(self) -> chex.ArrayTree:
+    def default_params(self) -> WrapperParams:
         """Return default parameters of evolution strategy."""
         re_params = self.wrapped_strategy.default_params
-        re_params["tol_x"] = 1e-12
-        re_params["tol_x_up"] = 1e4
-        re_params["tol_condition_C"] = 1e14
-        return re_params
+        return re_params.replace(restart_params=RestartParams())
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
+    ) -> WrapperState:
         """`initialize` the evolution strategy."""
         return self.wrapped_strategy.initialize(rng, params)
 
     def ask(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self,
+        rng: chex.PRNGKey,
+        state: WrapperState,
+        params: Optional[WrapperParams] = None,
+    ) -> Tuple[chex.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
         x, state = self.wrapped_strategy.ask(rng, state, params)
-        for k in [
-            "weights_truncated",
-            "weights",
-            "mu_eff",
-            "c_1",
-            "c_mu",
-            "c_c",
-            "c_sigma",
-            "d_sigma",
-        ]:
-            params[k] = self.wrapped_strategy.default_params[k]
         return x, state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -63,8 +64,8 @@ class IPOP_CMA_ES(object):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: WrapperState,
+        params: Optional[WrapperParams] = None,
+    ) -> WrapperState:
         """`tell` performance data for strategy state update."""
         return self.wrapped_strategy.tell(x, fitness, state, params)

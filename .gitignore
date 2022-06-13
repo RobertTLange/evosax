@@ -1,7 +1,3 @@
-# Repo-specific excludes
-cma_es_grid.sh
-eval/
-
 # Standard ROB excludes
 .sync-config.cson
 .vim-arsync

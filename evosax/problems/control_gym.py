@@ -3,42 +3,42 @@ import jax.numpy as jnp
 from functools import partial
 from typing import Optional
 import chex
-from .cartpole import CartPole
-from .acrobot import Acrobot
 
 
 class GymFitness(object):
     def __init__(
         self,
         env_name: str = "CartPole-v1",
-        num_env_steps: int = 200,
+        num_env_steps: Optional[int] = None,
         num_rollouts: int = 16,
-        env_params: Optional[dict] = None,
+        env_kwargs: dict = {},
+        env_params: dict = {},
         test: bool = False,
         n_devices: Optional[int] = None,
     ):
         self.env_name = env_name
-        self.num_env_steps = num_env_steps
         self.num_rollouts = num_rollouts
-        self.steps_per_member = num_env_steps * num_rollouts
         self.test = test
 
-        # Define the RL environment & network forward fucntion
-        if self.env_name == "CartPole-v1":
-            self.env = CartPole()
-        elif self.env_name == "Acrobot-v1":
-            self.env = Acrobot()
-        else:
-            raise ValueError(
-                "Gym environment has to be either 'CartPole-v1' or"
-                " 'Acrobot-v1'."
+        try:
+            import gymnax
+        except ImportError:
+            raise ImportError(
+                "You need to install `gymnax` to use its fitness rollouts."
             )
-        self.env_params = self.env.default_params
-        if env_params is not None:
-            for k, v in env_params.items():
-                self.env_params[k] = v
-        self.action_shape = self.env.action_shape
-        self.input_shape = self.env.observation_shape
+
+        # Define the RL environment & replace default parameters if desired
+        self.env, self.env_params = gymnax.make(env_name, env_kwargs)
+        self.env_params.replace(**env_params)
+
+        if num_env_steps is None:
+            self.num_env_steps = self.env_params.max_steps_in_episode
+        else:
+            self.num_env_steps = num_env_steps
+        self.steps_per_member = self.num_env_steps * num_rollouts
+
+        self.action_shape = self.env.num_actions
+        self.input_shape = self.env.observation_space(self.env_params).shape
         if n_devices is None:
             self.n_devices = jax.local_device_count()
         else:
@@ -95,7 +95,7 @@ class GymFitness(object):
             """lax.scan compatible step transition in jax env."""
             obs, state, policy_params, rng = state_input
             rng, rng_step, rng_net = jax.random.split(rng, 3)
-            action = self.network({"params": policy_params}, obs, rng=rng_net)
+            action = self.network(policy_params, obs, rng=rng_net)
             # action = jnp.nan_to_num(action, nan=0.0)
             next_o, next_s, reward, done, _ = self.env.step(
                 rng_step, state, action, self.env_params
@@ -131,9 +131,7 @@ class GymFitness(object):
             """lax.scan compatible step transition in jax env."""
             obs, state, policy_params, rng, hidden = state_input
             rng, rng_step, rng_net = jax.random.split(rng, 3)
-            hidden, action = self.network(
-                {"params": policy_params}, obs, hidden, rng_net
-            )
+            hidden, action = self.network(policy_params, obs, hidden, rng_net)
             next_o, next_s, reward, done, _ = self.env.step(
                 rng_step, state, action, self.env_params
             )

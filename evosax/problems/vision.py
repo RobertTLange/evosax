@@ -67,7 +67,7 @@ class VisionFitness(object):
         """Evaluate a network on a supervised learning task."""
         rng_net, rng_sample = jax.random.split(rng_input)
         X, y = self.dataloader.sample(rng_sample)
-        y_pred = self.network({"params": network_params}, X, rng_net)
+        y_pred = self.network(network_params, X, rng_net)
         loss, acc = loss_and_acc(y_pred, y, self.num_classes)
         # Return negative loss to maximize!
         return -1 * loss, acc

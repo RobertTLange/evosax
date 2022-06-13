@@ -12,6 +12,7 @@ class Decoder(object):
         n_devices: Optional[int] = None,
     ):
         self.num_encoding_dims = num_encoding_dims
+        self.total_params = num_encoding_dims
         self.placeholder_params = placeholder_params
         self.identity = identity
         if n_devices is None:

@@ -3,6 +3,39 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
+from flax import struct
+
+
+@struct.dataclass
+class EvoState:
+    mean: chex.Array
+    mean_shift: chex.Array
+    C: chex.Array
+    nis_counter: int
+    c_mult: float
+    sigma: float
+    best_member: chex.Array
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
+
+
+@struct.dataclass
+class EvoParams:
+    eta_sigma: float
+    eta_shift: float
+    eta_avs_inc: float = 1.0 / 0.9
+    eta_avs_dec: float = 0.9
+    nis_max_gens: int = 50
+    delta_ams: float = 2.0
+    theta_sdr: float = 1.0
+    c_mult_init: float = 1.0
+    sigma_init: float = 0.0
+    sigma_decay: float = 0.999
+    sigma_limit: float = 0.0
+    init_min: float = 0.0
+    init_max: float = 0.0
+    clip_min: float = -jnp.finfo(jnp.float32).max
+    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class Full_iAMaLGaM(Strategy):
@@ -24,7 +57,7 @@ class Full_iAMaLGaM(Strategy):
         self.strategy_name = "Full_iAMaLGaM"
 
     @property
-    def params_strategy(self) -> chex.ArrayTree:
+    def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         a_0_sigma, a_1_sigma, a_2_sigma = -1.1, 1.2, 1.6
         a_0_shift, a_1_shift, a_2_shift = -1.2, 0.31, 0.5
@@ -39,59 +72,44 @@ class Full_iAMaLGaM(Strategy):
             / (self.num_dims ** a_2_shift)
         )
 
-        params = {
-            "eta_sigma": eta_sigma,
-            "eta_shift": eta_shift,
-            "eta_avs_inc": 1.0 / 0.9,
-            "eta_avs_dec": 0.9,
-            "nis_max_gens": 50,
-            "delta_ams": 2.0,
-            "theta_sdr": 1.0,
-            "c_mult_init": 1.0,
-            "sigma_init": 0.0,
-            "sigma_decay": 0.999,
-            "sigma_limit": 0.0,
-            "init_min": 0.0,
-            "init_max": 0.0,
-        }
+        params = EvoParams(eta_sigma=eta_sigma, eta_shift=eta_shift)
         return params
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: EvoParams
+    ) -> EvoState:
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),
-            minval=params["init_min"],
-            maxval=params["init_max"],
+            minval=params.init_min,
+            maxval=params.init_max,
         )
-        state = {
-            "mean": initialization,
-            "mean_shift": jnp.zeros(self.num_dims),
-            "C": jnp.eye(self.num_dims),
-            "sigma": params["sigma_init"],
-            "nis_counter": 0,
-            "c_mult": params["c_mult_init"],
-        }
+        state = EvoState(
+            mean=initialization,
+            mean_shift=jnp.zeros(self.num_dims),
+            C=jnp.eye(self.num_dims),
+            sigma=params.sigma_init,
+            nis_counter=0,
+            c_mult=params.c_mult_init,
+            best_member=initialization,
+        )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+    ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         rng_sample, rng_ams = jax.random.split(rng)
-        x = sample(
-            rng_sample, state["mean"], state["C"], state["sigma"], self.popsize
-        )
+        x = sample(rng_sample, state.mean, state.C, state.sigma, self.popsize)
         x_ams = anticipated_mean_shift(
             rng_ams,
             x,
             self.ams_popsize,
-            params["delta_ams"],
-            state["c_mult"],
-            state["mean_shift"],
+            params.delta_ams,
+            state.c_mult,
+            state.mean_shift,
         )
         return x_ams, state
 
@@ -99,9 +117,9 @@ class Full_iAMaLGaM(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: EvoState,
+        params: EvoParams,
+    ) -> EvoState:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite
         idx = jnp.argsort(fitness)[0 : self.elite_popsize]
@@ -109,37 +127,42 @@ class Full_iAMaLGaM(Strategy):
         members_elite = x[idx]
 
         # If there has been a fitness improvement -> Run AVS based on SDR
-        improvements = fitness_elite < state["best_fitness"]
+        improvements = fitness_elite < state.best_fitness
         any_improvement = jnp.sum(improvements) > 0
         sdr = standard_deviation_ratio(
-            improvements, members_elite, state["mean"], state["C"]
+            improvements, members_elite, state.mean, state.C
         )
-        state["c_mult"], state["nis_counter"] = adaptive_variance_scaling(
+        c_mult, nis_counter = adaptive_variance_scaling(
             any_improvement,
             sdr,
-            state["c_mult"],
-            state["nis_counter"],
-            params["theta_sdr"],
-            params["eta_avs_inc"],
-            params["eta_avs_dec"],
-            params["nis_max_gens"],
+            state.c_mult,
+            state.nis_counter,
+            params.theta_sdr,
+            params.eta_avs_inc,
+            params.eta_avs_dec,
+            params.nis_max_gens,
         )
 
         # Update mean and covariance estimates - difference full vs. indep
-        state["mean"], state["mean_shift"] = update_mean_amalgam(
+        mean, mean_shift = update_mean_amalgam(
             members_elite,
-            state["mean"],
-            state["mean_shift"],
-            params["eta_shift"],
+            state.mean,
+            state.mean_shift,
+            params.eta_shift,
         )
-        state["C"] = update_cov_amalgam(
-            members_elite, state["C"], state["mean"], params["eta_sigma"]
-        )
+        C = update_cov_amalgam(members_elite, state.C, mean, params.eta_sigma)
 
         # Decay isotropic part of Gaussian search distribution
-        state["sigma"] *= params["sigma_decay"]
-        state["sigma"] = jnp.maximum(state["sigma"], params["sigma_limit"])
-        return state
+        sigma = state.sigma * params.sigma_decay
+        sigma = jnp.maximum(sigma, params.sigma_limit)
+        return state.replace(
+            c_mult=c_mult,
+            nis_counter=nis_counter,
+            mean=mean,
+            mean_shift=mean_shift,
+            C=C,
+            sigma=sigma,
+        )
 
 
 def sample(

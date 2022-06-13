@@ -3,6 +3,35 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
+from flax import struct
+
+
+@struct.dataclass
+class EvoState:
+    mean: chex.Array
+    sigma: float
+    sigma_old: float
+    amat: chex.Array
+    bmat: chex.Array
+    noise: chex.Array
+    eta_sigma: float
+    utilities: chex.Array
+    best_member: chex.Array
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
+
+
+@struct.dataclass
+class EvoParams:
+    eta_mean: float
+    eta_sigma_init: float
+    eta_bmat: float
+    use_adaptive_sampling: bool = False
+    use_fitness_shaping: bool = True
+    init_min: float = 0.0
+    init_max: float = 0.0
+    clip_min: float = -jnp.finfo(jnp.float32).max
+    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class xNES(Strategy):
@@ -14,26 +43,22 @@ class xNES(Strategy):
         self.strategy_name = "xNES"
 
     @property
-    def params_strategy(self) -> chex.ArrayTree:
+    def params_strategy(self) -> EvoParams:
         """Return default parameters of evolutionary strategy."""
-        params = {
-            "eta_mean": 1.0,
-            "use_adaptive_sampling": False,
-            "use_fitness_shaping": True,
-            "eta_sigma_init": 3
+        params = EvoParams(
+            eta_mean=1.0,
+            eta_sigma_init=3
             * (3 + jnp.log(self.num_dims))
             * (1.0 / (5 * self.num_dims * jnp.sqrt(self.num_dims))),
-            "eta_bmat": 3
+            eta_bmat=3
             * (3 + jnp.log(self.num_dims))
             * (1.0 / (5 * self.num_dims * jnp.sqrt(self.num_dims))),
-            "init_min": 0.0,
-            "init_max": 0.0,
-        }
+        )
         return params
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: chex.Array
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: EvoParams
+    ) -> EvoState:
         """`initialize` the evolutionary strategy."""
         amat = jnp.eye(self.num_dims)
         sigma = abs(jax.scipy.linalg.det(amat)) ** (1.0 / self.num_dims)
@@ -50,64 +75,64 @@ class xNES(Strategy):
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),
-            minval=params["init_min"],
-            maxval=params["init_max"],
+            minval=params.init_min,
+            maxval=params.init_max,
         )
-        state = {
-            "mean": initialization,
-            "sigma": sigma,
-            "sigma_old": sigma,
-            "amat": amat,
-            "bmat": bmat,
-            "noise": jnp.zeros((self.popsize, self.num_dims)),
-            "eta_sigma": params["eta_sigma_init"],
-            "utilities": utilities,
-        }
+        state = EvoState(
+            mean=initialization,
+            sigma=sigma,
+            sigma_old=sigma,
+            amat=amat,
+            bmat=bmat,
+            noise=jnp.zeros((self.popsize, self.num_dims)),
+            eta_sigma=params.eta_sigma_init,
+            utilities=utilities,
+            best_member=initialization,
+        )
 
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+    ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(rng, (self.popsize, self.num_dims))
-        x = state["mean"] + state["sigma"] * jnp.dot(noise, state["bmat"])
-        state["noise"] = noise
-        return x, state
+        x = state.mean + state.sigma * jnp.dot(noise, state.bmat)
+        return x, state.replace(noise=noise)
 
     def tell_strategy(
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: EvoState,
+        params: EvoParams,
+    ) -> EvoState:
         """`tell` performance data for strategy state update."""
         # By default the xNES maximizes the objective
         fitness_re = -fitness
         isort = fitness_re.argsort()
         sorted_fitness = fitness_re[isort]
-        sorted_noise = state["noise"][isort]
+        sorted_noise = state.noise[isort]
         sorted_candidates = x[isort]
         fitness_shaped = jax.lax.select(
-            params["use_fitness_shaping"], state["utilities"], sorted_fitness
+            params.use_fitness_shaping, state.utilities, sorted_fitness
         )
 
         use_adasam = jnp.logical_and(
-            params["use_adaptive_sampling"], state["gen_counter"] > 1
+            params.use_adaptive_sampling, state.gen_counter > 1
         )  # sigma_old must be available
-        state["eta_sigma"] = jax.lax.select(
+        eta_sigma = jax.lax.select(
             use_adasam,
             self.adaptive_sampling(
-                state["eta_sigma"],
-                state["mean"],
-                state["sigma"],
-                state["bmat"],
-                state["sigma_old"],
+                state.eta_sigma,
+                state.mean,
+                state.sigma,
+                state.bmat,
+                state.sigma_old,
                 sorted_candidates,
-                params["eta_sigma_init"],
+                state.eta_sigma,
             ),
-            state["eta_sigma"],
+            state.eta_sigma,
         )
 
         dj_delta = jnp.dot(fitness_shaped, sorted_noise)
@@ -121,20 +146,22 @@ class xNES(Strategy):
         dj_sigma = jnp.trace(dj_mmat) * (1.0 / self.num_dims)
         dj_bmat = dj_mmat - dj_sigma * jnp.eye(self.num_dims)
 
-        state["sigma_old"] = state["sigma"]
-        state["mean"] += (
-            params["eta_mean"]
-            * state["sigma"]
-            * jnp.dot(state["bmat"], dj_delta)
+        sigma_old = state.sigma
+        mean = state.mean + (
+            params.eta_mean * state.sigma * jnp.dot(state.bmat, dj_delta)
         )
-        state["sigma"] = state["sigma_old"] * jnp.exp(
-            0.5 * state["eta_sigma"] * dj_sigma
+        sigma = sigma_old * jnp.exp(0.5 * eta_sigma * dj_sigma)
+        bmat = jnp.dot(
+            state.bmat,
+            jax.scipy.linalg.expm(0.5 * params.eta_bmat * dj_bmat),
         )
-        state["bmat"] = jnp.dot(
-            state["bmat"],
-            jax.scipy.linalg.expm(0.5 * params["eta_bmat"] * dj_bmat),
+        return state.replace(
+            eta_sigma=eta_sigma,
+            mean=mean,
+            sigma=sigma,
+            bmat=bmat,
+            sigma_old=sigma_old,
         )
-        return state
 
     def adaptive_sampling(
         self,

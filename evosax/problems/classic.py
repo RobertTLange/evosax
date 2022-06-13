@@ -19,16 +19,22 @@ class ClassicFitness(object):
         self.noise_std = noise_std
         assert self.num_dims >= 2
 
+        # Use default settings for classic BBOB evaluation functions
         if self.fct_name == "quadratic":
             self.eval = jax.vmap(quadratic_d_dim, 0)
         elif self.fct_name == "rosenbrock":
-            self.eval = jax.vmap(rosenbrock_d_dim, 0)
+            fn = partial(rosenbrock_d_dim, params={"a": 1, "b": 100})
+            self.eval = jax.vmap(fn, 0)
         elif self.fct_name == "ackley":
-            self.eval = jax.vmap(ackley_d_dim, 0)
+            fn = partial(
+                ackley_d_dim, params={"c": 20, "d": 0.2, "e": 2 * jnp.pi}
+            )
+            self.eval = jax.vmap(fn, 0)
         elif self.fct_name == "griewank":
             self.eval = jax.vmap(griewank_d_dim, 0)
         elif self.fct_name == "rastrigin":
-            self.eval = jax.vmap(rastrigin_d_dim, 0)
+            fn = partial(rastrigin_d_dim, params={"f": 10})
+            self.eval = jax.vmap(fn, 0)
         elif self.fct_name == "schwefel":
             self.eval = jax.vmap(schwefel_d_dim, 0)
         elif self.fct_name == "himmelblau":
@@ -58,7 +64,6 @@ def himmelblau_2_dim(x: chex.Array) -> chex.Array:
     f(x*)=0 - Minima at [3, 2], [-2.81, 3.13],
                         [-3.78, -3.28], [3.58, -1.85]
     """
-    x = x
     return (x[0] ** 2 + x[1] - 11) ** 2 + (x[0] + x[1] ** 2 - 7) ** 2
 
 
@@ -67,7 +72,6 @@ def six_hump_camel_2_dim(x: chex.Array) -> chex.Array:
     2-dim. 6-Hump Camel function.
     f(x*)=-1.0316 - Minimum at [0.0898, -0.7126], [-0.0898, 0.7126]
     """
-    x = x
     p1 = (4 - 2.1 * x[0] ** 2 + x[0] ** 4 / 3) * x[0] ** 2
     p2 = x[0] * x[1]
     p3 = (-4 + 4 * x[1] ** 2) * x[1] ** 2
@@ -76,35 +80,30 @@ def six_hump_camel_2_dim(x: chex.Array) -> chex.Array:
 
 def quadratic_d_dim(x: chex.Array) -> chex.Array:
     """
-    Simple 3-dim. quadratic function.
+    Simple D-dim. quadratic function.
     f(x*)=0 - Minimum at [0.]ˆd
     """
     return jnp.sum(jnp.square(x))
 
 
-def rosenbrock_d_dim(x: chex.Array) -> chex.Array:
+def rosenbrock_d_dim(x: chex.Array, params: dict) -> chex.Array:
     """
     D-Dim. Rosenbrock function. x_i ∈ [-32.768, 32.768] or x_i ∈ [-5, 10]
     f(x*)=0 - Minumum at x*=a
     """
-    a = 1
-    b = 100
     x_i, x_sq, x_p = x[:-1], x[:-1] ** 2, x[1:]
-    return jnp.sum((a - x_i) ** 2 + b * (x_p - x_sq) ** 2)
+    return jnp.sum((params["a"] - x_i) ** 2 + params["b"] * (x_p - x_sq) ** 2)
 
 
-def ackley_d_dim(x: chex.Array) -> chex.Array:
+def ackley_d_dim(x: chex.Array, params: dict) -> chex.Array:
     """
     D-Dim. Ackley function. x_i ∈ [-32.768, 32.768]
     f(x*)=0 - Minimum at x*=[0,...,0]
     """
-    a = 20
-    b = 0.2
-    c = 2 * jnp.pi
     return (
-        -a * jnp.exp(-b * jnp.sqrt(jnp.mean(x ** 2)))
-        - jnp.exp(jnp.mean(jnp.cos(c * x)))
-        + a
+        -params["c"] * jnp.exp(-params["d"] * jnp.sqrt(jnp.mean(x ** 2)))
+        - jnp.exp(jnp.mean(jnp.cos(params["e"] * x)))
+        + params["c"]
         + jnp.exp(1)
     )
 
@@ -121,13 +120,14 @@ def griewank_d_dim(x: chex.Array) -> chex.Array:
     )
 
 
-def rastrigin_d_dim(x: chex.Array) -> chex.Array:
+def rastrigin_d_dim(x: chex.Array, params: dict) -> chex.Array:
     """
     D-Dim. Rastrigin function. x_i ∈ [-5.12, 5.12]
     f(x*)=0 - Minimum at x*=[0,...,0]
     """
-    A = 10
-    return A * x.shape[0] + jnp.sum(x ** 2 - A * jnp.cos(2 * jnp.pi * x))
+    return params["f"] * x.shape[0] + jnp.sum(
+        x ** 2 - params["f"] * jnp.cos(2 * jnp.pi * x)
+    )
 
 
 def schwefel_d_dim(x: chex.Array) -> chex.Array:

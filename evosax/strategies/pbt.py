@@ -3,6 +3,27 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
+from flax import struct
+
+
+@struct.dataclass
+class EvoState:
+    archive: chex.Array
+    fitness: chex.Array
+    copy_id: chex.Array
+    best_member: chex.Array
+    best_fitness: float = jnp.finfo(jnp.float32).max
+    gen_counter: int = 0
+
+
+@struct.dataclass
+class EvoParams:
+    noise_scale: float = 0.1
+    truncation_selection: float = 0.2
+    init_min: float = 0.0
+    init_max: float = 0.0
+    clip_min: float = -jnp.finfo(jnp.float32).max
+    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class PBT(Strategy):
@@ -13,37 +34,33 @@ class PBT(Strategy):
         self.strategy_name = "PBT"
 
     @property
-    def params_strategy(self) -> chex.ArrayTree:
+    def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return {
-            "noise_scale": 0.1,
-            "truncation_selection": 0.2,
-            "init_min": 0.0,
-            "init_max": 0.1,
-        }
+        return EvoParams()
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: EvoParams
+    ) -> EvoState:
         """
         `initialize` the differential evolution strategy.
         """
         initialization = jax.random.uniform(
             rng,
             (self.popsize, self.num_dims),
-            minval=params["init_min"],
-            maxval=params["init_max"],
+            minval=params.init_min,
+            maxval=params.init_max,
         )
-        state = {
-            "archive": initialization,
-            "fitness": jnp.zeros(self.popsize) - 20e10,
-            "copy_id": jnp.zeros(self.popsize, dtype=jnp.int32),
-        }
+        state = EvoState(
+            archive=initialization,
+            fitness=jnp.zeros(self.popsize) - 20e10,
+            copy_id=jnp.zeros(self.popsize, dtype=jnp.int32),
+            best_member=jnp.zeros(self.num_dims),
+        )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+    ) -> Tuple[chex.Array, EvoState]:
         """
         `ask` for new proposed candidates to evaluate next.
         Perform explore-exploit step.
@@ -55,35 +72,34 @@ class PBT(Strategy):
         member_ids = jnp.arange(self.popsize)
         exploit_bool, copy_id, hyperparams = jax.vmap(
             single_member_exploit, in_axes=(0, None, None, None)
-        )(member_ids, state["archive"], state["fitness"], params)
+        )(member_ids, state.archive, state.fitness, params)
         hyperparams = jax.vmap(single_member_explore, in_axes=(0, 0, 0, None))(
             rng_members, exploit_bool, hyperparams, params
         )
-        state["copy_id"] = copy_id
-        return hyperparams, state
+        return hyperparams, state.replace(copy_id=copy_id)
 
     def tell_strategy(
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: EvoState,
+        params: EvoParams,
+    ) -> EvoState:
         """`tell` update to ES state. - Only copy if improved performance."""
-        replace = fitness >= state["fitness"]
-        state["archive"] = (
+        replace = fitness >= state.fitness
+        archive = (
             jnp.expand_dims(replace, 1) * x
-            + (1 - jnp.expand_dims(replace, 1)) * state["archive"]
+            + (1 - jnp.expand_dims(replace, 1)) * state.archive
         )
-        state["fitness"] = replace * fitness + (1 - replace) * state["fitness"]
-        return state
+        fitness = replace * fitness + (1 - replace) * state.fitness
+        return state.replace(archive=archive, fitness=fitness)
 
 
 def single_member_exploit(
     member_id: int,
     archive: chex.Array,
     fitness: chex.Array,
-    params: chex.ArrayTree,
+    params: EvoParams,
 ) -> Tuple[bool, int, chex.Array]:
     """Get the top and bottom performers."""
     best_id = jnp.argmax(fitness)
@@ -97,11 +113,11 @@ def single_member_explore(
     rng: chex.PRNGKey,
     exploit_bool: int,
     hyperparams: chex.Array,
-    params: chex.ArrayTree,
+    params: EvoParams,
 ) -> chex.Array:
     """Perform multiplicative noise exploration."""
     explore_noise = (
-        jax.random.normal(rng, hyperparams.shape) * params["noise_scale"]
+        jax.random.normal(rng, hyperparams.shape) * params.noise_scale
     )
     hyperparams_explore = jax.lax.select(
         exploit_bool, hyperparams + explore_noise, hyperparams

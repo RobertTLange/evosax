@@ -111,7 +111,7 @@ class SequenceFitness(object):
             network_params, hidden, rng, t = state_input
             rng, rng_net = jax.random.split(rng)
             hidden, pred = self.network(
-                {"params": network_params},
+                network_params,
                 X_single[t],
                 hidden,
                 rng_net,

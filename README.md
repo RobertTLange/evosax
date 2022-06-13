@@ -26,7 +26,7 @@ for t in range(num_generations):
     state = strategy.tell(x, fitness, state, es_params)
 
 # Get best overall population member & its fitness
-state["best_member"], state["best_fitness"]
+state.best_member, state.best_fitness
 ```
 
 ## Implemented Evolution Strategies 🦎
@@ -78,6 +78,8 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 * 📓 [LRateTune-PES](https://github.com/RobertTLange/evosax/blob/main/examples/04_lrate_pes.ipynb): Persistent ES on meta-learning problem as in [Vicol et al. (2021)](http://proceedings.mlr.press/v139/vicol21a.html).
 * 📓 [Quadratic-PBT](https://github.com/RobertTLange/evosax/blob/main/examples/05_quadratic_pbt.ipynb): PBT on toy quadratic problem as in [Jaderberg et al. (2017)](https://arxiv.org/abs/1711.09846).
 * 📓 [Restart-Wrappers](https://github.com/RobertTLange/evosax/blob/main/examples/06_restart_es.ipynb): Custom restart wrappers as e.g. used in (B)IPOP-CMA-ES.
+* 📓 [Brax Control](https://github.com/RobertTLange/evosax/blob/main/examples/07_brax_control.ipynb): Evolve Tanh MLPs on Brax tasks using the `evosax` wrapper.
+* 📓 [Indirect Encodings](https://github.com/RobertTLange/evosax/blob/main/examples/08_encodings.ipynb): Find out how many parameters we need to evolve a pendulum controller.
 
 ## Key Selling Points 💵
 
@@ -86,17 +88,13 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 - **Vectorization/Parallelization of `ask`/`tell` Calls**: Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap`. This enables vectorized/parallel rollouts of different evolution strategies.
 
 ```Python
-from evosax import ARS
-# E.g. vectorize over different lrate decays
+from evosax.strategies.ars import ARS, EvoParams
+# E.g. vectorize over different initial perturbation stds
 strategy = ARS(popsize=100, num_dims=20)
-es_params = {
-    "lrate_decay": jnp.array([0.999, 0.99, 0.9]),
-    ...
-}
-map_dict = {
-    "lrate_decay": 0,
-    ...
-}
+es_params = EvoParams(sigma_init=jnp.array([0.1, 0.01, 0.001]), sigma_decay=0.999, ...)
+
+# Specify how to map over ES hyperparameters 
+map_dict = EvoParams(sigma_init=0, sigma_decay=None, ...)
 
 # Vmap-composed batch initialize, ask and tell functions 
 batch_init = jax.vmap(strategy.init, in_axes=(None, map_dict))
@@ -144,10 +142,10 @@ class MLP(nn.Module):
         return ...
 
 network = MLP(64)
-policy_params = network.init(rng, jnp.zeros(4,), rng)
+net_params = network.init(rng, jnp.zeros(4,), rng)
 
 # Initialize reshaper based on placeholder network shapes
-param_reshaper = ParameterReshaper(policy_params["params"])
+param_reshaper = ParameterReshaper(net_params)
 
 # Get population candidates & reshape into stacked pytrees
 x = strategy.ask(...)
@@ -162,7 +160,7 @@ from evosax import FitnessShaper
 
 # Instantiate jittable fitness shaper (e.g. for Open ES)
 fit_shaper = FitnessShaper(centered_rank=True,
-                           z_score=True,
+                           z_score=False,
                            weight_decay=0.01,
                            maximize=True)
 
@@ -183,7 +181,7 @@ def std_criterion(fitness, state, params):
 
 # Instantiate Base CMA-ES & wrap with BIPOP restarts
 # Pass strategy-specific kwargs separately (e.g. elite_ration or opt_name)
-strategy = CMA(num_dims, popsize, elite_ratio)
+strategy = CMA_ES(num_dims, popsize, elite_ratio)
 re_strategy = BIPOP_Restarter(
                 strategy,
                 stop_criteria=[std_criterion],
@@ -201,7 +199,7 @@ state = re_strategy.tell(x, fitness, state, params)
 - **Batch Strategy Rollouts**: *Work-in-progress*. We are currently also working on different ways of incorporating multiple subpopulations with different communication protocols.
 
 ```Python
-from evosax import BatchStrategy
+from evosax.experimental.subpops import BatchStrategy
 
 # Instantiates 5 CMA-ES subpops of 20 members
 strategy = BatchStrategy(
@@ -212,13 +210,36 @@ strategy = BatchStrategy(
         strategy_kwargs={"elite_ratio": 0.5},
         communication="best_subpop",
     )
-params = strategy.default_params
-state = strategy.initialize(rng, params)
+es_params = strategy.default_params
+state = strategy.initialize(rng, es_params)
 # Ask for evaluation candidates of different subpopulation ES
-x, state = strategy.ask(rng_iter, state, params)
+x, state = strategy.ask(rng_iter, state, es_params)
 fitness = ...
-state = strategy.tell(x, fitness, state, params)
+state = strategy.tell(x, fitness, state, es_params)
 ```
+
+- **Indirect Encodings**: *Work-in-progress*. ES can struggle with high-dimensional search spaces (e.g. due to harder estimation of covariances). One potential way to alleviate this challenge, is to use indirect parameter encodings in a lower dimensional space. So far we provide JAX-compatible encodings with random projections (Gaussian/Rademacher) and Hypernetworks for MLPs. They act as drop-in replacements for the `ParameterReshaper`:
+
+```Python
+from evosax.experimental.decodings import RandomDecoder, HyperDecoder
+
+# For arbitrary network architectures / search spaces
+num_encoding_dims = 6
+param_reshaper = RandomDecoder(num_encoding_dims, net_params)
+x_shaped = param_reshaper.reshape(x)
+
+# For MLP-based models we also support a HyperNetwork en/decoding
+reshaper = HyperDecoder(
+        net_params,
+        hypernet_config={
+            "num_latent_units": 3,  # Latent units per module kernel/bias
+            "num_hidden_units": 2,  # Hidden dimensionality of a_i^j embedding
+        },
+    )
+x_shaped = param_reshaper.reshape(x)
+```
+
+
 
 ## Resources & Other Great JAX-ES Tools 📝
 * 📺 [Rob's MLC Research Jam Talk](https://www.youtube.com/watch?v=Wn6Lq2bexlA&t=51s): Small motivation talk at the ML Collective Research Jam.
