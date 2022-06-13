@@ -27,7 +27,7 @@
     - Hypernetworks for MLP architectures
 - Example notebook for infirect encodings.
 - Example notebook for Brax control tasks and policy visualizations.
-- Adds option to restart wrappers to copy over mean and only reset other parts of `EvoState`.
+- Adds option to restart wrappers to `copy_mean` and only reset other parts of `EvoState`.
 
 ##### Changed
 
