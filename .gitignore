@@ -1,7 +1,3 @@
-# Repo-specific excludes
-07_exp_batch_es.ipynb
-08_exp_encodings.ipynb
-
 # Standard ROB excludes
 .sync-config.cson
 .vim-arsync
