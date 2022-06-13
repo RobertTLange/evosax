@@ -39,6 +39,21 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
+def get_cma_elite_weights(
+    popsize: int, elite_popsize: int
+) -> Tuple[chex.Array, chex.Array]:
+    weights_prime = jnp.array(
+        [
+            jnp.log(elite_popsize + 1) - jnp.log(i + 1)
+            for i in range(elite_popsize)
+        ]
+    )
+    weights = weights_prime / jnp.sum(weights_prime)
+    weights_truncated = jnp.zeros(popsize)
+    weights_truncated = weights_truncated.at[:elite_popsize].set(weights)
+    return weights, weights_truncated
+
+
 class Sep_CMA_ES(Strategy):
     def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
@@ -54,16 +69,8 @@ class Sep_CMA_ES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        weights_prime = jnp.array(
-            [
-                jnp.log(self.elite_popsize + 1) - jnp.log(i + 1)
-                for i in range(self.elite_popsize)
-            ]
-        )
-        weights = weights_prime / jnp.sum(weights_prime)
-        weights_truncated = jnp.zeros(self.popsize)
-        weights_truncated = weights_truncated.at[: self.elite_popsize].set(
-            weights
+        weights, weights_truncated = get_cma_elite_weights(
+            self.popsize, self.elite_popsize
         )
         mu_eff = 1 / jnp.sum(weights ** 2)
 
@@ -108,6 +115,7 @@ class Sep_CMA_ES(Strategy):
         self, rng: chex.PRNGKey, params: EvoParams
     ) -> EvoState:
         """`initialize` the evolution strategy."""
+        # Population weightings
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
             rng,
@@ -168,7 +176,7 @@ class Sep_CMA_ES(Strategy):
         C = update_covariance(p_c, state.C, y_k, h_sigma, params)
         sigma = update_sigma(state.sigma, norm_p_sigma, params)
         return state.replace(
-            mean=mean, p_sigma=p_sigma, C=C, D=C, p_c=p_c, sigma=sigma
+            mean=mean, p_sigma=p_sigma, C=C, D=D, p_c=p_c, sigma=sigma
         )
 
 

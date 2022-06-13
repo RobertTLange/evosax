@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
+import flax
 from typing import Optional, Tuple
 from functools import partial
 from ... import Strategies
@@ -59,12 +60,16 @@ class BatchStrategy(object):
     @property
     def default_params(self) -> chex.ArrayTree:
         """Return default parameters of evolution strategy."""
-        base_params = self.strategy.default_params
+        base_params = flax.serialization.to_state_dict(
+            self.strategy.default_params
+        )
         # Repeat the default parameters for each subpopulation
         repeated_params = {}
         for k, v in base_params.items():
             repeated_params[k] = jnp.stack(self.num_subpops * [v])
-        return repeated_params
+        return flax.serialization.from_state_dict(
+            self.strategy.default_params, repeated_params
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize_vmap(

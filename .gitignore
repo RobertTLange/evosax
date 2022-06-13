@@ -1,6 +1,6 @@
 # Repo-specific excludes
-cma_es_grid.sh
-eval/
+07_exp_batch_es.ipynb
+08_exp_encodings.ipynb
 
 # Standard ROB excludes
 .sync-config.cson

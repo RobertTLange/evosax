@@ -3,6 +3,17 @@ import chex
 from typing import Tuple
 from functools import partial
 from .cma_es import CMA_ES
+from flax import struct
+
+
+@struct.dataclass
+class RestartParams:
+    min_num_gens: int = 50
+    min_fitness_spread: float = 1e-12
+    popsize_multiplier: int = 2
+    tol_x: float = 1e-12
+    tol_x_up: float = 1e4
+    tol_condition_C: float = 1e14
 
 
 class IPOP_CMA_ES(object):
@@ -28,10 +39,7 @@ class IPOP_CMA_ES(object):
     def default_params(self) -> chex.ArrayTree:
         """Return default parameters of evolution strategy."""
         re_params = self.wrapped_strategy.default_params
-        re_params["tol_x"] = 1e-12
-        re_params["tol_x_up"] = 1e4
-        re_params["tol_condition_C"] = 1e14
-        return re_params
+        return re_params.replace(restart_params=RestartParams())
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
@@ -45,17 +53,19 @@ class IPOP_CMA_ES(object):
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
         x, state = self.wrapped_strategy.ask(rng, state, params)
-        for k in [
-            "weights_truncated",
-            "weights",
-            "mu_eff",
-            "c_1",
-            "c_mu",
-            "c_c",
-            "c_sigma",
-            "d_sigma",
-        ]:
-            params[k] = self.wrapped_strategy.default_params[k]
+        strat_params = self.wrapped_strategy.default_params.strategy_params
+        params = params.replace(
+            strategy_params=params.strategy_params.replace(
+                weights_truncated=strat_params.weights_truncated,
+                weights=strat_params.weights,
+                mu_eff=strat_params.mu_eff,
+                c_1=strat_params.c_1,
+                c_mu=strat_params.c_mu,
+                c_c=strat_params.c_c,
+                c_sigma=strat_params.c_sigma,
+                d_sigma=strat_params.d_sigma,
+            )
+        )
         return x, state
 
     @partial(jax.jit, static_argnums=(0,))

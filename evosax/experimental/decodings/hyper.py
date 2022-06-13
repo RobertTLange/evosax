@@ -43,6 +43,7 @@ class HyperDecoder(Decoder):
             n_devices,
         )
         self.hyper_reshaper = hyper_reshaper
+        self.vmap_dict = self.hyper_reshaper.vmap_dict
 
     def reshape(self, x: chex.Array) -> chex.ArrayTree:
         """Perform reshaping for random projection case."""

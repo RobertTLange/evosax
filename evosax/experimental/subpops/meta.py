@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 from typing import Optional, Tuple, List
 import chex
+import flax
 from functools import partial
 from .batch import BatchStrategy
 from ... import Strategies
@@ -43,14 +44,18 @@ class MetaStrategy(BatchStrategy):
     @property
     def default_params_meta(self) -> chex.ArrayTree:
         """Return default parameters of meta-evolution strategy."""
-        base_params = self.meta_strategy.default_params
+        base_params = flax.serialization.to_state_dict(
+            self.meta_strategy.default_params
+        )
         # Copy over default parameters for init min/init max
         init_val = []
         for k in self.meta_params:
-            init_val.append(self.strategy.default_params[k])
+            init_val.append(getattr(self.strategy.default_params, k))
         base_params["init_min"] = jnp.array(init_val)
         base_params["init_max"] = jnp.array(init_val)
-        return base_params
+        return flax.serialization.from_state_dict(
+            self.meta_strategy.default_params, base_params
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def ask_meta(
@@ -65,9 +70,13 @@ class MetaStrategy(BatchStrategy):
             rng, meta_state, meta_params
         )
         meta_x = meta_x.reshape(-1, self.num_meta_dims)
+        re_inner_params = flax.serialization.to_state_dict(inner_params)
         for i, k in enumerate(self.meta_params):
-            inner_params[k] = meta_x[:, i]
-        return inner_params, meta_state
+            re_inner_params[k] = meta_x[:, i]
+        return (
+            flax.serialization.from_state_dict(inner_params, re_inner_params),
+            meta_state,
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize_meta(
@@ -90,8 +99,9 @@ class MetaStrategy(BatchStrategy):
         meta_fitness = batch_fitness.mean(axis=1)
         # Reconstruct meta_x for dict of inner params
         meta_x = []
+        re_inner_params = flax.serialization.to_state_dict(inner_params)
         for i, k in enumerate(self.meta_params):
-            meta_x.append(inner_params[k].reshape(-1, 1))
+            meta_x.append(re_inner_params[k].reshape(-1, 1))
         meta_x = jnp.concatenate(meta_x, axis=1)
 
         # Update the meta strategy

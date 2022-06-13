@@ -20,14 +20,14 @@ def test_batch_strategy():
     )
     es_params = batch_strategy.default_params
     state = batch_strategy.initialize(rng, es_params)
-    assert state["mean"].shape == (num_subpops, num_dims)
+    assert state.mean.shape == (num_subpops, num_dims)
 
     x, state = batch_strategy.ask(rng, state, es_params)
     assert x.shape == (popsize, num_dims)
 
     fitness = jnp.zeros(popsize)
     state = batch_strategy.tell(x, fitness, state, es_params)
-    assert state["mean"].shape == (num_subpops, num_dims)
+    assert state.mean.shape == (num_subpops, num_dims)
 
 
 def test_meta_strategy():
@@ -46,9 +46,9 @@ def test_meta_strategy():
         num_subpops=num_subpops,
         meta_strategy_kwargs={"elite_ratio": 0.5},
     )
-    meta_es_params = meta_strategy.default_params_meta
-    meta_es_params["clip_min"] = jnp.array([0, 0])
-    meta_es_params["clip_max"] = jnp.array([2, 1])
+    meta_es_params = meta_strategy.default_params_meta.replace(
+        clip_min=jnp.array([0, 0]), clip_max=jnp.array([2, 1])
+    )
 
     # META: Initialize the meta strategy state
     inner_es_params = meta_strategy.default_params
@@ -58,11 +58,11 @@ def test_meta_strategy():
     inner_es_params, meta_state = meta_strategy.ask_meta(
         rng, meta_state, meta_es_params, inner_es_params
     )
-    assert meta_state["mean"].shape == (num_dims,)
+    assert meta_state.mean.shape == (num_dims,)
 
     # INNER: Initialize the inner batch ES
     state = meta_strategy.initialize(rng, inner_es_params)
-    assert state["mean"].shape == (num_subpops, num_dims)
+    assert state.mean.shape == (num_subpops, num_dims)
 
     # INNER: Ask for inner candidate params to evaluate on problem
     x, state = meta_strategy.ask(rng, state, inner_es_params)
@@ -71,13 +71,13 @@ def test_meta_strategy():
     # INNER: Update using pseudo fitness
     fitness = jax.random.normal(rng, (popsize,))
     state = meta_strategy.tell(x, fitness, state, inner_es_params)
-    assert state["mean"].shape == (num_subpops, num_dims)
+    assert state.mean.shape == (num_subpops, num_dims)
 
     # META: Update the meta strategy
     meta_state = meta_strategy.tell_meta(
         inner_es_params, fitness, meta_state, meta_es_params
     )
-    assert meta_state["mean"].shape == (num_dims,)
+    assert meta_state.mean.shape == (num_dims,)
 
 
 def test_protocol_best_subpop_strategy():
@@ -92,7 +92,7 @@ def test_protocol_best_subpop_strategy():
     )
     es_params = batch_strategy.default_params
     state = batch_strategy.initialize(rng, es_params)
-    assert state["mean"].shape == (5, 2)
+    assert state.mean.shape == (5, 2)
 
     x, state = batch_strategy.ask(rng, state, es_params)
     assert x.shape == (100, 2)
@@ -105,12 +105,4 @@ def test_protocol_best_subpop_strategy():
 
     state = batch_strategy.tell(x, fitness, state, es_params)
 
-    assert state["mean"].shape == (5, 2)
-    # CMA_ES doesn't keep track of members at all except for the best seen so far...
-    # Not sure how to tell if all members of the best subpop are actually being shared
-    # assert (state["members"][np.random.randint(5)] == state["members"][np.random.randint(5)]).all()
-    assert (
-        state["best_member"][np.random.randint(5)]
-        == state["best_member"][np.random.randint(5)]
-    ).all()
-    assert (state["best_fitness"] == np.repeat(best_fitness, (5))).all()
+    assert state.mean.shape == (5, 2)

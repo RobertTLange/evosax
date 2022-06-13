@@ -12,6 +12,7 @@ class ParameterReshaper(object):
         placeholder_params: Union[chex.ArrayTree, chex.Array],
         identity: bool = False,
         n_devices: Optional[int] = None,
+        verbose: bool = True,
     ):
         """Reshape flat parameters vectors into generation eval shape."""
         # Get network shape to reshape
@@ -51,17 +52,18 @@ class ParameterReshaper(object):
             self.n_devices = jax.local_device_count()
         else:
             self.n_devices = n_devices
-        if self.n_devices > 1:
+        if self.n_devices > 1 and verbose:
             print(
                 f"ParameterReshaper: {self.n_devices} devices detected. Please"
                 " make sure that the ES population size divides evenly across"
                 " the number of devices to pmap/parallelize over."
             )
 
-        print(
-            f"ParameterReshaper: {self.total_params} parameters detected for"
-            " optimization."
-        )
+        if verbose:
+            print(
+                f"ParameterReshaper: {self.total_params} parameters detected"
+                " for optimization."
+            )
 
     def reshape_identity(self, x: chex.Array) -> chex.Array:
         """Return parameters w/o reshaping for evaluation."""

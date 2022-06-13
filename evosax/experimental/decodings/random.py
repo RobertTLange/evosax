@@ -22,8 +22,10 @@ class RandomDecoder(Decoder):
         self.rademacher = rademacher
         # Instantiate base reshaper class
         self.base_reshaper = ParameterReshaper(
-            placeholder_params, identity, n_devices
+            placeholder_params, identity, n_devices, verbose=False
         )
+        self.vmap_dict = self.base_reshaper.vmap_dict
+
         # Sample a random matrix - Gaussian or Rademacher (+1/-1)
         if not self.rademacher:
             self.project_matrix = jax.random.normal(

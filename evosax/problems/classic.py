@@ -103,7 +103,7 @@ def ackley_d_dim(x: chex.Array, params: dict) -> chex.Array:
     return (
         -params["c"] * jnp.exp(-params["d"] * jnp.sqrt(jnp.mean(x ** 2)))
         - jnp.exp(jnp.mean(jnp.cos(params["e"] * x)))
-        + params["a"]
+        + params["c"]
         + jnp.exp(1)
     )
 

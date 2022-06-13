@@ -56,11 +56,10 @@ def test_env_ffw_rollout(env_name: str):
     evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
 
     strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
-    params = strategy.default_params
-    state = strategy.initialize(rng, params)
+    state = strategy.initialize(rng)
     # Run the ask-eval-tell loop
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    x, state = strategy.ask(rng_gen, state, params)
+    x, state = strategy.ask(rng_gen, state)
     x_re = reshaper.reshape(x)
     fitness = evaluator.rollout(rng_eval, x_re)
 
@@ -99,12 +98,11 @@ def test_env_rec_rollout(env_name: str):
         reshaper.vmap_dict, network.apply, network.initialize_carry
     )
     strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
-    params = strategy.default_params
-    state = strategy.initialize(rng, params)
+    state = strategy.initialize(rng)
 
     # Run the ask-eval-tell loop
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    x, state = strategy.ask(rng_gen, state, params)
+    x, state = strategy.ask(rng_gen, state)
     x_re = reshaper.reshape(x)
     fitness = evaluator.rollout(rng_eval, x_re)
 
@@ -139,12 +137,11 @@ def test_vision_fitness():
     evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
 
     strategy = ARS(popsize=4, num_dims=reshaper.total_params, elite_ratio=0.5)
-    params = strategy.default_params
-    state = strategy.initialize(rng, params)
+    state = strategy.initialize(rng)
 
     # Run the ask-eval-tell loop
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    x, state = strategy.ask(rng_gen, state, params)
+    x, state = strategy.ask(rng_gen, state)
     x_re = reshaper.reshape(x)
     loss, acc = evaluator.rollout(rng_eval, x_re)
     assert loss.shape == (4, 1)
@@ -173,10 +170,9 @@ def test_sequence_fitness():
 
     strategy = ARS(param_reshaper.total_params, 4)
     (param_reshaper.total_params)
-    es_params = strategy.default_params
-    es_state = strategy.initialize(rng, es_params)
+    es_state = strategy.initialize(rng)
 
-    x, es_state = strategy.ask(rng, es_state, es_params)
+    x, es_state = strategy.ask(rng, es_state)
     reshaped_params = param_reshaper.reshape(x)
     # Rollout population performance, reshape fitness & update strategy.
     loss, perf = evaluator.rollout(rng, reshaped_params)
