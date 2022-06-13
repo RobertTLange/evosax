@@ -10,6 +10,7 @@ from flax import struct
 class EvoState:
     mean: chex.Array
     sigma: chex.Array
+    weights: chex.Array  # Weights for population members
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     gen_counter: int = 0
@@ -17,7 +18,6 @@ class EvoState:
 
 @struct.dataclass
 class EvoParams:
-    weights: chex.Array  # Weights for population members
     c_sigma: float = 0.1  # Learning rate for population std
     c_m: float = 1.0  # Learning rate for population mean
     sigma_init: float = 1.0  # Standard deviation
@@ -41,14 +41,15 @@ class SimpleES(Strategy):
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         # Only parents have positive weight - equal weighting!
-        weights = jnp.zeros(self.popsize)
-        weights = weights.at[: self.elite_popsize].set(1 / self.elite_popsize)
-        return EvoParams(weights=weights)
+        return EvoParams()
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
     ) -> EvoState:
         """`initialize` the evolution strategy."""
+        weights = jnp.zeros(self.popsize)
+        weights = weights.at[: self.elite_popsize].set(1 / self.elite_popsize)
+
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),
@@ -58,6 +59,7 @@ class SimpleES(Strategy):
         state = EvoState(
             mean=initialization,
             sigma=jnp.repeat(params.sigma_init, self.num_dims),
+            weights=weights,
             best_member=initialization,
         )
         return state
@@ -82,26 +84,31 @@ class SimpleES(Strategy):
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
         sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        mean, y_k = update_mean(sorted_solutions, state.mean, params)
-        sigma = update_sigma(y_k, state.sigma, params)
+        mean, y_k = update_mean(
+            sorted_solutions, state.mean, params.c_m, state.weights
+        )
+        sigma = update_sigma(y_k, state.sigma, params.c_sigma, state.weights)
         return state.replace(mean=mean, sigma=sigma)
 
 
 def update_mean(
-    sorted_solutions: chex.Array, mean: chex.Array, params: EvoParams
+    sorted_solutions: chex.Array,
+    mean: chex.Array,
+    c_m: float,
+    weights: chex.Array,
 ) -> Tuple[chex.Array, chex.Array]:
     """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = x_k - mean
-    y_w = jnp.sum(y_k.T * params.weights, axis=1)
-    mean_new = mean + params.c_m * y_w
+    y_w = jnp.sum(y_k.T * weights, axis=1)
+    mean_new = mean + c_m * y_w
     return mean_new, y_k
 
 
 def update_sigma(
-    y_k: chex.Array, sigma: chex.Array, params: EvoParams
+    y_k: chex.Array, sigma: chex.Array, c_sigma: float, weights: chex.Array
 ) -> chex.Array:
     """Update stepsize sigma."""
-    sigma_est = jnp.sqrt(jnp.sum((y_k.T ** 2 * params.weights), axis=1))
-    sigma_new = (1 - params.c_sigma) * sigma + params.c_sigma * sigma_est
+    sigma_est = jnp.sqrt(jnp.sum((y_k.T ** 2 * weights), axis=1))
+    sigma_new = (1 - c_sigma) * sigma + c_sigma * sigma_est
     return sigma_new

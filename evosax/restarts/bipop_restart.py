@@ -1,10 +1,9 @@
 import jax
 import chex
 from functools import partial
-from typing import Tuple
+from typing import Tuple, Optional
 from .restarter import RestartWrapper, WrapperState, WrapperParams
 from .termination import spread_criterion
-from .. import Strategies
 from flax import struct
 
 
@@ -40,6 +39,10 @@ class BIPOP_Restarter(RestartWrapper):
         self.default_popsize = self.base_strategy.popsize
         self.strategy_kwargs = strategy_kwargs
 
+        from .. import Strategies
+
+        global Strategies
+
     @property
     def restart_params(self) -> RestartParams:
         """Return default parameters for strategy restarting."""
@@ -47,9 +50,13 @@ class BIPOP_Restarter(RestartWrapper):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: WrapperParams
+        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
+        # Use default hyperparameters if no other settings provided
+        if params is None:
+            params = self.default_params
+
         strategy_state = self.base_strategy.initialize(
             rng, params.strategy_params
         )
@@ -65,9 +72,15 @@ class BIPOP_Restarter(RestartWrapper):
         return WrapperState(strategy_state, restart_state)
 
     def ask(
-        self, rng: chex.PRNGKey, state: WrapperState, params: WrapperParams
+        self,
+        rng: chex.PRNGKey,
+        state: WrapperState,
+        params: Optional[WrapperParams] = None,
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
+        # Use default hyperparameters if no other settings provided
+        if params is None:
+            params = self.default_params
         # TODO: Cannot jit! Re-definition of strategy with different popsizes.
         # Is there a clever way to mask active members/popsize?
         # Only compile when base strategy is being updated with new popsize.

@@ -132,7 +132,7 @@ def single_member_ask(
     # using same vector as x - check condition and select extra if needed
     # Also always sample 6 members - for case where we want two diff vectors
     row_ids = jax.random.choice(
-        rng, jnp.arange(archive.shape[0]), (6,), replace=False
+        rng_vectors, jnp.arange(archive.shape[0]), (6,), replace=False
     )
     a = jax.lax.select(
         row_ids[0] == member_id, archive[row_ids[5]], archive[row_ids[0]]
@@ -211,7 +211,9 @@ def single_dimension_ask(
     y_i = (
         mutate_bool * a[dim_id]
         + diff_w * (b[dim_id] - c[dim_id])
+        # Only add second difference vector if desired!
         + diff_w * (d[dim_id] - e[dim_id]) * use_second_diff
+        # Mutation - exchange x dim with a dim.
         + (1 - mutate_bool) * x[dim_id]
     )
     return y_i

@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional
 from functools import partial
 from .termination import min_gen_criterion
 from flax import struct
@@ -61,9 +61,13 @@ class RestartWrapper(object):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: WrapperParams
+        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
+        # Use default hyperparameters if no other settings provided
+        if params is None:
+            params = self.default_params
+
         strategy_state = self.base_strategy.initialize(
             rng, params.strategy_params
         )
@@ -72,9 +76,16 @@ class RestartWrapper(object):
 
     # @partial(jax.jit, static_argnums=(0,))
     def ask(
-        self, rng: chex.PRNGKey, state: WrapperState, params: WrapperParams
+        self,
+        rng: chex.PRNGKey,
+        state: WrapperState,
+        params: Optional[WrapperParams] = None,
     ) -> Tuple[chex.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
+        # Use default hyperparameters if no other settings provided
+        if params is None:
+            params = self.default_params
+
         rng_ask, rng_restart = jax.random.split(rng)
         restart_state = self.restart(rng_restart, state, params)
         # Simple tree map - jittable if state dimensions are static
@@ -100,9 +111,13 @@ class RestartWrapper(object):
         x: chex.Array,
         fitness: chex.Array,
         state: WrapperState,
-        params: WrapperParams,
-    ) -> chex.ArrayTree:
+        params: Optional[WrapperParams] = None,
+    ) -> WrapperState:
         """`tell` performance data for strategy state update."""
+        # Use default hyperparameters if no other settings provided
+        if params is None:
+            params = self.default_params
+
         strategy_state = self.base_strategy.tell(
             x, fitness, state.strategy_state, params.strategy_params
         )
@@ -144,8 +159,8 @@ class RestartWrapper(object):
     def restart_strategy(
         self,
         rng: chex.PRNGKey,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: WrapperState,
+        params: WrapperParams,
+    ) -> WrapperState:
         """Restart strategy specific new state construction."""
         raise NotImplementedError

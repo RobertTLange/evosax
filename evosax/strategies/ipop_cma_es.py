@@ -1,8 +1,9 @@
 import jax
 import chex
-from typing import Tuple
+from typing import Tuple, Optional
 from functools import partial
 from .cma_es import CMA_ES
+from ..restarts.restarter import WrapperState, WrapperParams
 from flax import struct
 
 
@@ -36,36 +37,26 @@ class IPOP_CMA_ES(object):
         )
 
     @property
-    def default_params(self) -> chex.ArrayTree:
+    def default_params(self) -> WrapperParams:
         """Return default parameters of evolution strategy."""
         re_params = self.wrapped_strategy.default_params
         return re_params.replace(restart_params=RestartParams())
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
+    ) -> WrapperState:
         """`initialize` the evolution strategy."""
         return self.wrapped_strategy.initialize(rng, params)
 
     def ask(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        self,
+        rng: chex.PRNGKey,
+        state: WrapperState,
+        params: Optional[WrapperParams] = None,
+    ) -> Tuple[chex.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
         x, state = self.wrapped_strategy.ask(rng, state, params)
-        strat_params = self.wrapped_strategy.default_params.strategy_params
-        params = params.replace(
-            strategy_params=params.strategy_params.replace(
-                weights_truncated=strat_params.weights_truncated,
-                weights=strat_params.weights,
-                mu_eff=strat_params.mu_eff,
-                c_1=strat_params.c_1,
-                c_mu=strat_params.c_mu,
-                c_c=strat_params.c_c,
-                c_sigma=strat_params.c_sigma,
-                d_sigma=strat_params.d_sigma,
-            )
-        )
         return x, state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -73,8 +64,8 @@ class IPOP_CMA_ES(object):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: WrapperState,
+        params: Optional[WrapperParams] = None,
+    ) -> WrapperState:
         """`tell` performance data for strategy state update."""
         return self.wrapped_strategy.tell(x, fitness, state, params)

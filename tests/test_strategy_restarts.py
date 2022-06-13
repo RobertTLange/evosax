@@ -129,10 +129,10 @@ def test_ipop_cma_es():
     assert (state.strategy_state.mean == jnp.zeros(2)).all()
     assert state.restart_state.active_popsize == 8
 
-    # fitness = jnp.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
-    # state = re_strategy.tell(x, fitness, state, re_es_params)
-    # assert state.restart_state.restart_next == False
-    # assert state.restart_state.active_popsize == 8
+    fitness = jnp.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+    state = re_strategy.tell(x, fitness, state, re_es_params)
+    assert state.restart_state.restart_next == False
+    assert state.restart_state.active_popsize == 8
 
 
 def test_bipop_cma_es():
@@ -161,18 +161,17 @@ def test_bipop_cma_es():
     assert (state.strategy_state.mean == jnp.zeros(2)).all()
     assert state.restart_state.active_popsize == 8
 
-    # fitness = jnp.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
-    # re_es_params = re_strategy.default_params
-    # state = re_strategy.tell(x, fitness, state, re_es_params)
-    # assert state.restart_state.restart_next == False
-    # assert state.restart_state.active_popsize == 8
+    fitness = jnp.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+    state = re_strategy.tell(x, fitness, state, re_es_params)
+    assert state.restart_state.restart_next == False
+    assert state.restart_state.active_popsize == 8
 
-    # # Run 4th ask-tell-generation
-    # x, state = re_strategy.ask(rng, state, re_es_params)
-    # fitness = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-    # state = re_strategy.tell(x, fitness, state, re_es_params)
-    # assert state.restart_state.restart_next == True
+    # Run 4th ask-tell-generation
+    x, state = re_strategy.ask(rng, state, re_es_params)
+    fitness = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    state = re_strategy.tell(x, fitness, state, re_es_params)
+    assert state.restart_state.restart_next == True
 
-    # x, state = re_strategy.ask(rng, state, re_es_params)
-    # assert (state.strategy_state.mean == jnp.zeros(2)).all()
-    # assert state.restart_state.active_popsize <= 8
+    x, state = re_strategy.ask(rng, state, re_es_params)
+    assert (state.strategy_state.mean == jnp.zeros(2)).all()
+    assert state.restart_state.active_popsize <= 8
