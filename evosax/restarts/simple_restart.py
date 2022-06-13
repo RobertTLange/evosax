@@ -1,3 +1,4 @@
+import jax
 import chex
 from .restarter import RestartWrapper
 from .termination import spread_criterion
@@ -8,6 +9,7 @@ from flax import struct
 class RestartParams:
     min_num_gens: int = 50
     min_fitness_spread: float = 0.1
+    copy_mean: bool = False
 
 
 class Simple_Restarter(RestartWrapper):
@@ -32,4 +34,11 @@ class Simple_Restarter(RestartWrapper):
     ) -> chex.ArrayTree:
         """Simple restart by state initialization."""
         new_state = self.base_strategy.initialize(rng, params.strategy_params)
+        new_state = new_state.replace(
+            mean=jax.lax.select(
+                params.restart_params.copy_mean,
+                state.strategy_state.mean,
+                new_state.mean,
+            )
+        )
         return new_state

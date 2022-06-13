@@ -19,6 +19,7 @@ class RestartParams:
     min_num_gens: int = 50
     min_fitness_spread: float = 1e-12
     popsize_multiplier: int = 2
+    copy_mean: bool = False
 
 
 class IPOP_Restarter(RestartWrapper):
@@ -109,6 +110,11 @@ class IPOP_Restarter(RestartWrapper):
             rng, params.strategy_params
         )
         strategy_state = strategy_state.replace(
+            mean=jax.lax.select(
+                params.restart_params.copy_mean,
+                state.strategy_state.mean,
+                strategy_state.mean,
+            ),
             best_fitness=state.strategy_state.best_fitness,
             best_member=state.strategy_state.best_member,
         )

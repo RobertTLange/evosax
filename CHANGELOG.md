@@ -25,8 +25,9 @@
 - Base indirect encoding methods in `experimental`. Sofar support for:
     - Random projection-based decodings
     - Hypernetworks for MLP architectures
-- Example notebook for Brax control tasks and policy visualizations.
 - Example notebook for infirect encodings.
+- Example notebook for Brax control tasks and policy visualizations.
+- Adds option to restart wrappers to copy over mean and only reset other parts of `EvoState`.
 
 ##### Changed
 
