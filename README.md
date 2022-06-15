@@ -247,7 +247,7 @@ x_shaped = param_reshaper.reshape(x)
 * 💻 [Evojax](https://github.com/google/evojax): JAX-ES library by Google Brain with great rollout wrappers.
 * 💻 [QDax](https://github.com/adaptive-intelligent-robotics/QDax): Quality-Diversity algorithms in JAX.
 
-## Citing `evosax` ✏️
+## Acknowledgements & Citing `evosax` ✏️
 
 If you use `evosax` in your research, please cite it as follows:
 
@@ -259,6 +259,9 @@ If you use `evosax` in your research, please cite it as follows:
   year = {2022},
 }
 ```
+
+We acknowledge financial support the [Google TRC](https://sites.research.google/trc/about/) and the Deutsche
+Forschungsgemeinschaft (DFG, German Research Foundation) under Germany's Excellence Strategy - EXC 2002/1 ["Science of Intelligence"](https://www.scienceofintelligence.de/) - project number 390523135.
 
 ## Development 👷
 

@@ -15,6 +15,7 @@ class RestartParams:
     tol_x: float = 1e-12
     tol_x_up: float = 1e4
     tol_condition_C: float = 1e14
+    copy_mean: bool = True
 
 
 class IPOP_CMA_ES(object):

@@ -27,10 +27,10 @@ class MLP(nn.Module):
         self, x: chex.Array, rng: Optional[chex.PRNGKey] = None
     ) -> chex.Array:
         # Flatten a single 3d image into a plain flat vector
-        if len(x.shape) == 3:
+        if len(x.shape) <= 3:
             x = x.reshape(-1)
         # Flatten a batch of 3d images into a batch of flat vectors
-        elif len(x.shape) == 4:
+        else:
             x = x.reshape(x.shape[0], -1)
 
         # Loop over dense layers in forward pass

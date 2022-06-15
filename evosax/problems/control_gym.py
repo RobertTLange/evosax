@@ -28,7 +28,7 @@ class GymFitness(object):
             )
 
         # Define the RL environment & replace default parameters if desired
-        self.env, self.env_params = gymnax.make(env_name, env_kwargs)
+        self.env, self.env_params = gymnax.make(env_name, **env_kwargs)
         self.env_params.replace(**env_params)
 
         if num_env_steps is None:

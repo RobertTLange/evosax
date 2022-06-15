@@ -1,24 +1,24 @@
 ### Work-in-Progress
 
-- [ ] Add brax example notebook with visualization
-- [ ] Add encoding/decoding notebook
 - [ ] Change network wrapper to work with list of hidden neurons?
+- [ ] Make xNES work with all optimizers
 - More strategies
     - [ ] Large-scale CMA-ES variants
-        - [ ] LM-CMA
-        - [ ] VkD-CMA
-    - [ ] sNES (separable)
-    - [ ] ASEBO (https://proceedings.neurips.cc/paper/2019/file/88bade49e98db8790df275fcebb37a13-Paper.pdf)
-    - [ ] RBO (http://proceedings.mlr.press/v100/choromanski20a/choromanski20a.pdf)
+        - [ ] [LM-CMA](https://www.researchgate.net/publication/282612269_LM-CMA_An_alternative_to_L-BFGS_for_large-scale_black_Box_optimization)
+        - [ ] [VkD-CMA](https://hal.inria.fr/hal-01306551v1/document), [Code](https://gist.github.com/youheiakimoto/2fb26c0ace43c22b8f19c7796e69e108)
+    - [ ] [sNES](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf) (separable version of xNES)
+    - [ ] [ASEBO](https://proceedings.neurips.cc/paper/2019/file/88bade49e98db8790df275fcebb37a13-Paper.pdf)
+    - [ ] [RBO](http://proceedings.mlr.press/v100/choromanski20a/choromanski20a.pdf)
 
 - Encoding methods - via special reshape wrappers
+    - [ ] Discrete Cosine Transform
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
 
 - Think about restructuring everything for more scalability!
     - Want to be able to pmap ask/tell call so that parameters are directly sampled on device? But this is probably not so easy for tell call since we need simple all reduce way to aggregate results w/o drastic memory increase. Gradients are sooo much easier to deal with in a distributed setting (simply average across devices) :) 
 
-### [v0.0.9] - [TBC]
+### [v0.0.9] - 15/06/2022
 
 ##### Added
 
@@ -43,6 +43,11 @@ class State:
 
 - The core strategy API now also works without `es_params` being supplied in call. In this case we simply use the default settings.
 - Moved all gym environment to (still private but soon to be released) `gymnax`.
+- Updated all notebooks accordingly.
+
+##### Fixed
+
+- Makes `ParameterReshaper` work also with `dm-haiku`-style parameter dictionaries. Thanks to @vuoristo.
 
 ### [v0.0.8] - [24/05/2022]
 
