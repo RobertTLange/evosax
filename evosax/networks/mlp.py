@@ -34,7 +34,7 @@ class MLP(nn.Module):
             x = x.reshape(x.shape[0], -1)
 
         # Loop over dense layers in forward pass
-        for l in range(self.num_hidden_layers):
+        for _ in range(self.num_hidden_layers):
             x = nn.Dense(
                 features=self.num_hidden_units,
                 kernel_init=kernel_init_fn[self.kernel_init_type](),

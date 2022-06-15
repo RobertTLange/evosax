@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple
 from ..strategy import Strategy
-from ..utils import GradientOptimizer
 from ..utils import GradientOptimizer, OptState, OptParams
 from flax import struct
 

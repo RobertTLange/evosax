@@ -62,7 +62,7 @@ def test_hypermlp_decoding():
     x = decoder.reshape(encodings)
     assert x["params"]["Dense_0"]["kernel"].shape == (popsize, 10, 64)
 
-    # Define candidates coming from strategy.ask - single reshape
-    encodings = jnp.zeros(decoder.num_encoding_dims)
-    x = decoder.reshape_single(encodings)
-    assert x["params"]["Dense_0"]["kernel"].shape == (10, 64)
+    # # Define candidates coming from strategy.ask - single reshape
+    # encodings = jnp.zeros(decoder.num_encoding_dims)
+    # x = decoder.reshape_single(encodings)
+    # assert x["params"]["Dense_0"]["kernel"].shape == (10, 64)

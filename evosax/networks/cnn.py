@@ -89,7 +89,7 @@ class CNN(nn.Module):
             batch_case = True
 
         # Block In 1:
-        for i in range(self.depth_1):
+        for _ in range(self.depth_1):
             x = conv_relu_pool_block(
                 x,
                 self.features_1,
@@ -99,7 +99,7 @@ class CNN(nn.Module):
             )
 
         # Block In 2:
-        for i in range(self.depth_2):
+        for _ in range(self.depth_2):
             x = conv_relu_pool_block(
                 x,
                 self.features_2,
@@ -110,7 +110,7 @@ class CNN(nn.Module):
         # Flatten the output into vector for Dense Readout
         x = x.reshape(x.shape[0], -1)
         # Squeeze and linear layers
-        for l in range(self.num_linear_layers):
+        for _ in range(self.num_linear_layers):
             x = nn.Dense(
                 features=self.num_hidden_units,
                 bias_init=default_bias_init(),
@@ -174,7 +174,7 @@ class All_CNN_C(nn.Module):
         else:
             batch_case = True
         # Block In 1:
-        for i in range(self.depth_1):
+        for _ in range(self.depth_1):
             x = conv_relu_block(
                 x,
                 self.features_1,
@@ -184,7 +184,7 @@ class All_CNN_C(nn.Module):
             )
 
         # Block In 2:
-        for i in range(self.depth_2):
+        for _ in range(self.depth_2):
             x = conv_relu_block(
                 x,
                 self.features_2,
