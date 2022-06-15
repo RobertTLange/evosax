@@ -1,8 +1,7 @@
 ### Work-in-Progress
 
-- [ ] Change network wrapper to work with list of hidden neurons?
-- [ ] Make xNES work with all optimizers
-- More strategies
+- [ ] Make xNES work with all optimizers (currently only GD)
+- Implement more strategies
     - [ ] Large-scale CMA-ES variants
         - [ ] [LM-CMA](https://www.researchgate.net/publication/282612269_LM-CMA_An_alternative_to_L-BFGS_for_large-scale_black_Box_optimization)
         - [ ] [VkD-CMA](https://hal.inria.fr/hal-01306551v1/document), [Code](https://gist.github.com/youheiakimoto/2fb26c0ace43c22b8f19c7796e69e108)
@@ -14,9 +13,6 @@
     - [ ] Discrete Cosine Transform
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
-
-- Think about restructuring everything for more scalability!
-    - Want to be able to pmap ask/tell call so that parameters are directly sampled on device? But this is probably not so easy for tell call since we need simple all reduce way to aggregate results w/o drastic memory increase. Gradients are sooo much easier to deal with in a distributed setting (simply average across devices) :) 
 
 ### [v0.0.9] - 15/06/2022
 

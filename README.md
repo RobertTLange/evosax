@@ -168,7 +168,7 @@ fit_shaper = FitnessShaper(centered_rank=True,
 fit_shaped = fit_shaper.apply(x, fitness) 
 ```
 
-- **Strategy Restart Wrappers**: You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change.
+- **Strategy Restart Wrappers**: You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change. Note that all strategies can also be executed without explicitly providing `es_params`. In this case the default parameters will be used.
 
 ```Python
 from evosax import CMA_ES
@@ -187,13 +187,13 @@ re_strategy = BIPOP_Restarter(
                 stop_criteria=[std_criterion],
                 strategy_kwargs={"elite_ratio": elite_ratio}
             )
-state = re_strategy.initialize(rng, es_params)
+state = re_strategy.initialize(rng)
 
 # ask/tell loop - restarts are automatically handled 
 rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-x, state = re_strategy.ask(rng_gen, state, params)
+x, state = re_strategy.ask(rng_gen, state)
 fitness = ...  # Your population evaluation fct 
-state = re_strategy.tell(x, fitness, state, params)
+state = re_strategy.tell(x, fitness, state)
 ```
 
 - **Batch Strategy Rollouts**: *Work-in-progress*. We are currently also working on different ways of incorporating multiple subpopulations with different communication protocols.
@@ -210,12 +210,12 @@ strategy = BatchStrategy(
         strategy_kwargs={"elite_ratio": 0.5},
         communication="best_subpop",
     )
-es_params = strategy.default_params
-state = strategy.initialize(rng, es_params)
+
+state = strategy.initialize(rng)
 # Ask for evaluation candidates of different subpopulation ES
-x, state = strategy.ask(rng_iter, state, es_params)
+x, state = strategy.ask(rng_iter, state)
 fitness = ...
-state = strategy.tell(x, fitness, state, es_params)
+state = strategy.tell(x, fitness, state)
 ```
 
 - **Indirect Encodings**: *Work-in-progress*. ES can struggle with high-dimensional search spaces (e.g. due to harder estimation of covariances). One potential way to alleviate this challenge, is to use indirect parameter encodings in a lower dimensional space. So far we provide JAX-compatible encodings with random projections (Gaussian/Rademacher) and Hypernetworks for MLPs. They act as drop-in replacements for the `ParameterReshaper`:
