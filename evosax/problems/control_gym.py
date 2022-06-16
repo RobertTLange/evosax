@@ -44,6 +44,9 @@ class GymFitness(object):
         else:
             self.n_devices = n_devices
 
+        # Keep track of total steps executed in environment
+        self.total_env_steps = 0
+
     def set_apply_fn(self, map_dict, network_apply, carry_init=None):
         """Set the network forward function."""
         self.network = network_apply
@@ -73,15 +76,20 @@ class GymFitness(object):
     ):
         """Parallelize rollout across devices. Split keys/reshape correctly."""
         keys_pmap = jnp.tile(rng_input, (self.n_devices, 1, 1))
-        rew_dev = jax.pmap(self.rollout_pop)(keys_pmap, policy_params)
+        rew_dev, steps_dev = jax.pmap(self.rollout_pop)(
+            keys_pmap, policy_params
+        )
         rew_re = rew_dev.reshape(-1, self.num_rollouts)
-        return rew_re
+        steps_re = steps_dev.reshape(-1, self.num_rollouts)
+        return rew_re, steps_re
 
-    @partial(jax.jit, static_argnums=(0,))
     def rollout(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Placeholder fn call for rolling out a population for multi-evals."""
         rng_pop = jax.random.split(rng_input, self.num_rollouts)
-        return self.rollout_map(rng_pop, policy_params)
+        rewards, steps = jax.jit(self.rollout_map)(rng_pop, policy_params)
+        # Update total step counter using only transitions before termination
+        self.total_env_steps += steps.sum()
+        return rewards
 
     def rollout_ffw(
         self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
@@ -116,7 +124,7 @@ class GymFitness(object):
         rewards, dones = scan_out[0], scan_out[1]
         rewards = rewards.reshape(self.num_env_steps, 1)
         ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
-        return jnp.sum(rewards * ep_mask)
+        return jnp.sum(rewards * ep_mask), jnp.sum(ep_mask)
 
     def rollout_rnn(
         self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
@@ -151,4 +159,4 @@ class GymFitness(object):
         rewards, dones = scan_out[0], scan_out[1]
         rewards = rewards.reshape(self.num_env_steps, 1)
         ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
-        return jnp.sum(rewards * ep_mask)
+        return jnp.sum(rewards * ep_mask), jnp.sum(ep_mask)

@@ -62,6 +62,9 @@ class BraxFitness(object):
         else:
             self.n_devices = n_devices
 
+        # Keep track of total steps executed in environment
+        self.total_env_steps = 0
+
     def set_apply_fn(self, map_dict, network_apply, carry_init=None):
         """Set the network forward function."""
         self.network = network_apply
@@ -130,6 +133,9 @@ class BraxFitness(object):
         #     running_mean.mean(),
         #     running_var.mean() / (obs_steps + 1),
         # )
+
+        # Update total step counter using only transitions before termination
+        self.total_env_steps += masks_re.sum()
         return scores
 
     def rollout_ffw(

@@ -14,6 +14,12 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] Hypernetworks (Ha - start with simple MLP)
 
+### [v0.1.0] - [TBD]
+
+##### Added
+
+- Adds a `total_env_steps` counter to both `GymFitness` and `BraxFitness` for easier sample efficiency comparability with RL algorithms.
+
 ### [v0.0.9] - 15/06/2022
 
 ##### Added
