@@ -20,6 +20,10 @@
 
 - Adds a `total_env_steps` counter to both `GymFitness` and `BraxFitness` for easier sample efficiency comparability with RL algorithms.
 
+##### Fixed
+
+- Fixed reward masking in `GymFitness`. Using `jnp.sum(dones) >= 1` for cumulative return computation zeros out the final timestep, which is wrong. That's why there were problems with sparse reward gym environments (e.g. Mountain Car).
+
 ### [v0.0.9] - 15/06/2022
 
 ##### Added

@@ -86,10 +86,10 @@ class GymFitness(object):
     def rollout(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Placeholder fn call for rolling out a population for multi-evals."""
         rng_pop = jax.random.split(rng_input, self.num_rollouts)
-        rewards, steps = jax.jit(self.rollout_map)(rng_pop, policy_params)
+        scores, masks = jax.jit(self.rollout_map)(rng_pop, policy_params)
         # Update total step counter using only transitions before termination
-        self.total_env_steps += steps.sum()
-        return rewards
+        self.total_env_steps += masks.sum()
+        return scores
 
     def rollout_ffw(
         self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
@@ -101,30 +101,43 @@ class GymFitness(object):
 
         def policy_step(state_input, tmp):
             """lax.scan compatible step transition in jax env."""
-            obs, state, policy_params, rng = state_input
+            obs, state, policy_params, rng, cum_reward, valid_mask = state_input
             rng, rng_step, rng_net = jax.random.split(rng, 3)
             action = self.network(policy_params, obs, rng=rng_net)
-            # action = jnp.nan_to_num(action, nan=0.0)
             next_o, next_s, reward, done, _ = self.env.step(
                 rng_step, state, action, self.env_params
             )
-            carry, y = [next_o.squeeze(), next_s, policy_params, rng], [
-                reward,
-                done,
+            new_cum_reward = cum_reward + reward * valid_mask
+            new_valid_mask = valid_mask * (1 - done)
+            carry = [
+                next_o.squeeze(),
+                next_s,
+                policy_params,
+                rng,
+                new_cum_reward,
+                new_valid_mask,
             ]
+            y = [new_valid_mask]
             return carry, y
 
         # Scan over episode step loop
-        _, scan_out = jax.lax.scan(
+        carry_out, scan_out = jax.lax.scan(
             policy_step,
-            [obs, state, policy_params, rng_episode],
-            [jnp.zeros((self.num_env_steps, 2))],
+            [
+                obs,
+                state,
+                policy_params,
+                rng_episode,
+                jnp.array([0.0]),
+                jnp.array([1.0]),
+            ],
+            (),
+            self.num_env_steps,
         )
         # Return the sum of rewards accumulated by agent in episode rollout
-        rewards, dones = scan_out[0], scan_out[1]
-        rewards = rewards.reshape(self.num_env_steps, 1)
-        ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
-        return jnp.sum(rewards * ep_mask), jnp.sum(ep_mask)
+        ep_mask = scan_out
+        cum_return = carry_out[-2].squeeze()
+        return cum_return, jnp.array(ep_mask)
 
     def rollout_rnn(
         self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
@@ -137,26 +150,49 @@ class GymFitness(object):
 
         def policy_step(state_input, tmp):
             """lax.scan compatible step transition in jax env."""
-            obs, state, policy_params, rng, hidden = state_input
+            (
+                obs,
+                state,
+                policy_params,
+                rng,
+                hidden,
+                cum_reward,
+                valid_mask,
+            ) = state_input
             rng, rng_step, rng_net = jax.random.split(rng, 3)
             hidden, action = self.network(policy_params, obs, hidden, rng_net)
             next_o, next_s, reward, done, _ = self.env.step(
                 rng_step, state, action, self.env_params
             )
-            carry, y = [next_o.squeeze(), next_s, policy_params, rng, hidden], [
-                reward,
-                done,
-            ]
+            new_cum_reward = cum_reward + reward * valid_mask
+            new_valid_mask = valid_mask * (1 - done)
+            carry, y = [
+                next_o.squeeze(),
+                next_s,
+                policy_params,
+                rng,
+                hidden,
+                new_cum_reward,
+                new_valid_mask,
+            ], [new_valid_mask]
             return carry, y
 
         # Scan over episode step loop
-        _, scan_out = jax.lax.scan(
+        carry_out, scan_out = jax.lax.scan(
             policy_step,
-            [obs, state, policy_params, rng, hidden],
-            [jnp.zeros((self.num_env_steps, 2))],
+            [
+                obs,
+                state,
+                policy_params,
+                rng,
+                hidden,
+                jnp.array([0.0]),
+                jnp.array([1.0]),
+            ],
+            (),
+            self.num_env_steps,
         )
         # Return masked sum of rewards accumulated by agent in episode
-        rewards, dones = scan_out[0], scan_out[1]
-        rewards = rewards.reshape(self.num_env_steps, 1)
-        ep_mask = (jnp.cumsum(dones) < 1).reshape(self.num_env_steps, 1)
-        return jnp.sum(rewards * ep_mask), jnp.sum(ep_mask)
+        ep_mask = scan_out
+        cum_return = carry_out[-2].squeeze()
+        return cum_return, jnp.array(ep_mask)
