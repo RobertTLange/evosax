@@ -45,7 +45,7 @@ class PGPE(Strategy):
         super().__init__(num_dims, popsize)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = int(self.popsize / 2 * self.elite_ratio)
+        self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))
 
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]

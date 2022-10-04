@@ -34,7 +34,7 @@ class SimpleES(Strategy):
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
         super().__init__(num_dims, popsize)
         self.elite_ratio = elite_ratio
-        self.elite_popsize = int(self.popsize * self.elite_ratio)
+        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "SimpleES"
 
     @property
