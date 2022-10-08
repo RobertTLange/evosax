@@ -117,7 +117,7 @@ class SimpleGA(Strategy):
             state.sigma,
         )
         # Keep mean across stored archive around for evaluation protocol
-        mean = archive.mean(axis=0)
+        mean = archive[0]
         return state.replace(
             fitness=fitness, archive=archive, sigma=sigma, mean=mean
         )
