@@ -73,7 +73,7 @@ class RmES(Strategy):
         super().__init__(num_dims, popsize)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = int(self.popsize * self.elite_ratio)
+        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.memory_size = memory_size  # number of ranks
         self.strategy_name = "RmES"
 

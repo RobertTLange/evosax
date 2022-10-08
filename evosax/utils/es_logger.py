@@ -57,7 +57,7 @@ class ESLog(object):
         params = jnp.vstack([log["top_params"], x])
         top_idx = (
             self.maximize * ((-1) * vals).argsort()
-            + ((1 - self.maximize) * vals).argsort()
+            + ((1 - self.maximize) * vals.argsort())
         )
         log["top_fitness"] = vals[top_idx[: self.top_k]]
         log["top_params"] = params[top_idx[: self.top_k]]

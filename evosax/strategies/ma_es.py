@@ -43,7 +43,7 @@ class MA_ES(Strategy):
         super().__init__(num_dims, popsize)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = int(self.popsize * self.elite_ratio)
+        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "MA_ES"
 
     @property
