@@ -107,7 +107,7 @@ class PGPE(Strategy):
         fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
         fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
 
-        theta_grad = 1.0 / self.elite_popsize * fit_diff_noise
+        theta_grad = 1.0 / (self.elite_popsize * fit_diff_noise + jnp.finfo(jnp.float32).eps)
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(
             state.mean, theta_grad, state.opt_state, params.opt_params
