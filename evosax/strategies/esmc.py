@@ -31,26 +31,21 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-class PGPE(Strategy):
+class ESMC(Strategy):
     def __init__(
         self,
         num_dims: int,
         popsize: int,
-        elite_ratio: float = 1.0,
         opt_name: str = "adam",
     ):
-        """PGPE (e.g. Sehnke et al., 2010)
-        Reference: https://tinyurl.com/2p8bn956
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
+        """ESMC (Merchant et al., 2021)
+        Reference: https://proceedings.mlr.press/v139/merchant21a.html
+        """
         super().__init__(num_dims, popsize)
-        assert 0 <= elite_ratio <= 1
-        self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))
-
-        assert not self.popsize & 1, "Population size must be even"
+        assert self.popsize & 1, "Population size must be odd"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.strategy_name = "PGPE"
+        self.strategy_name = "ESMC"
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -84,7 +79,9 @@ class PGPE(Strategy):
             rng,
             (int(self.popsize / 2), self.num_dims),
         )
-        z = jnp.concatenate([z_plus, -1.0 * z_plus])
+        z = jnp.concatenate(
+            [jnp.zeros((1, self.num_dims)), z_plus, -1.0 * z_plus]
+        )
         x = state.mean + z * state.sigma.reshape(1, self.num_dims)
         return x, state
 
@@ -98,41 +95,22 @@ class PGPE(Strategy):
         """Update both mean and dim.-wise isotropic Gaussian scale."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        noise_1 = noise[::2]
-        fit_1 = fitness[::2]
-        fit_2 = fitness[1::2]
-        elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
-
-        fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
-        fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
-        fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
-
-        theta_grad = 1.0 / self.elite_popsize * fit_diff_noise
+        bline_fitness = fitness[0]
+        noise = noise[1:]
+        fitness = fitness[1:]
+        noise_1 = noise[: int((self.popsize - 1) / 2)]
+        fit_1 = fitness[: int((self.popsize - 1) / 2)]
+        fit_2 = fitness[int((self.popsize - 1) / 2) :]
+        fit_diff = jnp.minimum(fit_1, bline_fitness) - jnp.minimum(
+            fit_2, bline_fitness
+        )
+        fit_diff_noise = jnp.dot(noise_1.T, fit_diff)
+        theta_grad = 1.0 / int((self.popsize - 1) / 2) * fit_diff_noise
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(
             state.mean, theta_grad, state.opt_state, params.opt_params
         )
         opt_state = self.optimizer.update(opt_state, params.opt_params)
-
-        # Update sigma vector
-        S = (
-            noise_1 * noise_1
-            - (state.sigma * state.sigma).reshape(1, self.num_dims)
-        ) / state.sigma.reshape(1, self.num_dims)
-        rS = (fit_1 + fit_2) / 2.0 - jnp.mean(fitness_elite)
-        delta_sigma = jnp.dot(rS, S) / (self.elite_popsize / 2)
-
-        allowed_delta = jnp.abs(state.sigma) * params.sigma_max_change
-        min_allowed = state.sigma - allowed_delta
-        max_allowed = state.sigma + allowed_delta
-
-        # adjust sigma according to the adaptive sigma calculation
-        # for stability, don't let sigma move more than 20% of orig value
-        sigma = jnp.clip(
-            state.sigma - params.sigma_lrate * delta_sigma,
-            min_allowed,
-            max_allowed,
-        )
-        sigma = sigma * params.sigma_decay
+        sigma = state.sigma * params.sigma_decay
         sigma = jnp.maximum(sigma, params.sigma_limit)
         return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)

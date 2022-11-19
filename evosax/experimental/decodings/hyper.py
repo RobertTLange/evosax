@@ -39,7 +39,6 @@ class HyperDecoder(Decoder):
         super().__init__(
             hyper_reshaper.total_params,
             placeholder_params,
-            identity,
             n_devices,
         )
         self.hyper_reshaper = hyper_reshaper

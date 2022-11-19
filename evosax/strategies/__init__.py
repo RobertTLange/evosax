@@ -7,7 +7,6 @@ from .open_es import OpenES
 from .pgpe import PGPE
 from .pbt import PBT
 from .persistent_es import PersistentES
-from .xnes import xNES
 from .ars import ARS
 from .sep_cma_es import Sep_CMA_ES
 from .bipop_cma_es import BIPOP_CMA_ES
@@ -19,6 +18,12 @@ from .lm_ma_es import LM_MA_ES
 from .rm_es import RmES
 from .gld import GLD
 from .sim_anneal import SimAnneal
+from .snes import SNES
+from .xnes import xNES
+from .esmc import ESMC
+from .des import DES
+from .samr_ga import SAMR_GA
+from .gesmr_ga import GESMR_GA
 
 
 __all__ = [
@@ -31,7 +36,6 @@ __all__ = [
     "PGPE",
     "PBT",
     "PersistentES",
-    "xNES",
     "ARS",
     "Sep_CMA_ES",
     "BIPOP_CMA_ES",
@@ -43,4 +47,10 @@ __all__ = [
     "RmES",
     "GLD",
     "SimAnneal",
+    "SNES",
+    "xNES",
+    "ESMC",
+    "DES",
+    "SAMR_GA",
+    "GESMR_GA",
 ]

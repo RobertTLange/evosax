@@ -1,4 +1,4 @@
-from .strategy import Strategy
+from .strategy import Strategy, EvoState, EvoParams
 from .strategies import (
     SimpleGA,
     SimpleES,
@@ -9,7 +9,6 @@ from .strategies import (
     PGPE,
     PBT,
     PersistentES,
-    xNES,
     ARS,
     Sep_CMA_ES,
     BIPOP_CMA_ES,
@@ -21,6 +20,12 @@ from .strategies import (
     RmES,
     GLD,
     SimAnneal,
+    SNES,
+    xNES,
+    ESMC,
+    DES,
+    SAMR_GA,
+    GESMR_GA,
 )
 from .utils import FitnessShaper, ParameterReshaper, ESLog
 from .networks import NetworkMapper
@@ -37,7 +42,6 @@ Strategies = {
     "PGPE": PGPE,
     "PBT": PBT,
     "PersistentES": PersistentES,
-    "xNES": xNES,
     "ARS": ARS,
     "Sep_CMA_ES": Sep_CMA_ES,
     "BIPOP_CMA_ES": BIPOP_CMA_ES,
@@ -49,9 +53,23 @@ Strategies = {
     "RmES": RmES,
     "GLD": GLD,
     "SimAnneal": SimAnneal,
+    "SNES": SNES,
+    "xNES": xNES,
+    "ESMC": ESMC,
+    "DES": DES,
+    "SAMR_GA": SAMR_GA,
+    "GESMR_GA": GESMR_GA,
 }
 
 __all__ = [
+    "Strategies",
+    "EvoState",
+    "EvoParams",
+    "FitnessShaper",
+    "ParameterReshaper",
+    "ESLog",
+    "NetworkMapper",
+    "ProblemMapper",
     "Strategy",
     "SimpleGA",
     "SimpleES",
@@ -62,7 +80,6 @@ __all__ = [
     "PGPE",
     "PBT",
     "PersistentES",
-    "xNES",
     "ARS",
     "Sep_CMA_ES",
     "BIPOP_CMA_ES",
@@ -74,10 +91,10 @@ __all__ = [
     "RmES",
     "GLD",
     "SimAnneal",
-    "Strategies",
-    "FitnessShaper",
-    "ParameterReshaper",
-    "ESLog",
-    "NetworkMapper",
-    "ProblemMapper",
+    "SNES",
+    "xNES",
+    "ESMC",
+    "DES",
+    "SAMR_GA",
+    "GESMR_GA",
 ]

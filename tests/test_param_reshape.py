@@ -1,8 +1,19 @@
 import jax
 import jax.numpy as jnp
-from flax import linen as nn
 from evosax.networks import LSTM, MLP, CNN
 from evosax import ParameterReshaper
+
+
+def test_flat_vector():
+    rng = jax.random.PRNGKey(0)
+    vec_params = jax.random.normal(rng, (2,))
+    reshaper = ParameterReshaper(vec_params)
+    assert reshaper.total_params == 2
+
+    # Test population batch matrix reshaping
+    test_params = jnp.zeros((100, 2))
+    out = reshaper.reshape(test_params)
+    assert out.shape == (100, 2)
 
 
 def test_reshape_lstm():

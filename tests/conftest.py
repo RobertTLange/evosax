@@ -18,7 +18,6 @@ def pytest_generate_tests(metafunc):
                     "ARS",
                     "PBT",
                     "PersistentES",
-                    "xNES",
                     "Sep_CMA_ES",
                     "Full_iAMaLGaM",
                     "Indep_iAMaLGaM",
@@ -26,10 +25,13 @@ def pytest_generate_tests(metafunc):
                     "LM_MA_ES",
                     "RmES",
                     "GLD",
+                    "xNES",
+                    "SNES",
+                    "ESMC",
                 ],
             )
         else:
-            metafunc.parametrize("strategy_name", ["Full_iAMaLGaM"])
+            metafunc.parametrize("strategy_name", ["SNES"])
 
     if "classic_name" in metafunc.fixturenames:
         if metafunc.config.getoption("all"):

@@ -12,17 +12,14 @@ class RandomDecoder(Decoder):
         placeholder_params: Union[chex.ArrayTree, chex.Array],
         rng: chex.PRNGKey = jax.random.PRNGKey(0),
         rademacher: bool = False,
-        identity: bool = False,
         n_devices: Optional[int] = None,
     ):
         """Random Projection Decoder (Gaussian/Rademacher random matrix)."""
-        super().__init__(
-            num_encoding_dims, placeholder_params, identity, n_devices
-        )
+        super().__init__(num_encoding_dims, placeholder_params, n_devices)
         self.rademacher = rademacher
         # Instantiate base reshaper class
         self.base_reshaper = ParameterReshaper(
-            placeholder_params, identity, n_devices, verbose=False
+            placeholder_params, n_devices, verbose=False
         )
         self.vmap_dict = self.base_reshaper.vmap_dict
 

@@ -1,3 +1,5 @@
+des.py
+bbob.py
 # Standard ROB excludes
 .sync-config.cson
 .vim-arsync
