@@ -33,9 +33,13 @@ class FitnessShaper(object):
             self.norm_range, range_norm_trafo(fitness, -1.0, 1.0), fitness
         )
         # "Reduce" fitness based on L2 norm of parameters
-        l2_fit_red = self.w_decay * compute_l2_norm(x)
-        l2_fit_red = jax.lax.select(self.maximize, -1 * l2_fit_red, l2_fit_red)
-        return fitness + l2_fit_red
+        if self.w_decay > 0.0:
+            l2_fit_red = self.w_decay * compute_l2_norm(x)
+            l2_fit_red = jax.lax.select(
+                self.maximize, -1 * l2_fit_red, l2_fit_red
+            )
+            fitness += l2_fit_red
+        return fitness
 
 
 def z_score_trafo(arr: chex.Array) -> chex.Array:

@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from ..utils import GradientOptimizer, OptState, OptParams
 from flax import struct
@@ -30,11 +30,17 @@ class EvoParams:
 
 
 class OpenES(Strategy):
-    def __init__(self, num_dims: int, popsize: int, opt_name: str = "adam"):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        opt_name: str = "adam",
+    ):
         """OpenAI-ES (Salimans et al. (2017)
         Reference: https://arxiv.org/pdf/1703.03864.pdf
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params)
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)

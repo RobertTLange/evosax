@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -33,11 +33,16 @@ class EvoParams:
 
 
 class SimAnneal(Strategy):
-    def __init__(self, num_dims: int, popsize: int):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+    ):
         """Simulated Annealing (Rasdi Rere et al., 2015)
         Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
         """
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params)
         self.strategy_name = "SimAnneal"
 
     @property

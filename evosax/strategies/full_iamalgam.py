@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -39,11 +39,17 @@ class EvoParams:
 
 
 class Full_iAMaLGaM(Strategy):
-    def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.35):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        elite_ratio: float = 0.35,
+    ):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Full Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))

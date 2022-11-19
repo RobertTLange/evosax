@@ -2,7 +2,22 @@ import jax
 import jax.numpy as jnp
 import chex
 from typing import Union, Optional
-from jax import flatten_util
+from jax import vjp, flatten_util
+from jax.tree_util import tree_flatten
+
+
+def ravel_pytree(pytree):
+    leaves, _ = tree_flatten(pytree)
+    flat, _ = vjp(ravel_list, *leaves)
+    return flat
+
+
+def ravel_list(*lst):
+    return (
+        jnp.concatenate([jnp.ravel(elt) for elt in lst])
+        if lst
+        else jnp.array([])
+    )
 
 
 class ParameterReshaper(object):
@@ -49,6 +64,20 @@ class ParameterReshaper(object):
         else:
             map_shape = vmap_shape
         return map_shape(x)
+
+    def flatten(self, x: chex.ArrayTree) -> chex.Array:
+        """Reshaping pytree parameters into flat array."""
+        vmap_flat = jax.vmap(ravel_pytree)
+        if self.n_devices > 1:
+            # Flattening of pmap paramater trees to apply vmap flattening
+            def map_flat(x):
+                x_re = jax.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), x)
+                return vmap_flat(x_re)
+
+        else:
+            map_flat = vmap_flat
+        flat = map_flat(x)
+        return flat
 
     def split_params_for_pmap(self, param: chex.Array) -> chex.Array:
         """Helper reshapes param (bs, #params) into (#dev, bs/#dev, #params)."""

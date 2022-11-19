@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from ..utils import GradientOptimizer, OptState, OptParams
 from flax import struct
@@ -32,14 +32,15 @@ class EvoParams:
 class ARS(Strategy):
     def __init__(
         self,
-        num_dims: int,
         popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.1,
         opt_name: str = "sgd",
     ):
         """Augmented Random Search (Mania et al., 2018)
         Reference: https://arxiv.org/pdf/1803.07055.pdf"""
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params)
         assert not self.popsize & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
         # "b" elite perturbation directions for the update

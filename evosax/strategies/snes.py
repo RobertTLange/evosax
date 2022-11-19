@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -39,11 +39,16 @@ def get_recombination_weights(popsize: int, use_baseline: bool = True):
 
 
 class SNES(Strategy):
-    def __init__(self, num_dims: int, popsize: int):
-        """Exponential Natural ES (Wierstra et al., 2014)
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+    ):
+        """Separable Exponential Natural ES (Wierstra et al., 2014)
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
         """
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params)
         self.strategy_name = "SNES"
 
     @property

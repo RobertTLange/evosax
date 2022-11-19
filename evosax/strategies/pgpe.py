@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from ..utils import GradientOptimizer, OptState, OptParams
 from flax import struct
@@ -34,15 +34,16 @@ class EvoParams:
 class PGPE(Strategy):
     def __init__(
         self,
-        num_dims: int,
         popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 1.0,
         opt_name: str = "adam",
     ):
         """PGPE (e.g. Sehnke et al., 2010)
         Reference: https://tinyurl.com/2p8bn956
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))

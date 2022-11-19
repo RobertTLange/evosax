@@ -1,10 +1,10 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 from functools import partial
 from flax import struct
-from .utils import get_best_fitness_member
+from .utils import get_best_fitness_member, ParameterReshaper
 
 
 @struct.dataclass
@@ -28,10 +28,25 @@ class EvoParams:
 
 
 class Strategy(object):
-    def __init__(self, num_dims: int, popsize: int):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+    ):
         """Base Class for an Evolution Strategy."""
-        self.num_dims = num_dims
         self.popsize = popsize
+
+        # Setup optional parameter reshaper
+        self.use_param_reshaper = pholder_params is not None
+        if self.use_param_reshaper:
+            self.param_reshaper = ParameterReshaper(pholder_params)
+            self.num_dims = self.param_reshaper.total_params
+        else:
+            self.num_dims = num_dims
+        assert (
+            self.num_dims is not None
+        ), "Provide either num_dims or pholder_params to strategy."
 
     @property
     def default_params(self) -> EvoParams:
@@ -58,7 +73,7 @@ class Strategy(object):
         rng: chex.PRNGKey,
         state: EvoState,
         params: Optional[EvoParams] = None,
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> Tuple[Union[chex.Array, chex.ArrayTree], EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -68,12 +83,18 @@ class Strategy(object):
         x, state = self.ask_strategy(rng, state, params)
         # Clip proposal candidates into allowed range
         x_clipped = jnp.clip(jnp.squeeze(x), params.clip_min, params.clip_max)
-        return x_clipped, state
+
+        # Reshape parameters into pytrees
+        if self.use_param_reshaper:
+            x_out = self.param_reshaper.reshape(x_clipped)
+        else:
+            x_out = x_clipped
+        return x_out, state
 
     @partial(jax.jit, static_argnums=(0,))
     def tell(
         self,
-        x: chex.Array,
+        x: Union[chex.Array, chex.ArrayTree],
         fitness: chex.Array,
         state: EvoState,
         params: Optional[EvoParams] = None,
@@ -82,6 +103,10 @@ class Strategy(object):
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
+
+        # Flatten params if using param reshaper for ES update
+        if self.use_param_reshaper:
+            x = self.param_reshaper.flatten(x)
 
         # Update the search state based on strategy-specific update
         state = self.tell_strategy(x, fitness, state, params)

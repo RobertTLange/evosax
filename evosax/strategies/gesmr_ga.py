@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -31,14 +31,15 @@ class EvoParams:
 class GESMR_GA(Strategy):
     def __init__(
         self,
-        num_dims: int,
         popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         sigma_ratio: float = 0.5,
     ):
         """Self-Adaptation Mutation Rate GA."""
 
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params)
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.num_sigma_groups = int(jnp.sqrt(self.popsize))
