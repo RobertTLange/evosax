@@ -31,10 +31,11 @@ class GLD(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """Gradientless Descent (Golovin et al., 2019)
         Reference: https://arxiv.org/pdf/1911.06317.pdf"""
-        super().__init__(popsize, num_dims, pholder_params)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.strategy_name = "GLD"
 
     @property

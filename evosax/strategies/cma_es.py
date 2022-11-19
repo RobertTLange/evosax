@@ -86,11 +86,12 @@ class CMA_ES(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """CMA-ES (e.g. Hansen, 2016)
         Reference: https://arxiv.org/abs/1604.00772
         Inspired by: https://github.com/CyberAgentAILab/cmaes"""
-        super().__init__(popsize, num_dims, pholder_params)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))

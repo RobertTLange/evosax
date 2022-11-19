@@ -37,10 +37,11 @@ class ARS(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.1,
         opt_name: str = "sgd",
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """Augmented Random Search (Mania et al., 2018)
         Reference: https://arxiv.org/pdf/1803.07055.pdf"""
-        super().__init__(popsize, num_dims, pholder_params)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert not self.popsize & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
         # "b" elite perturbation directions for the update

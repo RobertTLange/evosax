@@ -36,10 +36,11 @@ class GESMR_GA(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         sigma_ratio: float = 0.5,
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """Self-Adaptation Mutation Rate GA."""
 
-        super().__init__(popsize, num_dims, pholder_params)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.num_sigma_groups = int(jnp.sqrt(self.popsize))

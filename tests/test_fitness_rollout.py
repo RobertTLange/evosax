@@ -168,8 +168,7 @@ def test_sequence_fitness():
         network.initialize_carry,
     )
 
-    strategy = ARS(param_reshaper.total_params, 4)
-    (param_reshaper.total_params)
+    strategy = ARS(4, param_reshaper.total_params)
     es_state = strategy.initialize(rng)
 
     x, es_state = strategy.ask(rng, es_state)

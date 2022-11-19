@@ -25,6 +25,7 @@ class BIPOP_CMA_ES(object):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """BIPOP-CMA-ES (Hansen, 2009).
         Reference: https://hal.inria.fr/inria-00382093/document
@@ -36,6 +37,7 @@ class BIPOP_CMA_ES(object):
             popsize=popsize,
             pholder_params=pholder_params,
             elite_ratio=elite_ratio,
+            **fitness_kwargs
         )
         from ..restarts import BIPOP_Restarter
         from ..restarts.termination import spread_criterion, cma_criterion

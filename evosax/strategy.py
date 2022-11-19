@@ -4,7 +4,7 @@ import chex
 from typing import Tuple, Optional, Union
 from functools import partial
 from flax import struct
-from .utils import get_best_fitness_member, ParameterReshaper
+from .utils import get_best_fitness_member, ParameterReshaper, FitnessShaper
 
 
 @struct.dataclass
@@ -33,6 +33,7 @@ class Strategy(object):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """Base Class for an Evolution Strategy."""
         self.popsize = popsize
@@ -47,6 +48,9 @@ class Strategy(object):
         assert (
             self.num_dims is not None
         ), "Provide either num_dims or pholder_params to strategy."
+
+        # Setup optional fitness shaper
+        self.fitness_shaper = FitnessShaper(**fitness_kwargs)
 
     @property
     def default_params(self) -> EvoParams:
@@ -108,8 +112,11 @@ class Strategy(object):
         if self.use_param_reshaper:
             x = self.param_reshaper.flatten(x)
 
+        # Perform fitness reshaping inside of strategy tell call (if desired)
+        fitness_re = self.fitness_shaper.apply(x, fitness)
+
         # Update the search state based on strategy-specific update
-        state = self.tell_strategy(x, fitness, state, params)
+        state = self.tell_strategy(x, fitness_re, state, params)
 
         # Check if there is a new best member & update trackers
         best_member, best_fitness = get_best_fitness_member(x, fitness, state)

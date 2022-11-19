@@ -25,6 +25,7 @@ class IPOP_CMA_ES(object):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """IPOP-CMA-ES (Auer & Hansen, 2005).
         Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
@@ -36,6 +37,7 @@ class IPOP_CMA_ES(object):
             num_dims=num_dims,
             pholder_params=pholder_params,
             elite_ratio=elite_ratio,
+            **fitness_kwargs
         )
         from ..restarts import IPOP_Restarter
         from ..restarts.termination import cma_criterion, spread_criterion

@@ -2,16 +2,17 @@ import jax
 import jax.numpy as jnp
 import chex
 from functools import partial
+from typing import Union
 
 
 class FitnessShaper(object):
     def __init__(
         self,
-        centered_rank: bool = False,
-        z_score: bool = False,
-        norm_range: bool = False,
+        centered_rank: Union[bool, int] = False,
+        z_score: Union[bool, int] = False,
+        norm_range: Union[bool, int] = False,
         w_decay: float = 0.0,
-        maximize: bool = False,
+        maximize: Union[bool, int] = False,
     ):
         """JAX-compatible fitness shaping tool."""
         self.w_decay = w_decay
@@ -19,7 +20,12 @@ class FitnessShaper(object):
         self.z_score = bool(z_score)
         self.norm_range = bool(norm_range)
         self.maximize = bool(maximize)
-        # TODO: Add assert statement to check that only one condition is met
+
+        # Check that only single fitness shaping transformation is used
+        num_options_on = self.centered_rank + self.z_score + self.norm_range
+        assert (
+            num_options_on < 2
+        ), "Only use one fitness shaping transformation."
 
     @partial(jax.jit, static_argnums=(0,))
     def apply(self, x: chex.Array, fitness: chex.Array) -> chex.Array:

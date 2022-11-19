@@ -40,12 +40,13 @@ class PersistentES(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         opt_name: str = "adam",
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """Persistent ES (Vicol et al., 2021).
         Reference: http://proceedings.mlr.press/v139/vicol21a.html
         Inspired by: http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
         """
-        super().__init__(popsize, num_dims, pholder_params)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)

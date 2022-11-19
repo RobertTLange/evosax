@@ -39,11 +39,12 @@ class PGPE(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 1.0,
         opt_name: str = "adam",
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """PGPE (e.g. Sehnke et al., 2010)
         Reference: https://tinyurl.com/2p8bn956
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
-        super().__init__(popsize, num_dims, pholder_params)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))

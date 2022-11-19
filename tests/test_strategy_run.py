@@ -13,7 +13,10 @@ def test_strategy_run(strategy_name):
     rng = jax.random.PRNGKey(0)
     Strat = Strategies[strategy_name]
     # PBT also returns copy ID integer - treat separately
-    popsize = 20
+    if strategy_name == "ESMC":
+        popsize = 21
+    else:
+        popsize = 20
     evaluator = ClassicFitness("rosenbrock", 2)
     fitness_shaper = FitnessShaper()
 
@@ -39,7 +42,10 @@ def test_strategy_scan(strategy_name):
     rng = jax.random.PRNGKey(0)
     Strat = Strategies[strategy_name]
     # PBT also returns copy ID integer - treat separately
-    popsize = 20
+    if strategy_name == "ESMC":
+        popsize = 21
+    else:
+        popsize = 20
     evaluator = ClassicFitness("rosenbrock", 2)
     fitness_shaper = FitnessShaper()
 

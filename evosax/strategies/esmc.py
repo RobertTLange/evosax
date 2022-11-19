@@ -38,11 +38,12 @@ class ESMC(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         opt_name: str = "adam",
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """ESMC (Merchant et al., 2021)
         Reference: https://proceedings.mlr.press/v139/merchant21a.html
         """
-        super().__init__(popsize, num_dims, pholder_params)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert self.popsize & 1, "Population size must be odd"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
