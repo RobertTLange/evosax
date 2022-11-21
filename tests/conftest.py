@@ -32,6 +32,7 @@ def pytest_generate_tests(metafunc):
                     "SAMR_GA",
                     # "GESMR_GA",
                     "GuidedES",
+                    "ASEBO",
                 ],
             )
         else:

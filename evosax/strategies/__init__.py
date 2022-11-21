@@ -25,6 +25,7 @@ from .des import DES
 from .samr_ga import SAMR_GA
 from .gesmr_ga import GESMR_GA
 from .guided_es import GuidedES
+from .asebo import ASEBO
 
 
 __all__ = [
@@ -55,4 +56,5 @@ __all__ = [
     "SAMR_GA",
     "GESMR_GA",
     "GuidedES",
+    "ASEBO",
 ]

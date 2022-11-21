@@ -23,6 +23,7 @@
     - SNES (Wierstra et al., 2014)
     - DES (Lange et al., 2022)
     - Guided ES (Maheswaranathan et al., 2018)
+    - ASEBO (Choromanski et al., 2019)
 - Adds full set of BBOB low-dimensional functions (`BBOBFitness`)
 - Adds 2D visualizer animating sampled points (`BBOBVisualizer`)
 - Adds `Evosax2JAXWrapper` to wrap all evosax strategies
@@ -37,6 +38,7 @@
 ##### Fixed
 
 - Fixed reward masking in `GymFitness`. Using `jnp.sum(dones) >= 1` for cumulative return computation zeros out the final timestep, which is wrong. That's why there were problems with sparse reward gym environments (e.g. Mountain Car).
+- Fixed PGPE sample indexing.
 
 ### [v0.0.9] - 15/06/2022
 
