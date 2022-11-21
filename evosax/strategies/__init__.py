@@ -24,6 +24,7 @@ from .esmc import ESMC
 from .des import DES
 from .samr_ga import SAMR_GA
 from .gesmr_ga import GESMR_GA
+from .guided_es import GuidedES
 
 
 __all__ = [
@@ -53,4 +54,5 @@ __all__ = [
     "DES",
     "SAMR_GA",
     "GESMR_GA",
+    "GuidedES",
 ]

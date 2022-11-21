@@ -48,7 +48,7 @@ class PersistentES(Strategy):
         """
         super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert not self.popsize & 1, "Population size must be even"
-        assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
+        assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "PersistentES"
 

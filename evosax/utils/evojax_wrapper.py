@@ -15,12 +15,16 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
         pop_size: int,
         es_config: dict = {},
         es_params: dict = {},
+        opt_params: dict = {},
         seed: int = 42,
     ):
         self.es = evosax_strategy(
-            popsize=pop_size, num_dims=param_size, maximize=True, **es_config
+            popsize=pop_size, num_dims=param_size, **es_config
         )
         self.es_params = self.es.default_params.replace(**es_params)
+        if len(opt_params.keys()) > 0:
+            opt_params = self.es_params.opt_params.replace(**opt_params)
+            self.es_params = self.es_params.replace(opt_params=opt_params)
         self.pop_size = pop_size
         self.param_size = param_size
         self.rand_key = jax.random.PRNGKey(seed=seed)
@@ -37,9 +41,8 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
 
     def tell(self, fitness: chex.Array) -> None:
         """Tell strategy about most recent fitness evaluations."""
-        fit_re = self.fit_shaper.apply(self.params, fitness)
         self.es_state = self.es.tell(
-            self.params, fit_re, self.es_state, self.es_params
+            self.params, fitness, self.es_state, self.es_params
         )
 
     @property

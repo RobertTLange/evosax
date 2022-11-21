@@ -50,7 +50,7 @@ class PGPE(Strategy):
         self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))
 
         assert not self.popsize & 1, "Population size must be even"
-        assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
+        assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "PGPE"
 
@@ -87,7 +87,7 @@ class PGPE(Strategy):
             (int(self.popsize / 2), self.num_dims),
         )
         z = jnp.concatenate([z_plus, -1.0 * z_plus])
-        x = state.mean + z * state.sigma.reshape(1, self.num_dims)
+        x = state.mean + state.sigma * z
         return x, state
 
     def tell_strategy(
@@ -100,9 +100,9 @@ class PGPE(Strategy):
         """Update both mean and dim.-wise isotropic Gaussian scale."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        noise_1 = noise[::2]
-        fit_1 = fitness[::2]
-        fit_2 = fitness[1::2]
+        noise_1 = noise[: int(self.popsize / 2)]
+        fit_1 = fitness[: int(self.popsize / 2)]
+        fit_2 = fitness[int(self.popsize / 2) :]
         elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
 
         fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])

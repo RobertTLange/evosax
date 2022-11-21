@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from evosax import Strategies
-from evosax.problems import ClassicFitness
+from evosax.problems import BBOBFitness
 from evosax.utils import FitnessShaper
 from functools import partial
 
@@ -17,7 +17,7 @@ def test_strategy_run(strategy_name):
         popsize = 21
     else:
         popsize = 20
-    evaluator = ClassicFitness("rosenbrock", 2)
+    evaluator = BBOBFitness("Sphere", 2)
     fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
@@ -46,7 +46,7 @@ def test_strategy_scan(strategy_name):
         popsize = 21
     else:
         popsize = 20
-    evaluator = ClassicFitness("rosenbrock", 2)
+    evaluator = BBOBFitness("Sphere", 2)
     fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout

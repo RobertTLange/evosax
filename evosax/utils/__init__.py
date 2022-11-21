@@ -11,13 +11,14 @@ from .reshape_fitness import FitnessShaper
 from .helpers import get_best_fitness_member
 
 # Import Gradient Based Optimizer step functions
-from .optimizer import SGD, Adam, RMSProp, ClipUp, OptState, OptParams
+from .optimizer import SGD, Adam, RMSProp, ClipUp, Adan, OptState, OptParams
 
 GradientOptimizer = {
     "sgd": SGD,
     "adam": Adam,
     "rmsprop": RMSProp,
     "clipup": ClipUp,
+    "adan": Adan,
 }
 
 
@@ -31,6 +32,7 @@ __all__ = [
     "Adam",
     "RMSProp",
     "ClipUp",
+    "Adan",
     "OptState",
     "OptParams",
 ]

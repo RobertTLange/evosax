@@ -26,6 +26,7 @@ from .strategies import (
     DES,
     SAMR_GA,
     GESMR_GA,
+    GuidedES,
 )
 from .utils import FitnessShaper, ParameterReshaper, ESLog
 from .networks import NetworkMapper
@@ -59,6 +60,7 @@ Strategies = {
     "DES": DES,
     "SAMR_GA": SAMR_GA,
     "GESMR_GA": GESMR_GA,
+    "GuidedES": GuidedES,
 }
 
 __all__ = [
@@ -97,4 +99,5 @@ __all__ = [
     "DES",
     "SAMR_GA",
     "GESMR_GA",
+    "GuidedES",
 ]

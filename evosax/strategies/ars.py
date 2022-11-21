@@ -48,7 +48,7 @@ class ARS(Strategy):
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))
-        assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
+        assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "ARS"
 

@@ -2,9 +2,8 @@ import jax
 import jax.numpy as jnp
 from evosax import CMA_ES, ARS, ParameterReshaper, NetworkMapper
 from evosax.problems import (
-    ClassicFitness,
+    BBOBFitness,
     GymFitness,
-    BraxFitness,
     VisionFitness,
     SequenceFitness,
 )
@@ -12,9 +11,7 @@ from evosax.problems import (
 
 def test_classic_rollout(classic_name: str):
     rng = jax.random.PRNGKey(0)
-    evaluator = ClassicFitness(
-        classic_name, num_dims=2, num_rollouts=2, noise_std=0.1
-    )
+    evaluator = BBOBFitness(classic_name, num_dims=2)
     strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
@@ -23,29 +20,19 @@ def test_classic_rollout(classic_name: str):
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
     x, state = strategy.ask(rng_gen, state, params)
     fitness = evaluator.rollout(rng_eval, x)
-    assert fitness.shape == (20, 2)
+    assert fitness.shape == (20,)
 
 
 def test_env_ffw_rollout(env_name: str):
     rng = jax.random.PRNGKey(0)
-    if env_name in ["CartPole-v1"]:
-        evaluator = GymFitness(env_name, num_env_steps=100, num_rollouts=10)
-        network = NetworkMapper["MLP"](
-            num_hidden_units=64,
-            num_hidden_layers=2,
-            num_output_units=evaluator.action_shape,
-            hidden_activation="relu",
-            output_activation="categorical",
-        )
-    else:
-        evaluator = BraxFitness(env_name, num_env_steps=100, num_rollouts=10)
-        network = NetworkMapper["MLP"](
-            num_hidden_units=64,
-            num_hidden_layers=2,
-            num_output_units=evaluator.action_shape,
-            hidden_activation="tanh",
-            output_activation="tanh",
-        )
+    evaluator = GymFitness(env_name, num_env_steps=100, num_rollouts=10)
+    network = NetworkMapper["MLP"](
+        num_hidden_units=64,
+        num_hidden_layers=2,
+        num_output_units=evaluator.action_shape,
+        hidden_activation="relu",
+        output_activation="categorical",
+    )
     pholder = jnp.zeros((1, evaluator.input_shape[0]))
     net_params = network.init(
         rng,
@@ -69,21 +56,12 @@ def test_env_ffw_rollout(env_name: str):
 
 def test_env_rec_rollout(env_name: str):
     rng = jax.random.PRNGKey(0)
-    if env_name in ["CartPole-v1"]:
-        evaluator = GymFitness(env_name, num_env_steps=100, num_rollouts=10)
-        network = NetworkMapper["LSTM"](
-            num_hidden_units=64,
-            num_output_units=evaluator.action_shape,
-            output_activation="categorical",
-        )
-
-    else:
-        evaluator = BraxFitness(env_name, num_env_steps=100, num_rollouts=10)
-        network = NetworkMapper["LSTM"](
-            num_hidden_units=64,
-            num_output_units=evaluator.action_shape,
-            output_activation="tanh",
-        )
+    evaluator = GymFitness(env_name, num_env_steps=100, num_rollouts=10)
+    network = NetworkMapper["LSTM"](
+        num_hidden_units=64,
+        num_output_units=evaluator.action_shape,
+        output_activation="categorical",
+    )
 
     pholder = jnp.zeros((1, evaluator.input_shape[0]))
     carry_init = network.initialize_carry()

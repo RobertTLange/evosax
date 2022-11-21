@@ -16,6 +16,8 @@ class OptState:
     lrate: float
     m: chex.Array
     v: Optional[chex.Array] = None
+    n: Optional[chex.Array] = None
+    last_grads: Optional[chex.Array] = None
     gen_counter: int = 0
 
 
@@ -27,6 +29,7 @@ class OptParams:
     momentum: Optional[float] = None
     beta_1: Optional[float] = None
     beta_2: Optional[float] = None
+    beta_3: Optional[float] = None
     eps: Optional[float] = None
     max_speed: Optional[float] = None
 
@@ -241,3 +244,56 @@ class ClipUp(Optimizer):
         m = clip(velocity, params.max_speed)
         mean_new = mean - state.lrate * m
         return mean_new, state.replace(m=m)
+
+
+class Adan(Optimizer):
+    def __init__(self, num_dims: int):
+        """JAX-Compatible Adan Optimizer (Xi et al., 2022)
+        Reference: https://arxiv.org/pdf/2208.06677.pdf"""
+        super().__init__(num_dims)
+        self.opt_name = "adan"
+
+    @property
+    def params_opt(self) -> Dict[str, float]:
+        """Return default Adam parameters."""
+        return {
+            "beta_1": 0.98,
+            "beta_2": 0.92,
+            "beta_3": 0.99,
+            "eps": 1e-8,
+        }
+
+    def initialize_opt(self, params: OptParams) -> OptState:
+        """Initialize the m, v, n trace of the optimizer."""
+        return OptState(
+            m=jnp.zeros(self.num_dims),
+            v=jnp.zeros(self.num_dims),
+            n=jnp.zeros(self.num_dims),
+            last_grads=jnp.zeros(self.num_dims),
+            lrate=params.lrate_init,
+        )
+
+    def step_opt(
+        self,
+        mean: chex.Array,
+        grads: chex.Array,
+        state: OptState,
+        params: OptParams,
+    ) -> Tuple[chex.Array, OptState]:
+        """Perform a simple Adan GD step."""
+        m = (1 - params.beta_1) * grads + params.beta_1 * state.m
+        grad_diff = grads - state.last_grads
+        v = (1 - params.beta_2) * grad_diff + params.beta_2 * state.v
+        n = (1 - params.beta_3) * (
+            grads + params.beta_2 * grad_diff
+        ) ** 2 + params.beta_3 * state.n
+
+        mhat = m / (1 - params.beta_1 ** (state.gen_counter + 1))
+        vhat = v / (1 - params.beta_2 ** (state.gen_counter + 1))
+        nhat = n / (1 - params.beta_3 ** (state.gen_counter + 1))
+        mean_new = mean - state.lrate * (mhat + params.beta_2 * vhat) / (
+            jnp.sqrt(nhat) + params.eps
+        )
+        return mean_new, state.replace(
+            m=m, v=v, n=n, last_grads=grads, gen_counter=state.gen_counter + 1
+        )
