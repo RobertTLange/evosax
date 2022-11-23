@@ -26,6 +26,7 @@ from .samr_ga import SAMR_GA
 from .gesmr_ga import GESMR_GA
 from .guided_es import GuidedES
 from .asebo import ASEBO
+from .cr_fm_nes import CR_FM_NES
 
 
 __all__ = [
@@ -57,4 +58,5 @@ __all__ = [
     "GESMR_GA",
     "GuidedES",
     "ASEBO",
+    "CR_FM_NES",
 ]

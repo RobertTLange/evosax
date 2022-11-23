@@ -91,7 +91,7 @@ class xNES(Strategy):
         noise = jax.random.normal(rng, (self.popsize, self.num_dims))
 
         def scale_orient(n, sigma, B):
-            return state.sigma * state.B.T @ n
+            return sigma * B.T @ n
 
         scaled_noise = jax.vmap(scale_orient, in_axes=(0, None, None))(
             noise, state.sigma, state.B

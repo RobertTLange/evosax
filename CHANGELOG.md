@@ -4,7 +4,6 @@
     - [ ] Large-scale CMA-ES variants
         - [ ] [LM-CMA](https://www.researchgate.net/publication/282612269_LM-CMA_An_alternative_to_L-BFGS_for_large-scale_black_Box_optimization)
         - [ ] [VkD-CMA](https://hal.inria.fr/hal-01306551v1/document), [Code](https://gist.github.com/youheiakimoto/2fb26c0ace43c22b8f19c7796e69e108)
-    - [ ] [ASEBO](https://proceedings.neurips.cc/paper/2019/file/88bade49e98db8790df275fcebb37a13-Paper.pdf)
     - [ ] [RBO](http://proceedings.mlr.press/v100/choromanski20a/choromanski20a.pdf)
 
 - Encoding methods - via special reshape wrappers
@@ -24,6 +23,7 @@
     - DES (Lange et al., 2022)
     - Guided ES (Maheswaranathan et al., 2018)
     - ASEBO (Choromanski et al., 2019)
+    - CR-FM-NES (Nomura & Ono, 2022)
 - Adds full set of BBOB low-dimensional functions (`BBOBFitness`)
 - Adds 2D visualizer animating sampled points (`BBOBVisualizer`)
 - Adds `Evosax2JAXWrapper` to wrap all evosax strategies
