@@ -147,3 +147,11 @@ class Strategy(object):
     ) -> EvoState:
         """Search-specific `tell` update. Returns updated state."""
         raise NotImplementedError
+
+    def get_eval_params(self, state: EvoState):
+        """Return reshaped parameters to evaluate."""
+        if self.use_param_reshaper:
+            x_out = self.param_reshaper.reshape_single(state.mean)
+        else:
+            x_out = state.mean
+        return x_out

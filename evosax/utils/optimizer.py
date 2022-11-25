@@ -11,6 +11,15 @@ from flax import struct
 # "clip_value": 5,
 
 
+def exp_decay(
+    param: chex.Array, param_decay: chex.Array, param_limit: chex.Array
+) -> chex.Array:
+    """Exponentially decay parameter & clip by minimal value."""
+    param = param * param_decay
+    param = jnp.maximum(param, param_limit)
+    return param
+
+
 @struct.dataclass
 class OptState:
     lrate: float
@@ -60,8 +69,7 @@ class Optimizer(object):
 
     def update(self, state: OptState, params: OptParams) -> OptState:
         """Exponentially decay the learning rate if desired."""
-        lrate = state.lrate * params.lrate_decay
-        lrate = jnp.maximum(lrate, params.lrate_limit)
+        lrate = exp_decay(state.lrate, params.lrate_decay, params.lrate_limit)
         return state.replace(lrate=lrate)
 
     @property
@@ -94,7 +102,7 @@ class SGD(Optimizer):
     def params_opt(self) -> Dict[str, float]:
         """Return default SGD+Momentum parameters."""
         return {
-            "momentum": 0.9,
+            "momentum": 0.0,
         }
 
     def initialize_opt(self, params: OptParams) -> OptState:

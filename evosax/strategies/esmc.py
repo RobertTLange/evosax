@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple, Optional, Union
 from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams
+from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
 
 
@@ -38,6 +38,12 @@ class ESMC(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         opt_name: str = "adam",
+        lrate_init: float = 0.05,
+        lrate_decay: float = 1.0,
+        lrate_limit: float = 0.001,
+        sigma_init: float = 0.03,
+        sigma_decay: float = 1.0,
+        sigma_limit: float = 0.01,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """ESMC (Merchant et al., 2021)
@@ -49,10 +55,28 @@ class ESMC(Strategy):
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "ESMC"
 
+        # Set core kwargs es_params (lrate/sigma schedules)
+        self.lrate_init = lrate_init
+        self.lrate_decay = lrate_decay
+        self.lrate_limit = lrate_limit
+        self.sigma_init = sigma_init
+        self.sigma_decay = sigma_decay
+        self.sigma_limit = sigma_limit
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(opt_params=self.optimizer.default_params)
+        opt_params = self.optimizer.default_params.replace(
+            lrate_init=self.lrate_init,
+            lrate_decay=self.lrate_decay,
+            lrate_limit=self.lrate_limit,
+        )
+        return EvoParams(
+            opt_params=opt_params,
+            sigma_init=self.sigma_init,
+            sigma_decay=self.sigma_decay,
+            sigma_limit=self.sigma_limit,
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

@@ -67,6 +67,7 @@ class RmES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
+        sigma_init: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Rank-m ES (Li & Zhang, 2017)
@@ -78,6 +79,9 @@ class RmES(Strategy):
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.memory_size = memory_size  # number of ranks
         self.strategy_name = "RmES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -91,6 +95,7 @@ class RmES(Strategy):
             c_c=c_c,
             c_sigma=jnp.minimum(2 / (self.num_dims + 7), 0.05),
             mu_eff=mu_eff,
+            sigma_init=self.sigma_init,
         )
         return params
 

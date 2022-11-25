@@ -57,13 +57,19 @@ class ParameterReshaper(object):
 
     def reshape(self, x: chex.Array) -> chex.ArrayTree:
         """Perform reshaping for a 2D matrix (pop_members, params)."""
-        vmap_shape = jax.vmap(self.reshape_single, in_axes=(0,))
+        vmap_shape = jax.vmap(self.reshape_single)
         if self.n_devices > 1:
             x = self.split_params_for_pmap(x)
             map_shape = jax.pmap(vmap_shape)
         else:
             map_shape = vmap_shape
         return map_shape(x)
+
+    def multi_reshape(self, x: chex.Array) -> chex.ArrayTree:
+        """Reshape parameters lying already on different devices."""
+        # No reshaping required!
+        vmap_shape = jax.vmap(self.reshape_single)
+        return jax.pmap(vmap_shape)(x)
 
     def flatten(self, x: chex.ArrayTree) -> chex.Array:
         """Reshaping pytree parameters into flat array."""
@@ -78,6 +84,12 @@ class ParameterReshaper(object):
             map_flat = vmap_flat
         flat = map_flat(x)
         return flat
+
+    def multi_flatten(self, x: chex.Array) -> chex.ArrayTree:
+        """Flatten parameters lying remaining on different devices."""
+        # No reshaping required!
+        vmap_flat = jax.vmap(ravel_pytree)
+        return jax.pmap(vmap_flat)(x)
 
     def split_params_for_pmap(self, param: chex.Array) -> chex.Array:
         """Helper reshapes param (bs, #params) into (#dev, bs/#dev, #params)."""

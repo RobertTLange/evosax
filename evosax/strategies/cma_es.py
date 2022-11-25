@@ -86,6 +86,7 @@ class CMA_ES(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
+        sigma_init: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """CMA-ES (e.g. Hansen, 2016)
@@ -96,6 +97,9 @@ class CMA_ES(Strategy):
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "CMA_ES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -129,6 +133,7 @@ class CMA_ES(Strategy):
             d_sigma=d_sigma,
             c_c=c_c,
             chi_n=chi_n,
+            sigma_init=self.sigma_init,
         )
         return params
 

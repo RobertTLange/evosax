@@ -44,6 +44,7 @@ class SNES(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        sigma_init: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Separable Exponential Natural ES (Wierstra et al., 2014)
@@ -52,13 +53,16 @@ class SNES(Strategy):
         super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.strategy_name = "SNES"
 
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolutionary strategy."""
         lrate_sigma = (3 + jnp.log(self.num_dims)) / (
             5 * jnp.sqrt(self.num_dims)
         )
-        params = EvoParams(lrate_sigma=lrate_sigma)
+        params = EvoParams(lrate_sigma=lrate_sigma, sigma_init=self.sigma_init)
         return params
 
     def initialize_strategy(

@@ -79,6 +79,7 @@ class CR_FM_NES(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        sigma_init: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Cost-Reduced Fast-Moving Natural ES (Nomura & Ono, 2022)
@@ -87,6 +88,9 @@ class CR_FM_NES(Strategy):
         super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert not self.popsize & 1, "Population size must be even"
         self.strategy_name = "CR_FM_NES"
+
+        # Set core kwargs es_params (sigma)
+        self.sigma_init = sigma_init
 
     @property
     def default_params(self) -> EvoParams:
@@ -135,6 +139,7 @@ class CR_FM_NES(Strategy):
             chi_N=chi_N,
             alpha_dist=alpha_dist,
             h_inv=h_inv,
+            sigma_init=self.sigma_init,
         )
         return params
 

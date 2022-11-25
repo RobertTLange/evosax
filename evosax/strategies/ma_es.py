@@ -42,6 +42,7 @@ class MA_ES(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
+        sigma_init: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """MA-ES (Bayer & Sendhoff, 2017)
@@ -52,6 +53,9 @@ class MA_ES(Strategy):
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "MA_ES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -82,6 +86,7 @@ class MA_ES(Strategy):
             c_sigma=c_sigma,
             d_sigma=d_sigma,
             chi_n=chi_n,
+            sigma_init=self.sigma_init,
         )
         return params
 

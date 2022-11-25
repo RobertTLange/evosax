@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple, Optional, Union
 from ..strategy import Strategy
+from ..utils import exp_decay
 from flax import struct
 
 
@@ -19,7 +20,7 @@ class EvoState:
 
 @struct.dataclass
 class EvoParams:
-    cross_over_rate: float = 0.5
+    cross_over_rate: float = 0.1
     sigma_init: float = 0.07
     sigma_decay: float = 0.999
     sigma_limit: float = 0.01
@@ -36,6 +37,9 @@ class SimpleGA(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
+        sigma_init: float = 0.1,
+        sigma_decay: float = 1.0,
+        sigma_limit: float = 0.01,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Simple Genetic Algorithm (Such et al., 2017)
@@ -47,10 +51,19 @@ class SimpleGA(Strategy):
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "SimpleGA"
 
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
+        self.sigma_decay = sigma_decay
+        self.sigma_limit = sigma_limit
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams()
+        return EvoParams(
+            sigma_init=self.sigma_init,
+            sigma_decay=self.sigma_decay,
+            sigma_limit=self.sigma_limit,
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
@@ -118,11 +131,7 @@ class SimpleGA(Strategy):
         fitness = fitness[idx]
         archive = solution[idx]
         # Update mutation epsilon - multiplicative decay
-        sigma = jax.lax.select(
-            state.sigma > params.sigma_limit,
-            state.sigma * params.sigma_decay,
-            state.sigma,
-        )
+        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         # Keep mean across stored archive around for evaluation protocol
         mean = archive[0]
         return state.replace(

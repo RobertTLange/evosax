@@ -41,6 +41,7 @@ class xNES(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        sigma_init: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Exponential Natural ES (Wierstra et al., 2014)
@@ -48,6 +49,9 @@ class xNES(Strategy):
         Inspired by: https://github.com/chanshing/xnes"""
         super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.strategy_name = "xNES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -57,7 +61,10 @@ class xNES(Strategy):
         )
         rho = 0.5 - 1.0 / (3 * (self.num_dims + 1))
         params = EvoParams(
-            lrate_sigma_init=lrate_sigma, lrate_B=lrate_sigma, rho=rho
+            lrate_sigma_init=lrate_sigma,
+            lrate_B=lrate_sigma,
+            rho=rho,
+            sigma_init=self.sigma_init,
         )
         return params
 

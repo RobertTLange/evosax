@@ -7,6 +7,7 @@ from typing import Tuple
 def get_best_fitness_member(
     x: chex.Array, fitness: chex.Array, state
 ) -> Tuple[chex.Array, float]:
+    """Check if fitness improved & replace in ES state."""
     best_in_gen = jnp.argmin(fitness)
     best_in_gen_fitness, best_in_gen_member = (
         fitness[best_in_gen],

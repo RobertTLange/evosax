@@ -34,6 +34,7 @@ class SimpleES(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
+        sigma_init: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Simple Gaussian Evolution Strategy (Rechenberg, 1975)
@@ -44,11 +45,14 @@ class SimpleES(Strategy):
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "SimpleES"
 
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         # Only parents have positive weight - equal weighting!
-        return EvoParams()
+        return EvoParams(sigma_init=self.sigma_init)
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

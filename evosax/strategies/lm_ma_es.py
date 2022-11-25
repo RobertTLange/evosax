@@ -46,6 +46,7 @@ class LM_MA_ES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
+        sigma_init: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Limited Memory MA-ES (Loshchilov et al., 2017)
@@ -57,6 +58,9 @@ class LM_MA_ES(Strategy):
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.memory_size = memory_size
         self.strategy_name = "LM_MA_ES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -87,6 +91,7 @@ class LM_MA_ES(Strategy):
             d_sigma=d_sigma,
             chi_n=chi_n,
             mu_w=mu_w,
+            sigma_init=self.sigma_init,
         )
         return params
 

@@ -4,7 +4,7 @@ import chex
 from typing import Tuple, Optional, Union
 from functools import partial
 from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams
+from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
 from evosax.utils import get_best_fitness_member
 
@@ -40,9 +40,15 @@ class GuidedES(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        opt_name: str = "sgd",
         subspace_dims: int = 1,  # k param in example notebook
-        **fitness_kwargs: Union[bool, int, float]
+        opt_name: str = "sgd",
+        lrate_init: float = 0.05,
+        lrate_decay: float = 1.0,
+        lrate_limit: float = 0.001,
+        sigma_init: float = 0.03,
+        sigma_decay: float = 1.0,
+        sigma_limit: float = 0.01,
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Guided ES (Maheswaranathan et al., 2018)
         Reference: https://arxiv.org/abs/1806.10230
@@ -55,8 +61,21 @@ class GuidedES(Strategy):
             subspace_dims <= self.num_dims
         ), "Subspace has to be smaller than optimization dims."
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.subspace_dims = subspace_dims
+        self.subspace_dims = min(subspace_dims, self.num_dims)
+        if self.subspace_dims < subspace_dims:
+            print(
+                "Subspace has to be smaller than optimization dims. Set to"
+                f" {self.subspace_dims} instead of {subspace_dims}."
+            )
         self.strategy_name = "GuidedES"
+
+        # Set core kwargs es_params (lrate/sigma schedules)
+        self.lrate_init = lrate_init
+        self.lrate_decay = lrate_decay
+        self.lrate_limit = lrate_limit
+        self.sigma_init = sigma_init
+        self.sigma_decay = sigma_decay
+        self.sigma_limit = sigma_limit
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -155,8 +174,7 @@ class GuidedES(Strategy):
         opt_state = self.optimizer.update(opt_state, params.opt_params)
 
         # Update lrate and standard deviation based on min and decay
-        sigma = state.sigma * params.sigma_decay
-        sigma = jnp.maximum(sigma, params.sigma_limit)
+        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         state = state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
 
         # Check if there is a new best member & update trackers

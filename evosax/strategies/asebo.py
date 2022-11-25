@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple, Optional, Union
 from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams
+from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
 
 
@@ -40,9 +40,15 @@ class ASEBO(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        subspace_dims: int = 2,
+        subspace_dims: int = 50,
         opt_name: str = "adam",
-        **fitness_kwargs: Union[bool, int, float]
+        lrate_init: float = 0.05,
+        lrate_decay: float = 1.0,
+        lrate_limit: float = 0.001,
+        sigma_init: float = 0.03,
+        sigma_decay: float = 1.0,
+        sigma_limit: float = 0.01,
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """ASEBO (Choromanski et al., 2019)
         Reference: https://arxiv.org/abs/1903.04268
@@ -53,17 +59,37 @@ class ASEBO(Strategy):
         super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
-        assert (
-            subspace_dims <= self.num_dims
-        ), "Subspace has to be smaller than optimization dims."
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.subspace_dims = subspace_dims
+        self.subspace_dims = min(subspace_dims, self.num_dims)
+        if self.subspace_dims < subspace_dims:
+            print(
+                "Subspace has to be smaller than optimization dims. Set to"
+                f" {self.subspace_dims} instead of {subspace_dims}."
+            )
         self.strategy_name = "ASEBO"
+
+        # Set core kwargs es_params (lrate/sigma schedules)
+        self.lrate_init = lrate_init
+        self.lrate_decay = lrate_decay
+        self.lrate_limit = lrate_limit
+        self.sigma_init = sigma_init
+        self.sigma_decay = sigma_decay
+        self.sigma_limit = sigma_limit
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(opt_params=self.optimizer.default_params)
+        opt_params = self.optimizer.default_params.replace(
+            lrate_init=self.lrate_init,
+            lrate_decay=self.lrate_decay,
+            lrate_limit=self.lrate_limit,
+        )
+        return EvoParams(
+            opt_params=opt_params,
+            sigma_init=self.sigma_init,
+            sigma_decay=self.sigma_decay,
+            sigma_limit=self.sigma_limit,
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
@@ -113,6 +139,12 @@ class ASEBO(Strategy):
 
         U_ort = Vt[int(self.popsize / 2) :]
         UUT_ort = jnp.matmul(U_ort.T, U_ort)
+
+        subspace_ready = state.gen_counter > self.subspace_dims
+
+        UUT = jax.lax.select(
+            subspace_ready, UUT, jnp.zeros((self.num_dims, self.num_dims))
+        )
         cov = (
             state.sigma * (state.alpha / self.num_dims) * jnp.eye(self.num_dims)
             + ((1 - state.alpha) / int(self.popsize / 2)) * UUT
@@ -144,6 +176,8 @@ class ASEBO(Strategy):
         alpha = jnp.linalg.norm(
             jnp.dot(theta_grad, state.UUT_ort)
         ) / jnp.linalg.norm(jnp.dot(theta_grad, state.UUT))
+        subspace_ready = state.gen_counter > self.subspace_dims
+        alpha = jax.lax.select(subspace_ready, alpha, 1.0)
 
         # Add grad FIFO-style to subspace archive (only if provided else FD)
         grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))
@@ -162,7 +196,7 @@ class ASEBO(Strategy):
 
         # Update lrate and standard deviation based on min and decay
         sigma = state.sigma * params.sigma_decay
-        sigma = jnp.maximum(sigma, params.sigma_limit)
+        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         return state.replace(
             mean=mean, sigma=sigma, opt_state=opt_state, alpha=alpha
         )

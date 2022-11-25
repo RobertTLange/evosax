@@ -16,7 +16,7 @@ class EvoState:
 
 @struct.dataclass
 class EvoParams:
-    radius_max: float = 0.1
+    radius_max: float = 0.2
     radius_min: float = 0.001
     radius_decay: float = 5
     init_min: float = 0.0

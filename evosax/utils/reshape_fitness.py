@@ -30,14 +30,18 @@ class FitnessShaper(object):
     @partial(jax.jit, static_argnums=(0,))
     def apply(self, x: chex.Array, fitness: chex.Array) -> chex.Array:
         """Max objective trafo, rank shaping, z scoring & add weight decay."""
-        fitness = jax.lax.select(self.maximize, -1 * fitness, fitness)
-        fitness = jax.lax.select(
-            self.centered_rank, centered_rank_trafo(fitness), fitness
-        )
-        fitness = jax.lax.select(self.z_score, z_score_trafo(fitness), fitness)
-        fitness = jax.lax.select(
-            self.norm_range, range_norm_trafo(fitness, -1.0, 1.0), fitness
-        )
+        if self.maximize:
+            fitness = -1 * fitness
+
+        if self.centered_rank:
+            fitness = centered_rank_trafo(fitness)
+
+        if self.z_score:
+            fitness = z_score_trafo(fitness)
+
+        if self.norm_range:
+            fitness = range_norm_trafo(fitness, -1.0, 1.0)
+
         # "Reduce" fitness based on L2 norm of parameters
         if self.w_decay > 0.0:
             l2_fit_red = self.w_decay * compute_l2_norm(x)

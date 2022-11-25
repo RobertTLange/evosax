@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple, Optional, Union
 from ..strategy import Strategy
+from ..utils import exp_decay
 from flax import struct
 
 
@@ -29,7 +30,7 @@ class EvoParams:
     delta_ams: float = 2.0
     theta_sdr: float = 1.0
     c_mult_init: float = 1.0
-    sigma_init: float = 0.0
+    sigma_init: float = 0.1
     sigma_decay: float = 0.999
     sigma_limit: float = 0.0
     init_min: float = 0.0
@@ -45,6 +46,9 @@ class Full_iAMaLGaM(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.35,
+        sigma_init: float = 0.0,
+        sigma_decay: float = 0.99,
+        sigma_limit: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Full Covariance
@@ -63,6 +67,11 @@ class Full_iAMaLGaM(Strategy):
         self.ams_popsize = int(alpha_ams * (self.popsize - 1))
         self.strategy_name = "Full_iAMaLGaM"
 
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
+        self.sigma_decay = sigma_decay
+        self.sigma_limit = sigma_limit
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
@@ -79,8 +88,13 @@ class Full_iAMaLGaM(Strategy):
             / (self.num_dims ** a_2_shift)
         )
 
-        params = EvoParams(eta_sigma=eta_sigma, eta_shift=eta_shift)
-        return params
+        return EvoParams(
+            eta_sigma=eta_sigma,
+            eta_shift=eta_shift,
+            sigma_init=self.sigma_init,
+            sigma_decay=self.sigma_decay,
+            sigma_limit=self.sigma_limit,
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
@@ -160,8 +174,7 @@ class Full_iAMaLGaM(Strategy):
         C = update_cov_amalgam(members_elite, state.C, mean, params.eta_sigma)
 
         # Decay isotropic part of Gaussian search distribution
-        sigma = state.sigma * params.sigma_decay
-        sigma = jnp.maximum(sigma, params.sigma_limit)
+        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         return state.replace(
             c_mult=c_mult,
             nis_counter=nis_counter,

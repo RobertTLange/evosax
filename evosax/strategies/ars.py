@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple, Optional, Union
 from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams
+from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
 
 
@@ -37,6 +37,12 @@ class ARS(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.1,
         opt_name: str = "sgd",
+        lrate_init: float = 0.05,
+        lrate_decay: float = 1.0,
+        lrate_limit: float = 0.001,
+        sigma_init: float = 0.03,
+        sigma_decay: float = 1.0,
+        sigma_limit: float = 0.01,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Augmented Random Search (Mania et al., 2018)
@@ -52,10 +58,28 @@ class ARS(Strategy):
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "ARS"
 
+        # Set core kwargs es_params (lrate/sigma schedules)
+        self.lrate_init = lrate_init
+        self.lrate_decay = lrate_decay
+        self.lrate_limit = lrate_limit
+        self.sigma_init = sigma_init
+        self.sigma_decay = sigma_decay
+        self.sigma_limit = sigma_limit
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(opt_params=self.optimizer.default_params)
+        opt_params = self.optimizer.default_params.replace(
+            lrate_init=self.lrate_init,
+            lrate_decay=self.lrate_decay,
+            lrate_limit=self.lrate_limit,
+        )
+        return EvoParams(
+            opt_params=opt_params,
+            sigma_init=self.sigma_init,
+            sigma_decay=self.sigma_decay,
+            sigma_limit=self.sigma_limit,
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
@@ -116,8 +140,5 @@ class ARS(Strategy):
             state.mean, theta_grad, state.opt_state, params.opt_params
         )
         opt_state = self.optimizer.update(opt_state, params.opt_params)
-
-        # Update lrate and standard deviation based on min and decay
-        sigma = state.sigma * params.sigma_decay
-        sigma = jnp.maximum(sigma, params.sigma_limit)
+        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
