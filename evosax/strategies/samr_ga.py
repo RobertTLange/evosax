@@ -101,6 +101,10 @@ class SAMR_GA(Strategy):
         fitness = fitness[idx]
         archive = x[idx]
         sigma = state.sigma[idx]
+
+        # Set mean to best member seen so far
+        improved = fitness[0] < state.best_fitness
+        best_mean = jax.lax.select(improved, archive[0], state.best_member)
         return state.replace(
-            fitness=fitness, archive=archive, sigma=sigma, mean=archive[0]
+            fitness=fitness, archive=archive, sigma=sigma, mean=best_mean
         )

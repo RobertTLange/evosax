@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import chex
 from typing import Tuple, Optional, Union
 from ..strategy import Strategy
-from ..utils import exp_decay
+from .simple_ga import single_mate
 from flax import struct
 
 
@@ -22,47 +22,42 @@ class EvoState:
 class EvoParams:
     cross_over_rate: float = 0.0
     sigma_init: float = 0.07
-    sigma_decay: float = 1.0
-    sigma_limit: float = 0.01
+    sigma_ratio: float = 0.15
     init_min: float = 0.0
     init_max: float = 0.0
     clip_min: float = -jnp.finfo(jnp.float32).max
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-class SimpleGA(Strategy):
+class MR15_GA(Strategy):
     def __init__(
         self,
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        elite_ratio: float = 0.5,
+        elite_ratio: float = 0.0,
+        sigma_ratio: float = 0.15,
         sigma_init: float = 0.1,
-        sigma_decay: float = 1.0,
-        sigma_limit: float = 0.01,
         **fitness_kwargs: Union[bool, int, float]
     ):
-        """Simple Genetic Algorithm (Such et al., 2017)
-        Reference: https://arxiv.org/abs/1712.06567
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
+        """1/5 MR Genetic Algorithm (Rechenberg, 1987)
+        Reference: https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
+        """
 
         super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
-        self.strategy_name = "SimpleGA"
+        self.strategy_name = "MR15_GA"
 
         # Set core kwargs es_params
+        self.sigma_ratio = sigma_ratio  # no. mutation that have to improve
         self.sigma_init = sigma_init
-        self.sigma_decay = sigma_decay
-        self.sigma_limit = sigma_limit
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         return EvoParams(
-            sigma_init=self.sigma_init,
-            sigma_decay=self.sigma_decay,
-            sigma_limit=self.sigma_limit,
+            sigma_init=self.sigma_init, sigma_ratio=self.sigma_ratio
         )
 
     def initialize_strategy(
@@ -130,20 +125,15 @@ class SimpleGA(Strategy):
         idx = jnp.argsort(fitness)[0 : self.elite_popsize]
         fitness = fitness[idx]
         archive = solution[idx]
-        # Update mutation epsilon - multiplicative decay
-        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
+        # Update mutation sigma - double if more than 15% improved
+        good_mutations_ratio = jnp.mean(fitness < state.best_fitness)
+        increase_sigma = good_mutations_ratio > params.sigma_ratio
+        sigma = jax.lax.select(
+            increase_sigma, 2 * state.sigma, 0.5 * state.sigma
+        )
         # Set mean to best member seen so far
         improved = fitness[0] < state.best_fitness
         best_mean = jax.lax.select(improved, archive[0], state.best_member)
         return state.replace(
             fitness=fitness, archive=archive, sigma=sigma, mean=best_mean
         )
-
-
-def single_mate(
-    rng: chex.PRNGKey, a: chex.Array, b: chex.Array, cross_over_rate: float
-) -> chex.Array:
-    """Only cross-over dims for x% of all dims."""
-    idx = jax.random.uniform(rng, (a.shape[0],)) > cross_over_rate
-    cross_over_candidate = a * (1 - idx) + b * idx
-    return cross_over_candidate

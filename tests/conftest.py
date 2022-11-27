@@ -33,6 +33,8 @@ def pytest_generate_tests(metafunc):
                     # "GESMR_GA",
                     "GuidedES",
                     "ASEBO",
+                    "CR_FM_NES",
+                    "MR15_GA",
                 ],
             )
         else:

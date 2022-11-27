@@ -73,7 +73,7 @@ class GESMR_GA(Strategy):
             rng=rng,
             mean=initialization[0],
             archive=initialization,
-            fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
+            fitness=jnp.zeros(self.elite_popsize) + jnp.finfo(jnp.float32).max,
             sigma=jnp.zeros(self.num_sigma_groups) + params.sigma_init,
             best_member=initialization[0],
         )
@@ -153,10 +153,14 @@ class GESMR_GA(Strategy):
             (self.num_sigma_groups - 1,),
         )
         sigma = jnp.concatenate([state.sigma[0][None], sigma_elite[idx_s]])
+
+        # Set mean to best member seen so far
+        improved = fitness[0] < state.best_fitness
+        best_mean = jax.lax.select(improved, archive[0], state.best_member)
         return state.replace(
             rng=rng,
             fitness=fitness[idx],
             archive=archive,
             sigma=sigma,
-            mean=archive[0],
+            mean=best_mean,
         )

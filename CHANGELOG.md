@@ -24,6 +24,7 @@
     - Guided ES (Maheswaranathan et al., 2018)
     - ASEBO (Choromanski et al., 2019)
     - CR-FM-NES (Nomura & Ono, 2022)
+    - MR15-GA (Rechenberg, 1978)
 - Adds full set of BBOB low-dimensional functions (`BBOBFitness`)
 - Adds 2D visualizer animating sampled points (`BBOBVisualizer`)
 - Adds `Evosax2JAXWrapper` to wrap all evosax strategies
@@ -34,6 +35,7 @@
 - `ParameterReshaper` can now be directly applied from within the strategy. You simply have to provide a `pholder_params` pytree at strategy instantiation (and no `num_dims`).
 - `FitnessShaper` can also be directly applied from within the strategy. This makes it easier to track the best performing member across generations and addresses issue #32. Simply provide the fitness shaping settings as args to the strategy (`maximize`, `centered_rank`, ...)
 - Removes Brax fitness (use EvoJAX version instead)
+- Add lrate and sigma schedule to strategy instantiation
 
 ##### Fixed
 
