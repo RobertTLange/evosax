@@ -45,11 +45,11 @@ class SequenceFitness(object):
         else:
             self.n_devices = n_devices
 
-    def set_apply_fn(self, map_dict, network, carry_init):
+    def set_apply_fn(self, network, carry_init):
         """Set the network forward function."""
         self.network = network
         self.carry_init = carry_init
-        self.rollout_pop = jax.vmap(self.rollout_rnn, in_axes=(None, map_dict))
+        self.rollout_pop = jax.vmap(self.rollout_rnn, in_axes=(None, 0))
         # pmap over popmembers if > 1 device is available - otherwise pmap
         if self.n_devices > 1:
             self.rollout = self.rollout_pmap

@@ -32,6 +32,10 @@ class RandomDecoder(Decoder):
             self.project_matrix = jax.random.rademacher(
                 rng, (self.num_encoding_dims, self.base_reshaper.total_params)
             )
+        print(
+            "RandomDecoder: Encoding parameters to optimize -"
+            f" {num_encoding_dims}"
+        )
 
     def reshape(self, x: chex.Array) -> chex.ArrayTree:
         """Perform reshaping for random projection case."""

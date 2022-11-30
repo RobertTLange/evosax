@@ -2,7 +2,7 @@
 from .es_logger import ESLog
 
 # Import additional utilities for reshaping flat parameters into net dict
-from .reshape_params import ParameterReshaper
+from .reshape_params import ParameterReshaper, ravel_pytree
 
 # Import additional utilities for reshaping fitness
 from .reshape_fitness import FitnessShaper
@@ -35,6 +35,7 @@ __all__ = [
     "get_best_fitness_member",
     "ESLog",
     "ParameterReshaper",
+    "ravel_pytree",
     "FitnessShaper",
     "GradientOptimizer",
     "SGD",

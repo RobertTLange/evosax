@@ -3,7 +3,7 @@ import jax.numpy as jnp
 from evosax import CMA_ES, ARS, ParameterReshaper, NetworkMapper
 from evosax.problems import (
     BBOBFitness,
-    GymFitness,
+    GymnaxFitness,
     VisionFitness,
     SequenceFitness,
 )
@@ -25,7 +25,7 @@ def test_classic_rollout(classic_name: str):
 
 def test_env_ffw_rollout(env_name: str):
     rng = jax.random.PRNGKey(0)
-    evaluator = GymFitness(env_name, num_env_steps=100, num_rollouts=10)
+    evaluator = GymnaxFitness(env_name, num_env_steps=100, num_rollouts=10)
     network = NetworkMapper["MLP"](
         num_hidden_units=64,
         num_hidden_layers=2,
@@ -40,7 +40,7 @@ def test_env_ffw_rollout(env_name: str):
         rng=rng,
     )
     reshaper = ParameterReshaper(net_params)
-    evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
+    evaluator.set_apply_fn(network.apply)
 
     strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
     state = strategy.initialize(rng)
@@ -56,7 +56,7 @@ def test_env_ffw_rollout(env_name: str):
 
 def test_env_rec_rollout(env_name: str):
     rng = jax.random.PRNGKey(0)
-    evaluator = GymFitness(env_name, num_env_steps=100, num_rollouts=10)
+    evaluator = GymnaxFitness(env_name, num_env_steps=100, num_rollouts=10)
     network = NetworkMapper["LSTM"](
         num_hidden_units=64,
         num_output_units=evaluator.action_shape,
@@ -72,9 +72,7 @@ def test_env_rec_rollout(env_name: str):
         rng=rng,
     )
     reshaper = ParameterReshaper(net_params)
-    evaluator.set_apply_fn(
-        reshaper.vmap_dict, network.apply, network.initialize_carry
-    )
+    evaluator.set_apply_fn(network.apply, network.initialize_carry)
     strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
     state = strategy.initialize(rng)
 
@@ -112,7 +110,7 @@ def test_vision_fitness():
     )
 
     reshaper = ParameterReshaper(net_params)
-    evaluator.set_apply_fn(reshaper.vmap_dict, network.apply)
+    evaluator.set_apply_fn(network.apply)
 
     strategy = ARS(popsize=4, num_dims=reshaper.total_params, elite_ratio=0.5)
     state = strategy.initialize(rng)
@@ -140,11 +138,7 @@ def test_sequence_fitness():
         rng=rng,
     )
     param_reshaper = ParameterReshaper(params)
-    evaluator.set_apply_fn(
-        param_reshaper.vmap_dict,
-        network.apply,
-        network.initialize_carry,
-    )
+    evaluator.set_apply_fn(network.apply, network.initialize_carry)
 
     strategy = ARS(4, param_reshaper.total_params)
     es_state = strategy.initialize(rng)

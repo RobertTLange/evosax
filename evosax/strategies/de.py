@@ -38,7 +38,7 @@ class DE(Strategy):
     ):
         """Differential Evolution (Storn & Price, 1997)
         Reference: https://tinyurl.com/4pje5a74"""
-        assert popsize > 6
+        assert popsize > 6, "DE requires popsize > 6."
         super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.strategy_name = "DE"
 

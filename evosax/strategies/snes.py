@@ -4,6 +4,7 @@ import chex
 from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
+from flax import linen as nn
 
 
 @struct.dataclass
@@ -21,6 +22,7 @@ class EvoParams:
     lrate_mean: float = 1.0
     lrate_sigma: float = 1.0
     sigma_init: float = 1.0
+    temperature: float = 0.0
     init_min: float = 0.0
     init_max: float = 0.0
     clip_min: float = -jnp.finfo(jnp.float32).max
@@ -38,6 +40,17 @@ def get_recombination_weights(popsize: int, use_baseline: bool = True):
     return weights_norm - use_baseline * (1 / popsize)
 
 
+def get_temp_weights(
+    popsize: int, temperature: float, use_baseline: bool = True
+):
+    """Get weights based on original discovered weights (Lange et al, 2022)."""
+    ranks = jnp.arange(popsize)
+    ranks /= ranks.size - 1
+    ranks = ranks - 0.5
+    weights = nn.softmax(-temperature * ranks)
+    return weights
+
+
 class SNES(Strategy):
     def __init__(
         self,
@@ -45,6 +58,7 @@ class SNES(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         sigma_init: float = 1.0,
+        temperature: float = 0.0,  # good values tend to be between 12 and 20
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Separable Exponential Natural ES (Wierstra et al., 2014)
@@ -55,6 +69,7 @@ class SNES(Strategy):
 
         # Set core kwargs es_params
         self.sigma_init = sigma_init
+        self.temperature = temperature
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -62,7 +77,11 @@ class SNES(Strategy):
         lrate_sigma = (3 + jnp.log(self.num_dims)) / (
             5 * jnp.sqrt(self.num_dims)
         )
-        params = EvoParams(lrate_sigma=lrate_sigma, sigma_init=self.sigma_init)
+        params = EvoParams(
+            lrate_sigma=lrate_sigma,
+            sigma_init=self.sigma_init,
+            temperature=self.temperature,
+        )
         return params
 
     def initialize_strategy(
@@ -75,7 +94,12 @@ class SNES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        weights = get_recombination_weights(self.popsize)
+        use_des_weights = params.temperature > 0.0
+        weights = jax.lax.select(
+            use_des_weights,
+            get_temp_weights(self.popsize, params.temperature),
+            get_recombination_weights(self.popsize),
+        )
         state = EvoState(
             mean=initialization,
             sigma=params.sigma_init * jnp.ones(self.num_dims),

@@ -1,3 +1,4 @@
+examples/experimental
 bbob.py
 # Standard ROB excludes
 .sync-config.cson

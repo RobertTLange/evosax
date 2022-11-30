@@ -4,7 +4,7 @@ from typing import Optional
 import chex
 
 
-class GymFitness(object):
+class GymnaxFitness(object):
     def __init__(
         self,
         env_name: str = "CartPole-v1",
@@ -46,7 +46,7 @@ class GymFitness(object):
         # Keep track of total steps executed in environment
         self.total_env_steps = 0
 
-    def set_apply_fn(self, map_dict, network_apply, carry_init=None):
+    def set_apply_fn(self, network_apply, carry_init=None):
         """Set the network forward function."""
         self.network = network_apply
         # Set rollout function based on model architecture
@@ -56,9 +56,7 @@ class GymFitness(object):
         else:
             self.single_rollout = self.rollout_ffw
         self.rollout_repeats = jax.vmap(self.single_rollout, in_axes=(0, None))
-        self.rollout_pop = jax.vmap(
-            self.rollout_repeats, in_axes=(None, map_dict)
-        )
+        self.rollout_pop = jax.vmap(self.rollout_repeats, in_axes=(None, 0))
         # pmap over popmembers if > 1 device is available - otherwise pmap
         if self.n_devices > 1:
             self.rollout_map = self.rollout_pmap

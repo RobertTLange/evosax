@@ -1,7 +1,6 @@
 from .mlp import MLP
 from .cnn import CNN, All_CNN_C
 from .lstm import LSTM
-from .hyper_networks import HyperNetworkMLP
 
 
 # Helper that returns model based on string name
@@ -18,5 +17,4 @@ __all__ = [
     "All_CNN_C",
     "LSTM",
     "NetworkMapper",
-    "HyperNetworkMLP",
 ]

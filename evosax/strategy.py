@@ -119,7 +119,9 @@ class Strategy(object):
         state = self.tell_strategy(x, fitness_re, state, params)
 
         # Check if there is a new best member & update trackers
-        best_member, best_fitness = get_best_fitness_member(x, fitness, state)
+        best_member, best_fitness = get_best_fitness_member(
+            x, fitness, state, self.fitness_shaper.maximize
+        )
         return state.replace(
             best_member=best_member,
             best_fitness=best_fitness,

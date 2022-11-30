@@ -1,5 +1,6 @@
 """Fitness landscape visualizer and evaluation animator."""
 import chex
+import jax
 import jax.numpy as jnp
 import numpy as np
 import matplotlib.cm as cm
@@ -18,11 +19,13 @@ class BBOBVisualizer(object):
     def __init__(
         self,
         X: chex.Array,
+        fitness: chex.Array,
         fn_name: str = "Rastrigin",
         title: str = "",
         use_3d: bool = False,
     ):
         self.X = X
+        self.fitness = fitness
         self.title = title
         self.fn_name = fn_name
         self.use_3d = use_3d
@@ -33,22 +36,40 @@ class BBOBVisualizer(object):
             self.ax = self.fig.add_subplot(1, 1, 1, projection="3d")
         self.fn_name = fn_name
         self.fn = BBOB_fns[self.fn_name]
-        self.R = jnp.array(get_rotation(2, 0, b"R"))
-        self.Q = jnp.array(get_rotation(2, 0, b"Q"))
+
+        rng = jax.random.PRNGKey(0)
+        rng_q, rng_r = jax.random.split(rng)
+        self.R = get_rotation(rng_r, 2)
+        self.Q = get_rotation(rng_q, 2)
         self.global_minima = []
 
+        # Set boundaries for evaluation range of black-box functions
         self.x1_lower_bound, self.x1_upper_bound = -5, 5
         self.x2_lower_bound, self.x2_upper_bound = -5, 5
+
+        # Set meta-data for rotation/azimuth
+        self.interval = 50  # Delay between frames in milliseconds.
+        try:
+            self.num_frames = X.shape[0]
+            self.static_frames = int(0.2 * self.num_frames)
+            self.azimuths = jnp.linspace(
+                0, 90, self.num_frames - self.static_frames
+            )
+            self.angles = jnp.linspace(
+                0, 90, self.num_frames - self.static_frames
+            )
+        except Exception:
+            pass
 
     def animate(self, save_fname: str):
         """Run animation for provided data."""
         ani = animation.FuncAnimation(
             self.fig,
             self.update,
-            frames=self.X.shape[0],
+            frames=self.num_frames,
             init_func=self.init,
             blit=False,
-            interval=10,
+            interval=self.interval,
         )
         ani.save(save_fname)
 
@@ -59,7 +80,7 @@ class BBOBVisualizer(object):
             (self.scat,) = self.ax.plot(
                 self.X[0, :, 0],
                 self.X[0, :, 1],
-                jnp.ones(X.shape[1]) * 0.1,
+                self.fitness[0, :],
                 marker="o",
                 c="r",
                 linestyle="",
@@ -86,7 +107,9 @@ class BBOBVisualizer(object):
         # Plot sample points
         self.scat.set_data(self.X[frame, :, 0], self.X[frame, :, 1])
         if self.use_3d:
-            self.scat.set_3d_properties(jnp.ones(X.shape[1]) * 0.1)
+            self.scat.set_3d_properties(self.fitness[frame, :])
+            if frame < self.num_frames - self.static_frames:
+                self.ax.view_init(self.azimuths[frame], self.angles[frame])
         self.ax.set_title(
             f"{self.fn_name}: {self.title} - Generation {frame + 1}",
             fontsize=15,
@@ -190,18 +213,26 @@ if __name__ == "__main__":
 
     rng = jax.random.PRNGKey(42)
 
-    for fn_name in [
-        "BuecheRastrigin",
-    ]:  # BBOB_fns.keys():
-        print(f"Start 2d/3d - {fn_name}")
-        visualizer = BBOBVisualizer(None, fn_name, "")
-        visualizer.plot_contour_2d(save=True)
-        visualizer.plot_contour_3d(save=True)
+    # for fn_name in [
+    #     "BuecheRastrigin",
+    # ]:  # BBOB_fns.keys():
+    #     print(f"Start 2d/3d - {fn_name}")
+    #     visualizer = BBOBVisualizer(None, None, fn_name, "")
+    #     visualizer.plot_contour_2d(save=True)
+    #     visualizer.plot_contour_3d(save=True)
 
-    # # Test animations
-    # # All solutions from single run (10 gens, 16 pmembers, 2 dims)
-    # X = jax.random.normal(rng, shape=(10, 16, 2))
-    # visualizer = BBOBVisualizer(X, "Ackley", "Test Strategy", use_3d=True)
-    # visualizer.animate("Ackley_3d.gif")
-    # visualizer = BBOBVisualizer(X, "Ackley", "Test Strategy", use_3d=False)
-    # visualizer.animate("Ackley_2d.gif")
+    # Test animations
+    # All solutions from single run (10 gens, 16 pmembers, 2 dims)
+    X = jax.random.normal(rng, shape=(50, 16, 2))
+
+    def sphere(x):
+        return jnp.sum(x ** 2)
+
+    fitness = jax.vmap(jax.vmap(sphere))(X)
+    print(fitness.shape)
+    visualizer = BBOBVisualizer(
+        X, fitness, "Sphere", "Test Strategy", use_3d=True
+    )
+    visualizer.animate("Sphere_3d.gif")
+    # visualizer = BBOBVisualizer(X, None, "Sphere", "Test Strategy", use_3d=False)
+    # visualizer.animate("Sphere_2d.gif")
