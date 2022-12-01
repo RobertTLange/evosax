@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from evosax.problems.bbob import BBOB_fns, get_rotation
 
 cmap = cm.colors.LinearSegmentedColormap.from_list(
     "Custom", [(0, "#2f9599"), (0.45, "#eee"), (1, "#8800ff")], N=256
@@ -23,7 +22,11 @@ class BBOBVisualizer(object):
         fn_name: str = "Rastrigin",
         title: str = "",
         use_3d: bool = False,
+        plot_log_fn: bool = False,
+        seed_id: int = 1,
     ):
+        from evosax.problems.bbob import BBOB_fns, get_rotation
+
         self.X = X
         self.fitness = fitness
         self.title = title
@@ -37,11 +40,12 @@ class BBOBVisualizer(object):
         self.fn_name = fn_name
         self.fn = BBOB_fns[self.fn_name]
 
-        rng = jax.random.PRNGKey(0)
+        rng = jax.random.PRNGKey(seed_id)
         rng_q, rng_r = jax.random.split(rng)
         self.R = get_rotation(rng_r, 2)
         self.Q = get_rotation(rng_q, 2)
         self.global_minima = []
+        self.plot_log_fn = plot_log_fn
 
         # Set boundaries for evaluation range of black-box functions
         self.x1_lower_bound, self.x1_upper_bound = -5, 5
@@ -147,6 +151,8 @@ class BBOBVisualizer(object):
         x2 = jnp.arange(self.x2_lower_bound, self.x2_upper_bound, 0.01)
         X, Y = np.meshgrid(x1, x2)
         contour = self.contour_function(x1, x2)
+        if self.plot_log_fn:
+            contour = jnp.log(contour)
         self.ax.contour(X, Y, contour, levels=30, linewidths=0.5, colors="#999")
         im = self.ax.contourf(X, Y, contour, levels=30, cmap=cmap, alpha=0.7)
         self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
@@ -166,6 +172,9 @@ class BBOBVisualizer(object):
         x1 = jnp.arange(self.x1_lower_bound, self.x1_upper_bound, 0.01)
         x2 = jnp.arange(self.x2_lower_bound, self.x2_upper_bound, 0.01)
         contour = self.contour_function(x1, x2)
+        if self.plot_log_fn:
+            contour = jnp.log(contour)
+
         X, Y = np.meshgrid(x1, x2)
         self.ax.contour(
             X,

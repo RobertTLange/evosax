@@ -53,13 +53,13 @@ class DES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        # Only parents have positive weight - equal weighting!
         return EvoParams()
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
     ) -> EvoState:
         """`initialize` the evolution strategy."""
+        # Get DES discovered recombination weights.
         weights = get_des_weights(self.popsize, params.temperature)
         initialization = jax.random.uniform(
             rng,
