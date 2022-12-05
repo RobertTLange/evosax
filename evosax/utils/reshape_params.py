@@ -1,17 +1,29 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Union, List, Optional
-from flax.core.frozen_dict import FrozenDict, unfreeze
-from flax.traverse_util import flatten_dict, unflatten_dict
-from jax.tree_util import tree_flatten, tree_unflatten
+from typing import Union, Optional
+from jax import vjp, flatten_util
+from jax.tree_util import tree_flatten
+
+
+def ravel_pytree(pytree):
+    leaves, _ = tree_flatten(pytree)
+    flat, _ = vjp(ravel_list, *leaves)
+    return flat
+
+
+def ravel_list(*lst):
+    return (
+        jnp.concatenate([jnp.ravel(elt) for elt in lst])
+        if lst
+        else jnp.array([])
+    )
 
 
 class ParameterReshaper(object):
     def __init__(
         self,
         placeholder_params: Union[chex.ArrayTree, chex.Array],
-        identity: bool = False,
         n_devices: Optional[int] = None,
         verbose: bool = True,
     ):
@@ -19,19 +31,12 @@ class ParameterReshaper(object):
         # Get network shape to reshape
         self.placeholder_params = placeholder_params
 
-        leafs, treedef = jax.tree_util.tree_flatten(placeholder_params)
-        self._treedef = treedef
-        self.network_shape = jax.tree_map(jnp.shape, leafs)
-        self.total_params = get_total_params(self.network_shape)
-        self.l_id = get_layer_ids(self.network_shape)
-
-        # Special case for no identity mapping (no pytree reshaping)
-        if identity:
-            self.reshape = jax.jit(self.reshape_identity)
-            self.reshape_single = jax.jit(self.reshape_single_flat)
-        else:
-            self.reshape = jax.jit(self.reshape_network)
-            self.reshape_single = jax.jit(self.reshape_single_net)
+        # Set total parameters depending on type of placeholder params
+        flat, self.unravel_pytree = flatten_util.ravel_pytree(
+            placeholder_params
+        )
+        self.total_params = flat.shape[0]
+        self.reshape_single = jax.jit(self.unravel_pytree)
 
         if n_devices is None:
             self.n_devices = jax.local_device_count()
@@ -50,13 +55,9 @@ class ParameterReshaper(object):
                 " for optimization."
             )
 
-    def reshape_identity(self, x: chex.Array) -> chex.Array:
-        """Return parameters w/o reshaping for evaluation."""
-        return x
-
-    def reshape_network(self, x: chex.Array) -> chex.ArrayTree:
+    def reshape(self, x: chex.Array) -> chex.ArrayTree:
         """Perform reshaping for a 2D matrix (pop_members, params)."""
-        vmap_shape = jax.vmap(self.flat_to_network, in_axes=(0,))
+        vmap_shape = jax.vmap(self.reshape_single)
         if self.n_devices > 1:
             x = self.split_params_for_pmap(x)
             map_shape = jax.pmap(vmap_shape)
@@ -64,56 +65,38 @@ class ParameterReshaper(object):
             map_shape = vmap_shape
         return map_shape(x)
 
-    def reshape_single_flat(self, x: chex.Array) -> chex.Array:
-        """Perform reshaping for a 1D vector (params,)."""
-        return x
+    def multi_reshape(self, x: chex.Array) -> chex.ArrayTree:
+        """Reshape parameters lying already on different devices."""
+        # No reshaping required!
+        vmap_shape = jax.vmap(self.reshape_single)
+        return jax.pmap(vmap_shape)(x)
 
-    def reshape_single_net(self, x: chex.Array) -> chex.ArrayTree:
-        """Perform reshaping for a 1D vector (params,)."""
-        unsqueezed_re = self.flat_to_network(x)
-        return unsqueezed_re
+    def flatten(self, x: chex.ArrayTree) -> chex.Array:
+        """Reshaping pytree parameters into flat array."""
+        vmap_flat = jax.vmap(ravel_pytree)
+        if self.n_devices > 1:
+            # Flattening of pmap paramater trees to apply vmap flattening
+            def map_flat(x):
+                x_re = jax.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), x)
+                return vmap_flat(x_re)
+
+        else:
+            map_flat = vmap_flat
+        flat = map_flat(x)
+        return flat
+
+    def multi_flatten(self, x: chex.Array) -> chex.ArrayTree:
+        """Flatten parameters lying remaining on different devices."""
+        # No reshaping required!
+        vmap_flat = jax.vmap(ravel_pytree)
+        return jax.pmap(vmap_flat)(x)
+
+    def split_params_for_pmap(self, param: chex.Array) -> chex.Array:
+        """Helper reshapes param (bs, #params) into (#dev, bs/#dev, #params)."""
+        return jnp.stack(jnp.split(param, self.n_devices))
 
     @property
     def vmap_dict(self) -> chex.ArrayTree:
         """Get a dictionary specifying axes to vmap over."""
         vmap_dict = jax.tree_map(lambda x: 0, self.placeholder_params)
         return vmap_dict
-
-    def flat_to_network(self, flat_params: chex.Array) -> chex.ArrayTree:
-        """Fill a FrozenDict with new proposed vector of params."""
-        new_nn = list()
-
-        # Loop over layers in network
-        for i, shape in enumerate(self.network_shape):
-            # Select params from flat to vector to be reshaped
-            p_flat = jax.lax.dynamic_slice(
-                flat_params, (self.l_id[i],), (self.l_id[i + 1] - self.l_id[i],)
-            )
-            # Reshape parameters into matrix/kernel/etc. shape
-            p_reshaped = p_flat.reshape(shape)
-            # Place reshaped params into dict and increase counter
-            new_nn.append(p_reshaped)
-        return tree_unflatten(self._treedef, new_nn)
-
-    def split_params_for_pmap(self, param: chex.Array) -> chex.Array:
-        """Helper reshapes param (bs, #params) into (#dev, bs/#dev, #params)."""
-        return jnp.stack(jnp.split(param, self.n_devices))
-
-
-def get_total_params(params: List[chex.Array]) -> int:
-    """Get total number of params in net. Loop over layer modules + params."""
-    total_params = 0
-    layer_keys = params
-    # Loop over layers
-    for l_k in layer_keys:
-        total_params += jnp.prod(jnp.array(l_k))
-    return total_params
-
-
-def get_layer_ids(network_shape_list: List[chex.Array]) -> List[int]:
-    """Get indices to target when reshaping single flat net into dict."""
-    l_id = [0]
-    for shape in network_shape_list:
-        add_pcount = jnp.prod(jnp.array(shape))
-        l_id.append(int(l_id[-1] + add_pcount))
-    return l_id

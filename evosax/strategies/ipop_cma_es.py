@@ -1,6 +1,6 @@
 import jax
 import chex
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 from functools import partial
 from .cma_es import CMA_ES
 from ..restarts.restarter import WrapperState, WrapperParams
@@ -19,14 +19,27 @@ class RestartParams:
 
 
 class IPOP_CMA_ES(object):
-    def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        elite_ratio: float = 0.5,
+        sigma_init: float = 1.0,
+        **fitness_kwargs: Union[bool, int, float]
+    ):
         """IPOP-CMA-ES (Auer & Hansen, 2005).
         Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
         """
         self.strategy_name = "IPOP_CMA_ES"
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
-            num_dims=num_dims, popsize=popsize, elite_ratio=elite_ratio
+            popsize=popsize,
+            num_dims=num_dims,
+            pholder_params=pholder_params,
+            elite_ratio=elite_ratio,
+            sigma_init=sigma_init,
+            **fitness_kwargs
         )
         from ..restarts import IPOP_Restarter
         from ..restarts.termination import cma_criterion, spread_criterion

@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -62,20 +62,26 @@ def get_cma_elite_weights(
 class RmES(Strategy):
     def __init__(
         self,
-        num_dims: int,
         popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
+        sigma_init: float = 1.0,
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """Rank-m ES (Li & Zhang, 2017)
         Reference: https://ieeexplore.ieee.org/document/8080257
         """
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.memory_size = memory_size  # number of ranks
         self.strategy_name = "RmES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -89,6 +95,7 @@ class RmES(Strategy):
             c_c=c_c,
             c_sigma=jnp.minimum(2 / (self.num_dims + 7), 0.05),
             mu_eff=mu_eff,
+            sigma_init=self.sigma_init,
         )
         return params
 

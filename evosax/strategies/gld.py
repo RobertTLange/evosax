@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -16,7 +16,7 @@ class EvoState:
 
 @struct.dataclass
 class EvoParams:
-    radius_max: float = 0.1
+    radius_max: float = 0.2
     radius_min: float = 0.001
     radius_decay: float = 5
     init_min: float = 0.0
@@ -26,10 +26,16 @@ class EvoParams:
 
 
 class GLD(Strategy):
-    def __init__(self, num_dims: int, popsize: int):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        **fitness_kwargs: Union[bool, int, float]
+    ):
         """Gradientless Descent (Golovin et al., 2019)
         Reference: https://arxiv.org/pdf/1911.06317.pdf"""
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.strategy_name = "GLD"
 
     @property

@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -33,17 +33,35 @@ class EvoParams:
 
 
 class SimAnneal(Strategy):
-    def __init__(self, num_dims: int, popsize: int):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        sigma_init: float = 0.03,
+        sigma_decay: float = 1.0,
+        sigma_limit: float = 0.01,
+        **fitness_kwargs: Union[bool, int, float]
+    ):
         """Simulated Annealing (Rasdi Rere et al., 2015)
         Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
         """
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.strategy_name = "SimAnneal"
+
+        # Set core kwargs es_params (lrate/sigma schedules)
+        self.sigma_init = sigma_init
+        self.sigma_decay = sigma_decay
+        self.sigma_limit = sigma_limit
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams()
+        return EvoParams(
+            sigma_init=self.sigma_init,
+            sigma_decay=self.sigma_decay,
+            sigma_limit=self.sigma_limit,
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

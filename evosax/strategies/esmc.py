@@ -10,7 +10,7 @@ from flax import struct
 @struct.dataclass
 class EvoState:
     mean: chex.Array
-    sigma: float
+    sigma: chex.Array
     opt_state: OptState
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
@@ -23,20 +23,21 @@ class EvoParams:
     sigma_init: float = 0.03
     sigma_decay: float = 0.999
     sigma_limit: float = 0.01
+    sigma_lrate: float = 0.2  # Learning rate for std
+    sigma_max_change: float = 0.2  # Clip adaptive sigma to 20%
     init_min: float = 0.0
     init_max: float = 0.0
     clip_min: float = -jnp.finfo(jnp.float32).max
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-class ARS(Strategy):
+class ESMC(Strategy):
     def __init__(
         self,
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        elite_ratio: float = 0.1,
-        opt_name: str = "sgd",
+        opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
@@ -45,18 +46,14 @@ class ARS(Strategy):
         sigma_limit: float = 0.01,
         **fitness_kwargs: Union[bool, int, float]
     ):
-        """Augmented Random Search (Mania et al., 2018)
-        Reference: https://arxiv.org/pdf/1803.07055.pdf"""
+        """ESMC (Merchant et al., 2021)
+        Reference: https://proceedings.mlr.press/v139/merchant21a.html
+        """
         super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
-        assert not self.popsize & 1, "Population size must be even"
-        # ARS performs antithetic sampling & allows you to select
-        # "b" elite perturbation directions for the update
-        assert 0 <= elite_ratio <= 1
-        self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))
+        assert self.popsize & 1, "Population size must be odd"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.strategy_name = "ARS"
+        self.strategy_name = "ESMC"
 
         # Set core kwargs es_params (lrate/sigma schedules)
         self.lrate_init = lrate_init
@@ -91,10 +88,9 @@ class ARS(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-
         state = EvoState(
             mean=initialization,
-            sigma=params.sigma_init,
+            sigma=jnp.ones(self.num_dims) * params.sigma_init,
             opt_state=self.optimizer.initialize(params.opt_params),
             best_member=initialization,
         )
@@ -109,8 +105,10 @@ class ARS(Strategy):
             rng,
             (int(self.popsize / 2), self.num_dims),
         )
-        z = jnp.concatenate([z_plus, -1.0 * z_plus])
-        x = state.mean + state.sigma * z
+        z = jnp.concatenate(
+            [jnp.zeros((1, self.num_dims)), z_plus, -1.0 * z_plus]
+        )
+        x = state.mean + z * state.sigma.reshape(1, self.num_dims)
         return x, state
 
     def tell_strategy(
@@ -120,25 +118,25 @@ class ARS(Strategy):
         state: EvoState,
         params: EvoParams,
     ) -> EvoState:
-        """`tell` performance data for strategy state update."""
+        """Update both mean and dim.-wise isotropic Gaussian scale."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        noise_1 = noise[: int(self.popsize / 2)]
-        fit_1 = fitness[: int(self.popsize / 2)]
-        fit_2 = fitness[int(self.popsize / 2) :]
-        elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
-
-        fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
-        # Add small constant to ensure non-zero division stability
-        sigma_fitness = jnp.std(fitness_elite) + 1e-05
-        fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
-        fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
-        theta_grad = 1.0 / (self.elite_popsize * sigma_fitness) * fit_diff_noise
-
+        bline_fitness = fitness[0]
+        noise = noise[1:]
+        fitness = fitness[1:]
+        noise_1 = noise[: int((self.popsize - 1) / 2)]
+        fit_1 = fitness[: int((self.popsize - 1) / 2)]
+        fit_2 = fitness[int((self.popsize - 1) / 2) :]
+        fit_diff = jnp.minimum(fit_1, bline_fitness) - jnp.minimum(
+            fit_2, bline_fitness
+        )
+        fit_diff_noise = jnp.dot(noise_1.T, fit_diff)
+        theta_grad = 1.0 / int((self.popsize - 1) / 2) * fit_diff_noise
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(
             state.mean, theta_grad, state.opt_state, params.opt_params
         )
         opt_state = self.optimizer.update(opt_state, params.opt_params)
-        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
+        sigma = state.sigma * params.sigma_decay
+        sigma = jnp.maximum(sigma, params.sigma_limit)
         return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)

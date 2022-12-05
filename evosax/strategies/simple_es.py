@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -28,20 +28,31 @@ class EvoParams:
 
 
 class SimpleES(Strategy):
-    def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        elite_ratio: float = 0.5,
+        sigma_init: float = 1.0,
+        **fitness_kwargs: Union[bool, int, float]
+    ):
         """Simple Gaussian Evolution Strategy (Rechenberg, 1975)
         Reference: https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "SimpleES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         # Only parents have positive weight - equal weighting!
-        return EvoParams()
+        return EvoParams(sigma_init=self.sigma_init)
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

@@ -8,13 +8,11 @@ class Decoder(object):
         self,
         num_encoding_dims: int,
         placeholder_params: Union[chex.ArrayTree, chex.Array],
-        identity: bool = False,
         n_devices: Optional[int] = None,
     ):
         self.num_encoding_dims = num_encoding_dims
         self.total_params = num_encoding_dims
         self.placeholder_params = placeholder_params
-        self.identity = identity
         if n_devices is None:
             self.n_devices = jax.local_device_count()
         else:

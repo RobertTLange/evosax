@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from ..utils.eigen_decomp import diag_eigen_decomp
 from flax import struct
@@ -57,16 +57,27 @@ def get_cma_elite_weights(
 
 
 class Sep_CMA_ES(Strategy):
-    def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        elite_ratio: float = 0.5,
+        sigma_init: float = 1.0,
+        **fitness_kwargs: Union[bool, int, float]
+    ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
         Reference: https://hal.inria.fr/inria-00287367/document
         Inspired by: github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_sepcma.py
         """
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "Sep_CMA_ES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -107,6 +118,7 @@ class Sep_CMA_ES(Strategy):
             d_sigma=d_sigma,
             c_c=c_c,
             chi_n=chi_n,
+            sigma_init=self.sigma_init,
         )
         return params
 

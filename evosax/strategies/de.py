@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from flax import struct
 
@@ -29,11 +29,17 @@ class EvoParams:
 
 
 class DE(Strategy):
-    def __init__(self, num_dims: int, popsize: int):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        **fitness_kwargs: Union[bool, int, float]
+    ):
         """Differential Evolution (Storn & Price, 1997)
         Reference: https://tinyurl.com/4pje5a74"""
-        assert popsize > 6
-        super().__init__(num_dims, popsize)
+        assert popsize > 6, "DE requires popsize > 6."
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         self.strategy_name = "DE"
 
     @property

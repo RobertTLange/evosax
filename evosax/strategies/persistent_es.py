@@ -1,9 +1,9 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams
+from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
 
 
@@ -34,21 +34,52 @@ class EvoParams:
 
 
 class PersistentES(Strategy):
-    def __init__(self, num_dims: int, popsize: int, opt_name: str = "adam"):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        opt_name: str = "adam",
+        lrate_init: float = 0.05,
+        lrate_decay: float = 1.0,
+        lrate_limit: float = 0.001,
+        sigma_init: float = 0.03,
+        sigma_decay: float = 1.0,
+        sigma_limit: float = 0.01,
+        **fitness_kwargs: Union[bool, int, float]
+    ):
         """Persistent ES (Vicol et al., 2021).
         Reference: http://proceedings.mlr.press/v139/vicol21a.html
         Inspired by: http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
         """
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert not self.popsize & 1, "Population size must be even"
-        assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
+        assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "PersistentES"
+
+        # Set core kwargs es_params (lrate/sigma schedules)
+        self.lrate_init = lrate_init
+        self.lrate_decay = lrate_decay
+        self.lrate_limit = lrate_limit
+        self.sigma_init = sigma_init
+        self.sigma_decay = sigma_decay
+        self.sigma_limit = sigma_limit
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(opt_params=self.optimizer.default_params)
+        opt_params = self.optimizer.default_params.replace(
+            lrate_init=self.lrate_init,
+            lrate_decay=self.lrate_decay,
+            lrate_limit=self.lrate_limit,
+        )
+        return EvoParams(
+            opt_params=opt_params,
+            sigma_init=self.sigma_init,
+            sigma_decay=self.sigma_decay,
+            sigma_limit=self.sigma_limit,
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
@@ -105,8 +136,7 @@ class PersistentES(Strategy):
         opt_state = self.optimizer.update(opt_state, params.opt_params)
         inner_step_counter = state.inner_step_counter + params.K
 
-        sigma = state.sigma * params.sigma_decay
-        sigma = jnp.maximum(sigma, params.sigma_limit)
+        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         # Reset accumulated antithetic noise memory if done with inner problem
         reset = inner_step_counter >= params.T
         inner_step_counter = jax.lax.select(reset, 0, inner_step_counter)

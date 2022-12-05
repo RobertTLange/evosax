@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from ..utils.eigen_decomp import full_eigen_decomp
 from flax import struct
@@ -80,15 +80,26 @@ def get_cma_elite_weights(
 
 
 class CMA_ES(Strategy):
-    def __init__(self, num_dims: int, popsize: int, elite_ratio: float = 0.5):
+    def __init__(
+        self,
+        popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        elite_ratio: float = 0.5,
+        sigma_init: float = 1.0,
+        **fitness_kwargs: Union[bool, int, float]
+    ):
         """CMA-ES (e.g. Hansen, 2016)
         Reference: https://arxiv.org/abs/1604.00772
         Inspired by: https://github.com/CyberAgentAILab/cmaes"""
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "CMA_ES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -122,6 +133,7 @@ class CMA_ES(Strategy):
             d_sigma=d_sigma,
             c_c=c_c,
             chi_n=chi_n,
+            sigma_init=self.sigma_init,
         )
         return params
 
@@ -157,7 +169,9 @@ class CMA_ES(Strategy):
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
     ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        C, B, D = full_eigen_decomp(state.C, state.B, state.D)
+        C, B, D = full_eigen_decomp(
+            state.C, state.B, state.D, state.gen_counter
+        )
         x = sample(
             rng,
             state.mean,
@@ -197,6 +211,7 @@ class CMA_ES(Strategy):
             y_w,
             params.c_sigma,
             params.mu_eff,
+            state.gen_counter,
         )
 
         p_c, norm_p_sigma, h_sigma = update_p_c(
@@ -259,9 +274,10 @@ def update_p_sigma(
     y_w: chex.Array,
     c_sigma: float,
     mu_eff: float,
+    gen_counter: int,
 ) -> Tuple[chex.Array, chex.Array, chex.Array, None, None]:
     """Update evolution path for covariance matrix."""
-    C, B, D = full_eigen_decomp(C, B, D)
+    C, B, D = full_eigen_decomp(C, B, D, gen_counter)
     C_2 = B.dot(jnp.diag(1 / D)).dot(B.T)  # C^(-1/2) = B D^(-1) B^T
     p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
         c_sigma * (2 - c_sigma) * mu_eff

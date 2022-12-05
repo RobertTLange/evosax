@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from ..strategy import Strategy
 from .cma_es import get_cma_elite_weights
 from flax import struct
@@ -41,20 +41,26 @@ class EvoParams:
 class LM_MA_ES(Strategy):
     def __init__(
         self,
-        num_dims: int,
         popsize: int,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
+        sigma_init: float = 1.0,
+        **fitness_kwargs: Union[bool, int, float]
     ):
         """Limited Memory MA-ES (Loshchilov et al., 2017)
         Reference: https://arxiv.org/pdf/1705.06693.pdf
         """
-        super().__init__(num_dims, popsize)
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.memory_size = memory_size
         self.strategy_name = "LM_MA_ES"
+
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -85,6 +91,7 @@ class LM_MA_ES(Strategy):
             d_sigma=d_sigma,
             chi_n=chi_n,
             mu_w=mu_w,
+            sigma_init=self.sigma_init,
         )
         return params
 

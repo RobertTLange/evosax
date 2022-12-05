@@ -5,8 +5,8 @@ from flax.traverse_util import flatten_dict
 from flax.core import unfreeze
 from typing import Union, Optional
 from .decoder import Decoder
-from ...utils import ParameterReshaper
-from ...networks import HyperNetworkMLP
+from .hyper_networks import HyperNetworkMLP
+from ...utils import ParameterReshaper, ravel_pytree
 
 
 class HyperDecoder(Decoder):
@@ -39,14 +39,13 @@ class HyperDecoder(Decoder):
         super().__init__(
             hyper_reshaper.total_params,
             placeholder_params,
-            identity,
             n_devices,
         )
         self.hyper_reshaper = hyper_reshaper
         self.vmap_dict = self.hyper_reshaper.vmap_dict
 
     def reshape(self, x: chex.Array) -> chex.ArrayTree:
-        """Perform reshaping for random projection case."""
+        """Perform reshaping for hypernetwork case."""
         # 0. Reshape genome into params for hypernetwork
         x_params = self.hyper_reshaper.reshape(x)
         # 1. Project parameters to raw dimensionality using hypernetwork
@@ -54,9 +53,17 @@ class HyperDecoder(Decoder):
         return hyper_x
 
     def reshape_single(self, x: chex.Array) -> chex.ArrayTree:
-        """Reshape a single flat vector using random projection matrix."""
+        """Reshape a single flat vector using hypernetwork."""
         # 0. Reshape genome into params for hypernetwork
         x_params = self.hyper_reshaper.reshape_single(x)
         # 1. Project parameters to raw dimensionality using hypernetwork
         hyper_x = jax.jit(self.hyper_network.apply)(x_params)
         return hyper_x
+
+    def flatten(self, x: chex.ArrayTree) -> chex.Array:
+        """Reshaping pytree parameters into flat array."""
+        return jax.vmap(ravel_pytree)(x)
+
+    def flatten_single(self, x: chex.ArrayTree) -> chex.Array:
+        """Reshaping pytree parameters into flat array."""
+        return ravel_pytree(x)
