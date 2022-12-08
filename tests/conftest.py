@@ -38,7 +38,7 @@ def pytest_generate_tests(metafunc):
                 ],
             )
         else:
-            metafunc.parametrize("strategy_name", ["SNES"])
+            metafunc.parametrize("strategy_name", ["CR_FM_NES"])
 
     if "classic_name" in metafunc.fixturenames:
         if metafunc.config.getoption("all"):
@@ -73,10 +73,6 @@ def pytest_generate_tests(metafunc):
                     "Gallagher101Me",
                     "Gallagher21Hi",
                     # "Katsuura",
-                    # Part 6: Additional low-d functions (not in BBOB)
-                    "Linear",
-                    "Ackley",
-                    "DixonPrice",
                 ],
             )
         else:

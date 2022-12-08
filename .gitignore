@@ -1,5 +1,5 @@
 examples/experimental
-bbob.py
+# bbob.py
 # Standard ROB excludes
 .sync-config.cson
 .vim-arsync

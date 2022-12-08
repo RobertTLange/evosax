@@ -36,6 +36,7 @@ class GESMR_GA(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         sigma_ratio: float = 0.5,
+        sigma_init: float = 0.07,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Self-Adaptation Mutation Rate GA."""
@@ -52,11 +53,13 @@ class GESMR_GA(Strategy):
             1, int(self.num_sigma_groups * self.sigma_ratio)
         )
         self.strategy_name = "GESMR_GA"
+        # Set core kwargs es_params
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams()
+        return EvoParams(sigma_init=self.sigma_init)
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
