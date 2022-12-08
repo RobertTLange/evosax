@@ -33,6 +33,12 @@ class FitnessShaper(object):
         if self.maximize:
             fitness = -1 * fitness
 
+        # Apply wdecay before normalization - makes easier to tune
+        # "Reduce" fitness based on L2 norm of parameters
+        if self.w_decay > 0.0:
+            l2_fit_red = self.w_decay * compute_l2_norm(x)
+            fitness += l2_fit_red
+
         if self.centered_rank:
             fitness = centered_rank_trafo(fitness)
 
@@ -42,11 +48,6 @@ class FitnessShaper(object):
         if self.norm_range:
             fitness = range_norm_trafo(fitness, -1.0, 1.0)
 
-        # Apply wdecay after normalization - makes easier to tune
-        # "Reduce" fitness based on L2 norm of parameters
-        if self.w_decay > 0.0:
-            l2_fit_red = self.w_decay * compute_l2_norm(x)
-            fitness += l2_fit_red
         return fitness
 
 

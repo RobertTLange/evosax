@@ -36,5 +36,5 @@ def test_fitness_shaping_max():
     fit = jnp.array([0.0, 1.0, 2.0])
     fit_re = shaper.apply(x, fit)
     assert jnp.allclose(
-        fit_re, jnp.array([-0.01, -(1 + 0.04), -(2 + 0.09)]), atol=1e-03
+        fit_re, jnp.array([0.01, -(1 - 0.04), -(2 - 0.09)]), atol=1e-03
     )
