@@ -2,6 +2,7 @@
 [![Pyversions](https://img.shields.io/pypi/pyversions/evosax.svg?style=flat-square)](https://pypi.python.org/pypi/evosax) [![PyPI version](https://badge.fury.io/py/evosax.svg)](https://badge.fury.io/py/evosax)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![codecov](https://codecov.io/gh/RobertTLange/evosax/branch/main/graph/badge.svg?token=5FUSX35KWO)](https://codecov.io/gh/RobertTLange/evosax)
+[![Paper](http://img.shields.io/badge/paper-arxiv.2212.04180-B31B1B.svg)](http://arxiv.org/abs/2212.04180)
 <a href="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true"><img src="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true" width="170" align="right" /></a>
 
 Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and auto-vectorization/parallelization to scale ES to your favorite accelerators. The API is based on the classical `ask`, `evaluate`, `tell` cycle of ES. Both `ask` and `tell` calls are compatible with `jit`, `vmap`/`pmap` and `lax.scan`. It includes a vast set of both classic (e.g. CMA-ES, Differential Evolution, etc.) and modern neuroevolution (e.g. OpenAI-ES, Augmented RS, etc.) strategies. You can get started here 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/00_getting_started.ipynb)
@@ -263,13 +264,13 @@ fit_shaped = fit_shaper.apply(x, fitness)
 
 ## Acknowledgements & Citing `evosax` ✏️
 
-If you use `evosax` in your research, please cite it as follows:
+If you use `evosax` in your research, please cite the following [paper](https://arxiv.org/abs/2212.04180):
 
 ```
-@software{evosax2022github,
+@article{evosax2022github,
   author = {Robert Tjarko Lange},
-  title = {{evosax}: JAX-based Evolution Strategies},
-  url = {http://github.com/RobertTLange/evosax},
+  title = {evosax: JAX-based Evolution Strategies},
+  journal={arXiv preprint arXiv:2212.04180},
   year = {2022},
 }
 ```
