@@ -11,6 +11,10 @@ cmap = cm.colors.LinearSegmentedColormap.from_list(
     "Custom", [(0, "#2f9599"), (0.45, "#eee"), (1, "#8800ff")], N=256
 )
 
+# cmap = cm.colors.LinearSegmentedColormap.from_list(
+#     "Custom", [(0, "#992f2f"), (0.45, "#eee"), (1, "#3a2f99")], N=256
+# )
+
 
 class BBOBVisualizer(object):
     """Fitness landscape visualizer and evaluation animator."""
@@ -24,6 +28,7 @@ class BBOBVisualizer(object):
         use_3d: bool = False,
         plot_log_fn: bool = False,
         seed_id: int = 1,
+        interval: int = 50,
     ):
         from evosax.problems.bbob import BBOB_fns, get_rotation
 
@@ -52,15 +57,15 @@ class BBOBVisualizer(object):
         self.x2_lower_bound, self.x2_upper_bound = -5, 5
 
         # Set meta-data for rotation/azimuth
-        self.interval = 50  # Delay between frames in milliseconds.
+        self.interval = interval  # Delay between frames in milliseconds.
         try:
             self.num_frames = X.shape[0]
             self.static_frames = int(0.2 * self.num_frames)
             self.azimuths = jnp.linspace(
-                0, 90, self.num_frames - self.static_frames
+                0, 89, self.num_frames - self.static_frames
             )
             self.angles = jnp.linspace(
-                0, 90, self.num_frames - self.static_frames
+                0, 89, self.num_frames - self.static_frames
             )
         except Exception:
             pass
@@ -111,13 +116,24 @@ class BBOBVisualizer(object):
         # Plot sample points
         self.scat.set_data(self.X[frame, :, 0], self.X[frame, :, 1])
         if self.use_3d:
-            self.scat.set_3d_properties(self.fitness[frame, :])
+            if self.plot_log_fn:
+                fit = jnp.log(self.fitness[frame, :])
+            else:
+                fit = self.fitness[frame, :]
+            self.scat.set_3d_properties(fit)
             if frame < self.num_frames - self.static_frames:
                 self.ax.view_init(self.azimuths[frame], self.angles[frame])
-        self.ax.set_title(
-            f"{self.fn_name}: {self.title} - Generation {frame + 1}",
-            fontsize=15,
-        )
+
+        if self.plot_log_fn:
+            self.ax.set_title(
+                f"Log {self.fn_name}: {self.title} - Generation {frame + 1}",
+                fontsize=15,
+            )
+        else:
+            self.ax.set_title(
+                f"{self.fn_name}: {self.title} - Generation {frame + 1}",
+                fontsize=15,
+            )
         self.fig.tight_layout()
         return (self.scat,)
 
@@ -155,7 +171,10 @@ class BBOBVisualizer(object):
             contour = jnp.log(contour)
         self.ax.contour(X, Y, contour, levels=30, linewidths=0.5, colors="#999")
         im = self.ax.contourf(X, Y, contour, levels=30, cmap=cmap, alpha=0.7)
-        self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
+        if self.plot_log_fn:
+            self.ax.set_title(f"Log {self.fn_name} Function", fontsize=15)
+        else:
+            self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
         self.ax.set_xlabel(r"$x_1$")
         self.ax.set_ylabel(r"$x_2$")
         self.fig.colorbar(im, ax=self.ax)
@@ -207,8 +226,12 @@ class BBOBVisualizer(object):
 
         self.ax.set_xlabel(r"$x_1$")
         self.ax.set_ylabel(r"$x_2$")
-        self.ax.set_zlabel(r"$f(x)$")
-        self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
+        if self.plot_log_fn:
+            self.ax.set_title(f"Log {self.fn_name} Function", fontsize=15)
+            self.ax.set_zlabel(r"$\log f(x)$")
+        else:
+            self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
+            self.ax.set_zlabel(r"$f(x)$")
         self.fig.tight_layout()
         if save:
             plt.savefig(f"{self.fn_name}_3d.png", dpi=300)
@@ -216,11 +239,11 @@ class BBOBVisualizer(object):
 
 if __name__ == "__main__":
     import jax
-    from jax.config import config
+    from evosax import CMA_ES
+    from evosax.problems import BBOBFitness
 
-    config.update("jax_enable_x64", True)
-
-    rng = jax.random.PRNGKey(42)
+    # from jax.config import config
+    # config.update("jax_enable_x64", True)
 
     # for fn_name in [
     #     "BuecheRastrigin",
@@ -232,16 +255,66 @@ if __name__ == "__main__":
 
     # Test animations
     # All solutions from single run (10 gens, 16 pmembers, 2 dims)
-    X = jax.random.normal(rng, shape=(50, 16, 2))
+    for fn_name in [
+        "Sphere",
+        "RosenbrockOriginal",
+        # "RosenbrockRotated",
+        "Discus",
+        # "RastriginRotated",
+        "Schwefel",
+        # Large set of functions
+        # "BuecheRastrigin",
+        # "AttractiveSector",
+        # "Weierstrass",
+        "SchaffersF7",
+        # "GriewankRosenbrock",
+        # Part 1: Separable functions
+        # "EllipsoidalOriginal",
+        # "RastriginOriginal",
+        # "LinearSlope",
+        # Part 2: Functions with low or moderate conditions
+        # "AttractiveSector",
+        # "StepEllipsoidal",
+        # Part 3: Functions with high conditioning and unimodal
+        # "EllipsoidalRotated",
+        "BentCigar",
+        "SharpRidge",
+        "DifferentPowers",
+        # Part 4: Multi-modal functions with adequate global structure
+        # "SchaffersF7IllConditioned",
+        # Part 5: Multi-modal functions with weak global structure
+        # "Lunacek",
+        # "Gallagher101Me",
+        # "Gallagher21Hi",
+    ]:
+        rng = jax.random.PRNGKey(1)
+        strategy = CMA_ES(popsize=4, num_dims=2)
+        es_params = strategy.default_params.replace(init_min=-2.5, init_max=2.5)
+        es_state = strategy.initialize(rng, es_params)
 
-    def sphere(x):
-        return jnp.sum(x ** 2)
+        problem = BBOBFitness(fn_name, 2)
 
-    fitness = jax.vmap(jax.vmap(sphere))(X)
-    print(fitness.shape)
-    visualizer = BBOBVisualizer(
-        X, fitness, "Sphere", "Test Strategy", use_3d=True
-    )
-    visualizer.animate("Sphere_3d.gif")
-    # visualizer = BBOBVisualizer(X, None, "Sphere", "Test Strategy", use_3d=False)
-    # visualizer.animate("Sphere_2d.gif")
+        X, fitness = [], []
+        for g in range(50):
+            rng, rng_ask, rng_eval = jax.random.split(rng, 3)
+            x, es_state = strategy.ask(rng, es_state, es_params)
+            fit = problem.rollout(rng_eval, x)
+            es_state = strategy.tell(x, fit, es_state, es_params)
+            X.append(x)
+            fitness.append(fit)
+
+        X = jnp.stack(X)
+        fitness = jnp.stack(fitness)
+        print(fn_name, fitness.shape, X.shape)
+        visualizer = BBOBVisualizer(
+            X,
+            fitness,
+            fn_name,
+            "CMA-ES",
+            use_3d=False,
+            plot_log_fn=True,
+            interval=100,
+        )
+        visualizer.animate(f"anims/{fn_name}_2d.gif")
+        # visualizer = BBOBVisualizer(X, None, "Sphere", "Test Strategy", use_3d=False)
+        # visualizer.animate("Sphere_2d.gif")

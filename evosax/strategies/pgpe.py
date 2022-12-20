@@ -45,12 +45,19 @@ class PGPE(Strategy):
         sigma_init: float = 0.03,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
+        mean_decay_coeff: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """PGPE (e.g. Sehnke et al., 2010)
         Reference: https://tinyurl.com/2p8bn956
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay_coeff,
+            **fitness_kwargs
+        )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))

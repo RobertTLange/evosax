@@ -43,11 +43,18 @@ class ARS(Strategy):
         sigma_init: float = 0.03,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
+        mean_decay_coeff: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Augmented Random Search (Mania et al., 2018)
         Reference: https://arxiv.org/pdf/1803.07055.pdf"""
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay_coeff,
+            **fitness_kwargs
+        )
         assert not self.popsize & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
         # "b" elite perturbation directions for the update

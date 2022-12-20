@@ -11,7 +11,19 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] CNN Hypernetwork (Ha - start with simple MLP)
 
-### [v0.1.0] - [TBD]
+### [v0.1.1] - [TBD]
+
+##### Added
+
+- Add exponential decay of mean/weight regularization to ES that update mean (FD-ES and CMA variants). Simply provide `mean_decay_coeff` != 1.0 argument at strategy instantiation to strategy. Note that covariance estimates may be a bit off, but this circumvents constant increase of mean norm due to stochastic process nature.
+
+##### Changed
+
+##### Fixed
+
+- Fixed DES to also take flexible `fitness_kwargs`, `temperature`, `sigma_init` as inputs
+
+### [v0.1.0] - [12/2022]
 
 ##### Added
 

@@ -26,6 +26,7 @@ class IPOP_CMA_ES(object):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
+        mean_decay_coeff: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """IPOP-CMA-ES (Auer & Hansen, 2005).
@@ -39,6 +40,7 @@ class IPOP_CMA_ES(object):
             pholder_params=pholder_params,
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
+            mean_decay_coeff=mean_decay_coeff,
             **fitness_kwargs
         )
         from ..restarts import IPOP_Restarter
@@ -47,7 +49,10 @@ class IPOP_CMA_ES(object):
         self.wrapped_strategy = IPOP_Restarter(
             self.strategy,
             stop_criteria=[spread_criterion, cma_criterion],
-            strategy_kwargs={"elite_ratio": elite_ratio},
+            strategy_kwargs={
+                "elite_ratio": elite_ratio,
+                "mean_decay_coeff": mean_decay_coeff,
+            },
         )
 
     @property

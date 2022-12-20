@@ -40,9 +40,7 @@ def get_recombination_weights(popsize: int, use_baseline: bool = True):
     return weights_norm - use_baseline * (1 / popsize)
 
 
-def get_temp_weights(
-    popsize: int, temperature: float, use_baseline: bool = True
-):
+def get_temp_weights(popsize: int, temperature: float):
     """Get weights based on original discovered weights (Lange et al, 2022)."""
     ranks = jnp.arange(popsize)
     ranks /= ranks.size - 1
@@ -59,12 +57,19 @@ class SNES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         sigma_init: float = 1.0,
         temperature: float = 0.0,  # good values tend to be between 12 and 20
+        mean_decay_coeff: float = 1.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Separable Exponential Natural ES (Wierstra et al., 2014)
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
         """
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay_coeff,
+            **fitness_kwargs
+        )
         self.strategy_name = "SNES"
 
         # Set core kwargs es_params

@@ -48,6 +48,7 @@ class ASEBO(Strategy):
         sigma_init: float = 0.03,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
+        mean_decay_coeff: float = 1.0,
         **fitness_kwargs: Union[bool, int, float],
     ):
         """ASEBO (Choromanski et al., 2019)
@@ -56,7 +57,13 @@ class ASEBO(Strategy):
         1. We always sample a fixed population size per generation
         2. We keep a fixed archive of gradients to estimate the subspace
         """
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay_coeff,
+            **fitness_kwargs,
+        )
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
