@@ -15,13 +15,19 @@
 
 ##### Added
 
-- Add exponential decay of mean/weight regularization to ES that update mean (FD-ES and CMA variants). Simply provide `mean_decay_coeff` != 1.0 argument at strategy instantiation to strategy. Note that covariance estimates may be a bit off, but this circumvents constant increase of mean norm due to stochastic process nature.
+- Adds exponential decay of mean/weight regularization to ES that update mean (FD-ES and CMA variants). Simply provide `mean_decay_coeff` != 1.0 argument at strategy instantiation to strategy. Note that covariance estimates may be a bit off, but this circumvents constant increase of mean norm due to stochastic process nature.
+
+- Adds experimental distributed ES, which sample directly on all devices (no longer only on host). Furthermore, we use `pmean`-like all reduce ops to construct z-scored fitness scores and gradient accumulations to update the mean estimate. So far only FD-gradient-based ES are supported. Major benefits: Scale with the number of devives and allow for larger populations/number of dimensions.
+    - Supported distributed ES: `DistributedOpenES`
+    - Import via: `from evosax.experimental.distributed import DistributedOpenES`
 
 ##### Changed
 
+- `Sep_CMA_ES` automatic hyperparameter calculation runs into `int32` problems, when `num_dims` > 40k. We therefore clip the number to 40k for this calculation.
+
 ##### Fixed
 
-- Fixed DES to also take flexible `fitness_kwargs`, `temperature`, `sigma_init` as inputs
+- Fixed DES to also take flexible `fitness_kwargs`, `temperature`, `sigma_init` as inputs.
 
 ### [v0.1.0] - [12/2022]
 
