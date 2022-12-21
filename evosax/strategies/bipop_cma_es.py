@@ -26,7 +26,7 @@ class BIPOP_CMA_ES(object):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
-        mean_decay_coeff: float = 1.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """BIPOP-CMA-ES (Hansen, 2009).
@@ -40,7 +40,7 @@ class BIPOP_CMA_ES(object):
             pholder_params=pholder_params,
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
-            mean_decay_coeff=mean_decay_coeff,
+            mean_decay=mean_decay,
             **fitness_kwargs,
         )
         from ..restarts import BIPOP_Restarter
@@ -51,7 +51,7 @@ class BIPOP_CMA_ES(object):
             stop_criteria=[spread_criterion, cma_criterion],
             strategy_kwargs={
                 "elite_ratio": elite_ratio,
-                "mean_decay_coeff": mean_decay_coeff,
+                "mean_decay": mean_decay,
             },
         )
 

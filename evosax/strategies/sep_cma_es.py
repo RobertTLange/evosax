@@ -64,7 +64,7 @@ class Sep_CMA_ES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
-        mean_decay_coeff: float = 1.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
@@ -75,7 +75,7 @@ class Sep_CMA_ES(Strategy):
             popsize,
             num_dims,
             pholder_params,
-            mean_decay_coeff,
+            mean_decay,
             **fitness_kwargs,
         )
         assert 0 <= elite_ratio <= 1

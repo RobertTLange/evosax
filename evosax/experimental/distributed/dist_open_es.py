@@ -43,7 +43,7 @@ class DistributedOpenES(Strategy):
         sigma_init: float = 0.04,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
-        mean_decay_coeff: float = 1.0,
+        mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
     ):
         """Pmapped version of OpenAI-ES (Salimans et al. (2017)
@@ -69,8 +69,8 @@ class DistributedOpenES(Strategy):
 
         # Mean exponential decay coefficient m' = coeff * m
         # Implements form of weight decay regularization
-        self.mean_decay_coeff = mean_decay_coeff
-        self.use_mean_decay = mean_decay_coeff < 1.0
+        self.mean_decay = mean_decay
+        self.use_mean_decay = mean_decay > 0.0
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -193,7 +193,7 @@ class DistributedOpenES(Strategy):
 
         # Exponentially decay mean if coefficient < 1.0
         if self.use_mean_decay:
-            mean = mean * self.mean_decay_coeff
+            mean = mean * (1 - self.mean_decay)
 
         # TODO(RobertTLange): Add tracking of best member/fitness score
         return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)

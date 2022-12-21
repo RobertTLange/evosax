@@ -46,7 +46,7 @@ class PersistentES(Strategy):
         sigma_init: float = 0.03,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
-        mean_decay_coeff: float = 1.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Persistent ES (Vicol et al., 2021).
@@ -54,11 +54,7 @@ class PersistentES(Strategy):
         Inspired by: http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay_coeff,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
         )
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]

@@ -47,16 +47,12 @@ class DES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         temperature: float = 12.5,
         sigma_init: float = 0.1,
-        mean_decay_coeff: float = 1.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Discovered Evolution Strategy (Lange et al., 2022)"""
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay_coeff,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
         )
         self.strategy_name = "DES"
         self.temperature = temperature

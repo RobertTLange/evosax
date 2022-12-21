@@ -15,10 +15,11 @@
 
 ##### Added
 
-- Adds exponential decay of mean/weight regularization to ES that update mean (FD-ES and CMA variants). Simply provide `mean_decay_coeff` != 1.0 argument at strategy instantiation to strategy. Note that covariance estimates may be a bit off, but this circumvents constant increase of mean norm due to stochastic process nature.
+- Adds exponential decay of mean/weight regularization to ES that update mean (FD-ES and CMA variants). Simply provide `mean_decay` != 0.0 argument at strategy instantiation to strategy. Note that covariance estimates may be a bit off, but this circumvents constant increase of mean norm due to stochastic process nature.
 
 - Adds experimental distributed ES, which sample directly on all devices (no longer only on host). Furthermore, we use `pmean`-like all reduce ops to construct z-scored fitness scores and gradient accumulations to update the mean estimate. So far only FD-gradient-based ES are supported. Major benefits: Scale with the number of devives and allow for larger populations/number of dimensions.
-    - Supported distributed ES: `DistributedOpenES`
+    - Supported distributed ES: 
+        - `DistributedOpenES`
     - Import via: `from evosax.experimental.distributed import DistributedOpenES`
 
 ##### Changed

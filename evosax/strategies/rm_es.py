@@ -66,18 +66,14 @@ class RmES(Strategy):
         elite_ratio: float = 0.5,
         memory_size: int = 10,
         sigma_init: float = 1.0,
-        mean_decay_coeff: float = 1.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Rank-m ES (Li & Zhang, 2017)
         Reference: https://ieeexplore.ieee.org/document/8080257
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay_coeff,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio

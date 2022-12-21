@@ -33,7 +33,7 @@ class Strategy(object):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        mean_decay_coeff: float = 1.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Base Class for an Evolution Strategy."""
@@ -52,8 +52,8 @@ class Strategy(object):
 
         # Mean exponential decay coefficient m' = coeff * m
         # Implements form of weight decay regularization
-        self.mean_decay_coeff = mean_decay_coeff
-        self.use_mean_decay = mean_decay_coeff < 1.0
+        self.mean_decay = mean_decay
+        self.use_mean_decay = mean_decay > 0.0
 
         # Setup optional fitness shaper
         self.fitness_shaper = FitnessShaper(**fitness_kwargs)
@@ -129,9 +129,9 @@ class Strategy(object):
             x, fitness, state, self.fitness_shaper.maximize
         )
 
-        # Exponentially decay mean if coefficient < 1.0
+        # Exponentially decay mean if coefficient > 0.0
         if self.use_mean_decay:
-            state = state.replace(mean=self.mean_decay_coeff * state.mean)
+            state = state.replace(mean=(1 - self.mean_decay) * state.mean)
 
         return state.replace(
             best_member=best_member,
