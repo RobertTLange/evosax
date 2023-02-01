@@ -22,6 +22,8 @@
         - `DistributedOpenES`
     - Import via: `from evosax.experimental.distributed import DistributedOpenES`
 
+- Adds `RandomSearch` as basic baseline.
+
 ##### Changed
 
 - `Sep_CMA_ES` automatic hyperparameter calculation runs into `int32` problems, when `num_dims` > 40k. We therefore clip the number to 40k for this calculation.
@@ -29,6 +31,7 @@
 ##### Fixed
 
 - Fixed DES to also take flexible `fitness_kwargs`, `temperature`, `sigma_init` as inputs.
+- Fixed PGPE exponential decay option to account for `sigma` update.
 
 ### [v0.1.0] - [12/2022]
 

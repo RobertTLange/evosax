@@ -21,7 +21,7 @@ class EvoState:
 class EvoParams:
     opt_params: OptParams
     sigma_init: float = 0.03
-    sigma_decay: float = 0.999
+    sigma_decay: float = 1.0
     sigma_limit: float = 0.01
     sigma_lrate: float = 0.2  # Learning rate for std
     sigma_max_change: float = 0.2  # Clip adaptive sigma to 20%
@@ -162,5 +162,5 @@ class PGPE(Strategy):
             min_allowed,
             max_allowed,
         )
-        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
+        sigma = exp_decay(sigma, params.sigma_decay, params.sigma_limit)
         return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
