@@ -1,3 +1,4 @@
+from typing import Any
 import functools
 import sys
 import chex
@@ -18,10 +19,13 @@ else:
     import pickle
 
 
-def load_pkl_object(filename: str) -> chex.ArrayTree:
+def load_pkl_object(filename: Any, pkg_load: bool = False) -> chex.ArrayTree:
     """Reload pickle objects from path."""
-    with open(filename, "rb") as input:
-        obj = pickle.load(input)
+    if not pkg_load:
+        with open(filename, "rb") as input:
+            obj = pickle.load(input)
+    else:
+        obj = pickle.loads(filename)
     return obj
 
 
