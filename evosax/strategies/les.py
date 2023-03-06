@@ -4,6 +4,7 @@ import chex
 from flax import struct
 import jax
 import jax.numpy as jnp
+import pkgutil
 from ..utils.learned_eo import (
     AttentionWeights,
     EvoPathMLP,
@@ -77,7 +78,8 @@ class LES(Strategy):
             net_ckpt_path = os.path.join(
                 os.path.dirname(__file__), f"ckpt/{ckpt_fname}"
             )
-            self.les_net_params = load_pkl_object(net_ckpt_path)
+            data = pkgutil.get_data(__name__, f"ckpt/{ckpt_fname}")
+            self.les_net_params = load_pkl_object(data, pkg_load=True)
             print(f"Loaded pretrained LES model from ckpt: {ckpt_fname}")
 
     @property

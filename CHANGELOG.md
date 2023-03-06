@@ -11,6 +11,10 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] CNN Hypernetwork (Ha - start with simple MLP)
 
+### [v0.1.2] - [03/2023]
+
+- Fix LES checkpoint loading from package data via `pkgutil`.
+
 ### [v0.1.1] - [03/2023]
 
 ##### Added
