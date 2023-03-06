@@ -1,5 +1,5 @@
 import functools
-import pickle
+import sys
 import chex
 import jax
 import jax.numpy as jnp
@@ -10,6 +10,12 @@ from .reshape_fitness import (
     range_norm_trafo,
     compute_l2_norm,
 )
+
+if sys.version_info < (3, 8):
+    # Load with pickle5 for python version compatibility
+    import pickle5 as pickle
+else:
+    import pickle
 
 
 def load_pkl_object(filename: str) -> chex.ArrayTree:
