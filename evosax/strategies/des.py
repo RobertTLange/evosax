@@ -50,7 +50,7 @@ class DES(Strategy):
         mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
-        """Discovered Evolution Strategy (Lange et al., 2022)"""
+        """Discovered Evolution Strategy (Lange et al., 2023)"""
         super().__init__(
             popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
         )

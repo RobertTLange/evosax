@@ -11,7 +11,7 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] CNN Hypernetwork (Ha - start with simple MLP)
 
-### [v0.1.1] - [TBD]
+### [v0.1.1] - [03/2023]
 
 ##### Added
 
@@ -23,6 +23,10 @@
     - Import via: `from evosax.experimental.distributed import DistributedOpenES`
 
 - Adds `RandomSearch` as basic baseline.
+
+- Adds `LES` (Lange et al., 2023) and a retrained trained checkpoint.
+
+- Adds a separate example notebook for how to use the `BBOBVisualizer`.
 
 ##### Changed
 

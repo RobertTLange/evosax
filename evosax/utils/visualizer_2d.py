@@ -7,13 +7,13 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-cmap = cm.colors.LinearSegmentedColormap.from_list(
-    "Custom", [(0, "#2f9599"), (0.45, "#eee"), (1, "#8800ff")], N=256
-)
-
 # cmap = cm.colors.LinearSegmentedColormap.from_list(
-#     "Custom", [(0, "#992f2f"), (0.45, "#eee"), (1, "#3a2f99")], N=256
+#     "Custom", [(0, "#2f9599"), (0.45, "#eee"), (1, "#8800ff")], N=256
 # )
+
+cmap = cm.colors.LinearSegmentedColormap.from_list(
+    "Custom", [(0, "#992f2f"), (0.45, "#eee"), (1, "#3a2f99")], N=256
+)
 
 
 class BBOBVisualizer(object):
@@ -29,6 +29,9 @@ class BBOBVisualizer(object):
         plot_log_fn: bool = False,
         seed_id: int = 1,
         interval: int = 50,
+        plot_title: bool = True,
+        plot_labels: bool = True,
+        plot_colorbar: bool = True,
     ):
         from evosax.problems.bbob import BBOB_fns, get_rotation
 
@@ -50,7 +53,12 @@ class BBOBVisualizer(object):
         self.R = get_rotation(rng_r, 2)
         self.Q = get_rotation(rng_q, 2)
         self.global_minima = []
+
+        # Set plot configuration
         self.plot_log_fn = plot_log_fn
+        self.plot_title = plot_title
+        self.plot_labels = plot_labels
+        self.plot_colorbar = plot_colorbar
 
         # Set boundaries for evaluation range of black-box functions
         self.x1_lower_bound, self.x1_upper_bound = -5, 5
@@ -91,10 +99,10 @@ class BBOBVisualizer(object):
                 self.X[0, :, 1],
                 self.fitness[0, :],
                 marker="o",
-                c="r",
+                c="y",
                 linestyle="",
-                markersize=3,
-                alpha=0.5,
+                markersize=10,
+                alpha=0.75,
             )
 
         else:
@@ -103,10 +111,10 @@ class BBOBVisualizer(object):
                 self.X[0, :, 0],
                 self.X[0, :, 1],
                 marker="o",
-                c="r",
+                c="y",
                 linestyle="",
-                markersize=3,
-                alpha=0.5,
+                markersize=10,
+                alpha=0.75,
             )
 
         return (self.scat,)
@@ -124,16 +132,18 @@ class BBOBVisualizer(object):
             if frame < self.num_frames - self.static_frames:
                 self.ax.view_init(self.azimuths[frame], self.angles[frame])
 
-        if self.plot_log_fn:
-            self.ax.set_title(
-                f"Log {self.fn_name}: {self.title} - Generation {frame + 1}",
-                fontsize=15,
-            )
-        else:
-            self.ax.set_title(
-                f"{self.fn_name}: {self.title} - Generation {frame + 1}",
-                fontsize=15,
-            )
+        if self.plot_title:
+            if self.plot_log_fn:
+                self.ax.set_title(
+                    f"Log {self.fn_name}: {self.title} - Generation"
+                    f" {frame + 1}",
+                    fontsize=15,
+                )
+            else:
+                self.ax.set_title(
+                    f"{self.fn_name}: {self.title} - Generation {frame + 1}",
+                    fontsize=15,
+                )
         self.fig.tight_layout()
         return (self.scat,)
 
@@ -171,13 +181,21 @@ class BBOBVisualizer(object):
             contour = jnp.log(contour)
         self.ax.contour(X, Y, contour, levels=30, linewidths=0.5, colors="#999")
         im = self.ax.contourf(X, Y, contour, levels=30, cmap=cmap, alpha=0.7)
-        if self.plot_log_fn:
-            self.ax.set_title(f"Log {self.fn_name} Function", fontsize=15)
+        if self.plot_title:
+            if self.plot_log_fn:
+                self.ax.set_title(f"Log {self.fn_name} Function", fontsize=15)
+            else:
+                self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
+
+        if self.plot_labels:
+            self.ax.set_xlabel(r"$x_1$")
+            self.ax.set_ylabel(r"$x_2$")
         else:
-            self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
-        self.ax.set_xlabel(r"$x_1$")
-        self.ax.set_ylabel(r"$x_2$")
-        self.fig.colorbar(im, ax=self.ax)
+            self.ax.set_xticks([])
+            self.ax.set_yticks([])
+
+        if self.plot_colorbar:
+            self.fig.colorbar(im, ax=self.ax)
         self.fig.tight_layout()
 
         if save:
@@ -185,9 +203,8 @@ class BBOBVisualizer(object):
 
     def plot_contour_3d(self, save: bool = False):
         """Plot 3d landscape contour."""
-        if save:
-            self.fig = plt.figure(figsize=(6, 5))
-            self.ax = self.fig.add_subplot(1, 1, 1, projection="3d")
+        self.fig = plt.figure(figsize=(6, 5))
+        self.ax = self.fig.add_subplot(1, 1, 1, projection="3d")
         x1 = jnp.arange(self.x1_lower_bound, self.x1_upper_bound, 0.01)
         x2 = jnp.arange(self.x2_lower_bound, self.x2_upper_bound, 0.01)
         contour = self.contour_function(x1, x2)
@@ -224,14 +241,21 @@ class BBOBVisualizer(object):
         self.ax.yaxis.set_tick_params(labelsize=8)
         self.ax.zaxis.set_tick_params(labelsize=8)
 
-        self.ax.set_xlabel(r"$x_1$")
-        self.ax.set_ylabel(r"$x_2$")
-        if self.plot_log_fn:
-            self.ax.set_title(f"Log {self.fn_name} Function", fontsize=15)
-            self.ax.set_zlabel(r"$\log f(x)$")
+        if self.plot_labels:
+            self.ax.set_xlabel(r"$x_1$")
+            self.ax.set_ylabel(r"$x_2$")
         else:
-            self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
-            self.ax.set_zlabel(r"$f(x)$")
+            self.ax.set_xticks([])
+            self.ax.set_yticks([])
+            self.ax.set_zticks([])
+
+        if self.plot_title:
+            if self.plot_log_fn:
+                self.ax.set_title(f"Log {self.fn_name} Function", fontsize=15)
+                self.ax.set_zlabel(r"$\log f(x)$")
+            else:
+                self.ax.set_title(f"{self.fn_name} Function", fontsize=15)
+                self.ax.set_zlabel(r"$f(x)$")
         self.fig.tight_layout()
         if save:
             plt.savefig(f"{self.fn_name}_3d.png", dpi=300)

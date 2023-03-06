@@ -35,6 +35,7 @@ def pytest_generate_tests(metafunc):
                     "ASEBO",
                     "CR_FM_NES",
                     "MR15_GA",
+                    "LES",
                 ],
             )
         else:
