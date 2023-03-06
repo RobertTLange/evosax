@@ -16,30 +16,26 @@ class EvoState:
 
 @struct.dataclass
 class EvoParams:
-    radius_max: float = 0.2
-    radius_min: float = 0.001
-    radius_decay: float = 5
     init_min: float = 0.0
     init_max: float = 0.0
+    range_min: float = 0.0
+    range_max: float = 1.0
     clip_min: float = -jnp.finfo(jnp.float32).max
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-class GLD(Strategy):
+class RandomSearch(Strategy):
     def __init__(
         self,
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
-        """Gradientless Descent (Golovin et al., 2019)
-        Reference: https://arxiv.org/pdf/1911.06317.pdf"""
-        super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
-        )
-        self.strategy_name = "GLD"
+        """Simple Random Search Baseline"""
+
+        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        self.strategy_name = "RandomSearch"
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -49,7 +45,7 @@ class GLD(Strategy):
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams
     ) -> EvoState:
-        """`initialize` the evolution strategy."""
+        """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.num_dims,),
@@ -66,19 +62,13 @@ class GLD(Strategy):
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
     ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
-        # Sampling of N(0, 1) noise
-        z = jax.random.normal(
+        x = jax.random.uniform(
             rng,
             (self.popsize, self.num_dims),
+            minval=params.range_min,
+            maxval=params.range_max,
         )
-        # Exponentially decaying sigma scale
-        sigma_scale = params.radius_min + jnp.exp2(
-            -jnp.arange(self.popsize) / params.radius_decay
-        ) * (params.radius_max - params.radius_min)
-        sigma_scale = sigma_scale.reshape(-1, 1)
-        # print(state["best_member"].shape, (sigma_scale * z).shape)
-        x = state.best_member + sigma_scale * z
-        return x, state
+        return jnp.squeeze(x), state
 
     def tell_strategy(
         self,
@@ -88,5 +78,10 @@ class GLD(Strategy):
         params: EvoParams,
     ) -> EvoState:
         """`tell` update to ES state."""
-        # No state update needed - everything happens with best_member update
-        return state.replace(mean=state.best_member)
+        idx = jnp.argsort(fitness)
+        fitness = fitness[idx]
+        x = x[idx]
+        # Set mean to best member seen so far
+        improved = fitness[0] < state.best_fitness
+        best_mean = jax.lax.select(improved, x[0], state.best_member)
+        return state.replace(mean=best_mean)

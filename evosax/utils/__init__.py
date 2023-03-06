@@ -10,6 +10,9 @@ from .reshape_fitness import FitnessShaper
 # Import general helper utilities
 from .helpers import get_best_fitness_member
 
+# 2D Fitness visualization tools
+from .visualizer_2d import BBOBVisualizer
+
 # Import Gradient Based Optimizer step functions
 from .optimizer import (
     SGD,
@@ -46,4 +49,5 @@ __all__ = [
     "OptState",
     "OptParams",
     "exp_decay",
+    "BBOBVisualizer",
 ]

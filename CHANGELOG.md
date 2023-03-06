@@ -11,7 +11,33 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] CNN Hypernetwork (Ha - start with simple MLP)
 
-### [v0.1.0] - [TBD]
+### [v0.1.1] - [03/2023]
+
+##### Added
+
+- Adds exponential decay of mean/weight regularization to ES that update mean (FD-ES and CMA variants). Simply provide `mean_decay` != 0.0 argument at strategy instantiation to strategy. Note that covariance estimates may be a bit off, but this circumvents constant increase of mean norm due to stochastic process nature.
+
+- Adds experimental distributed ES, which sample directly on all devices (no longer only on host). Furthermore, we use `pmean`-like all reduce ops to construct z-scored fitness scores and gradient accumulations to update the mean estimate. So far only FD-gradient-based ES are supported. Major benefits: Scale with the number of devives and allow for larger populations/number of dimensions.
+    - Supported distributed ES: 
+        - `DistributedOpenES`
+    - Import via: `from evosax.experimental.distributed import DistributedOpenES`
+
+- Adds `RandomSearch` as basic baseline.
+
+- Adds `LES` (Lange et al., 2023) and a retrained trained checkpoint.
+
+- Adds a separate example notebook for how to use the `BBOBVisualizer`.
+
+##### Changed
+
+- `Sep_CMA_ES` automatic hyperparameter calculation runs into `int32` problems, when `num_dims` > 40k. We therefore clip the number to 40k for this calculation.
+
+##### Fixed
+
+- Fixed DES to also take flexible `fitness_kwargs`, `temperature`, `sigma_init` as inputs.
+- Fixed PGPE exponential decay option to account for `sigma` update.
+
+### [v0.1.0] - [12/2022]
 
 ##### Added
 

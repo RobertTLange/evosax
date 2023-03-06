@@ -22,7 +22,7 @@ class EvoParams:
     temperature: float = 12.5  # Temperature for softmax weights
     lrate_sigma: float = 0.1  # Learning rate for population std
     lrate_mean: float = 1.0  # Learning rate for population mean
-    sigma_init: float = 1.0  # Standard deviation
+    sigma_init: float = 0.1  # Standard deviation
     init_min: float = 0.0
     init_max: float = 0.0
     clip_min: float = -jnp.finfo(jnp.float32).max
@@ -45,15 +45,25 @@ class DES(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        temperature: float = 12.5,
+        sigma_init: float = 0.1,
+        mean_decay: float = 0.0,
+        **fitness_kwargs: Union[bool, int, float]
     ):
-        """Discovered Evolution Strategy (Lange et al., 2022)"""
-        super().__init__(popsize, num_dims, pholder_params)
+        """Discovered Evolution Strategy (Lange et al., 2023)"""
+        super().__init__(
+            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+        )
         self.strategy_name = "DES"
+        self.temperature = temperature
+        self.sigma_init = sigma_init
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams()
+        return EvoParams(
+            temperature=self.temperature, sigma_init=self.sigma_init
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

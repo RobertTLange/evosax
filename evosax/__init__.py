@@ -30,6 +30,8 @@ from .strategies import (
     ASEBO,
     CR_FM_NES,
     MR15_GA,
+    RandomSearch,
+    LES,
 )
 from .utils import FitnessShaper, ParameterReshaper, ESLog
 from .networks import NetworkMapper
@@ -67,6 +69,8 @@ Strategies = {
     "ASEBO": ASEBO,
     "CR_FM_NES": CR_FM_NES,
     "MR15_GA": MR15_GA,
+    "RandomSearch": RandomSearch,
+    "LES": LES,
 }
 
 __all__ = [
@@ -109,4 +113,6 @@ __all__ = [
     "ASEBO",
     "CR_FM_NES",
     "MR15_GA",
+    "RandomSearch",
+    "LES",
 ]

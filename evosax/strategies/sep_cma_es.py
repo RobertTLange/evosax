@@ -64,13 +64,20 @@ class Sep_CMA_ES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
         Reference: https://hal.inria.fr/inria-00287367/document
         Inspired by: github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_sepcma.py
         """
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            **fitness_kwargs,
+        )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
@@ -78,6 +85,9 @@ class Sep_CMA_ES(Strategy):
 
         # Set core kwargs es_params
         self.sigma_init = sigma_init
+
+        # Robustness for int32 - squaring in hyperparameter calculations
+        self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
 
     @property
     def params_strategy(self) -> EvoParams:
@@ -88,11 +98,11 @@ class Sep_CMA_ES(Strategy):
 
         # lrates for rank-one and rank-μ C updates
         alpha_cov = 2
-        c_1 = alpha_cov / ((self.num_dims + 1.3) ** 2 + mu_eff)
-        c_mu_full = 2 / mu_eff / ((self.num_dims + jnp.sqrt(2)) ** 2) + (
+        c_1 = alpha_cov / ((self.max_dims_sq + 1.3) ** 2 + mu_eff)
+        c_mu_full = 2 / mu_eff / ((self.max_dims_sq + jnp.sqrt(2)) ** 2) + (
             1 - 1 / mu_eff
         ) * jnp.minimum(
-            1, (2 * mu_eff - 1) / ((self.num_dims + 2) ** 2 + mu_eff)
+            1, (2 * mu_eff - 1) / ((self.max_dims_sq + 2) ** 2 + mu_eff)
         )
         c_mu = (self.num_dims + 2) / 3 * c_mu_full
 

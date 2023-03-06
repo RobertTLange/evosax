@@ -28,6 +28,8 @@ from .guided_es import GuidedES
 from .asebo import ASEBO
 from .cr_fm_nes import CR_FM_NES
 from .mr15_ga import MR15_GA
+from .random import RandomSearch
+from .les import LES
 
 
 __all__ = [
@@ -61,4 +63,6 @@ __all__ = [
     "ASEBO",
     "CR_FM_NES",
     "MR15_GA",
+    "RandomSearch",
+    "LES",
 ]

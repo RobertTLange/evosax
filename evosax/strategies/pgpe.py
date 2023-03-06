@@ -21,7 +21,7 @@ class EvoState:
 class EvoParams:
     opt_params: OptParams
     sigma_init: float = 0.03
-    sigma_decay: float = 0.999
+    sigma_decay: float = 1.0
     sigma_limit: float = 0.01
     sigma_lrate: float = 0.2  # Learning rate for std
     sigma_max_change: float = 0.2  # Clip adaptive sigma to 20%
@@ -45,12 +45,15 @@ class PGPE(Strategy):
         sigma_init: float = 0.03,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """PGPE (e.g. Sehnke et al., 2010)
         Reference: https://tinyurl.com/2p8bn956
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+        )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))
@@ -159,5 +162,5 @@ class PGPE(Strategy):
             min_allowed,
             max_allowed,
         )
-        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
+        sigma = exp_decay(sigma, params.sigma_decay, params.sigma_limit)
         return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)

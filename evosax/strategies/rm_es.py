@@ -40,9 +40,7 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_cma_elite_weights(
-    popsize: int, elite_popsize: int
-) -> Tuple[chex.Array, chex.Array]:
+def get_elite_weights(elite_popsize: int) -> Tuple[chex.Array, chex.Array]:
     """Utility helper to create truncated elite weights for mean update."""
     weights = jnp.array(
         [
@@ -68,12 +66,15 @@ class RmES(Strategy):
         elite_ratio: float = 0.5,
         memory_size: int = 10,
         sigma_init: float = 1.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Rank-m ES (Li & Zhang, 2017)
         Reference: https://ieeexplore.ieee.org/document/8080257
         """
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+        )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
@@ -86,7 +87,7 @@ class RmES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        weights = get_cma_elite_weights(self.popsize, self.elite_popsize)
+        weights = get_elite_weights(self.elite_popsize)
         mu_eff = 1 / jnp.sum(weights ** 2)
         c_cov = 1 / (3 * jnp.sqrt(self.num_dims) + 5)
         c_c = 2 / (self.num_dims + 7)
@@ -103,7 +104,7 @@ class RmES(Strategy):
         self, rng: chex.PRNGKey, params: EvoParams
     ) -> EvoState:
         """`initialize` the evolution strategy."""
-        weights = get_cma_elite_weights(self.popsize, self.elite_popsize)
+        weights = get_elite_weights(self.elite_popsize)
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
             rng,
@@ -322,7 +323,6 @@ def rank_success_rule(
     ranks_current = ranks_current[ranks_current.argsort()][:elite_popsize]
     ranks_last = ranks[popsize:]
     ranks_last = ranks_last[ranks_last.argsort()][:elite_popsize]
-    ranks_current, ranks_last
 
     # Step 2: Compute rank difference (Parents vs. kids) - paper assumes min!
     q = 1 / elite_popsize * jnp.sum(weights * (ranks_last - ranks_current))

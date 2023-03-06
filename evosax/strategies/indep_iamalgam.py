@@ -54,12 +54,15 @@ class Indep_iAMaLGaM(Strategy):
         sigma_init: float = 0.0,
         sigma_decay: float = 0.99,
         sigma_limit: float = 0.0,
+        mean_decay: float = 0.0,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Diagonal Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+        )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
