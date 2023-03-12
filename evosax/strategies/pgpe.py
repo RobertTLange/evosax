@@ -20,10 +20,10 @@ class EvoState:
 @struct.dataclass
 class EvoParams:
     opt_params: OptParams
-    sigma_init: float = 0.03
+    sigma_init: float = 0.1
     sigma_decay: float = 1.0
     sigma_limit: float = 0.01
-    sigma_lrate: float = 0.2  # Learning rate for std
+    sigma_lrate: float = 0.1  # Learning rate for std
     sigma_max_change: float = 0.2  # Clip adaptive sigma to 20%
     init_min: float = 0.0
     init_max: float = 0.0
@@ -39,10 +39,10 @@ class PGPE(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 1.0,
         opt_name: str = "adam",
-        lrate_init: float = 0.05,
+        lrate_init: float = 0.15,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
-        sigma_init: float = 0.03,
+        sigma_init: float = 0.1,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
@@ -113,7 +113,7 @@ class PGPE(Strategy):
             rng,
             (int(self.popsize / 2), self.num_dims),
         )
-        z = jnp.concatenate([z_plus, -1.0 * z_plus])
+        z = jnp.hstack([z_plus, -1.0 * z_plus]).reshape(-1, self.num_dims)
         x = state.mean + state.sigma * z
         return x, state
 
@@ -126,30 +126,34 @@ class PGPE(Strategy):
     ) -> EvoState:
         """Update both mean and dim.-wise isotropic Gaussian scale."""
         # Reconstruct noise from last mean/std estimates
-        noise = (x - state.mean) / state.sigma
-        noise_1 = noise[::2]
+        scaled_noise = x - state.mean
+        noise_1 = scaled_noise[::2]
         fit_1 = fitness[::2]
         fit_2 = fitness[1::2]
         elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
 
         fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
         fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
-        fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
+        fit_diff_noise = noise_1[elite_idx] * fit_diff[:, None]
 
-        theta_grad = 1.0 / self.elite_popsize * fit_diff_noise
+        theta_grad = (0.5 * fit_diff_noise).mean(axis=0)
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(
             state.mean, theta_grad, state.opt_state, params.opt_params
         )
         opt_state = self.optimizer.update(opt_state, params.opt_params)
 
+        baseline = jnp.mean(fitness_elite)
+        all_avg_scores = (
+            jnp.stack([fit_1[elite_idx], fit_2[elite_idx]]).sum(axis=0) / 2
+        )
+
         # Update sigma vector
-        S = (
-            noise_1 * noise_1
-            - (state.sigma * state.sigma).reshape(1, self.num_dims)
-        ) / state.sigma.reshape(1, self.num_dims)
-        rS = (fit_1 + fit_2) / 2.0 - jnp.mean(fitness_elite)
-        delta_sigma = jnp.dot(rS, S) / (self.elite_popsize / 2)
+        delta_sigma = (
+            (jnp.expand_dims(all_avg_scores, axis=1) - baseline)
+            * (noise_1 ** 2 - jnp.expand_dims(state.sigma ** 2, axis=0))
+            / state.sigma
+        ).mean(axis=0)
 
         allowed_delta = jnp.abs(state.sigma) * params.sigma_max_change
         min_allowed = state.sigma - allowed_delta
