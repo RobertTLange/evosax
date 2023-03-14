@@ -162,7 +162,7 @@ class PGPE(Strategy):
         # adjust sigma according to the adaptive sigma calculation
         # for stability, don't let sigma move more than 20% of orig value
         sigma = jnp.clip(
-            state.sigma - params.sigma_lrate * delta_sigma,
+            state.sigma + params.sigma_lrate * delta_sigma,
             min_allowed,
             max_allowed,
         )
