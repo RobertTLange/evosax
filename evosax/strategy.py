@@ -92,7 +92,7 @@ class Strategy(object):
         # Generate proposal based on strategy-specific ask method
         x, state = self.ask_strategy(rng, state, params)
         # Clip proposal candidates into allowed range
-        x_clipped = jnp.clip(jnp.squeeze(x), params.clip_min, params.clip_max)
+        x_clipped = jnp.clip(x, params.clip_min, params.clip_max)
 
         # Reshape parameters into pytrees
         if self.use_param_reshaper:

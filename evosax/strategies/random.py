@@ -68,7 +68,7 @@ class RandomSearch(Strategy):
             minval=params.range_min,
             maxval=params.range_max,
         )
-        return jnp.squeeze(x), state
+        return x, state
 
     def tell_strategy(
         self,

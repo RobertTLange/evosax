@@ -11,6 +11,13 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] CNN Hypernetwork (Ha - start with simple MLP)
 
+### [v0.1.4] - [TBC]
+
+##### Fixed
+
+- Added missing matplotlib requirement.
+- Fix squeezing of sampled solutions in order to enable 1D optimization.
+
 ### [v0.1.3] - [03/2023]
 
 - Finally solved checkpoint loading LES problem (needed `MANIFEST.in`)

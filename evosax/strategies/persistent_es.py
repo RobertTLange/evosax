@@ -117,8 +117,8 @@ class PersistentES(Strategy):
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)
         # Add the perturbations from this unroll to the perturbation accumulators
         pert_accum = state.pert_accum + perts
-        y = state.mean + perts
-        return jnp.squeeze(y), state.replace(pert_accum=pert_accum)
+        x = state.mean + perts
+        return x, state.replace(pert_accum=pert_accum)
 
     def tell_strategy(
         self,

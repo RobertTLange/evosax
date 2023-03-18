@@ -92,7 +92,7 @@ class DE(Strategy):
             state.best_member,
             params,
         )
-        return jnp.squeeze(x), state
+        return jnp.squeeze(x, axis=2), state
 
     def tell_strategy(
         self,

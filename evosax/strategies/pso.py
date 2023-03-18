@@ -99,7 +99,7 @@ class PSO(Strategy):
         )
         # Update particle positions with velocity
         x = state.archive + vel
-        return jnp.squeeze(x), state.replace(velocity=vel)
+        return x, state.replace(velocity=vel)
 
     def tell_strategy(
         self,
