@@ -27,6 +27,7 @@ class IPOP_CMA_ES(object):
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """IPOP-CMA-ES (Auer & Hansen, 2005).
@@ -41,6 +42,7 @@ class IPOP_CMA_ES(object):
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
             mean_decay=mean_decay,
+            n_devices=n_devices,
             **fitness_kwargs
         )
         from ..restarts import IPOP_Restarter

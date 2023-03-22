@@ -36,13 +36,19 @@ class SimpleES(Strategy):
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Simple Gaussian Evolution Strategy (Rechenberg, 1975)
         Reference: https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))

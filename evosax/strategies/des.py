@@ -48,11 +48,17 @@ class DES(Strategy):
         temperature: float = 12.5,
         sigma_init: float = 0.1,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Discovered Evolution Strategy (Lange et al., 2023)"""
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         self.strategy_name = "DES"
         self.temperature = temperature

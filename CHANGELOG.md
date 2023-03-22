@@ -17,6 +17,8 @@
 
 - Added missing matplotlib requirement.
 - Fix squeezing of sampled solutions in order to enable 1D optimization.
+- Add `n_devices` option to every strategy to control reshaping for pmap in `ParameterReshaper` explicitly.
+- Add `mean_decay` optional kwarg to LES.
 
 ### [v0.1.3] - [03/2023]
 

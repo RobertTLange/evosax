@@ -34,6 +34,7 @@ class Strategy(object):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Base Class for an Evolution Strategy."""
@@ -42,7 +43,7 @@ class Strategy(object):
         # Setup optional parameter reshaper
         self.use_param_reshaper = pholder_params is not None
         if self.use_param_reshaper:
-            self.param_reshaper = ParameterReshaper(pholder_params)
+            self.param_reshaper = ParameterReshaper(pholder_params, n_devices)
             self.num_dims = self.param_reshaper.total_params
         else:
             self.num_dims = num_dims

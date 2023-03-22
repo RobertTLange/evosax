@@ -51,9 +51,18 @@ class LES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         net_params: Optional[chex.ArrayTree] = None,
         net_ckpt_path: Optional[str] = None,
+        mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float],
     ):
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs,
+        )
         self.strategy_name = "LES"
         self.evopath = EvolutionPath(
             num_dims=self.num_dims, timescales=jnp.array([0.1, 0.5, 0.9])

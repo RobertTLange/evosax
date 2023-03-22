@@ -65,6 +65,7 @@ class Sep_CMA_ES(Strategy):
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
@@ -76,6 +77,7 @@ class Sep_CMA_ES(Strategy):
             num_dims,
             pholder_params,
             mean_decay,
+            n_devices,
             **fitness_kwargs,
         )
         assert 0 <= elite_ratio <= 1

@@ -50,13 +50,19 @@ class Full_iAMaLGaM(Strategy):
         sigma_decay: float = 0.99,
         sigma_limit: float = 0.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Full Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
