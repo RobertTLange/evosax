@@ -1,16 +1,29 @@
+from typing import Optional, Union
 import pickle
 import jax
 import jax.numpy as jnp
 import chex
 from functools import partial
+from .reshape_params import ParameterReshaper
 
 
 class ESLog(object):
     def __init__(
-        self, num_dims: int, num_generations: int, top_k: int, maximize: bool
+        self,
+        num_dims: Optional[int] = None,
+        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_generations: int = 200,
+        top_k: int = 5,
+        maximize: bool = False,
     ):
         """Simple jittable logging tool for ES rollouts."""
-        self.num_dims = num_dims
+        # Setup optional parameter reshaper
+        self.use_param_reshaper = pholder_params is not None
+        if self.use_param_reshaper:
+            self.param_reshaper = ParameterReshaper(pholder_params, n_devices=1)
+            self.num_dims = self.param_reshaper.total_params
+        else:
+            self.num_dims = num_dims
         self.num_generations = num_generations
         self.top_k = top_k
         self.maximize = maximize
@@ -47,17 +60,18 @@ class ESLog(object):
         }
         return log
 
-    # @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnums=(0,))
     def update(
         self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
     ) -> chex.ArrayTree:
         """Update the logging storage with newest data."""
         # Check if there are solutions better than current archive
         vals = jnp.hstack([log["top_fitness"], fitness])
+        if self.use_param_reshaper:
+            x = self.param_reshaper.flatten(x)
         params = jnp.vstack([log["top_params"], x])
-        top_idx = (
-            self.maximize * ((-1) * vals).argsort()
-            + ((1 - self.maximize) * vals.argsort())
+        top_idx = self.maximize * ((-1) * vals).argsort() + (
+            (1 - self.maximize) * vals.argsort()
         )
         log["top_fitness"] = vals[top_idx[: self.top_k]]
         log["top_params"] = params[top_idx[: self.top_k]]

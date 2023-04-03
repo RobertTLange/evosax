@@ -51,3 +51,8 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
     def best_params(self, params: chex.Array) -> None:
         """Update the best parameters stored internally."""
         self.es_state = self.es_state.replace(mean=jnp.array(params, copy=True))
+
+    @property
+    def solution(self):
+        """Get evaluation parameters for current ES state."""
+        return self.es.get_eval_params(self.es_state)

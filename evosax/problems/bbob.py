@@ -22,7 +22,10 @@ class BBOBFitness(object):
     """
 
     def __init__(
-        self, fn_name: str = "Sphere", num_dims: int = 2, seed_id: int = 1
+        self,
+        fn_name: str = "Sphere",
+        num_dims: int = 2,
+        seed_id: int = 1,
     ):
         self.num_dims = num_dims
         # Create rotation matrices for non-separability
@@ -39,14 +42,14 @@ class BBOBFitness(object):
         eval_params: chex.Array,
         R: Optional[chex.Array] = None,
         Q: Optional[chex.Array] = None,
+        noise_std: float = 0.0,
     ) -> chex.Array:
         """Batch evaluate the proposal points."""
         if R is None:
-            R, Q = self.get_rotation_matrices(rng)
-        else:
             R, Q = self.R, self.Q
         val = jax.vmap(self.fn, in_axes=(0, None, None))(eval_params, R, Q)
-        return val
+        eval_noise = jax.random.normal(rng, shape=val.shape) * noise_std
+        return val + eval_noise
 
     def get_rotation_matrices(self, rng: chex.PRNGKey):
         """Sample two rotation matrices."""
