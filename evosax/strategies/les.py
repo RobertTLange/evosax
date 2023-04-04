@@ -1,11 +1,10 @@
 from typing import Optional, Tuple, Union
-import os
 import chex
 from flax import struct
 import jax
 import jax.numpy as jnp
 import pkgutil
-from ..utils.learned_eo import (
+from ..utils.les_tools import (
     AttentionWeights,
     EvoPathMLP,
     tanh_timestamp,
@@ -80,11 +79,11 @@ class LES(Strategy):
         # Load network weights from checkpoint
         if net_ckpt_path is not None:
             self.les_net_params = load_pkl_object(net_ckpt_path)
-            print(f"Loaded model from ckpt: {net_ckpt_path}")
+            print(f"Loaded LES model from ckpt: {net_ckpt_path}")
 
         if net_params is None and net_ckpt_path is None:
             ckpt_fname = "2023_03_les_v1.pkl"
-            data = pkgutil.get_data(__name__, f"ckpt/{ckpt_fname}")
+            data = pkgutil.get_data(__name__, f"ckpt/les/{ckpt_fname}")
             self.les_net_params = load_pkl_object(data, pkg_load=True)
             print(f"Loaded pretrained LES model from ckpt: {ckpt_fname}")
 

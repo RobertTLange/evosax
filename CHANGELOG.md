@@ -13,12 +13,17 @@
 
 ### [v0.1.4] - [TBC]
 
+##### Added
+
+- Add LGA checkpoint and optimizer class from Lange et al. (2023b).
+- Add `n_devices` option to every strategy to control reshaping for pmap in `ParameterReshaper` explicitly.
+- Add `mean_decay` optional kwarg to LES.
+
 ##### Fixed
 
 - Added missing matplotlib requirement.
 - Fix squeezing of sampled solutions in order to enable 1D optimization.
-- Add `n_devices` option to every strategy to control reshaping for pmap in `ParameterReshaper` explicitly.
-- Add `mean_decay` optional kwarg to LES.
+- Fix `ESLog` to work with `ParameterReshaper` reshaping of candidate solutions.
 
 ### [v0.1.3] - [03/2023]
 

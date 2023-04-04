@@ -30,6 +30,7 @@ from .cr_fm_nes import CR_FM_NES
 from .mr15_ga import MR15_GA
 from .random import RandomSearch
 from .les import LES
+from .lga import LGA
 
 
 __all__ = [
@@ -65,4 +66,5 @@ __all__ = [
     "MR15_GA",
     "RandomSearch",
     "LES",
+    "LGA",
 ]
