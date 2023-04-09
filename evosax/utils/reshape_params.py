@@ -72,7 +72,7 @@ class ParameterReshaper(object):
         return jax.pmap(vmap_shape)(x)
 
     def flatten(self, x: chex.ArrayTree) -> chex.Array:
-        """Reshaping pytree parameters into flat array."""
+        """Reshaping pytree parameters (population) into flat array."""
         vmap_flat = jax.vmap(ravel_pytree)
         if self.n_devices > 1:
             # Flattening of pmap paramater trees to apply vmap flattening
@@ -83,7 +83,12 @@ class ParameterReshaper(object):
         else:
             map_flat = vmap_flat
         flat = map_flat(x)
+        # Out shape: (pop, params)
         return flat
+
+    def flatten_single(self, x: chex.ArrayTree) -> chex.Array:
+        """Reshaping pytree parameters (single) into flat array."""
+        return ravel_pytree(x)
 
     def multi_flatten(self, x: chex.Array) -> chex.ArrayTree:
         """Flatten parameters lying remaining on different devices."""
