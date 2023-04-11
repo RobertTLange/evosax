@@ -30,16 +30,18 @@ def pytest_generate_tests(metafunc):
                     "ESMC",
                     "DES",
                     "SAMR_GA",
-                    # "GESMR_GA",
+                    "GESMR_GA",
                     "GuidedES",
                     "ASEBO",
                     "CR_FM_NES",
                     "MR15_GA",
+                    "RandomSearch",
                     "LES",
+                    "LGA",
                 ],
             )
         else:
-            metafunc.parametrize("strategy_name", ["DE"])
+            metafunc.parametrize("strategy_name", ["LGA"])
 
     if "classic_name" in metafunc.fixturenames:
         if metafunc.config.getoption("all"):

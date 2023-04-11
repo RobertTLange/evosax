@@ -120,7 +120,7 @@ class Sep_CMA_ES(Strategy):
         chi_n = jnp.sqrt(self.num_dims) * (
             1.0
             - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2))
+            + 1.0 / (21.0 * (self.max_dims_sq ** 2))
         )
         params = EvoParams(
             mu_eff=mu_eff,

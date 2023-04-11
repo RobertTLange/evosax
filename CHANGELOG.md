@@ -11,14 +11,25 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] CNN Hypernetwork (Ha - start with simple MLP)
 
-### [v0.1.4] - [TBC]
+### [v0.1.4] - [04/2023]
+
+##### Added
+
+- Adds LGA checkpoint and optimizer class from [Lange et al. (2023b)](https://arxiv.org/abs/2304.03995).
+- Adds optional `init_mean` to `strategy.initialize` to warm start strategy from e.g. pre-trained checkpoint.
+- Adds `n_devices` option to every strategy to control reshaping for pmap in `ParameterReshaper` (if desired) explicitly.
+- Adds `mean_decay` optional kwarg to LES for regularization.
 
 ##### Fixed
 
-- Added missing matplotlib requirement.
+- Fix missing matplotlib requirement for BBOB Visualizer.
 - Fix squeezing of sampled solutions in order to enable 1D optimization.
-- Add `n_devices` option to every strategy to control reshaping for pmap in `ParameterReshaper` explicitly.
-- Add `mean_decay` optional kwarg to LES.
+- Fix `ESLog` to work with `ParameterReshaper` reshaping of candidate solutions.
+- Fix overflow errors in CMA-ES style ES when `num_dims ** 2` is too large.
+
+##### Changed
+
+- Changed default gradient descent optimizer of ARS to Adam.
 
 ### [v0.1.3] - [03/2023]
 

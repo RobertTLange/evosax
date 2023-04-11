@@ -41,7 +41,10 @@ class EvoParams:
 
 
 def get_cma_elite_weights(
-    popsize: int, elite_popsize: int, num_dims: int
+    popsize: int,
+    elite_popsize: int,
+    num_dims: int,
+    max_dims_sq: int,
 ) -> Tuple[chex.Array, chex.Array, float, float, float]:
     """Utility helper to create truncated elite weights for mean
     update and full weights for covariance update."""
@@ -57,12 +60,12 @@ def get_cma_elite_weights(
 
     # lrates for rank-one and rank-μ C updates
     alpha_cov = 2
-    c_1 = alpha_cov / ((num_dims + 1.3) ** 2 + mu_eff)
+    c_1 = alpha_cov / ((max_dims_sq + 1.3) ** 2 + mu_eff)
     c_mu = jnp.minimum(
         1 - c_1 - 1e-8,
         alpha_cov
         * (mu_eff - 2 + 1 / mu_eff)
-        / ((num_dims + 2) ** 2 + alpha_cov * mu_eff / 2),
+        / ((max_dims_sq + 2) ** 2 + alpha_cov * mu_eff / 2),
     )
     min_alpha = jnp.minimum(
         1 + c_1 / c_mu, 1 + (2 * mu_eff_minus) / (mu_eff + 2)
@@ -110,11 +113,14 @@ class CMA_ES(Strategy):
         # Set core kwargs es_params
         self.sigma_init = sigma_init
 
+        # Robustness for int32 - squaring in hyperparameter calculations
+        self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         _, _, mu_eff, c_1, c_mu = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims
+            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
         )
 
         # lrate for cumulation of step-size control and rank-one update
@@ -131,7 +137,7 @@ class CMA_ES(Strategy):
         chi_n = jnp.sqrt(self.num_dims) * (
             1.0
             - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2))
+            + 1.0 / (21.0 * (self.max_dims_sq ** 2))
         )
 
         params = EvoParams(
@@ -151,7 +157,7 @@ class CMA_ES(Strategy):
     ) -> EvoState:
         """`initialize` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims
+            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(

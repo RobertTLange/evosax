@@ -67,7 +67,10 @@ class Strategy(object):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: Optional[EvoParams] = None
+        self,
+        rng: chex.PRNGKey,
+        params: Optional[EvoParams] = None,
+        init_mean: Optional[Union[chex.Array, chex.ArrayTree]] = None,
     ) -> EvoState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
@@ -76,6 +79,13 @@ class Strategy(object):
 
         # Initialize strategy based on strategy-specific initialize method
         state = self.initialize_strategy(rng, params)
+
+        if init_mean is not None:
+            if self.use_param_reshaper:
+                init_mean = self.param_reshaper.flatten_single(init_mean)
+            else:
+                init_mean = jnp.asarray(init_mean)
+            state = state.replace(mean=init_mean)
         return state
 
     @partial(jax.jit, static_argnums=(0,))
