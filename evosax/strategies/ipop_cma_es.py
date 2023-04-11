@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import chex
-from typing import Tuple, Optional, Union
 from functools import partial
+from flax import struct
 from .cma_es import CMA_ES
 from ..restarts.restarter import WrapperState, WrapperParams
-from flax import struct
 
 
 @struct.dataclass

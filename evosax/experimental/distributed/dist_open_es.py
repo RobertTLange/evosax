@@ -5,7 +5,7 @@ import chex
 from typing import Tuple, Optional, Union
 from flax import struct
 from evosax import Strategy
-from evosax.utils import GradientOptimizer, OptState, OptParams, exp_decay
+from evosax.core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass

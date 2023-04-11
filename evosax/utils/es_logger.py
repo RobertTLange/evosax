@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import chex
 from functools import partial
-from .reshape_params import ParameterReshaper
+from ..core.reshape_params import ParameterReshaper
 
 
 class ESLog(object):

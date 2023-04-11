@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from .simple_ga import single_mate
 from flax import struct
+from .simple_ga import single_mate
+from ..strategy import Strategy
 
 
 @struct.dataclass

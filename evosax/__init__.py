@@ -34,7 +34,8 @@ from .strategies import (
     LES,
     LGA,
 )
-from .utils import FitnessShaper, ParameterReshaper, ESLog
+from .core import FitnessShaper, ParameterReshaper
+from .utils import ESLog
 from .networks import NetworkMapper
 from .problems import ProblemMapper
 

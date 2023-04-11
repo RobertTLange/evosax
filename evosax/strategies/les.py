@@ -4,7 +4,7 @@ from flax import struct
 import jax
 import jax.numpy as jnp
 import pkgutil
-from ..utils.les_tools import (
+from ..learned_eo.les_tools import (
     AttentionWeights,
     EvoPathMLP,
     tanh_timestamp,
