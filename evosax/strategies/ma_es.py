@@ -66,11 +66,14 @@ class MA_ES(Strategy):
         # Set core kwargs es_params
         self.sigma_init = sigma_init
 
+        # Robustness for int32 - squaring in hyperparameter calculations
+        self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         _, _, mu_eff, c_1, c_mu = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims
+            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
         )
 
         # lrate for cumulation of step-size control and rank-one update
@@ -85,7 +88,7 @@ class MA_ES(Strategy):
         chi_n = jnp.sqrt(self.num_dims) * (
             1.0
             - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2))
+            + 1.0 / (21.0 * (self.max_dims_sq ** 2))
         )
 
         params = EvoParams(
@@ -104,7 +107,7 @@ class MA_ES(Strategy):
     ) -> EvoState:
         """`initialize` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims
+            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
