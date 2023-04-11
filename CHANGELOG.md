@@ -11,6 +11,18 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] CNN Hypernetwork (Ha - start with simple MLP)
 
+### [v0.1.5] - [TBD]
+
+##### Added
+
+- Add string `fitness_trafo` option to `FitnessShaper`
+
+##### Fixed
+
+##### Changed
+
+- Refactored core modules and utilities.
+
 ### [v0.1.4] - [04/2023]
 
 ##### Added

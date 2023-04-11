@@ -1,5 +1,5 @@
 # Import additional utilities for reshaping flat parameters into net dict
-from .reshape_params import ParameterReshaper, ravel_pytree
+from .reshape import ParameterReshaper, ravel_pytree
 
 # Import additional utilities for reshaping fitness
 from .fitness import FitnessShaper
