@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from evosax import Strategies
 from evosax.problems import BBOBFitness
-from evosax.utils import FitnessShaper
+from evosax.core import FitnessShaper
 from functools import partial
 
 num_iters = 25

@@ -1,15 +1,15 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
+from flax import struct
 from ..strategy import Strategy
-from ..utils import exp_decay
+from ..core import exp_decay
 from .full_iamalgam import (
     anticipated_mean_shift,
     adaptive_variance_scaling,
     update_mean_amalgam,
 )
-from flax import struct
 
 
 @struct.dataclass

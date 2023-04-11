@@ -1,12 +1,12 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
 from functools import partial
-from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
-from evosax.utils import get_best_fitness_member
+from ..strategy import Strategy
+from ..core import GradientOptimizer, OptState, OptParams, exp_decay
+from ..utils import get_best_fitness_member
 
 
 @struct.dataclass

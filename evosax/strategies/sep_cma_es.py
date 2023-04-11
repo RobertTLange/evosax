@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
+from flax import struct
 from ..strategy import Strategy
 from ..utils.eigen_decomp import diag_eigen_decomp
-from flax import struct
 
 
 @struct.dataclass

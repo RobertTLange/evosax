@@ -4,7 +4,8 @@ import chex
 from typing import Tuple, Optional, Union
 from functools import partial
 from flax import struct
-from .utils import get_best_fitness_member, ParameterReshaper, FitnessShaper
+from .utils import get_best_fitness_member
+from .core import ParameterReshaper, FitnessShaper
 
 
 @struct.dataclass

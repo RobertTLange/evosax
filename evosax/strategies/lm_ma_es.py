@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from .cma_es import get_cma_elite_weights
 from flax import struct
+from .cma_es import get_cma_elite_weights
+from ..strategy import Strategy
 
 
 @struct.dataclass
