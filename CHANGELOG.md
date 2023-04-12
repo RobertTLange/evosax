@@ -15,7 +15,8 @@
 
 ##### Added
 
-- Add string `fitness_trafo` option to `FitnessShaper`
+- Add string `fitness_trafo` option to `FitnessShaper` (e.g. `z_score`, etc.).
+- Add `sigma_meta` as kwarg to `SAMR_GA` and `GESMR_GA`.
 
 ##### Fixed
 
