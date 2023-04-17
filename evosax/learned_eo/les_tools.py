@@ -5,7 +5,7 @@ import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from ..core.fitness import (
+from evosax.core.fitness import (
     z_score_trafo,
     centered_rank_trafo,
     range_norm_trafo,

@@ -4,11 +4,11 @@ from flax import struct
 import jax
 import jax.numpy as jnp
 import pkgutil
-from ..learned_eo.les_tools import (
+from evosax.learned_eo.les_tools import (
     FitnessFeatures,
     load_pkl_object,
 )
-from ..learned_eo.lga_tools import (
+from evosax.learned_eo.lga_tools import (
     SelectionAttention,
     SamplingAttention,
     MutationAttention,

@@ -2,7 +2,7 @@ import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from ..core.fitness import z_score_trafo, range_norm_trafo
+from evosax.core.fitness import z_score_trafo, range_norm_trafo
 
 
 def tanh_age(x: chex.Array, gen_counter: float) -> chex.Array:
