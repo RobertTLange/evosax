@@ -124,7 +124,6 @@ def scaled_dot_product(
 
 
 class SamplingAttention(nn.Module):
-
     num_att_heads: int
     att_hidden_dims: int
 
@@ -135,11 +134,10 @@ class SamplingAttention(nn.Module):
             F_E
         )
         logits = nn.Dense(1)(S)
-        return nn.softmax(logits.squeeze())
+        return nn.softmax(logits.squeeze(axis=-1))
 
 
 class SelectionAttention(nn.Module):
-
     num_att_heads: int
     att_hidden_dims: int
 
@@ -166,7 +164,6 @@ class SelectionAttention(nn.Module):
 
 
 class MutationAttention(nn.Module):
-
     num_att_heads: int
     att_hidden_dims: int
 

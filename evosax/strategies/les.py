@@ -50,6 +50,7 @@ class LES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         net_params: Optional[chex.ArrayTree] = None,
         net_ckpt_path: Optional[str] = None,
+        sigma_init: float = 0.1,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float],
@@ -71,6 +72,7 @@ class LES(Strategy):
         self.fitness_features = FitnessFeatures(
             centered_rank=True, z_score=True
         )
+        self.sigma_init = sigma_init
 
         # Set net params provided at instantiation
         if net_params is not None:
@@ -90,7 +92,9 @@ class LES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(net_params=self.les_net_params)
+        return EvoParams(
+            net_params=self.les_net_params, sigma_init=self.sigma_init
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

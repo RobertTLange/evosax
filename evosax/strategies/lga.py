@@ -57,6 +57,7 @@ class LGA(Strategy):
         elite_ratio: float = 1.0,
         net_params: Optional[chex.ArrayTree] = None,
         net_ckpt_path: Optional[str] = None,
+        sigma_init: float = 1.0,
         n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float],
     ):
@@ -73,6 +74,7 @@ class LGA(Strategy):
         self.fitness_features = FitnessFeatures(
             centered_rank=True, z_score=True
         )
+        self.sigma_init = sigma_init
         self.selection_layer = SelectionAttention(2, 16)
         self.sampling_layer = SamplingAttention(2, 16)
         self.mutation_layer = MutationAttention(2, 16)
@@ -98,7 +100,9 @@ class LGA(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(net_params=self.lga_net_params)
+        return EvoParams(
+            net_params=self.lga_net_params, sigma_init=self.sigma_init
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

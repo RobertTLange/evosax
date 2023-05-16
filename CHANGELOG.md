@@ -22,7 +22,7 @@
 
 ##### Changed
 
-- Refactored core modules and utilities.
+- Refactored core modules and utilities. Learned evolution utilities now in subdirectory.
 
 ### [v0.1.4] - [04/2023]
 
