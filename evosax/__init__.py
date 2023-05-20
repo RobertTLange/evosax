@@ -33,6 +33,7 @@ from .strategies import (
     RandomSearch,
     LES,
     LGA,
+    NoiseReuseES,
 )
 from .core import FitnessShaper, ParameterReshaper
 from .utils import ESLog
@@ -74,6 +75,7 @@ Strategies = {
     "RandomSearch": RandomSearch,
     "LES": LES,
     "LGA": LGA,
+    "NoiseReuseES": NoiseReuseES,
 }
 
 __all__ = [
@@ -119,4 +121,5 @@ __all__ = [
     "RandomSearch",
     "LES",
     "LGA",
+    "NoiseReuseES",
 ]

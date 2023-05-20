@@ -15,10 +15,14 @@
 
 ##### Added
 
-- Add string `fitness_trafo` option to `FitnessShaper` (e.g. `z_score`, etc.).
-- Add `sigma_meta` as kwarg to `SAMR_GA` and `GESMR_GA`.
+- Adds string `fitness_trafo` option to `FitnessShaper` (e.g. `z_score`, etc.).
+- Adds `sigma_meta` as kwarg to `SAMR_GA` and `GESMR_GA`.
+- Adds `sigma_init` as kwarg to `LGA` and `LES`.
+- Adds Noise-Reuse ES - `NoiseReuseES` - ([Li et al., 2023](https://arxiv.org/pdf/2304.12180.pdf)) as a generalization of PES. 
 
 ##### Fixed
+
+- Fixed error in LGA resulting from `elite_ratio=0.0` in sampling operator logit squeeze.
 
 ##### Changed
 

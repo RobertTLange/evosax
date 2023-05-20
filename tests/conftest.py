@@ -38,6 +38,7 @@ def pytest_generate_tests(metafunc):
                     "RandomSearch",
                     "LES",
                     "LGA",
+                    "NoiseReuseES",
                 ],
             )
         else:

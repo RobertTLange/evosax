@@ -31,6 +31,7 @@ from .mr15_ga import MR15_GA
 from .random import RandomSearch
 from .les import LES
 from .lga import LGA
+from .noise_reuse_es import NoiseReuseES
 
 
 __all__ = [
@@ -67,4 +68,5 @@ __all__ = [
     "RandomSearch",
     "LES",
     "LGA",
+    "NoiseReuseES",
 ]
