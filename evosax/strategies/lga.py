@@ -71,9 +71,7 @@ class LGA(Strategy):
         self.strategy_name = "LGA"
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
-        self.fitness_features = FitnessFeatures(
-            centered_rank=True, z_score=True
-        )
+        self.fitness_features = FitnessFeatures(centered_rank=True, z_score=True)
         self.sigma_init = sigma_init
         self.selection_layer = SelectionAttention(2, 16)
         self.sampling_layer = SamplingAttention(2, 16)
@@ -89,7 +87,7 @@ class LGA(Strategy):
             print(f"Loaded LGA model from ckpt: {net_ckpt_path}")
 
         if net_params is None and net_ckpt_path is None:
-            if self.num_dims < 50:
+            if self.num_dims > 50:
                 ckpt_fname = "2023_04_lga_v7.pkl"
             else:
                 ckpt_fname = "2023_04_lga_v4.pkl"
@@ -100,13 +98,9 @@ class LGA(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(
-            net_params=self.lga_net_params, sigma_init=self.sigma_init
-        )
+        return EvoParams(net_params=self.lga_net_params, sigma_init=self.sigma_init)
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         init_x = jax.random.uniform(
             rng,
@@ -182,14 +176,10 @@ class LGA(Strategy):
         keep_parent = (select_bool.sum(axis=1) == 0)[:, None]
         next_x = select_bool @ x + keep_parent * state.archive_x
         next_f = select_bool @ fitness + keep_parent.squeeze() * state.archive_f
-        next_sigma = (
-            select_bool @ state.sigma_C + keep_parent * state.archive_sigma
-        )
+        next_sigma = select_bool @ state.sigma_C + keep_parent * state.archive_sigma
 
         # Update the age counter - reset if copy over otherwise increase
-        next_age = (
-            state.archive_age * keep_parent.squeeze() + keep_parent.squeeze()
-        )
+        next_age = state.archive_age * keep_parent.squeeze() + keep_parent.squeeze()
 
         # Argsort by performance and set mean
         improved = fit_all[idx][0] < state.best_fitness
