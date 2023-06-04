@@ -1,10 +1,9 @@
 from typing import Optional, Tuple, Union
-
-import chex
 import jax
 import jax.numpy as jnp
-from evosax.strategy import Strategy
+import chex
 from flax import struct
+from ..strategy import Strategy
 
 
 @struct.dataclass
