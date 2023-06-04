@@ -147,22 +147,12 @@ class LM_MA_ES(Strategy):
         params: chex.ArrayTree,
     ) -> EvoState:
         """`tell` performance data for strategy state update."""
-        # Sort new results, extract elite, store best performer
+        # Sort new results, extract elite
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
         sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
         concat_z_f = jnp.hstack([jnp.expand_dims(fitness, 1), state.z])
         sorted_zvectors = concat_z_f[concat_z_f[:, 0].argsort()]
         sorted_z = sorted_zvectors[:, 1:]
-        new_best_fitness = jax.lax.select(
-            state.best_fitness > sorted_solutions[0, 0],
-            sorted_solutions[0, 0],
-            state.best_fitness,
-        )
-        new_best_member = jax.lax.select(
-            state.best_fitness > sorted_solutions[0, 0],
-            sorted_solutions[0, 1:],
-            state.best_member,
-        )
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
         mean = update_mean(
             state.mean,
