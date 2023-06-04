@@ -153,9 +153,6 @@ class LM_MA_ES(Strategy):
         concat_z_f = jnp.hstack([jnp.expand_dims(fitness, 1), state.z])
         sorted_zvectors = concat_z_f[concat_z_f[:, 0].argsort()]
         sorted_z = sorted_zvectors[:, 1:]
-        if state.best_fitness < sorted_solutions[0, 0]:
-            state.best_fitness = sorted_solutions[0, 0]
-            state.best_member = sorted_solutions[0, 1:]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
         mean = update_mean(
             state.mean,
