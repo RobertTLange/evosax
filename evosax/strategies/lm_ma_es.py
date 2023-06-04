@@ -187,8 +187,6 @@ class LM_MA_ES(Strategy):
             p_sigma=p_sigma,
             M=M,
             sigma=sigma,
-            best_fitness=new_best_fitness,
-            best_member=new_best_member,
         )
 
 
