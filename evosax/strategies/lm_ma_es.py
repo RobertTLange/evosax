@@ -258,7 +258,7 @@ def sample(
     pop_size: int,
     c_d: chex.Array,
     gen_counter: int,
-) -> tuple[chex.Array, chex.Array]:
+) -> Tuple[chex.Array, chex.Array]:
     """Jittable Gaussian Sample Helper."""
     z = jax.random.normal(rng, (pop_size, n_dim))  # ~ N(0, I)
     d = jnp.copy(z)
