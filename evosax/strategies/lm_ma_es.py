@@ -153,6 +153,16 @@ class LM_MA_ES(Strategy):
         concat_z_f = jnp.hstack([jnp.expand_dims(fitness, 1), state.z])
         sorted_zvectors = concat_z_f[concat_z_f[:, 0].argsort()]
         sorted_z = sorted_zvectors[:, 1:]
+        new_best_fitness = jax.lax.select(
+            state.best_fitness > sorted_solutions[0, 0],
+            sorted_solutions[0, 0],
+            state.best_fitness,
+        )
+        new_best_member = jax.lax.select(
+            state.best_fitness > sorted_solutions[0, 0],
+            sorted_solutions[0, 1:],
+            state.best_member,
+        )
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
         mean = update_mean(
             state.mean,
@@ -182,7 +192,14 @@ class LM_MA_ES(Strategy):
             params.d_sigma,
             self.num_dims,
         )
-        return state.replace(mean=mean, p_sigma=p_sigma, M=M, sigma=sigma)
+        return state.replace(
+            mean=mean,
+            p_sigma=p_sigma,
+            M=M,
+            sigma=sigma,
+            best_fitness=new_best_fitness,
+            best_member=new_best_member,
+        )
 
 
 def update_mean(
