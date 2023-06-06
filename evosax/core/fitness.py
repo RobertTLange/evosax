@@ -90,11 +90,7 @@ def range_norm_trafo(
 ) -> chex.Array:
     """Map scores into a min/max range."""
     arr = jnp.clip(arr, -1e10, 1e10)
-    normalized_arr = (
-        2
-        * max_val
-        * (arr - jnp.nanmin(arr))
-        / (jnp.nanmax(arr) - jnp.nanmin(arr) + 1e-10)
-        - min_val
-    )
+    normalized_arr = (max_val - min_val) * (arr - jnp.nanmin(arr)) / (
+        jnp.nanmax(arr) - jnp.nanmin(arr) + 1e-10
+    ) + min_val
     return normalized_arr

@@ -23,6 +23,7 @@
 ##### Fixed
 
 - Fixed error in LGA resulting from `elite_ratio=0.0` in sampling operator logit squeeze.
+- Fixed range normalization in fitness transformation - `range_norm_trafo` - Thank you @yudonglee
 
 ##### Changed
 
