@@ -228,11 +228,11 @@ class CR_FM_NES(Strategy):
 
         # switching weights and learning rate
         p_sigma_cond = p_sigma_norm >= params.chi_N
-        weights = jax.lax.select(p_sigma_cond, weights_dist, state.w_rank)
-        lrate_sigma = jax.lax.select(
+        weights = jax.numpy.where(p_sigma_cond, weights_dist, state.w_rank)
+        lrate_sigma = jax.numpy.where(
             p_sigma_cond, params.lrate_move_sigma, params.lrate_stag_sigma
         )
-        lrate_sigma = jax.lax.select(
+        lrate_sigma = jax.numpy.where(
             p_sigma_norm >= 0.1 * params.chi_N,
             lrate_sigma,
             params.lrate_conv_sigma,

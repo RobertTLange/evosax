@@ -110,7 +110,7 @@ class IPOP_Restarter(RestartWrapper):
             rng, params.strategy_params
         )
         strategy_state = strategy_state.replace(
-            mean=jax.lax.select(
+            mean=jax.numpy.where(
                 params.restart_params.copy_mean,
                 state.strategy_state.mean,
                 strategy_state.mean,

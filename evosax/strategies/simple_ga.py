@@ -141,7 +141,7 @@ class SimpleGA(Strategy):
         sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         # Set mean to best member seen so far
         improved = fitness[0] < state.best_fitness
-        best_mean = jax.lax.select(improved, archive[0], state.best_member)
+        best_mean = jax.numpy.where(improved, archive[0], state.best_member)
         return state.replace(
             fitness=fitness, archive=archive, sigma=sigma, mean=best_mean
         )

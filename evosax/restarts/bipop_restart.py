@@ -101,14 +101,14 @@ class BIPOP_Restarter(RestartWrapper):
     ) -> chex.ArrayTree:
         """Reinstantiate a new strategy with interlaced population sizes."""
         # Track number of evals depending on active population
-        large_eval_budget = jax.lax.select(
+        large_eval_budget = jax.numpy.where(
             state.restart_state.small_pop_active,
             state.restart_state.large_eval_budget,
             state.restart_state.large_eval_budget
             + state.restart_state.active_popsize
             * state.strategy_state.gen_counter,
         )
-        small_eval_budget = jax.lax.select(
+        small_eval_budget = jax.numpy.where(
             state.restart_state.small_pop_active,
             state.restart_state.small_eval_budget
             + state.restart_state.active_popsize
@@ -127,7 +127,7 @@ class BIPOP_Restarter(RestartWrapper):
         large_popsize = self.default_popsize * pop_mult
 
         # Reinstantiate new strategy - based on name of previous strategy
-        active_popsize = jax.lax.select(
+        active_popsize = jax.numpy.where(
             small_pop_active, small_popsize, large_popsize
         )
 
@@ -142,7 +142,7 @@ class BIPOP_Restarter(RestartWrapper):
             rng, params.strategy_params
         )
         strategy_state = strategy_state.replace(
-            mean=jax.lax.select(
+            mean=jax.numpy.where(
                 params.restart_params.copy_mean,
                 state.strategy_state.mean,
                 strategy_state.mean,

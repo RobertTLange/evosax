@@ -35,7 +35,7 @@ class Simple_Restarter(RestartWrapper):
         """Simple restart by state initialization."""
         new_state = self.base_strategy.initialize(rng, params.strategy_params)
         new_state = new_state.replace(
-            mean=jax.lax.select(
+            mean=jax.numpy.where(
                 params.restart_params.copy_mean,
                 state.strategy_state.mean,
                 new_state.mean,

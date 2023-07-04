@@ -151,7 +151,7 @@ class ASEBO(Strategy):
 
         subspace_ready = state.gen_counter > self.subspace_dims
 
-        UUT = jax.lax.select(
+        UUT = jax.numpy.where(
             subspace_ready, UUT, jnp.zeros((self.num_dims, self.num_dims))
         )
         cov = (
@@ -186,7 +186,7 @@ class ASEBO(Strategy):
             jnp.dot(theta_grad, state.UUT_ort)
         ) / jnp.linalg.norm(jnp.dot(theta_grad, state.UUT))
         subspace_ready = state.gen_counter > self.subspace_dims
-        alpha = jax.lax.select(subspace_ready, alpha, 1.0)
+        alpha = jax.numpy.where(subspace_ready, alpha, 1.0)
 
         # Add grad FIFO-style to subspace archive (only if provided else FD)
         grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))

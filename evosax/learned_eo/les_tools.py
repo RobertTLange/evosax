@@ -86,7 +86,7 @@ class FitnessFeatures(object):
         self, x: chex.Array, fitness: chex.Array, best_fitness: float
     ) -> chex.Array:
         """Compute and concatenate different fitness transformations."""
-        fitness = jax.lax.select(self.maximize, -1 * fitness, fitness)
+        fitness = jax.numpy.where(self.maximize, -1 * fitness, fitness)
         fit_out = ((fitness < best_fitness) * 1.0).reshape(-1, 1)
 
         if self.centered_rank:

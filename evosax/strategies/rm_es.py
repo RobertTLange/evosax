@@ -256,15 +256,15 @@ def update_P_matrix(
     i_min = jnp.argmin(t_gap[:-1] - t_gap[1:])
     for i in range(memory_size - 1):
         replace_bool = i >= i_min
-        P_c2 = jax.lax.select(
+        P_c2 = jax.numpy.where(
             replace_bool, P_c2.at[:, i].set(P_c2[:, i + 1]), P_c2
         )
-        t_gap_c2 = jax.lax.select(
+        t_gap_c2 = jax.numpy.where(
             replace_bool, t_gap_c2.at[i].set(t_gap_c2[i + 1]), t_gap_c2
         )
 
-    P = jax.lax.select(push_replace, P_c1, P_c2)
-    t_gap = jax.lax.select(push_replace, t_gap_c1, t_gap_c2)
+    P = jax.numpy.where(push_replace, P_c1, P_c2)
+    t_gap = jax.numpy.where(push_replace, t_gap_c1, t_gap_c2)
 
     # Finally update with the most recent evolution path
     P = P.at[:, memory_size - 1].set(p_sigma)
@@ -299,7 +299,7 @@ def sample(
             + (jnp.sqrt(c_cov) * P[:, j])[:, jnp.newaxis]
             * r[:, j][:, jnp.newaxis]
         )
-        z = jax.lax.select(update_bool, new_z, z)
+        z = jax.numpy.where(update_bool, new_z, z)
     z = jnp.swapaxes(z, 1, 0)
     x = mean + sigma * z  # ~ N(m, σ^2 C)
     return x

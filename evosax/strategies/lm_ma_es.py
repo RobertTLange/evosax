@@ -286,7 +286,7 @@ def sample(
         new_z = (1 - c_d[j]) * z + (c_d[j] * M[:, j])[:, jnp.newaxis] * (
             M[:, j][:, jnp.newaxis] * z
         )
-        z = jax.lax.select(update_bool, new_z, z)
+        z = jax.numpy.where(update_bool, new_z, z)
     z = jnp.swapaxes(z, 1, 0)
     x = mean + sigma * z  # ~ N(m, σ^2 C)
     return x

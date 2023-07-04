@@ -91,7 +91,7 @@ class RestartWrapper(object):
         # Simple tree map - jittable if state dimensions are static
         # Otherwise restart wrapper has to overwrite `ask`
         new_state = jax.tree_map(
-            lambda x, y: jax.lax.select(state.restart_state.restart_next, x, y),
+            lambda x, y: jax.numpy.where(state.restart_state.restart_next, x, y),
             restart_state,
             state,
         )

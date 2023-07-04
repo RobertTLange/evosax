@@ -124,16 +124,16 @@ class SimAnneal(Strategy):
         # Replace mean either if improvement or random metropolis acceptance
         rand_replace = jnp.logical_or(improved, state.replace_rng > metropolis)
         # Note: We replace by best member in generation (not completely random)
-        mean = jax.lax.select(rand_replace, gen_member, state.mean)
+        mean = jax.numpy.where(rand_replace, gen_member, state.mean)
 
         # Update permutation standard deviation
-        sigma = jax.lax.select(
+        sigma = jax.numpy.where(
             state.sigma > params.sigma_limit,
             state.sigma * params.sigma_decay,
             state.sigma,
         )
 
-        temp = jax.lax.select(
+        temp = jax.numpy.where(
             state.temp > params.temp_limit,
             state.temp * params.temp_decay,
             state.temp,

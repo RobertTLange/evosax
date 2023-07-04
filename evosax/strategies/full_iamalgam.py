@@ -255,30 +255,30 @@ def adaptive_variance_scaling(
 ) -> Tuple[float, int]:
     """AVS - adaptively rescale covariance depending on SDR."""
     # Case 1: If improvement in best fitness -> SDR increase c_mult! [L14-19]
-    new_nis_counter = jax.lax.select(any_improvement, 0, nis_counter)
+    new_nis_counter = jax.numpy.where(any_improvement, 0, nis_counter)
     reset_criterion = jnp.logical_and(any_improvement, c_mult < 1)
-    c_mult = jax.lax.select(reset_criterion, 1.0, c_mult)
+    c_mult = jax.numpy.where(reset_criterion, 1.0, c_mult)
     sdr_criterion = jnp.logical_and(any_improvement, sdr > theta_sdr)
-    c_mult_inc = jax.lax.select(sdr_criterion, eta_avs_inc * c_mult, c_mult)
+    c_mult_inc = jax.numpy.where(sdr_criterion, eta_avs_inc * c_mult, c_mult)
 
     # Case 2: If  no improvement in best fitness -> Decrease c_mult! [L21-24]
     nis_dec_criterion = jnp.logical_and(1 - any_improvement, c_mult <= 1)
-    new_nis_counter = jax.lax.select(
+    new_nis_counter = jax.numpy.where(
         nis_dec_criterion, nis_counter + 1, new_nis_counter
     )
     dec_criterion = jnp.logical_and(
         1 - any_improvement,
         jnp.logical_or(c_mult > 1, new_nis_counter >= nis_max_gens),
     )
-    c_mult_dec = jax.lax.select(dec_criterion, eta_avs_dec * c_mult, c_mult)
+    c_mult_dec = jax.numpy.where(dec_criterion, eta_avs_dec * c_mult, c_mult)
     c_dec_criterion = jnp.logical_and(
         1 - any_improvement, new_nis_counter < nis_max_gens
     )
     c_dec_reset_criterion = jnp.logical_and(c_dec_criterion, c_mult_dec < 1)
-    c_mult_dec = jax.lax.select(c_dec_reset_criterion, 1.0, c_mult_dec)
+    c_mult_dec = jax.numpy.where(c_dec_reset_criterion, 1.0, c_mult_dec)
 
     # Select new multiplier based on case at hand
-    new_c_mult = jax.lax.select(any_improvement, c_mult_inc, c_mult_dec)
+    new_c_mult = jax.numpy.where(any_improvement, c_mult_inc, c_mult_dec)
     return new_c_mult, new_nis_counter
 
 

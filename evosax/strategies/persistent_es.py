@@ -148,8 +148,8 @@ class PersistentES(Strategy):
         sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         # Reset accumulated antithetic noise memory if done with inner problem
         reset = inner_step_counter >= params.T
-        inner_step_counter = jax.lax.select(reset, 0, inner_step_counter)
-        pert_accum = jax.lax.select(
+        inner_step_counter = jax.numpy.where(reset, 0, inner_step_counter)
+        pert_accum = jax.numpy.where(
             reset, jnp.zeros((self.popsize, self.num_dims)), state.pert_accum
         )
         return state.replace(
