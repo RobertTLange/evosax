@@ -17,20 +17,16 @@ class FitnessShaper(object):
     ):
         """JAX-compatible fitness shaping tool."""
         self.w_decay = w_decay
-        self.centered_rank = bool(centered_rank)
-        self.z_score = bool(z_score)
-        self.norm_range = bool(norm_range)
         self.maximize = bool(maximize)
 
-        if fitness_trafo == "centered_rank":
-            self.centered_rank = True
-        elif fitness_trafo == "z_score":
-            self.z_score = True
-        elif fitness_trafo == "norm_range":
-            self.norm_range = True
-        elif fitness_trafo == "raw":
-            pass
-
+        if fitness_trafo in ["centered_rank", "z_score", "norm_range", "raw"]:
+            self.centered_rank = fitness_trafo == "centered_rank"
+            self.z_score = fitness_trafo == "z_score"
+            self.norm_range = fitness_trafo == "norm_range"
+        else:
+            self.centered_rank = bool(centered_rank)
+            self.z_score = bool(z_score)
+            self.norm_range = bool(norm_range)
         # Check that only single fitness shaping transformation is used
         num_options_on = self.centered_rank + self.z_score + self.norm_range
         assert (

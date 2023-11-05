@@ -84,7 +84,7 @@ class LES(Strategy):
             print(f"Loaded LES model from ckpt: {net_ckpt_path}")
 
         if net_params is None and net_ckpt_path is None:
-            ckpt_fname = "2023_03_les_v1.pkl"
+            ckpt_fname = "2023_10_les_v2.pkl"
             data = pkgutil.get_data(__name__, f"ckpt/les/{ckpt_fname}")
             self.les_net_params = load_pkl_object(data, pkg_load=True)
             print(f"Loaded pretrained LES model from ckpt: {ckpt_fname}")

@@ -11,7 +11,7 @@
     - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
     - [ ] CNN Hypernetwork (Ha - start with simple MLP)
 
-### [v0.1.5] - [TBD]
+### [v0.1.5] - [11/2023]
 
 ##### Added
 
@@ -19,6 +19,7 @@
 - Adds `sigma_meta` as kwarg to `SAMR_GA` and `GESMR_GA`.
 - Adds `sigma_init` as kwarg to `LGA` and `LES`.
 - Adds Noise-Reuse ES - `NoiseReuseES` - ([Li et al., 2023](https://arxiv.org/pdf/2304.12180.pdf)) as a generalization of PES. 
+- Fix LES evolution path calculation and re-ran meta-training for checkpoint.
 
 ##### Fixed
 

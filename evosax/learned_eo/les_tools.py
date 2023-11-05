@@ -55,7 +55,7 @@ class EvolutionPath(object):
         """Batch update evolution paths for multiple dims & timescales."""
 
         def update_path(lrate, path, diff):
-            return (1 - lrate) * path + (1 - lrate) * diff
+            return (1 - lrate) * path + lrate * diff
 
         return jax.vmap(update_path, in_axes=(0, 1, None), out_axes=1)(
             self.timescales, paths, diff
