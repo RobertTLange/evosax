@@ -102,7 +102,7 @@ class SNES(Strategy):
             maxval=params.init_max,
         )
         use_des_weights = params.temperature > 0.0
-        weights = jax.lax.select(
+        weights = jax.numpy.where(
             use_des_weights,
             get_temp_weights(self.popsize, params.temperature),
             get_recombination_weights(self.popsize),

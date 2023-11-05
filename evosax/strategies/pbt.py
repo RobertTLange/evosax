@@ -117,7 +117,7 @@ def single_member_exploit(
     """Get the top and bottom performers."""
     best_id = jnp.argmax(fitness)
     exploit_bool = member_id != best_id  # Copy if worker not best
-    copy_id = jax.lax.select(exploit_bool, best_id, member_id)
+    copy_id = jax.numpy.where(exploit_bool, best_id, member_id)
     hyperparams_copy = archive[copy_id]
     return exploit_bool, copy_id, hyperparams_copy
 
@@ -132,7 +132,7 @@ def single_member_explore(
     explore_noise = (
         jax.random.normal(rng, hyperparams.shape) * params.noise_scale
     )
-    hyperparams_explore = jax.lax.select(
+    hyperparams_explore = jax.numpy.where(
         exploit_bool, hyperparams + explore_noise, hyperparams
     )
     return hyperparams_explore

@@ -81,7 +81,7 @@ def EllipsoidalOriginal(
     z_vec = jax.vmap(oscillation_trafo)(arr)
 
     def get_val(i):
-        exp = jax.lax.select(dim > 1, 6.0 * i / (dim - 1), 6.0)
+        exp = jax.numpy.where(dim > 1, 6.0 * i / (dim - 1), 6.0)
         s = 10 ** exp * z_vec[i] * z_vec[i]
         return s
 
@@ -112,11 +112,11 @@ def BuecheRastrigin(
         max_dims: int, vector: chex.Array, num_dims: int
     ) -> chex.Array:
         def get_val(i):
-            s = jax.lax.select(
+            s = jax.numpy.where(
                 num_dims > 1, 10 ** (0.5 * (i / (num_dims - 1.0))), 10 ** 0.5
             )
             extra_cond = jnp.logical_and(i % 2 == 0, vector[i] > 0)
-            s = jax.lax.select(extra_cond, s * 10, s)
+            s = jax.numpy.where(extra_cond, s * 10, s)
             return s
 
         return jax.vmap(get_val, in_axes=0)(jnp.arange(max_dims))
@@ -136,7 +136,7 @@ def LinearSlope(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
     z = jnp.matmul(R, arr)
 
     def get_val(i):
-        s = 10 ** jax.lax.select(dim > 1, i / (dim - 1.0), 1.0)
+        s = 10 ** jax.numpy.where(dim > 1, i / (dim - 1.0), 1.0)
         z_opt = 5 * jnp.sum(jnp.abs(R[i, :]))
         return s * (z_opt - z[i])
 
@@ -156,7 +156,7 @@ def AttractiveSector(
 
     def get_val(i):
         z = z_vec[i]
-        s = jax.lax.select(z * x_opt[i] > 0, 100, 1)
+        s = jax.numpy.where(z * x_opt[i] > 0, 100, 1)
         return (s * z) ** 2
 
     out = jax.vmap(get_val)(jnp.arange(dim))
@@ -181,7 +181,7 @@ def StepEllipsoidal(
     z_tilde = jnp.matmul(Q, z_tilde)
 
     def get_val(i):
-        exponent = jax.lax.select(dim > 1.0, 2.0 * i / (dim - 1.0), 2.0)
+        exponent = jax.numpy.where(dim > 1.0, 2.0 * i / (dim - 1.0), 2.0)
         return 10.0 ** exponent * z_tilde[i] ** 2
 
     out = jax.vmap(get_val)(jnp.arange(dim))
@@ -231,7 +231,7 @@ def EllipsoidalRotated(
     z_vec = jax.vmap(oscillation_trafo)(r_x)
 
     def get_val(i):
-        exp = jax.lax.select(dim > 1, 6.0 * i / (dim - 1), 6.0)
+        exp = jax.numpy.where(dim > 1, 6.0 * i / (dim - 1), 6.0)
         s = 10 ** exp * z_vec[i] * z_vec[i]
         return s
 

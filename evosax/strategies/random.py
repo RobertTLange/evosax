@@ -90,5 +90,5 @@ class RandomSearch(Strategy):
         x = x[idx]
         # Set mean to best member seen so far
         improved = fitness[0] < state.best_fitness
-        best_mean = jax.lax.select(improved, x[0], state.best_member)
+        best_mean = jax.numpy.where(improved, x[0], state.best_member)
         return state.replace(mean=best_mean)

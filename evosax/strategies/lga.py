@@ -183,7 +183,7 @@ class LGA(Strategy):
 
         # Argsort by performance and set mean
         improved = fit_all[idx][0] < state.best_fitness
-        best_mean = jax.lax.select(improved, x_all[idx][0], state.best_member)
+        best_mean = jax.numpy.where(improved, x_all[idx][0], state.best_member)
         return state.replace(
             rng=rng_next,
             mean=best_mean,

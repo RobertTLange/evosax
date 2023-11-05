@@ -147,24 +147,24 @@ def single_member_ask(
     row_ids = jax.random.choice(
         rng_vectors, jnp.arange(archive.shape[0]), (6,), replace=False
     )
-    a = jax.lax.select(
+    a = jax.numpy.where(
         row_ids[0] == member_id, archive[row_ids[5]], archive[row_ids[0]]
     )
-    b = jax.lax.select(
+    b = jax.numpy.where(
         row_ids[1] == member_id, archive[row_ids[5]], archive[row_ids[1]]
     )
-    c = jax.lax.select(
+    c = jax.numpy.where(
         row_ids[2] == member_id, archive[row_ids[5]], archive[row_ids[2]]
     )
-    d = jax.lax.select(
+    d = jax.numpy.where(
         row_ids[3] == member_id, archive[row_ids[5]], archive[row_ids[3]]
     )
-    e = jax.lax.select(
+    e = jax.numpy.where(
         row_ids[4] == member_id, archive[row_ids[5]], archive[row_ids[4]]
     )
 
     # Use best vector instead of random `a` vector if `mutate_vector` == "best"
-    a = jax.lax.select(params.mutate_best_vector, best_member, a)
+    a = jax.numpy.where(params.mutate_best_vector, best_member, a)
 
     # Sample random dimension that will be alter for sure
     R = jax.random.randint(rng_R, (1,), minval=0, maxval=num_dims)

@@ -135,12 +135,12 @@ class MR15_GA(Strategy):
         # Update mutation sigma - double if more than 15% improved
         good_mutations_ratio = jnp.mean(fitness < state.best_fitness)
         increase_sigma = good_mutations_ratio > params.sigma_ratio
-        sigma = jax.lax.select(
+        sigma = jax.numpy.where(
             increase_sigma, 2 * state.sigma, 0.5 * state.sigma
         )
         # Set mean to best member seen so far
         improved = fitness[0] < state.best_fitness
-        best_mean = jax.lax.select(improved, archive[0], state.best_member)
+        best_mean = jax.numpy.where(improved, archive[0], state.best_member)
         return state.replace(
             fitness=fitness, archive=archive, sigma=sigma, mean=best_mean
         )

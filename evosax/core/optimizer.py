@@ -245,7 +245,7 @@ class ClipUp(Optimizer):
             vel_magnitude = jnp.sqrt(jnp.sum(velocity * velocity))
             ratio_scale = vel_magnitude > max_speed
             scaled_vel = velocity * (max_speed / (vel_magnitude + 1e-08))
-            x_out = jax.lax.select(ratio_scale, scaled_vel, velocity)
+            x_out = jax.numpy.where(ratio_scale, scaled_vel, velocity)
             return x_out
 
         # Clip the update velocity and apply the update

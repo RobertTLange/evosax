@@ -121,7 +121,7 @@ class NoiseReuseES(Strategy):
         )
         neg_perts = -pos_perts
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)
-        unroll_pert = jax.lax.select(
+        unroll_pert = jax.numpy.where(
             state.inner_step_counter == 0, perts, state.unroll_pert
         )
         # Add the perturbations from this unroll to the perturbation accumulators
@@ -150,7 +150,7 @@ class NoiseReuseES(Strategy):
         sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
         # Resample antithetic noise if done with inner problem
         reset = inner_step_counter >= params.T
-        inner_step_counter = jax.lax.select(reset, 0, inner_step_counter)
+        inner_step_counter = jax.numpy.where(reset, 0, inner_step_counter)
         return state.replace(
             mean=mean,
             sigma=sigma,

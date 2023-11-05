@@ -153,7 +153,7 @@ class xNES(Strategy):
             params.c_prime,
             params.rho,
         )
-        lrate_sigma = jax.lax.select(
+        lrate_sigma = jax.numpy.where(
             params.use_adasam, lrate_sigma, state.lrate_sigma
         )
         return state.replace(
@@ -194,7 +194,7 @@ def adaptation_sampling(
     )
 
     # Check test significance and update lrate
-    lrate_sigma = jax.lax.select(
+    lrate_sigma = jax.numpy.where(
         cumulative < rho,
         (1 - c_prime) * lrate_sigma + c_prime * lrate_sigma_init,
         jnp.minimum(1, (1 - c_prime) * lrate_sigma),
