@@ -35,8 +35,8 @@ git_tar = f"https://github.com/RobertTLange/evosax/archive/v{verstr}.tar.gz"
 
 requires = (
     [
-        "jax>=0.3.0",
-        "jaxlib>=0.3.0",
+        "jax",
+        "jaxlib",
         "chex",
         "flax",
         "numpy",
