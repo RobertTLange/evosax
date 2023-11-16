@@ -41,11 +41,7 @@ class FOX(Strategy):
         """FOX: a FOX-inspired optimization algorithm (Mohammed & Rashid, 2022)
         Reference: https://link.springer.com/article/10.1007/s10489-022-03533-0"""
         super().__init__(
-            popsize, 
-            num_dims, 
-            pholder_params, 
-            n_devices=n_devices, 
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.strategy_name = "FOX"
 
@@ -54,9 +50,7 @@ class FOX(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(self, 
-                            rng: chex.PRNGKey, 
-                            params: EvoParams) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -70,13 +64,12 @@ class FOX(Strategy):
             best_archive=initialization,
             mint=jnp.array([999999]),
             best_archive_fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
-            best_member=initialization.mean(axis=0))
+            best_member=initialization.mean(axis=0),
+        )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, 
-        state: EvoState, 
-        params: EvoParams
+        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
     ) -> Tuple[chex.Array, EvoState]:
         """
         `ask` for new proposed candidates to evaluate next.
@@ -116,11 +109,12 @@ class FOX(Strategy):
         # remember default is minimize fitness
         replace = fitness <= state.best_archive_fitness
         best_archive = (
-            jnp.expand_dims(replace, 1) * x + 
-            (1 - jnp.expand_dims(replace, 1)) * state.best_archive)
+            jnp.expand_dims(replace, 1) * x
+            + (1 - jnp.expand_dims(replace, 1)) * state.best_archive
+        )
         best_archive_fitness = (
-            replace * fitness + 
-            (1 - replace) * state.best_archive_fitness)
+            replace * fitness + (1 - replace) * state.best_archive_fitness
+        )
         return state.replace(
             archive=x,
             fitness=fitness,
@@ -143,39 +137,28 @@ def update_fox_position(
     """Update position based on: Red Fox Hunting Behavior: Exploration and Exploitation"""
     current_global_best_id = jnp.argmin(best_fitness)
     current_global_best = best_archive[current_global_best_id]
-    
+
     aa = jnp.array([2.0 * (1.0 - (1.0 / gen_counter))])
     r1 = jax.random.uniform(rng, (1,))
     r2 = jax.random.uniform(rng + 1, (1,))
 
     p = jnp.array([0.5])
-    
+
     t1 = jax.random.uniform(rng + 2, (len(current_global_best),))
     sps = current_global_best / t1
     dis = 0.5 * sps * t1
     tt = jnp.mean(t1)
     t = tt / 2.0
-    jump = 0.5 * 9.81 * t ** 2
-    
+    jump = 0.5 * 9.81 * t**2
+
     new_archive = jnp.where(
         r1 > p,
-        jnp.where(r2 > c1,
-                  dis * jump * c1,
-                  dis * jump * c2),
-        (current_global_best 
-         + 
-         jax.random.normal(rng + 3, shape=(len(current_global_best),)) * 
-         mint * aa
-        )
-    )
-    
-    new_tt = jnp.where(
-        r1 > p,
-        jnp.where(
-            mint > tt,
-            tt,
-            mint
+        jnp.where(r2 > c1, dis * jump * c1, dis * jump * c2),
+        (
+            current_global_best
+            + jax.random.normal(rng + 3, shape=(len(current_global_best),)) * mint * aa
         ),
-        mint
     )
+
+    new_tt = jnp.where(r1 > p, jnp.where(mint > tt, tt, mint), mint)
     return new_archive.squeeze(), new_tt.squeeze()
