@@ -39,10 +39,11 @@ def pytest_generate_tests(metafunc):
                     "LES",
                     "LGA",
                     "NoiseReuseES",
+                    "FOX",
                 ],
             )
         else:
-            metafunc.parametrize("strategy_name", ["LGA"])
+            metafunc.parametrize("strategy_name", ["FOX"])
 
     if "classic_name" in metafunc.fixturenames:
         if metafunc.config.getoption("all"):

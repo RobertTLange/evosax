@@ -32,6 +32,7 @@ from .random import RandomSearch
 from .les import LES
 from .lga import LGA
 from .noise_reuse_es import NoiseReuseES
+from .fox import FOX
 
 
 __all__ = [
@@ -69,4 +70,5 @@ __all__ = [
     "LES",
     "LGA",
     "NoiseReuseES",
+    "FOX"
 ]
