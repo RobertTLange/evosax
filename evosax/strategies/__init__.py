@@ -32,7 +32,9 @@ from .random import RandomSearch
 from .les import LES
 from .lga import LGA
 from .noise_reuse_es import NoiseReuseES
+from .hill_climber import HillClimber
 
+# from .evotf_es import EvoTF_ES
 
 __all__ = [
     "SimpleGA",
@@ -69,4 +71,6 @@ __all__ = [
     "LES",
     "LGA",
     "NoiseReuseES",
+    "HillClimber",
+    # "EvoTF_ES",
 ]

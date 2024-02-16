@@ -3,8 +3,8 @@ import jax
 import jax.numpy as jnp
 import chex
 from flax import struct
-from flax import linen as nn
 from ..strategy import Strategy
+from .des import get_des_weights
 
 
 @struct.dataclass
@@ -29,7 +29,7 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_recombination_weights(popsize: int, use_baseline: bool = True):
+def get_snes_weights(popsize: int, use_baseline: bool = True):
     """Get recombination weights for different ranks."""
 
     def get_weight(i):
@@ -37,16 +37,7 @@ def get_recombination_weights(popsize: int, use_baseline: bool = True):
 
     weights = jax.vmap(get_weight)(jnp.arange(1, popsize + 1))
     weights_norm = weights / jnp.sum(weights)
-    return weights_norm - use_baseline * (1 / popsize)
-
-
-def get_temp_weights(popsize: int, temperature: float):
-    """Get weights based on original discovered weights (Lange et al, 2022)."""
-    ranks = jnp.arange(popsize)
-    ranks /= ranks.size - 1
-    ranks = ranks - 0.5
-    weights = nn.softmax(-temperature * ranks)
-    return weights
+    return (weights_norm - use_baseline * (1 / popsize))[:, None]
 
 
 class SNES(Strategy):
@@ -65,12 +56,7 @@ class SNES(Strategy):
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         self.strategy_name = "SNES"
 
@@ -81,9 +67,7 @@ class SNES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolutionary strategy."""
-        lrate_sigma = (3 + jnp.log(self.num_dims)) / (
-            5 * jnp.sqrt(self.num_dims)
-        )
+        lrate_sigma = (3 + jnp.log(self.num_dims)) / (5 * jnp.sqrt(self.num_dims))
         params = EvoParams(
             lrate_sigma=lrate_sigma,
             sigma_init=self.sigma_init,
@@ -91,9 +75,7 @@ class SNES(Strategy):
         )
         return params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolutionary strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -104,13 +86,13 @@ class SNES(Strategy):
         use_des_weights = params.temperature > 0.0
         weights = jax.lax.select(
             use_des_weights,
-            get_temp_weights(self.popsize, params.temperature),
-            get_recombination_weights(self.popsize),
+            get_des_weights(self.popsize, params.temperature),
+            get_snes_weights(self.popsize),
         )
         state = EvoState(
             mean=initialization,
             sigma=params.sigma_init * jnp.ones(self.num_dims),
-            weights=weights.reshape(-1, 1),
+            weights=weights,
             best_member=initialization,
         )
 
@@ -136,7 +118,7 @@ class SNES(Strategy):
         ranks = fitness.argsort()
         sorted_noise = s[ranks]
         grad_mean = (state.weights * sorted_noise).sum(axis=0)
-        grad_sigma = (state.weights * (sorted_noise ** 2 - 1)).sum(axis=0)
+        grad_sigma = (state.weights * (sorted_noise**2 - 1)).sum(axis=0)
         mean = state.mean + params.lrate_mean * state.sigma * grad_mean
         sigma = state.sigma * jnp.exp(params.lrate_sigma / 2 * grad_sigma)
         return state.replace(mean=mean, sigma=sigma)

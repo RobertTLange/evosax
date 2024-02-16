@@ -82,11 +82,7 @@ class Strategy(object):
         state = self.initialize_strategy(rng, params)
 
         if init_mean is not None:
-            if self.use_param_reshaper:
-                init_mean = self.param_reshaper.flatten_single(init_mean)
-            else:
-                init_mean = jnp.asarray(init_mean)
-            state = state.replace(mean=init_mean)
+            state = self.set_mean(state, init_mean)
         return state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -151,9 +147,7 @@ class Strategy(object):
             gen_counter=state.gen_counter + 1,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """Search-specific `initialize` method. Returns initial state."""
         raise NotImplementedError
 
@@ -180,3 +174,13 @@ class Strategy(object):
         else:
             x_out = state.mean
         return x_out
+
+    def set_mean(
+        self, state: EvoState, replace_mean: Union[chex.Array, chex.ArrayTree]
+    ) -> EvoState:
+        if self.use_param_reshaper:
+            replace_mean = self.param_reshaper.flatten_single(replace_mean)
+        else:
+            replace_mean = jnp.asarray(replace_mean)
+        state = state.replace(mean=replace_mean)
+        return state

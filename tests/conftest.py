@@ -39,6 +39,7 @@ def pytest_generate_tests(metafunc):
                     "LES",
                     "LGA",
                     "NoiseReuseES",
+                    "HillClimber",
                 ],
             )
         else:

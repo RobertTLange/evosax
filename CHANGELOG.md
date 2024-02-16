@@ -1,15 +1,19 @@
-### Work-in-Progress
+### [v0.1.6] - [TBD]
 
-- Implement more strategies
-    - [ ] Large-scale CMA-ES variants
-        - [ ] [LM-CMA](https://www.researchgate.net/publication/282612269_LM-CMA_An_alternative_to_L-BFGS_for_large-scale_black_Box_optimization)
-        - [ ] [VkD-CMA](https://hal.inria.fr/hal-01306551v1/document), [Code](https://gist.github.com/youheiakimoto/2fb26c0ace43c22b8f19c7796e69e108)
-    - [ ] [RBO](http://proceedings.mlr.press/v100/choromanski20a/choromanski20a.pdf)
+##### Added
 
-- Encoding methods - via special reshape wrappers
-    - [ ] Discrete Cosine Transform
-    - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
-    - [ ] CNN Hypernetwork (Ha - start with simple MLP)
+- Implemented Hill Climbing strategy as a simple baseline.
+- Adds `use_antithetic_sampling` option to OpenAI-ES.
+- Added EvoTransformer strategy and trained checkpoint.
+
+##### Fixed
+
+- Gradientless Descent best member replacement.
+
+##### Changed
+
+- SNES import DES weights directly and reuses code
+- Made Sep_CMA_ES and OpenAI-ES use vector sigmas for EvoTransformer data collection.
 
 ### [v0.1.5] - [11/2023]
 

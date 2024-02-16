@@ -34,6 +34,8 @@ from .strategies import (
     LES,
     LGA,
     NoiseReuseES,
+    HillClimber,
+    # EvoTF_ES,
 )
 from .core import FitnessShaper, ParameterReshaper
 from .utils import ESLog
@@ -76,6 +78,8 @@ Strategies = {
     "LES": LES,
     "LGA": LGA,
     "NoiseReuseES": NoiseReuseES,
+    "HillClimber": HillClimber,
+    # "EvoTF_ES": EvoTF_ES,
 }
 
 __all__ = [
@@ -122,4 +126,6 @@ __all__ = [
     "LES",
     "LGA",
     "NoiseReuseES",
+    "HillClimber",
+    # "EvoTF_ES",
 ]
