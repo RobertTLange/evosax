@@ -3,7 +3,7 @@
 ##### Added
 
 - Implemented Hill Climbing strategy as a simple baseline.
-- Adds `use_antithetic_sampling` option to OpenAI-ES.
+- Adds `use_antithetic_sampling` option to OpenAI-ES & PGPE.
 - Added EvoTransformer strategy and trained checkpoint.
 
 ##### Fixed
