@@ -32,13 +32,11 @@ class EvoParams:
 
 
 class PGPE(Strategy):
-
     def __init__(
         self,
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        use_antithetic_sampling: bool = True,
         elite_ratio: float = 1.0,
         opt_name: str = "adam",
         lrate_init: float = 0.15,
@@ -65,7 +63,6 @@ class PGPE(Strategy):
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "PGPE"
-        self.use_antithetic_sampling = use_antithetic_sampling
 
         # Set core kwargs es_params (lrate/sigma schedules)
         self.lrate_init = lrate_init
@@ -111,14 +108,11 @@ class PGPE(Strategy):
     ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
-        if self.use_antithetic_sampling:
-            z_plus = jax.random.normal(
-                rng,
-                (int(self.popsize / 2), self.num_dims),
-            )
-            z = jnp.concatenate([z_plus, -1.0 * z_plus])
-        else:
-            z = jax.random.normal(rng, (self.popsize, self.num_dims))
+        z_plus = jax.random.normal(
+            rng,
+            (int(self.popsize / 2), self.num_dims),
+        )
+        z = jnp.hstack([z_plus, -1.0 * z_plus]).reshape(-1, self.num_dims)
         x = state.mean + state.sigma * z
         return x, state
 
