@@ -1,10 +1,10 @@
-### [v0.1.6] - [TBD]
+### [v0.1.6] - [03/2024]
 
 ##### Added
 
 - Implemented Hill Climbing strategy as a simple baseline.
 - Adds `use_antithetic_sampling` option to OpenAI-ES.
-- Added EvoTransformer strategy and trained checkpoint.
+- Added `EvoTransformer` and `EvoTF_ES` strategy with example trained checkpoint.
 
 ##### Fixed
 

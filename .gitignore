@@ -18,7 +18,6 @@ dev_notes.md
 configs/
 experiments/
 v2/
-evotf_es.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

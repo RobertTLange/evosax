@@ -40,6 +40,7 @@ def pytest_generate_tests(metafunc):
                     "LGA",
                     "NoiseReuseES",
                     "HillClimber",
+                    "EvoTF_ES",
                 ],
             )
         else:
