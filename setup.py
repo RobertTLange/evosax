@@ -41,6 +41,7 @@ requires = (
         "pyyaml",
         "pickle5; python_version < '3.8'",
         "matplotlib",
+        "dotmap",
     ],
 )
 
