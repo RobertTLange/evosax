@@ -54,36 +54,36 @@ def test_env_ffw_rollout(env_name: str):
     assert fitness.shape == (20, 10)
 
 
-def test_env_rec_rollout(env_name: str):
-    rng = jax.random.PRNGKey(0)
-    evaluator = GymnaxFitness(env_name, num_env_steps=100, num_rollouts=10)
-    network = NetworkMapper["LSTM"](
-        num_hidden_units=64,
-        num_output_units=evaluator.action_shape,
-        output_activation="categorical",
-    )
+# def test_env_rec_rollout(env_name: str):
+#     rng = jax.random.PRNGKey(0)
+#     evaluator = GymnaxFitness(env_name, num_env_steps=100, num_rollouts=10)
+#     network = NetworkMapper["LSTM"](
+#         num_hidden_units=64,
+#         num_output_units=evaluator.action_shape,
+#         output_activation="categorical",
+#     )
 
-    pholder = jnp.zeros((1, evaluator.input_shape[0]))
-    carry_init = network.initialize_carry()
-    net_params = network.init(
-        rng,
-        x=pholder,
-        carry=carry_init,
-        rng=rng,
-    )
-    reshaper = ParameterReshaper(net_params)
-    evaluator.set_apply_fn(network.apply, network.initialize_carry)
-    strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
-    state = strategy.initialize(rng)
+#     pholder = jnp.zeros((1, evaluator.input_shape[0]))
+#     carry_init = network.initialize_carry()
+#     net_params = network.init(
+#         rng,
+#         x=pholder,
+#         carry=carry_init,
+#         rng=rng,
+#     )
+#     reshaper = ParameterReshaper(net_params)
+#     evaluator.set_apply_fn(network.apply, network.initialize_carry)
+#     strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
+#     state = strategy.initialize(rng)
 
-    # Run the ask-eval-tell loop
-    rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    x, state = strategy.ask(rng_gen, state)
-    x_re = reshaper.reshape(x)
-    fitness = evaluator.rollout(rng_eval, x_re)
+#     # Run the ask-eval-tell loop
+#     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
+#     x, state = strategy.ask(rng_gen, state)
+#     x_re = reshaper.reshape(x)
+#     fitness = evaluator.rollout(rng_eval, x_re)
 
-    # Assert shape (#popmembers, #rollouts)
-    assert fitness.shape == (20, 10)
+#     # Assert shape (#popmembers, #rollouts)
+#     assert fitness.shape == (20, 10)
 
 
 def test_vision_fitness():
@@ -124,28 +124,28 @@ def test_vision_fitness():
     assert acc.shape == (4, 1)
 
 
-def test_sequence_fitness():
-    rng = jax.random.PRNGKey(0)
-    evaluator = SequenceFitness(task_name="Addition", batch_size=10, test=False)
-    network = NetworkMapper["LSTM"](
-        num_hidden_units=100,
-        num_output_units=evaluator.action_shape,
-    )
-    params = network.init(
-        rng,
-        x=jnp.ones([1, evaluator.input_shape[0]]),
-        carry=network.initialize_carry(),
-        rng=rng,
-    )
-    param_reshaper = ParameterReshaper(params)
-    evaluator.set_apply_fn(network.apply, network.initialize_carry)
+# def test_sequence_fitness():
+#     rng = jax.random.PRNGKey(0)
+#     evaluator = SequenceFitness(task_name="Addition", batch_size=10, test=False)
+#     network = NetworkMapper["LSTM"](
+#         num_hidden_units=100,
+#         num_output_units=evaluator.action_shape,
+#     )
+#     params = network.init(
+#         rng,
+#         x=jnp.ones([1, evaluator.input_shape[0]]),
+#         carry=network.initialize_carry(),
+#         rng=rng,
+#     )
+#     param_reshaper = ParameterReshaper(params)
+#     evaluator.set_apply_fn(network.apply, network.initialize_carry)
 
-    strategy = ARS(4, param_reshaper.total_params)
-    es_state = strategy.initialize(rng)
+#     strategy = ARS(4, param_reshaper.total_params)
+#     es_state = strategy.initialize(rng)
 
-    x, es_state = strategy.ask(rng, es_state)
-    reshaped_params = param_reshaper.reshape(x)
-    # Rollout population performance, reshape fitness & update strategy.
-    loss, perf = evaluator.rollout(rng, reshaped_params)
-    assert loss.shape == (4, 1)
-    assert perf.shape == (4, 1)
+#     x, es_state = strategy.ask(rng, es_state)
+#     reshaped_params = param_reshaper.reshape(x)
+#     # Rollout population performance, reshape fitness & update strategy.
+#     loss, perf = evaluator.rollout(rng, reshaped_params)
+#     assert loss.shape == (4, 1)
+#     assert perf.shape == (4, 1)

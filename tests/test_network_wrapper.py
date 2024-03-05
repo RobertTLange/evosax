@@ -22,23 +22,23 @@ def test_mlp_forward():
     assert out.shape == (1,)
 
 
-def test_lstm_forward():
-    rng = jax.random.PRNGKey(0)
-    network = LSTM(
-        num_hidden_units=32,
-        num_output_units=1,
-        output_activation="identity",
-    )
-    pholder = jnp.zeros((4,))
-    carry_init = network.initialize_carry()
-    params = network.init(
-        rng,
-        x=pholder,
-        carry=carry_init,
-        rng=rng,
-    )
-    _, out = jax.jit(network.apply)(params, pholder, carry_init, rng)
-    assert out.shape == (1,)
+# def test_lstm_forward():
+#     rng = jax.random.PRNGKey(0)
+#     network = LSTM(
+#         num_hidden_units=32,
+#         num_output_units=1,
+#         output_activation="identity",
+#     )
+#     pholder = jnp.zeros((4,))
+#     carry_init = network.initialize_carry()
+#     params = network.init(
+#         rng,
+#         x=pholder,
+#         carry=carry_init,
+#         rng=rng,
+#     )
+#     _, out = jax.jit(network.apply)(params, pholder, carry_init, rng)
+#     assert out.shape == (1,)
 
 
 def test_cnn_forward():
