@@ -13,7 +13,7 @@
 ##### Changed
 
 - SNES import DES weights directly and reuses code
-- Made Sep_CMA_ES and OpenAI-ES use vector sigmas for EvoTransformer data collection.
+- Made `Sep_CMA_ES` and `OpenAI-ES` use vector sigmas for EvoTransformer data collection.
 
 ### [v0.1.5] - [11/2023]
 
