@@ -2,7 +2,6 @@ import jax
 import jax.numpy as jnp
 from typing import Optional
 import chex
-import gymnax
 
 
 class GymnaxFitness(object):
@@ -20,12 +19,12 @@ class GymnaxFitness(object):
         self.num_rollouts = num_rollouts
         self.test = test
 
-        # try:
-
-        # except ImportError:
-        #     raise ImportError(
-        #         "You need to install `gymnax` to use its fitness rollouts."
-        #     )
+        try:
+            import gymnax
+        except ImportError:
+            raise ImportError(
+                "You need to install `gymnax` to use its fitness rollouts."
+            )
 
         # Define the RL environment & replace default parameters if desired
         self.env, self.env_params = gymnax.make(env_name, **env_kwargs)
