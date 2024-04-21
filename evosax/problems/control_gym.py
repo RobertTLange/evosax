@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 from typing import Optional
 import chex
+import gymnax
 
 
 class GymnaxFitness(object):
@@ -19,12 +20,12 @@ class GymnaxFitness(object):
         self.num_rollouts = num_rollouts
         self.test = test
 
-        try:
-            import gymnax
-        except ImportError:
-            raise ImportError(
-                "You need to install `gymnax` to use its fitness rollouts."
-            )
+        # try:
+
+        # except ImportError:
+        #     raise ImportError(
+        #         "You need to install `gymnax` to use its fitness rollouts."
+        #     )
 
         # Define the RL environment & replace default parameters if desired
         self.env, self.env_params = gymnax.make(env_name, **env_kwargs)
@@ -68,14 +69,10 @@ class GymnaxFitness(object):
         else:
             self.rollout_map = self.rollout_pop
 
-    def rollout_pmap(
-        self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
-    ):
+    def rollout_pmap(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Parallelize rollout across devices. Split keys/reshape correctly."""
         keys_pmap = jnp.tile(rng_input, (self.n_devices, 1, 1))
-        rew_dev, steps_dev = jax.pmap(self.rollout_pop)(
-            keys_pmap, policy_params
-        )
+        rew_dev, steps_dev = jax.pmap(self.rollout_pop)(keys_pmap, policy_params)
         rew_re = rew_dev.reshape(-1, self.num_rollouts)
         steps_re = steps_dev.reshape(-1, self.num_rollouts)
         return rew_re, steps_re
@@ -88,9 +85,7 @@ class GymnaxFitness(object):
         self.total_env_steps += masks.sum()
         return scores
 
-    def rollout_ffw(
-        self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
-    ):
+    def rollout_ffw(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Rollout an episode with lax.scan."""
         # Reset the environment
         rng_reset, rng_episode = jax.random.split(rng_input)
@@ -136,9 +131,7 @@ class GymnaxFitness(object):
         cum_return = carry_out[-2].squeeze()
         return cum_return, jnp.array(ep_mask)
 
-    def rollout_rnn(
-        self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree
-    ):
+    def rollout_rnn(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Rollout a jitted episode with lax.scan."""
         # Reset the environment
         rng, rng_reset = jax.random.split(rng_input)

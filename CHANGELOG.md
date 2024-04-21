@@ -1,3 +1,9 @@
+### [v0.1.7] - [05/2024]
+
+##### Added
+
+- Implements fully `pmap`-compatible implementations of `OpenES`, `PGPE`, `Sep_CMA_ES` and `SNES`.
+
 ### [v0.1.6] - [03/2024]
 
 ##### Added
