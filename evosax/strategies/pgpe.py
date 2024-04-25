@@ -130,7 +130,6 @@ class PGPE(Strategy):
         fit_1 = fitness[::2]
         fit_2 = fitness[1::2]
         elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
-
         fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
         fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
         fit_diff_noise = noise_1[elite_idx] * fit_diff[:, None]
@@ -144,11 +143,10 @@ class PGPE(Strategy):
 
         baseline = jnp.mean(fitness_elite)
         all_avg_scores = jnp.stack([fit_1[elite_idx], fit_2[elite_idx]]).sum(axis=0) / 2
-
         # Update sigma vector
         delta_sigma = (
             (jnp.expand_dims(all_avg_scores, axis=1) - baseline)
-            * (noise_1**2 - jnp.expand_dims(state.sigma**2, axis=0))
+            * (noise_1[elite_idx] ** 2 - jnp.expand_dims(state.sigma**2, axis=0))
             / state.sigma
         ).mean(axis=0)
 
