@@ -299,10 +299,7 @@ def update_covariance(
     """Update cov. matrix estimator using rank 1 + μ updates."""
     delta_h_sigma = (1 - h_sigma) * c_c * (2 - c_c)
     rank_one = p_c**2
-    rank_mu = jnp.sum(
-        jnp.array([w * (y**2) for w, y in zip(weights, y_k)]),
-        axis=0,
-    )
+    rank_mu = jnp.einsum('i,ij->j', weights, y_k**2)
     C = (
         (1 + c_1 * delta_h_sigma - c_1 - c_mu * jnp.sum(weights)) * C
         + c_1 * rank_one

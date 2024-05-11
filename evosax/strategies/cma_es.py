@@ -345,9 +345,7 @@ def update_covariance(
     )
     delta_h_sigma = (1 - h_sigma) * c_c * (2 - c_c)
     rank_one = jnp.outer(p_c, p_c)
-    rank_mu = jnp.sum(
-        jnp.array([w * jnp.outer(y, y) for w, y in zip(w_io, y_k)]), axis=0
-    )
+    rank_mu = jnp.einsum('i,ij,ik->jk', w_io, y_k, y_k)
     C = (
         (1 + c_1 * delta_h_sigma - c_1 - c_mu * jnp.sum(weights)) * C
         + c_1 * rank_one
