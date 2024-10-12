@@ -41,6 +41,7 @@ def pytest_generate_tests(metafunc):
                     "NoiseReuseES",
                     "HillClimber",
                     "EvoTF_ES",
+                    "DiffusionEvolution",
                 ],
             )
         else:

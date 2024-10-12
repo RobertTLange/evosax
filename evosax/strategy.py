@@ -85,7 +85,7 @@ class Strategy(object):
             state = self.set_mean(state, init_mean)
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
+    # @partial(jax.jit, static_argnums=(0,))
     def ask(
         self,
         rng: chex.PRNGKey,
@@ -109,7 +109,7 @@ class Strategy(object):
             x_out = x_clipped
         return x_out, state
 
-    @partial(jax.jit, static_argnums=(0,))
+    # @partial(jax.jit, static_argnums=(0,))
     def tell(
         self,
         x: Union[chex.Array, chex.ArrayTree],

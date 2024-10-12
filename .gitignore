@@ -1,5 +1,6 @@
 anims/
-examples/experimental
+examples/v2_brax
+examples/v2_nanogpt
 # bbob.py
 # Standard ROB excludes
 .sync-config.cson

@@ -34,6 +34,7 @@ from .lga import LGA
 from .noise_reuse_es import NoiseReuseES
 from .hill_climber import HillClimber
 from .evotf_es import EvoTF_ES
+from .diffusion import DiffusionEvolution
 
 __all__ = [
     "SimpleGA",
@@ -72,4 +73,5 @@ __all__ = [
     "NoiseReuseES",
     "HillClimber",
     "EvoTF_ES",
+    "DiffusionEvolution",
 ]

@@ -1,8 +1,9 @@
-### [v0.1.7] - [05/2024]
+### [v0.1.7] - [10/2024]
 
 ##### Added
 
 - Implements fully `pmap`-compatible implementations of `OpenES`, `PGPE`, `Sep_CMA_ES` and `SNES`.
+- Added `DiffusionEvolution` based on [Zhang et al. (2024)](https://arxiv.org/pdf/2410.02543)
 
 ### [v0.1.6] - [03/2024]
 

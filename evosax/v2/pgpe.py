@@ -155,7 +155,7 @@ class PGPE(DistributedStrategy):
         # Update sigma vector
         delta_sigma = (
             (jnp.expand_dims(all_avg_scores, axis=1) - baseline)
-            * (noise_1**2 - jnp.expand_dims(state.sigma**2, axis=0))
+            * (noise_1[elite_idx] ** 2 - jnp.expand_dims(state.sigma**2, axis=0))
             / state.sigma
         ).mean(axis=0)
         return EvoUpdate(grad_mean=grad_mean, delta_sigma=delta_sigma)
