@@ -13,6 +13,7 @@ class EvoState:
     archive: chex.Array
     alphas: chex.Array
     alphas_past: chex.Array
+    latent_projection: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     gen_counter: int = 0
@@ -21,6 +22,7 @@ class EvoState:
 @struct.dataclass
 class EvoParams:
     sigma_init: float = 1.0
+    init_scale: float = 1.0
     fitness_map_temp: float = 1.0
     fitness_map_power: float = 1.0
     fitness_map_l2_factor: float = 0.0
@@ -41,6 +43,8 @@ class DiffusionEvolution(Strategy):
         alpha_schedule: str = "cosine",
         sigma_init: float = 0.03,
         scale_factor: float = 1.0,
+        init_scale: float = 1.0,
+        num_latent_dims: Optional[int] = None,
         n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float],
     ):
@@ -52,7 +56,9 @@ class DiffusionEvolution(Strategy):
         self.strategy_name = "DiffusionEvolution"
         self.sigma_init = sigma_init
         self.scale_factor = scale_factor
+        self.init_scale = init_scale
         self.num_generations = num_generations
+        self.num_latent_dims = num_latent_dims
 
         if alpha_schedule not in ["cosine", "ddpm", "ddim"]:
             raise ValueError(
@@ -74,21 +80,35 @@ class DiffusionEvolution(Strategy):
         return EvoParams(
             sigma_init=self.sigma_init,
             scale_factor=self.scale_factor,
+            init_scale=self.init_scale,
         )
 
     def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
-        initialization = jax.random.normal(
-            rng,
-            (self.popsize, self.num_dims),
+        initialization = (
+            jax.random.normal(
+                rng,
+                (self.popsize, self.num_dims),
+            )
+            * params.init_scale
         )
         alphas_now, alphas_past = self.alpha_map(num_step=self.num_generations)
+
+        # Generate projection matrix if num_latent_dims provided
+        if self.num_latent_dims is not None:
+            latent_projection = jax.random.normal(
+                rng, (self.num_dims, self.num_latent_dims)
+            ) / (self.num_dims**0.5)
+        else:
+            latent_projection = jnp.eye(self.num_dims)
+
         state = EvoState(
             mean=initialization,  # x0hat = mean
             sigma=params.sigma_init,
             archive=initialization,  # last evaluations
             alphas=alphas_now,
             alphas_past=alphas_past,
+            latent_projection=latent_projection,
             best_member=initialization.mean(axis=0),
         )
         return state
@@ -138,9 +158,11 @@ class DiffusionEvolution(Strategy):
         )
         # rescale x to undo scaling in ask
         x_rescale = x / params.scale_factor
+        x_latent = x_rescale @ state.latent_projection
         alpha_t = state.alphas[state.gen_counter]
         x0_est = estimate_x0(
             x_rescale,
+            x_latent,
             fitness_mapped,
             alpha_t,
         )
@@ -186,16 +208,17 @@ fitness_mapping_dict = {
 
 def estimate_x0(
     x: chex.Array,
+    x_latent: chex.Array,
     fitness: chex.Array,
     alpha: chex.Array,
 ) -> chex.Array:
     """Estimate the initial point."""
-    # Uniform density over the population
+    # Uniform density over pop. - normalization => cancels out
     p_x_t = jnp.ones(x.shape[0]) / x.shape[0]
 
     # Estimate the original point
     def estimate(x_t, p_x_t):
-        mu = x * alpha**0.5
+        mu = x_latent * alpha**0.5
         sigma = (1 - alpha) ** 0.5
         p_diffusion = single_point_gaussian_prob(x_t, mu, sigma)
         prob = (fitness + 1e-09) * (p_diffusion + 1e-09) / (p_x_t + 1e-09)
@@ -204,7 +227,7 @@ def estimate_x0(
         x0_est = jnp.sum(jnp.expand_dims(prob, axis=1) * x, axis=0) / (z + 1e-09)
         return x0_est
 
-    x0_est = jax.vmap(estimate, in_axes=(0, 0))(x, p_x_t)
+    x0_est = jax.vmap(estimate, in_axes=(0, 0))(x_latent, p_x_t)
     return x0_est
 
 
