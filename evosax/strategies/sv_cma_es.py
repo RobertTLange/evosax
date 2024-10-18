@@ -41,7 +41,7 @@ class SV_CMA_ES(CMA_ES):
         self,
         npop: int,
         subpopsize: int,
-        kernel: Kernel,
+        kernel: Kernel = RBF,
         num_dims: Optional[int] = None,
         pholder_params: Optional[ArrayTree | Array] = None,
         elite_ratio: float = 0.5,
@@ -67,7 +67,7 @@ class SV_CMA_ES(CMA_ES):
         )
         self.elite_popsize = max(1, int(self.subpopsize * self.elite_ratio))
         self.strategy_name = "SV_CMA_ES"
-        self.kernel = kernel
+        self.kernel = kernel()
 
     def initialize_strategy(
         self, rng: PRNGKey, params: EvoParams

@@ -17,11 +17,14 @@ def test_strategy_run(strategy_name):
         popsize = 21
     else:
         popsize = 20
+    if strategy_name == "SV_CMA_ES":
+        strategy = Strat(npop=1, subpopsize=popsize, num_dims=2)
+    else:
+        strategy = Strat(popsize=popsize, num_dims=2)
     evaluator = BBOBFitness("Sphere", 2)
     fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
-    strategy = Strat(popsize=popsize, num_dims=2)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
 
@@ -46,11 +49,14 @@ def test_strategy_scan(strategy_name):
         popsize = 21
     else:
         popsize = 20
+    if strategy_name == "SV_CMA_ES":
+        strategy = Strat(npop=1, subpopsize=popsize, num_dims=2)
+    else:
+        strategy = Strat(popsize=popsize, num_dims=2)
     evaluator = BBOBFitness("Sphere", 2)
     fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
-    strategy = Strat(popsize=popsize, num_dims=2)
     es_params = strategy.default_params
 
     @partial(jax.jit, static_argnums=(1,))
