@@ -42,6 +42,7 @@ def pytest_generate_tests(metafunc):
                     "HillClimber",
                     "EvoTF_ES",
                     "DiffusionEvolution",
+                    "SV_CMA_ES",
                 ],
             )
         else:

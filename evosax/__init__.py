@@ -37,6 +37,7 @@ from .strategies import (
     HillClimber,
     EvoTF_ES,
     DiffusionEvolution,
+    SV_CMA_ES
 )
 from .core import FitnessShaper, ParameterReshaper
 from .utils import ESLog
@@ -82,6 +83,7 @@ Strategies = {
     "HillClimber": HillClimber,
     "EvoTF_ES": EvoTF_ES,
     "DiffusionEvolution": DiffusionEvolution,
+    "SV_CMA_ES": SV_CMA_ES,
 }
 
 __all__ = [
@@ -131,4 +133,5 @@ __all__ = [
     "HillClimber",
     "EvoTF_ES",
     "DiffusionEvolution",
+    "SV_CMA_ES"
 ]
