@@ -17,7 +17,7 @@ def test_strategy_run(strategy_name):
         popsize = 21
     else:
         popsize = 20
-    if strategy_name == "SV_CMA_ES":
+    if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES"]:
         strategy = Strat(npop=1, subpopsize=popsize, num_dims=2)
     else:
         strategy = Strat(popsize=popsize, num_dims=2)
@@ -49,7 +49,7 @@ def test_strategy_scan(strategy_name):
         popsize = 21
     else:
         popsize = 20
-    if strategy_name == "SV_CMA_ES":
+    if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES"]:
         strategy = Strat(npop=1, subpopsize=popsize, num_dims=2)
     else:
         strategy = Strat(popsize=popsize, num_dims=2)

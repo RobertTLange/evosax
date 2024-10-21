@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Type
 
 import jax
 import jax.numpy as jnp
@@ -7,15 +7,7 @@ from flax.struct import dataclass
 
 from evosax.strategies.cma_es import get_cma_elite_weights, update_p_c, update_p_sigma, sample, update_sigma, update_covariance, EvoParams, CMA_ES
 from evosax.utils.eigen_decomp import full_eigen_decomp
-
-
-class Kernel:
-    def __call__(self, x1: Array, x2: Array, bandwidth: float) -> Array:
-        pass
-
-class RBF(Kernel):
-    def __call__(self, x1: Array, x2: Array, bandwidth: float) -> Array:
-        return jnp.exp(-0.5 * jnp.sum((x1 - x2) ** 2) / bandwidth)
+from evosax.utils.kernel import Kernel, RBF
 
 
 @dataclass
@@ -41,7 +33,7 @@ class SV_CMA_ES(CMA_ES):
         self,
         npop: int,
         subpopsize: int,
-        kernel: Kernel = RBF,
+        kernel: Type[Kernel] = RBF,
         num_dims: Optional[int] = None,
         pholder_params: Optional[ArrayTree | Array] = None,
         elite_ratio: float = 0.5,
@@ -222,136 +214,3 @@ def cmaes_grad(
     grad = jnp.dot(weights_truncated.T, y_k)  # y_w can be seen as score estimate of CMA-ES
 
     return y_k, grad
-
-
-if __name__ == "__main__":
-    from typing import Optional
-
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-
-    def KDE(kernel: Kernel, modes: Array, weights: Optional[Array] = None, bandwidth: float = 1.):
-        """Kernel density estimation."""
-        if weights is None:
-            weights = jnp.ones(modes.shape[0]) / modes.shape[0]
-        return lambda xi: jnp.sum(
-            jax.vmap(kernel, in_axes=(None, 0, None))(xi, modes, bandwidth) * weights
-        )
-
-
-    def plot_pdf(pdf, ax: Optional = None, xmin: float = -3., xmax: float = 3.):
-        x = np.linspace(xmin, xmax, 50)
-        x_ = np.stack(np.meshgrid(x, x), axis=-1).reshape(-1, 2)
-        energies = pdf(x_)
-
-        plt.figure(figsize=(7, 7))
-        if ax is not None:
-            ax.contourf(x, x, energies.reshape(50, 50), levels=20)  # , cmap="Greys"
-        else:
-            plt.contourf(x, x, energies.reshape(50, 50), levels=20)  # , cmap="Greys"
-
-
-    def plot_particles_pdf(x, objective, score_fn, npop: int, xmin: float = -3., xmax: float = 3.):
-        plot_pdf(objective, score_fn, xmin, xmax)
-        plt.scatter(*x.T, color="salmon")
-        # for xi in x.reshape(npop, -1, 2):
-        #     plt.scatter(*xi.T)
-        plt.xlim(xmin, xmax)
-        plt.ylim(xmin, xmax)
-        # plt.show()
-
-
-    class Benchmark:
-        def __init__(self, lb: Array | float, ub: Array | float, dim: int, fglob: float, name: str) -> None:
-            self.lower_bounds = lb
-            self.upper_bounds = ub
-            self.dim = dim
-            self.fglob = fglob
-            self.name = name
-
-        def get_objective_derivative(self):
-            pass
-
-        def get_objective(self):
-            return self.get_objective_derivative()[0]
-
-        def plot(self, x: Array, lb: Array, ub: Array):
-            """Plotting code. Works for synthetic benchmarks."""
-            plot_particles_pdf(
-                x[0],
-                lambda y: jnp.exp(-self.get_objective()(y)),
-                None,
-                1,
-                lb,
-                ub
-            )
-
-
-    class GMM(Benchmark):
-        def __init__(
-            self,
-            rng: PRNGKey,
-            lb: float = -6.,
-            ub: float = 6.,
-            kernel_rad: float = 1.,
-            n_modes: int = 4,
-            dim: int = 2,
-            name: str = "GMM"
-        ) -> None:
-            fglob = -1 / (kernel_rad * (2 ** dim + 1))  # pdf = height * width * npeaks != 1 solves to this
-            super().__init__(lb, ub, dim, fglob, name)
-            self.kernel_rad = kernel_rad
-
-            # Instantiate problem
-            rng_w, rng_m = jax.random.split(rng)
-            self.weights = jax.random.uniform(rng_w, (n_modes,), minval=0., maxval=10.)
-            self.weights /= jnp.sum(self.weights)
-            self.modes = jax.random.uniform(rng_m, (n_modes, dim), minval=lb + 2,
-                                            maxval=ub - 2)  # Add some slack beyond the bounds so they do not all overlap
-
-        def get_objective_derivative(self):
-            """Return the objective and its derivative functions."""
-            eval_fn = jax.jit(lambda x: -jnp.log(KDE(RBF(), self.modes, self.weights, self.kernel_rad)(x)))
-            return jax.vmap(eval_fn), jax.vmap(jax.grad(lambda x: -eval_fn(x)))
-
-    # Benchmark
-    rng = jax.random.PRNGKey(2)
-    rng, init_rng, sample_rng = jax.random.split(rng, 3)
-    dim = 2
-    bench = GMM(init_rng, dim=dim, n_modes=4, lb=-6., ub=6.)
-    n_iter = 1_000
-    npop = 100
-    popsize = 4
-    cb_freq = 50
-
-    def plot_cb(x):
-        bench.plot((x, None), bench.lower_bounds - 2, bench.upper_bounds + 2)
-        plt.show()
-
-
-    rng, rng_init, rng_sample = jax.random.split(rng, 3)
-    strategy = SV_CMA_ES(npop=npop, subpopsize=popsize, kernel=RBF(), num_dims=bench.dim, elite_ratio=0.5, sigma_init=.05)
-    es_params = strategy.default_params.replace(
-        init_min=bench.lower_bounds,
-        init_max=bench.upper_bounds,
-        clip_min=bench.lower_bounds - 2,
-        clip_max=bench.upper_bounds + 2
-    )
-    state = strategy.initialize(rng_init, es_params)
-    state = state.replace(alpha=1., bandwidth=.5)
-
-    # Get objective
-    objective_fn, score_fn = bench.get_objective_derivative()
-
-    samples = []
-    for t in range(n_iter):
-        rng, rng_gen = jax.random.split(rng)
-        x, state = strategy.ask(rng_gen, state, es_params)
-        fitness = objective_fn(x)  # Evaluate score for gradient-based SVGD
-        state = strategy.tell(x, fitness, state, es_params)
-
-        if t % cb_freq == 0:
-            print(t + 1, fitness.min())
-            if plot_cb:
-                plot_cb(state.mean)

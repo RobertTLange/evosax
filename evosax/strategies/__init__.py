@@ -36,6 +36,7 @@ from .hill_climber import HillClimber
 from .evotf_es import EvoTF_ES
 from .diffusion import DiffusionEvolution
 from .sv_cma_es import SV_CMA_ES
+from .sv_open_es import SV_OpenES
 
 __all__ = [
     "SimpleGA",
@@ -75,5 +76,6 @@ __all__ = [
     "HillClimber",
     "EvoTF_ES",
     "DiffusionEvolution",
-    "SV_CMA_ES"
+    "SV_CMA_ES",
+    "SV_OpenES"
 ]
