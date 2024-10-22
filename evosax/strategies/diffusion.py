@@ -11,6 +11,7 @@ class EvoState:
     mean: chex.Array
     sigma: chex.Array
     archive: chex.Array
+    x0_est: chex.Array
     alphas: chex.Array
     alphas_past: chex.Array
     latent_projection: chex.Array
@@ -103,8 +104,9 @@ class DiffusionEvolution(Strategy):
             latent_projection = jnp.eye(self.num_dims)
 
         state = EvoState(
-            mean=initialization,  # x0hat = mean
+            mean=initialization.mean(axis=0),
             sigma=params.sigma_init,
+            x0_est=initialization,
             archive=initialization,  # last evaluations
             alphas=alphas_now,
             alphas_past=alphas_past,
@@ -128,7 +130,7 @@ class DiffusionEvolution(Strategy):
             ddim_step(
                 rng,
                 state.archive,
-                state.mean,  # x0hat = mean
+                state.x0_est,
                 alpha_t,
                 alpha_pt,
                 state.sigma,
@@ -168,8 +170,9 @@ class DiffusionEvolution(Strategy):
         )
         # print("x0_est", x0_est[:2])
         return state.replace(
-            mean=x0_est,
+            mean=x0_est.mean(axis=0),
             archive=x_rescale,
+            x0_est=x0_est,
         )
 
 
