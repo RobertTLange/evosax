@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
+from flax import struct
 from ..strategy import Strategy
 from ..utils.eigen_decomp import diag_eigen_decomp
-from flax import struct
 
 
 @struct.dataclass
@@ -14,7 +14,8 @@ class EvoState:
     C: chex.Array
     D: Optional[chex.Array]
     mean: chex.Array
-    sigma: float
+    sigma: chex.Array
+    sigma_scale: float
     weights: chex.Array
     weights_truncated: chex.Array
     best_member: chex.Array
@@ -45,10 +46,7 @@ def get_cma_elite_weights(
     """Utility helper to create truncated elite weights for mean
     update and full weights for covariance update."""
     weights_prime = jnp.array(
-        [
-            jnp.log(elite_popsize + 1) - jnp.log(i + 1)
-            for i in range(elite_popsize)
-        ]
+        [jnp.log(elite_popsize + 1) - jnp.log(i + 1) for i in range(elite_popsize)]
     )
     weights = weights_prime / jnp.sum(weights_prime)
     weights_truncated = jnp.zeros(popsize)
@@ -65,6 +63,7 @@ class Sep_CMA_ES(Strategy):
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
@@ -76,6 +75,7 @@ class Sep_CMA_ES(Strategy):
             num_dims,
             pholder_params,
             mean_decay,
+            n_devices,
             **fitness_kwargs,
         )
         assert 0 <= elite_ratio <= 1
@@ -94,31 +94,26 @@ class Sep_CMA_ES(Strategy):
         """Return default parameters of evolution strategy."""
         # Temporarily create elite weights for rest of parameters
         weights, _ = get_cma_elite_weights(self.popsize, self.elite_popsize)
-        mu_eff = 1 / jnp.sum(weights ** 2)
+        mu_eff = 1 / jnp.sum(weights**2)
 
         # lrates for rank-one and rank-μ C updates
         alpha_cov = 2
         c_1 = alpha_cov / ((self.max_dims_sq + 1.3) ** 2 + mu_eff)
         c_mu_full = 2 / mu_eff / ((self.max_dims_sq + jnp.sqrt(2)) ** 2) + (
             1 - 1 / mu_eff
-        ) * jnp.minimum(
-            1, (2 * mu_eff - 1) / ((self.max_dims_sq + 2) ** 2 + mu_eff)
-        )
+        ) * jnp.minimum(1, (2 * mu_eff - 1) / ((self.max_dims_sq + 2) ** 2 + mu_eff))
         c_mu = (self.num_dims + 2) / 3 * c_mu_full
 
         # lrate for cumulation of step-size control and rank-one update
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 3)
         d_sigma = (
             1
-            + 2
-            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
         c_c = 4 / (self.num_dims + 4)
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
         )
         params = EvoParams(
             mu_eff=mu_eff,
@@ -132,9 +127,7 @@ class Sep_CMA_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Population weightings - store in state
         weights, weights_truncated = get_cma_elite_weights(
@@ -150,10 +143,11 @@ class Sep_CMA_ES(Strategy):
         state = EvoState(
             p_sigma=jnp.zeros(self.num_dims),
             p_c=jnp.zeros(self.num_dims),
-            sigma=params.sigma_init,
+            sigma_scale=params.sigma_init,
+            sigma=jnp.ones(self.num_dims) * params.sigma_init,
             mean=initialization,
             C=jnp.ones(self.num_dims),
-            D=None,
+            D=diag_eigen_decomp(jnp.ones(self.num_dims), None),
             weights=weights,
             weights_truncated=weights_truncated,
             best_member=initialization,
@@ -164,16 +158,15 @@ class Sep_CMA_ES(Strategy):
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
     ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        D = diag_eigen_decomp(state.C, state.D)
         x = sample(
             rng,
             state.mean,
-            state.sigma,
-            D,
+            state.sigma_scale,
+            state.D,
             self.num_dims,
             self.popsize,
         )
-        return x, state.replace(D=D)
+        return x, state
 
     def tell_strategy(
         self,
@@ -216,20 +209,27 @@ class Sep_CMA_ES(Strategy):
             state.C,
             y_k,
             h_sigma,
-            state.weights,
+            state.weights_truncated,
             params.c_c,
             params.c_1,
             params.c_mu,
         )
-        sigma = update_sigma(
-            state.sigma,
+        sigma_scale = update_sigma(
+            state.sigma_scale,
             norm_p_sigma,
             params.c_sigma,
             params.d_sigma,
             params.chi_n,
         )
+        sigma = sigma_scale * D
         return state.replace(
-            mean=mean, p_sigma=p_sigma, C=C, D=D, p_c=p_c, sigma=sigma
+            mean=mean,
+            p_sigma=p_sigma,
+            C=C,
+            D=D,
+            p_c=p_c,
+            sigma_scale=sigma_scale,
+            sigma=sigma,
         )
 
 
@@ -261,8 +261,7 @@ def update_p_sigma(
     p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
         c_sigma * (2 - c_sigma) * mu_eff
     ) * (y_w / D)
-    _D = None
-    return p_sigma_new, _D
+    return p_sigma_new, D
 
 
 def update_p_c(
@@ -283,9 +282,7 @@ def update_p_c(
     )
     h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * chi_n
     h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
-    p_c_new = (1 - c_c) * p_c + h_sigma * jnp.sqrt(
-        c_c * (2 - c_c) * mu_eff
-    ) * y_w
+    p_c_new = (1 - c_c) * p_c + h_sigma * jnp.sqrt(c_c * (2 - c_c) * mu_eff) * y_w
     return p_c_new, norm_p_sigma, h_sigma
 
 
@@ -294,20 +291,17 @@ def update_covariance(
     C: chex.Array,
     y_k: chex.Array,
     h_sigma: float,
-    weights: chex.Array,
+    weights_truncated: chex.Array,
     c_c: float,
     c_1: float,
     c_mu: float,
 ) -> chex.Array:
     """Update cov. matrix estimator using rank 1 + μ updates."""
     delta_h_sigma = (1 - h_sigma) * c_c * (2 - c_c)
-    rank_one = p_c ** 2
-    rank_mu = jnp.sum(
-        jnp.array([w * (y ** 2) for w, y in zip(weights, y_k)]),
-        axis=0,
-    )
+    rank_one = p_c**2
+    rank_mu = jnp.einsum('i,ij->j', weights_truncated, y_k**2)
     C = (
-        (1 + c_1 * delta_h_sigma - c_1 - c_mu * jnp.sum(weights)) * C
+        (1 + c_1 * delta_h_sigma - c_1 - c_mu * jnp.sum(weights_truncated)) * C
         + c_1 * rank_one
         + c_mu * rank_mu
     )
@@ -322,16 +316,14 @@ def update_sigma(
     chi_n: float,
 ) -> float:
     """Update stepsize sigma."""
-    sigma_new = sigma * jnp.exp(
-        (c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1)
-    )
+    sigma_new = sigma * jnp.exp((c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1))
     return sigma_new
 
 
 def sample(
     rng: chex.PRNGKey,
     mean: chex.Array,
-    sigma: float,
+    sigma_scale: float,
     D: chex.Array,
     n_dim: int,
     pop_size: int,
@@ -340,5 +332,5 @@ def sample(
     z = jax.random.normal(rng, (n_dim, pop_size))  # ~ N(0, I)
     y = jnp.diag(D).dot(z)  # ~ N(0, C)
     y = jnp.swapaxes(y, 1, 0)
-    x = mean + sigma * y  # ~ N(m, σ^2 C)
+    x = mean + sigma_scale * y  # ~ N(m, σ^2 C)
     return x

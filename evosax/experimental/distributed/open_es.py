@@ -1,11 +1,12 @@
 """Distributed version of OpenAI-ES. Supports z-scoring fitness trafo only."""
+
 import jax
 import jax.numpy as jnp
 import chex
 from typing import Tuple, Optional, Union
 from flax import struct
 from evosax import Strategy
-from evosax.utils import GradientOptimizer, OptState, OptParams, exp_decay
+from evosax.core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass
@@ -30,7 +31,7 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-class DistributedOpenES(Strategy):
+class OpenES(Strategy):
     def __init__(
         self,
         popsize: int,
@@ -94,9 +95,7 @@ class DistributedOpenES(Strategy):
             es_params = es_params
         return es_params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         if self.n_devices > 1:
             mean, sigma, opt_state = self.multi_init(rng, params)
@@ -207,9 +206,7 @@ class DistributedOpenES(Strategy):
         def calc_per_device_grad(x, fitness, mean, sigma):
             # Reconstruct noise from last mean/std estimates
             noise = (x - mean) / sigma
-            theta_grad = (
-                1.0 / (self.popsize * sigma) * jnp.dot(noise.T, fitness)
-            )
+            theta_grad = 1.0 / (self.popsize * sigma) * jnp.dot(noise.T, fitness)
             return jax.lax.pmean(theta_grad, axis_name="p")
 
         theta_grad = jax.pmap(calc_per_device_grad, axis_name="p")(
@@ -220,12 +217,8 @@ class DistributedOpenES(Strategy):
         mean, opt_state = jax.pmap(self.optimizer.step)(
             state.mean, theta_grad, state.opt_state, params.opt_params
         )
-        opt_state = jax.pmap(self.optimizer.update)(
-            opt_state, params.opt_params
-        )
-        sigma = jax.pmap(exp_decay)(
-            state.sigma, params.sigma_decay, params.sigma_limit
-        )
+        opt_state = jax.pmap(self.optimizer.update)(opt_state, params.opt_params)
+        sigma = jax.pmap(exp_decay)(state.sigma, params.sigma_decay, params.sigma_limit)
         return mean, sigma, opt_state
 
     def single_tell(
@@ -235,9 +228,7 @@ class DistributedOpenES(Strategy):
         fitness = (fitness - jnp.mean(fitness)) / (jnp.std(fitness) + 1e-10)
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        theta_grad = (
-            1.0 / (self.popsize * state.sigma) * jnp.dot(noise.T, fitness)
-        )
+        theta_grad = 1.0 / (self.popsize * state.sigma) * jnp.dot(noise.T, fitness)
 
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(
@@ -254,7 +245,7 @@ def pmap_zscore(fitness: chex.Array) -> chex.Array:
     def zscore(fit: chex.Array) -> chex.Array:
         all_mean = jax.lax.pmean(fit, axis_name="p").mean()
         diff = fit - all_mean
-        std = jnp.sqrt(jax.lax.pmean(diff ** 2, axis_name="p").mean())
+        std = jnp.sqrt(jax.lax.pmean(diff**2, axis_name="p").mean())
         return diff / (std + 1e-10)
 
     out = jax.pmap(zscore, axis_name="p")(fitness)
@@ -271,7 +262,7 @@ if __name__ == "__main__":
 
     def run_es(lrate_decay=0.99, sigma_decay=0.99, opt_name="adam"):
         rng = jax.random.PRNGKey(0)
-        strategy = DistributedOpenES(
+        strategy = OpenES(
             popsize,
             num_dims,
             opt_name=opt_name,
@@ -289,7 +280,7 @@ if __name__ == "__main__":
         print("Solution shape", x.shape)
 
         def sphere(x):
-            return jnp.sum(x ** 2)
+            return jnp.sum(x**2)
 
         if n_devices > 1:
             psphere = jax.pmap(jax.vmap(sphere))
@@ -321,9 +312,7 @@ if __name__ == "__main__":
     plt.plot(all_fitness095, label="lrate decay = 0.95, sigma_decay = 0.95")
     plt.xlabel("Generations")
     plt.ylabel("Mean Population Fitness")
-    plt.title(
-        f"{num_dims}D Quadratic - {popsize} Pop - Lrate 0.05, Sigma 0.04 - Adam"
-    )
+    plt.title(f"{num_dims}D Quadratic - {popsize} Pop - Lrate 0.05, Sigma 0.04 - Adam")
     plt.legend()
     plt.ylim(0, 500)
     plt.savefig("quadratic_adam.png", dpi=300)

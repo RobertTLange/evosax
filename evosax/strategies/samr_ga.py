@@ -1,9 +1,9 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
 from flax import struct
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -36,22 +36,31 @@ class SAMR_GA(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.0,
         sigma_init: float = 0.07,
+        sigma_meta: float = 2.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
-        """Self-Adaptation Mutation Rate GA."""
+        """Self-Adaptation Mutation Rate (SAMR) GA."""
 
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            n_devices=n_devices,
+            **fitness_kwargs
+        )
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "SAMR_GA"
 
         # Set core kwargs es_params
         self.sigma_init = sigma_init
+        self.sigma_meta = sigma_meta
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(sigma_init=self.sigma_init)
+        return EvoParams(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

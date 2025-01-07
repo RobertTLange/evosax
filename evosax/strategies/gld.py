@@ -1,9 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
 from flax import struct
+from ..strategy import Strategy
+from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
@@ -32,12 +33,13 @@ class GLD(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Gradientless Descent (Golovin et al., 2019)
         Reference: https://arxiv.org/pdf/1911.06317.pdf"""
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         self.strategy_name = "GLD"
 
@@ -46,9 +48,7 @@ class GLD(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -88,5 +88,5 @@ class GLD(Strategy):
         params: EvoParams,
     ) -> EvoState:
         """`tell` update to ES state."""
-        # No state update needed - everything happens with best_member update
-        return state.replace(mean=state.best_member)
+        best_member, best_fitness = get_best_fitness_member(x, fitness, state, False)
+        return state.replace(mean=best_member)

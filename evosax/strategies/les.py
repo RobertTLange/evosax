@@ -1,11 +1,10 @@
 from typing import Optional, Tuple, Union
-import os
 import chex
 from flax import struct
 import jax
 import jax.numpy as jnp
 import pkgutil
-from ..utils.learned_eo import (
+from ..learned_eo.les_tools import (
     AttentionWeights,
     EvoPathMLP,
     tanh_timestamp,
@@ -51,9 +50,19 @@ class LES(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         net_params: Optional[chex.ArrayTree] = None,
         net_ckpt_path: Optional[str] = None,
+        sigma_init: float = 0.1,
+        mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float],
     ):
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs,
+        )
         self.strategy_name = "LES"
         self.evopath = EvolutionPath(
             num_dims=self.num_dims, timescales=jnp.array([0.1, 0.5, 0.9])
@@ -63,6 +72,7 @@ class LES(Strategy):
         self.fitness_features = FitnessFeatures(
             centered_rank=True, z_score=True
         )
+        self.sigma_init = sigma_init
 
         # Set net params provided at instantiation
         if net_params is not None:
@@ -71,21 +81,20 @@ class LES(Strategy):
         # Load network weights from checkpoint
         if net_ckpt_path is not None:
             self.les_net_params = load_pkl_object(net_ckpt_path)
-            print(f"Loaded model from ckpt: {net_ckpt_path}")
+            print(f"Loaded LES model from ckpt: {net_ckpt_path}")
 
         if net_params is None and net_ckpt_path is None:
-            ckpt_fname = "2023_03_les_v1.pkl"
-            net_ckpt_path = os.path.join(
-                os.path.dirname(__file__), f"ckpt/{ckpt_fname}"
-            )
-            data = pkgutil.get_data(__name__, f"ckpt/{ckpt_fname}")
+            ckpt_fname = "2023_10_les_v2.pkl"
+            data = pkgutil.get_data(__name__, f"ckpt/les/{ckpt_fname}")
             self.les_net_params = load_pkl_object(data, pkg_load=True)
             print(f"Loaded pretrained LES model from ckpt: {ckpt_fname}")
 
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(net_params=self.les_net_params)
+        return EvoParams(
+            net_params=self.les_net_params, sigma_init=self.sigma_init
+        )
 
     def initialize_strategy(
         self, rng: chex.PRNGKey, params: EvoParams

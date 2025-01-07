@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
+from ..strategy import Strategy
+from ..core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass
@@ -36,7 +36,7 @@ class ARS(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         elite_ratio: float = 0.1,
-        opt_name: str = "sgd",
+        opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
@@ -44,12 +44,18 @@ class ARS(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Augmented Random Search (Mania et al., 2018)
         Reference: https://arxiv.org/pdf/1803.07055.pdf"""
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         assert not self.popsize & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select

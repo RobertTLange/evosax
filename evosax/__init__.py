@@ -32,8 +32,16 @@ from .strategies import (
     MR15_GA,
     RandomSearch,
     LES,
+    LGA,
+    NoiseReuseES,
+    HillClimber,
+    EvoTF_ES,
+    DiffusionEvolution,
+    SV_CMA_ES,
+    SV_OpenES
 )
-from .utils import FitnessShaper, ParameterReshaper, ESLog
+from .core import FitnessShaper, ParameterReshaper
+from .utils import ESLog
 from .networks import NetworkMapper
 from .problems import ProblemMapper
 
@@ -71,6 +79,13 @@ Strategies = {
     "MR15_GA": MR15_GA,
     "RandomSearch": RandomSearch,
     "LES": LES,
+    "LGA": LGA,
+    "NoiseReuseES": NoiseReuseES,
+    "HillClimber": HillClimber,
+    "EvoTF_ES": EvoTF_ES,
+    "DiffusionEvolution": DiffusionEvolution,
+    "SV_CMA_ES": SV_CMA_ES,
+    "SV_OpenES": SV_OpenES,
 }
 
 __all__ = [
@@ -115,4 +130,11 @@ __all__ = [
     "MR15_GA",
     "RandomSearch",
     "LES",
+    "LGA",
+    "NoiseReuseES",
+    "HillClimber",
+    "EvoTF_ES",
+    "DiffusionEvolution",
+    "SV_CMA_ES",
+    "SV_OpenES"
 ]

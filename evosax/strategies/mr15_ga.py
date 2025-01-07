@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from .simple_ga import single_mate
 from flax import struct
+from .simple_ga import single_mate
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -38,13 +38,20 @@ class MR15_GA(Strategy):
         elite_ratio: float = 0.0,
         sigma_ratio: float = 0.15,
         sigma_init: float = 0.1,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """1/5 MR Genetic Algorithm (Rechenberg, 1987)
         Reference: https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
         """
 
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            n_devices=n_devices,
+            **fitness_kwargs
+        )
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "MR15_GA"
@@ -105,7 +112,7 @@ class MR15_GA(Strategy):
             rng_mate, members_a, members_b, params.cross_over_rate
         )
         x += epsilon
-        return jnp.squeeze(x), state
+        return x, state
 
     def tell_strategy(
         self,

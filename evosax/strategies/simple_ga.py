@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from ..utils import exp_decay
 from flax import struct
+from ..strategy import Strategy
+from ..core import exp_decay
 
 
 @struct.dataclass
@@ -40,13 +40,20 @@ class SimpleGA(Strategy):
         sigma_init: float = 0.1,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Simple Genetic Algorithm (Such et al., 2017)
         Reference: https://arxiv.org/abs/1712.06567
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
 
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            n_devices=n_devices,
+            **fitness_kwargs
+        )
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "SimpleGA"
@@ -110,7 +117,7 @@ class SimpleGA(Strategy):
             rng_mate, members_a, members_b, params.cross_over_rate
         )
         x += epsilon
-        return jnp.squeeze(x), state
+        return x, state
 
     def tell_strategy(
         self,

@@ -1,5 +1,6 @@
 anims/
-examples/experimental
+examples/v2_brax
+examples/v2_nanogpt
 # bbob.py
 # Standard ROB excludes
 .sync-config.cson
@@ -17,6 +18,7 @@ tboards/
 dev_notes.md
 configs/
 experiments/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

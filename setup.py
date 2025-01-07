@@ -17,9 +17,7 @@ with open(os.path.join(CURRENT_DIR, "README.md"), encoding="utf-8") as f:
 def parse_requirements(path: str) -> List[str]:
     with open(os.path.join(CURRENT_DIR, path)) as f:
         return [
-            line.rstrip()
-            for line in f
-            if not (line.isspace() or line.startswith("#"))
+            line.rstrip() for line in f if not (line.isspace() or line.startswith("#"))
         ]
 
 
@@ -35,13 +33,15 @@ git_tar = f"https://github.com/RobertTLange/evosax/archive/v{verstr}.tar.gz"
 
 requires = (
     [
-        "jax>=0.3.0",
-        "jaxlib>=0.3.0",
+        "jax",
+        "jaxlib>=0.1.37",
         "chex",
         "flax",
         "numpy",
         "pyyaml",
         "pickle5; python_version < '3.8'",
+        "matplotlib",
+        "dotmap",
     ],
 )
 

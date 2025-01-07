@@ -1,15 +1,127 @@
-### Work-in-Progress
+### [v0.1.7] - [10/2024]
 
-- Implement more strategies
-    - [ ] Large-scale CMA-ES variants
-        - [ ] [LM-CMA](https://www.researchgate.net/publication/282612269_LM-CMA_An_alternative_to_L-BFGS_for_large-scale_black_Box_optimization)
-        - [ ] [VkD-CMA](https://hal.inria.fr/hal-01306551v1/document), [Code](https://gist.github.com/youheiakimoto/2fb26c0ace43c22b8f19c7796e69e108)
-    - [ ] [RBO](http://proceedings.mlr.press/v100/choromanski20a/choromanski20a.pdf)
+##### Added
 
-- Encoding methods - via special reshape wrappers
-    - [ ] Discrete Cosine Transform
-    - [ ] Wavelet Based Encoding (van Steenkiste, 2016)
-    - [ ] CNN Hypernetwork (Ha - start with simple MLP)
+- Adds an option for device-parallel evaluation of `BBOBFitness`.
+- Implements fully `pmap`-compatible implementations of `OpenES`, `PGPE`, `Sep_CMA_ES` and `SNES`. Example: [`09_pmap_strategy.ipynb`](https://github.com/RobertTLange/evosax/blob/main/examples/09_pmap_strategy.ipynb):
+
+```python
+# set number of cpu devices for jax pmap
+import os
+
+num_devices = 4
+os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={num_devices}"
+
+import jax
+import jax.numpy as jnp
+from flax import jax_utils
+
+print(jax.devices())
+
+from evosax.problems import BBOBFitness
+from evosax.v2 import SNES
+
+fn_name = "Sphere"
+num_dims = 2
+popsize = 64
+rng = jax.random.PRNGKey(0)
+evaluator = BBOBFitness(fn_name, num_dims=num_dims, n_devices=num_devices)
+
+strategy = SNES(
+    popsize=popsize,
+    num_dims=num_dims,
+    sigma_init=0.1,
+    n_devices=num_devices,
+    maximize=False,
+)
+
+es_params = strategy.default_params.replace(init_min=-3.0, init_max=3.0)
+es_params = jax_utils.replicate(es_params)
+
+init_rng = jnp.tile(rng[None], (num_devices, 1))
+es_state = jax.pmap(strategy.initialize)(init_rng, es_params)
+print("Mean pre-update:", es_state.mean)  # (num_devices, num_dims)
+
+rng, rng_a, rng_e = jax.random.split(rng, 3)
+ask_rng = jax.random.split(rng_a, num_devices)
+x, es_state = jax.pmap(strategy.ask, axis_name="device")(ask_rng, es_state, es_params)
+
+print("Population shape:", x.shape)  # (num_devices, popsize/num_devices, num_dims)
+
+fitness = evaluator.rollout(rng_e, x)
+print("Fitness shape:", fitness.shape)  # (num_devices, popsize/num_devices)
+
+es_state = jax.pmap(strategy.tell, axis_name="device")(x, fitness, es_state, es_params)
+print("Mean post-update:", es_state.mean)  # (num_devices, num_dims)
+```
+
+- Added `DiffusionEvolution` based on [Zhang et al. (2024)](https://arxiv.org/pdf/2410.02543). Example: [`10_diffusion_evolution.ipynb`](https://github.com/RobertTLange/evosax/blob/main/examples/10_diffusion_evolution.ipynb)
+
+- Added `SV_CMA_ES` ([Braun et al., 2024](https://arxiv.org/abs/2410.10390)) and `SV_OpenES` ([Liu et al., 2017](https://arxiv.org/abs/1704.02399)) as subpopulation ES with stein variational updates.
+
+Big thanks to Cornelius Braun (@cornelius-braun
+) for adding the stein variational methods!
+
+### [v0.1.6] - [03/2024]
+
+##### Added
+
+- Implemented Hill Climbing strategy as a simple baseline.
+- Adds `use_antithetic_sampling` option to OpenAI-ES.
+- Added `EvoTransformer` and `EvoTF_ES` strategy with example trained checkpoint.
+
+##### Fixed
+
+- Gradientless Descent best member replacement.
+
+##### Changed
+
+- SNES import DES weights directly and reuses code
+- Made `Sep_CMA_ES` and `OpenAI-ES` use vector sigmas for EvoTransformer data collection.
+
+### [v0.1.5] - [11/2023]
+
+##### Added
+
+- Adds string `fitness_trafo` option to `FitnessShaper` (e.g. `z_score`, etc.).
+- Adds `sigma_meta` as kwarg to `SAMR_GA` and `GESMR_GA`.
+- Adds `sigma_init` as kwarg to `LGA` and `LES`.
+- Adds Noise-Reuse ES - `NoiseReuseES` - ([Li et al., 2023](https://arxiv.org/pdf/2304.12180.pdf)) as a generalization of PES. 
+- Fix LES evolution path calculation and re-ran meta-training for checkpoint.
+
+##### Fixed
+
+- Fixed error in LGA resulting from `elite_ratio=0.0` in sampling operator logit squeeze.
+- Fixed range normalization in fitness transformation - `range_norm_trafo` - Thank you @yudonglee
+
+##### Changed
+
+- Refactored core modules and utilities. Learned evolution utilities now in subdirectory.
+
+### [v0.1.4] - [04/2023]
+
+##### Added
+
+- Adds LGA checkpoint and optimizer class from [Lange et al. (2023b)](https://arxiv.org/abs/2304.03995).
+- Adds optional `init_mean` to `strategy.initialize` to warm start strategy from e.g. pre-trained checkpoint.
+- Adds `n_devices` option to every strategy to control reshaping for pmap in `ParameterReshaper` (if desired) explicitly.
+- Adds `mean_decay` optional kwarg to LES for regularization.
+
+##### Fixed
+
+- Fix missing matplotlib requirement for BBOB Visualizer.
+- Fix squeezing of sampled solutions in order to enable 1D optimization.
+- Fix `ESLog` to work with `ParameterReshaper` reshaping of candidate solutions.
+- Fix overflow errors in CMA-ES style ES when `num_dims ** 2` is too large.
+
+##### Changed
+
+- Changed default gradient descent optimizer of ARS to Adam.
+
+### [v0.1.3] - [03/2023]
+
+- Finally solved checkpoint loading LES problem (needed `MANIFEST.in`)
+- Fixed PGPE bug with regards to scaled noise.
 
 ### [v0.1.2] - [03/2023]
 

@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from .cma_es import get_cma_elite_weights
 from flax import struct
+from .cma_es import get_cma_elite_weights
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -44,13 +44,19 @@ class MA_ES(Strategy):
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """MA-ES (Bayer & Sendhoff, 2017)
         Reference: https://www.honda-ri.de/pubs/pdf/3376.pdf
         """
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
@@ -60,11 +66,14 @@ class MA_ES(Strategy):
         # Set core kwargs es_params
         self.sigma_init = sigma_init
 
+        # Robustness for int32 - squaring in hyperparameter calculations
+        self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
+
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         _, _, mu_eff, c_1, c_mu = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims
+            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
         )
 
         # lrate for cumulation of step-size control and rank-one update
@@ -79,7 +88,7 @@ class MA_ES(Strategy):
         chi_n = jnp.sqrt(self.num_dims) * (
             1.0
             - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.num_dims ** 2))
+            + 1.0 / (21.0 * (self.max_dims_sq ** 2))
         )
 
         params = EvoParams(
@@ -98,7 +107,7 @@ class MA_ES(Strategy):
     ) -> EvoState:
         """`initialize` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims
+            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(

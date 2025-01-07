@@ -1,9 +1,9 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
 from flax import struct
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -32,11 +32,18 @@ class PBT(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Synchronous Population-Based Training (Jaderberg et al., 2017)
         Reference: https://arxiv.org/abs/1711.09846"""
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            n_devices=n_devices,
+            **fitness_kwargs
+        )
         self.strategy_name = "PBT"
 
     @property

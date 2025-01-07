@@ -6,7 +6,7 @@ from flax.core import unfreeze
 from typing import Union, Optional
 from .decoder import Decoder
 from .hyper_networks import HyperNetworkMLP
-from ...utils import ParameterReshaper, ravel_pytree
+from ...core import ParameterReshaper, ravel_pytree
 
 
 class HyperDecoder(Decoder):

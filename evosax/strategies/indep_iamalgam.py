@@ -1,15 +1,15 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
+from flax import struct
 from ..strategy import Strategy
-from ..utils import exp_decay
+from ..core import exp_decay
 from .full_iamalgam import (
     anticipated_mean_shift,
     adaptive_variance_scaling,
     update_mean_amalgam,
 )
-from flax import struct
 
 
 @struct.dataclass
@@ -55,13 +55,19 @@ class Indep_iAMaLGaM(Strategy):
         sigma_decay: float = 0.99,
         sigma_limit: float = 0.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Diagonal Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio

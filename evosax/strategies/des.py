@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
 from flax import struct
 from flax import linen as nn
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -36,7 +36,7 @@ def get_des_weights(popsize: int, temperature: float = 12.5):
     ranks = ranks - 0.5
     sigout = nn.sigmoid(temperature * ranks)
     weights = nn.softmax(-20 * sigout)
-    return weights
+    return weights[:, None]
 
 
 class DES(Strategy):
@@ -48,11 +48,12 @@ class DES(Strategy):
         temperature: float = 12.5,
         sigma_init: float = 0.1,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Discovered Evolution Strategy (Lange et al., 2023)"""
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         self.strategy_name = "DES"
         self.temperature = temperature
@@ -61,13 +62,9 @@ class DES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(
-            temperature=self.temperature, sigma_init=self.sigma_init
-        )
+        return EvoParams(temperature=self.temperature, sigma_init=self.sigma_init)
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Get DES discovered recombination weights.
         weights = get_des_weights(self.popsize, params.temperature)
@@ -80,7 +77,7 @@ class DES(Strategy):
         state = EvoState(
             mean=initialization,
             sigma=params.sigma_init * jnp.ones(self.num_dims),
-            weights=weights.reshape(-1, 1),
+            weights=weights,
             best_member=initialization,
         )
         return state
@@ -90,9 +87,7 @@ class DES(Strategy):
     ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
         z = jax.random.normal(rng, (self.popsize, self.num_dims))  # ~ N(0, I)
-        x = state.mean + z * state.sigma.reshape(
-            1, self.num_dims
-        )  # ~ N(m, σ^2 I)
+        x = state.mean + z * state.sigma.reshape(1, self.num_dims)  # ~ N(m, σ^2 I)
         return x, state
 
     def tell_strategy(
@@ -107,11 +102,7 @@ class DES(Strategy):
         x = x[fitness.argsort()]
         # Weighted updates
         weighted_mean = (weights * x).sum(axis=0)
-        weighted_sigma = jnp.sqrt(
-            (weights * (x - state.mean) ** 2).sum(axis=0) + 1e-06
-        )
+        weighted_sigma = jnp.sqrt((weights * (x - state.mean) ** 2).sum(axis=0) + 1e-06)
         mean = state.mean + params.lrate_mean * (weighted_mean - state.mean)
-        sigma = state.sigma + params.lrate_sigma * (
-            weighted_sigma - state.sigma
-        )
+        sigma = state.sigma + params.lrate_sigma * (weighted_sigma - state.sigma)
         return state.replace(mean=mean, sigma=sigma)

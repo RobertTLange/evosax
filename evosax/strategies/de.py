@@ -1,9 +1,9 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
 from flax import struct
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -34,12 +34,19 @@ class DE(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Differential Evolution (Storn & Price, 1997)
         Reference: https://tinyurl.com/4pje5a74"""
         assert popsize > 6, "DE requires popsize > 6."
-        super().__init__(popsize, num_dims, pholder_params, **fitness_kwargs)
+        super().__init__(
+            popsize,
+            num_dims,
+            pholder_params,
+            n_devices=n_devices,
+            **fitness_kwargs
+        )
         self.strategy_name = "DE"
 
     @property
@@ -92,7 +99,7 @@ class DE(Strategy):
             state.best_member,
             params,
         )
-        return jnp.squeeze(x), state
+        return jnp.squeeze(x, axis=2), state
 
     def tell_strategy(
         self,

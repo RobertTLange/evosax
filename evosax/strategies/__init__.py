@@ -30,7 +30,13 @@ from .cr_fm_nes import CR_FM_NES
 from .mr15_ga import MR15_GA
 from .random import RandomSearch
 from .les import LES
-
+from .lga import LGA
+from .noise_reuse_es import NoiseReuseES
+from .hill_climber import HillClimber
+from .evotf_es import EvoTF_ES
+from .diffusion import DiffusionEvolution
+from .sv_cma_es import SV_CMA_ES
+from .sv_open_es import SV_OpenES
 
 __all__ = [
     "SimpleGA",
@@ -65,4 +71,11 @@ __all__ = [
     "MR15_GA",
     "RandomSearch",
     "LES",
+    "LGA",
+    "NoiseReuseES",
+    "HillClimber",
+    "EvoTF_ES",
+    "DiffusionEvolution",
+    "SV_CMA_ES",
+    "SV_OpenES"
 ]

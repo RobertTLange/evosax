@@ -27,7 +27,6 @@ def full_eigen_decomp(
 
     # More conservative thresholding
     D = jnp.sqrt(jnp.maximum(D2, eps))
-
     return C, B, D
 
 

@@ -1,8 +1,8 @@
+from typing import Union, Optional
 import jax
 import jax.numpy as jnp
 import chex
 from functools import partial
-from typing import Union
 
 
 class FitnessShaper(object):
@@ -13,14 +13,20 @@ class FitnessShaper(object):
         norm_range: Union[bool, int] = False,
         w_decay: float = 0.0,
         maximize: Union[bool, int] = False,
+        fitness_trafo: Optional[str] = None,
     ):
         """JAX-compatible fitness shaping tool."""
         self.w_decay = w_decay
-        self.centered_rank = bool(centered_rank)
-        self.z_score = bool(z_score)
-        self.norm_range = bool(norm_range)
         self.maximize = bool(maximize)
 
+        if fitness_trafo in ["centered_rank", "z_score", "norm_range", "raw"]:
+            self.centered_rank = fitness_trafo == "centered_rank"
+            self.z_score = fitness_trafo == "z_score"
+            self.norm_range = fitness_trafo == "norm_range"
+        else:
+            self.centered_rank = bool(centered_rank)
+            self.z_score = bool(z_score)
+            self.norm_range = bool(norm_range)
         # Check that only single fitness shaping transformation is used
         num_options_on = self.centered_rank + self.z_score + self.norm_range
         assert (
@@ -53,7 +59,7 @@ class FitnessShaper(object):
 
 def z_score_trafo(arr: chex.Array) -> chex.Array:
     """Make fitness 'Gaussian' by substracting mean and dividing by std."""
-    return (arr - jnp.mean(arr)) / (jnp.std(arr) + 1e-10)
+    return (arr - jnp.nanmean(arr)) / (jnp.nanstd(arr) + 1e-10)
 
 
 def compute_ranks(fitness: chex.Array) -> chex.Array:
@@ -72,7 +78,7 @@ def centered_rank_trafo(fitness: chex.Array) -> chex.Array:
 
 def compute_l2_norm(x: chex.Array) -> chex.Array:
     """Compute L2-norm of x_i. Assumes x to have shape (popsize, num_dims)."""
-    return jnp.mean(x * x, axis=1)
+    return jnp.nanmean(x * x, axis=1)
 
 
 def range_norm_trafo(
@@ -80,11 +86,7 @@ def range_norm_trafo(
 ) -> chex.Array:
     """Map scores into a min/max range."""
     arr = jnp.clip(arr, -1e10, 1e10)
-    normalized_arr = (
-        2
-        * max_val
-        * (arr - jnp.nanmin(arr))
-        / (jnp.nanmax(arr) - jnp.nanmin(arr) + 1e-10)
-        - min_val
-    )
+    normalized_arr = (max_val - min_val) * (arr - jnp.nanmin(arr)) / (
+        jnp.nanmax(arr) - jnp.nanmin(arr) + 1e-10
+    ) + min_val
     return normalized_arr

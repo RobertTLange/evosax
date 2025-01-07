@@ -1,7 +1,7 @@
-from .dist_open_es import DistributedOpenES
+from .open_es import OpenES
 
 
-DistributedStrategies = {"DistributedOpenES": DistributedOpenES}
+DistributedStrategies = {"OpenES": OpenES}
 
 
-__all__ = ["DistributedOpenES", "DistributedStrategies"]
+__all__ = ["OpenES", "DistributedStrategies"]

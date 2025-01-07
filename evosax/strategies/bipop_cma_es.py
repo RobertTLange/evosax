@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import chex
-from typing import Tuple, Optional, Union
 from functools import partial
+from flax import struct
 from .cma_es import CMA_ES
 from ..restarts.restarter import WrapperState, WrapperParams
-from flax import struct
 
 
 @struct.dataclass
@@ -27,6 +27,7 @@ class BIPOP_CMA_ES(object):
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """BIPOP-CMA-ES (Hansen, 2009).
@@ -41,6 +42,7 @@ class BIPOP_CMA_ES(object):
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
             mean_decay=mean_decay,
+            n_devices=n_devices,
             **fitness_kwargs,
         )
         from ..restarts import BIPOP_Restarter

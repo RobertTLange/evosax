@@ -1,9 +1,9 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
 from flax import struct
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -67,13 +67,19 @@ class RmES(Strategy):
         memory_size: int = 10,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Rank-m ES (Li & Zhang, 2017)
         Reference: https://ieeexplore.ieee.org/document/8080257
         """
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio

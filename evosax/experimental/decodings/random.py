@@ -2,7 +2,7 @@ import jax
 import chex
 from typing import Union, Optional
 from .decoder import Decoder
-from ...utils import ParameterReshaper
+from ...core import ParameterReshaper
 
 
 class RandomDecoder(Decoder):

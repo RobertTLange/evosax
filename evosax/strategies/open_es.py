@@ -1,16 +1,16 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
+from ..strategy import Strategy
+from ..core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass
 class EvoState:
     mean: chex.Array
-    sigma: float
+    sigma: chex.Array
     opt_state: OptState
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
@@ -35,6 +35,7 @@ class OpenES(Strategy):
         popsize: int,
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
@@ -43,18 +44,20 @@ class OpenES(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """OpenAI-ES (Salimans et al. (2017)
         Reference: https://arxiv.org/pdf/1703.03864.pdf
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "OpenES"
+        self.use_antithetic_sampling = use_antithetic_sampling
 
         # Set core kwargs es_params (lrate/sigma schedules)
         self.lrate_init = lrate_init
@@ -79,9 +82,7 @@ class OpenES(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -91,7 +92,7 @@ class OpenES(Strategy):
         )
         state = EvoState(
             mean=initialization,
-            sigma=params.sigma_init,
+            sigma=jnp.ones(self.num_dims) * params.sigma_init,
             opt_state=self.optimizer.initialize(params.opt_params),
             best_member=initialization,
         )
@@ -102,11 +103,14 @@ class OpenES(Strategy):
     ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
-        z_plus = jax.random.normal(
-            rng,
-            (int(self.popsize / 2), self.num_dims),
-        )
-        z = jnp.concatenate([z_plus, -1.0 * z_plus])
+        if self.use_antithetic_sampling:
+            z_plus = jax.random.normal(
+                rng,
+                (int(self.popsize / 2), self.num_dims),
+            )
+            z = jnp.concatenate([z_plus, -1.0 * z_plus])
+        else:
+            z = jax.random.normal(rng, (self.popsize, self.num_dims))
         x = state.mean + state.sigma * z
         return x, state
 
@@ -120,9 +124,7 @@ class OpenES(Strategy):
         """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        theta_grad = (
-            1.0 / (self.popsize * state.sigma) * jnp.dot(noise.T, fitness)
-        )
+        theta_grad = 1.0 / (self.popsize * state.sigma) * jnp.dot(noise.T, fitness)
 
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(

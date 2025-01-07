@@ -1,12 +1,12 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
 from functools import partial
-from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
-from evosax.utils import get_best_fitness_member
+from ..strategy import Strategy
+from ..core import GradientOptimizer, OptState, OptParams, exp_decay
+from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
@@ -49,6 +49,7 @@ class GuidedES(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float],
     ):
         """Guided ES (Maheswaranathan et al., 2018)
@@ -60,6 +61,7 @@ class GuidedES(Strategy):
             num_dims,
             pholder_params,
             mean_decay,
+            n_devices,
             **fitness_kwargs,
         )
         assert not self.popsize & 1, "Population size must be even"

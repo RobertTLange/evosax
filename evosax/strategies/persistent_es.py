@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
+from ..strategy import Strategy
+from ..core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass
@@ -47,6 +47,7 @@ class PersistentES(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """Persistent ES (Vicol et al., 2021).
@@ -54,7 +55,12 @@ class PersistentES(Strategy):
         Inspired by: http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
         """
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
@@ -117,8 +123,8 @@ class PersistentES(Strategy):
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)
         # Add the perturbations from this unroll to the perturbation accumulators
         pert_accum = state.pert_accum + perts
-        y = state.mean + perts
-        return jnp.squeeze(y), state.replace(pert_accum=pert_accum)
+        x = state.mean + perts
+        return x, state.replace(pert_accum=pert_accum)
 
     def tell_strategy(
         self,

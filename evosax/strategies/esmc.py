@@ -1,10 +1,10 @@
+from typing import Tuple, Optional, Union
 import jax
 import jax.numpy as jnp
 import chex
-from typing import Tuple, Optional, Union
-from ..strategy import Strategy
-from ..utils import GradientOptimizer, OptState, OptParams, exp_decay
 from flax import struct
+from ..strategy import Strategy
+from ..core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass
@@ -45,13 +45,19 @@ class ESMC(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
+        n_devices: Optional[int] = None,
         **fitness_kwargs: Union[bool, int, float]
     ):
         """ESMC (Merchant et al., 2021)
         Reference: https://proceedings.mlr.press/v139/merchant21a.html
         """
         super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, **fitness_kwargs
+            popsize,
+            num_dims,
+            pholder_params,
+            mean_decay,
+            n_devices,
+            **fitness_kwargs
         )
         assert self.popsize & 1, "Population size must be odd"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
