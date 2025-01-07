@@ -95,7 +95,7 @@ class SV_CMA_ES(CMA_ES):
     ) -> [Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         Cs, Bs, Ds = jax.vmap(full_eigen_decomp, (0, 0, 0, None))(
-            state.C, state.B, state.D, state.gen_counter
+            state.C, state.B, state.D
         )
         keys = jax.random.split(rng, num=self.npop)
         x = jax.vmap(sample, (0, 0, 0, 0, 0, None, None))(
