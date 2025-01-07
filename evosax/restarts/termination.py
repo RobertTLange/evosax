@@ -39,7 +39,6 @@ def cma_criterion(
         state.strategy_state.C,
         state.strategy_state.B,
         state.strategy_state.D,
-        state.strategy_state.gen_counter,
     )
 
     # Stop if std of normal distrib is smaller than tolx in all coordinates

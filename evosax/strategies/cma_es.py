@@ -172,9 +172,7 @@ class CMA_ES(Strategy):
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
     ) -> Tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        C, B, D = full_eigen_decomp(
-            state.C, state.B, state.D, state.gen_counter
-        )
+        C, B, D = full_eigen_decomp(state.C, state.B, state.D)
         x = sample(
             rng,
             state.mean,
@@ -280,7 +278,7 @@ def update_p_sigma(
     gen_counter: int,
 ) -> Tuple[chex.Array, chex.Array, chex.Array, None, None]:
     """Update evolution path for covariance matrix."""
-    C, B, D = full_eigen_decomp(C, B, D, gen_counter)
+    C, B, D = full_eigen_decomp(C, B, D)
     C_2 = B.dot(jnp.diag(1 / D)).dot(B.T)  # C^(-1/2) = B D^(-1) B^T
     p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
         c_sigma * (2 - c_sigma) * mu_eff
