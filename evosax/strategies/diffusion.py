@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import chex
 from flax import struct
 from ..strategy import Strategy
+from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
@@ -28,6 +29,8 @@ class EvoParams:
     fitness_map_power: float = 1.0
     fitness_map_l2_factor: float = 0.0
     scale_factor: float = 1.0
+    init_min: float = 0.0
+    init_max: float = 0.0
     clip_min: float = -jnp.finfo(jnp.float32).max
     clip_max: float = jnp.finfo(jnp.float32).max
 
@@ -168,9 +171,10 @@ class DiffusionEvolution(Strategy):
             fitness_mapped,
             alpha_t,
         )
+        best_member, _ = get_best_fitness_member(x, fitness, state, False)
         # print("x0_est", x0_est[:2])
         return state.replace(
-            mean=x0_est.mean(axis=0),
+            mean=best_member,
             archive=x_rescale,
             x0_est=x0_est,
         )
