@@ -5,7 +5,16 @@ import jax.numpy as jnp
 from chex import Array, ArrayTree, PRNGKey
 from flax.struct import dataclass
 
-from evosax.strategies.cma_es import get_cma_elite_weights, update_p_c, update_p_sigma, sample, update_sigma, update_covariance, EvoParams, CMA_ES
+from evosax.strategies.cma_es import (
+    get_cma_elite_weights,
+    update_p_c,
+    update_p_sigma,
+    sample,
+    update_sigma,
+    update_covariance,
+    EvoParams,
+    CMA_ES,
+)
 from evosax.utils.eigen_decomp import full_eigen_decomp
 from evosax.utils.kernel import Kernel, RBF
 
@@ -24,8 +33,8 @@ class EvoState:
     best_member: Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     gen_counter: int = 0
-    bandwidth: float = 1.
-    alpha: float = 1.
+    bandwidth: float = 1.0
+    alpha: float = 1.0
 
 
 class SV_CMA_ES(CMA_ES):
@@ -61,9 +70,7 @@ class SV_CMA_ES(CMA_ES):
         self.strategy_name = "SV_CMA_ES"
         self.kernel = kernel()
 
-    def initialize_strategy(
-        self, rng: PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.subpopsize, self.elite_popsize, self.num_dims, self.max_dims_sq
@@ -94,9 +101,7 @@ class SV_CMA_ES(CMA_ES):
         self, rng: PRNGKey, state: EvoState, params: EvoParams
     ) -> [Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        Cs, Bs, Ds = jax.vmap(full_eigen_decomp, (0, 0, 0, None))(
-            state.C, state.B, state.D
-        )
+        Cs, Bs, Ds = jax.vmap(full_eigen_decomp)(state.C, state.B, state.D)
         keys = jax.random.split(rng, num=self.npop)
         x = jax.vmap(sample, (0, 0, 0, 0, 0, None, None))(
             keys,
@@ -126,19 +131,17 @@ class SV_CMA_ES(CMA_ES):
 
         # Compute grads
         y_ks, y_ws = jax.vmap(cmaes_grad, (0, 0, 0, 0, None))(
-            x,
-            fitness,
-            state.mean,
-            state.sigma,
-            state.weights_truncated
+            x, fitness, state.mean, state.sigma, state.weights_truncated
         )
 
         # Compute kernel grads
         bandwidth = state.bandwidth
         kernel_grads = jax.vmap(
             lambda xi: jnp.mean(
-                jax.vmap(lambda xj: jax.grad(self.kernel)(xj, xi, bandwidth))(state.mean),
-                axis=0
+                jax.vmap(lambda xj: jax.grad(self.kernel)(xj, xi, bandwidth))(
+                    state.mean
+                ),
+                axis=0,
             )
         )(state.mean)
 
@@ -148,7 +151,9 @@ class SV_CMA_ES(CMA_ES):
         means = state.mean + params.c_m * state.sigma[:, None] * projected_steps
 
         # Search distribution updates
-        p_sigmas, C_2s, Cs, Bs, Ds = jax.vmap(update_p_sigma, (0, 0, 0, 0, 0, None, None, None))(
+        p_sigmas, C_2s, Cs, Bs, Ds = jax.vmap(
+            update_p_sigma, (0, 0, 0, 0, 0, None, None, None)
+        )(
             state.C,
             state.B,
             state.D,
@@ -159,7 +164,9 @@ class SV_CMA_ES(CMA_ES):
             state.gen_counter,
         )
 
-        p_cs, norms_p_sigma, h_sigmas = jax.vmap(update_p_c, (0, 0, 0, None, 0, None, None, None, None))(
+        p_cs, norms_p_sigma, h_sigmas = jax.vmap(
+            update_p_c, (0, 0, 0, None, 0, None, None, None, None)
+        )(
             means,
             p_sigmas,
             state.p_c,
@@ -181,7 +188,7 @@ class SV_CMA_ES(CMA_ES):
             state.weights,
             params.c_c,
             params.c_1,
-            params.c_mu
+            params.c_mu,
         )
 
         sigmas = jax.vmap(update_sigma, (0, 0, None, None, None))(
@@ -211,6 +218,8 @@ def cmaes_grad(
     # get the scores
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = (x_k - mean) / sigma  # ~ N(0, C)
-    grad = jnp.dot(weights_truncated.T, y_k)  # y_w can be seen as score estimate of CMA-ES
+    grad = jnp.dot(
+        weights_truncated.T, y_k
+    )  # y_w can be seen as score estimate of CMA-ES
 
     return y_k, grad
