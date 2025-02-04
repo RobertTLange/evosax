@@ -1,4 +1,3 @@
-
 import jax
 import jax.numpy as jnp
 from chex import Array, ArrayTree, PRNGKey

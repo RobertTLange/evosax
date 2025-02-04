@@ -27,10 +27,18 @@ class BBOBFitness:
         self.n_devices = n_devices
 
         key = jax.random.key(seed)
-        self.x_opt = jax.random.uniform(key, shape=(self.max_num_dims,), minval=-4.0, maxval=4.0)
+        self.x_opt = jax.random.uniform(
+            key, shape=(self.max_num_dims,), minval=-4.0, maxval=4.0
+        )
         self.r, self.q = self.get_rotation_matrices(key, num_dims)
 
-        self.fn = partial(bbob_fns[self.fn_name], x_opt=self.x_opt, r=self.r, q=self.q, num_dims=self.num_dims)
+        self.fn = partial(
+            bbob_fns[self.fn_name],
+            x_opt=self.x_opt,
+            r=self.r,
+            q=self.q,
+            num_dims=self.num_dims,
+        )
 
     def rollout(
         self,
@@ -85,11 +93,15 @@ class BBOBFitness:
         """
         # Generate fixed-size random normal matrix but mask based on num_dims
         random_matrix = jax.random.normal(key, (self.max_num_dims, self.max_num_dims))
-        mask = (jnp.arange(self.max_num_dims)[:, None] < num_dims) & (jnp.arange(self.max_num_dims)[None, :] < num_dims)
+        mask = (jnp.arange(self.max_num_dims)[:, None] < num_dims) & (
+            jnp.arange(self.max_num_dims)[None, :] < num_dims
+        )
         random_matrix = jnp.where(mask, random_matrix, 0.0)
 
         # Add identity matrix for masked region to ensure valid QR decomposition
-        random_matrix = random_matrix + jnp.where(~mask, jnp.eye(self.max_num_dims), 0.0)
+        random_matrix = random_matrix + jnp.where(
+            ~mask, jnp.eye(self.max_num_dims), 0.0
+        )
 
         # QR decomposition
         orthogonal_matrix, upper_triangular = jnp.linalg.qr(random_matrix)
@@ -127,7 +139,10 @@ def lambda_alpha(alpha: float, max_num_dims: int, num_dims: int) -> jax.Array:
     """Masked lambda alpha matrix."""
     mask = jnp.arange(max_num_dims) < num_dims
 
-    exp = jnp.where(num_dims > 1, 0.5 * jnp.arange(max_num_dims) / (num_dims - 1), 0.5) * mask
+    exp = (
+        jnp.where(num_dims > 1, 0.5 * jnp.arange(max_num_dims) / (num_dims - 1), 0.5)
+        * mask
+    )
     return jnp.diag(jnp.power(alpha, exp))
 
 
@@ -136,7 +151,9 @@ def transform_osz(element: float) -> jax.Array:
     x_hat = jnp.where(element == 0.0, 0.0, jnp.log(jnp.abs(element)))
     c_1 = jnp.where(element > 0.0, 10.0, 5.5)
     c_2 = jnp.where(element > 0.0, 7.9, 3.1)
-    return jnp.sign(element) * jnp.exp(x_hat + 0.049 * (jnp.sin(c_1 * x_hat) + jnp.sin(c_2 * x_hat)))
+    return jnp.sign(element) * jnp.exp(
+        x_hat + 0.049 * (jnp.sin(c_1 * x_hat) + jnp.sin(c_2 * x_hat))
+    )
 
 
 def transform_asy(x: jax.Array, beta: float, num_dims: int) -> jax.Array:
@@ -144,7 +161,13 @@ def transform_asy(x: jax.Array, beta: float, num_dims: int) -> jax.Array:
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
 
-    exp = 1 + beta * jnp.where(num_dims > 1, jnp.arange(max_num_dims) / (num_dims - 1), 1.0) * jnp.sqrt(x) * mask
+    exp = (
+        1
+        + beta
+        * jnp.where(num_dims > 1, jnp.arange(max_num_dims) / (num_dims - 1), 1.0)
+        * jnp.sqrt(x)
+        * mask
+    )
     return jnp.where(x > 0.0, jnp.power(x, exp), x)
 
 
@@ -157,7 +180,9 @@ def f_pen(x: jax.Array, num_dims: int) -> jax.Array:
     return jnp.sum(jnp.square(jnp.maximum(0.0, out * mask)))
 
 
-def sphere(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def sphere(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Sphere Function (Hansen et al., 2010, p. 5)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -168,19 +193,26 @@ def sphere(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims:
     return jnp.sum(out * mask), jnp.array(0.0)
 
 
-def ellipsoidal(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def ellipsoidal(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Ellipsoidal Function (Hansen et al., 2010, p. 10)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
 
     z = transform_osz(x - x_opt)
 
-    exp = jnp.where(num_dims > 1, 6.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0) * mask
+    exp = (
+        jnp.where(num_dims > 1, 6.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0)
+        * mask
+    )
     out = jnp.power(10, exp) * jnp.square(z)
     return jnp.sum(out * mask), jnp.array(0.0)
 
 
-def rastrigin(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def rastrigin(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Rastrigin Function (Hansen et al., 2010, p. 15)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -190,10 +222,14 @@ def rastrigin(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_di
 
     out_1 = jnp.cos(2 * jnp.pi * z)
     out_2 = jnp.square(z)
-    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), jnp.array(0.0)
+    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), jnp.array(
+        0.0
+    )
 
 
-def bueche_rastrigin(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def bueche_rastrigin(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Bueche-Rastrigin Function (Hansen et al., 2010, p. 20)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -202,7 +238,10 @@ def bueche_rastrigin(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array,
     # definition between z and s.
     z = transform_osz(x - x_opt)
 
-    exp = jnp.where(num_dims > 1, 0.5 * jnp.arange(max_num_dims) / (num_dims - 1), 0.5) * mask
+    exp = (
+        jnp.where(num_dims > 1, 0.5 * jnp.arange(max_num_dims) / (num_dims - 1), 0.5)
+        * mask
+    )
     cond = (z > 0.0) & (jnp.arange(max_num_dims) % 2 == 1)
     s = jnp.where(cond, jnp.power(10, exp + 1), jnp.power(10, exp))
 
@@ -210,10 +249,14 @@ def bueche_rastrigin(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array,
 
     out_1 = jnp.cos(2 * jnp.pi * z)
     out_2 = jnp.square(z)
-    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), 100 * f_pen(x, num_dims)
+    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), 100 * f_pen(
+        x, num_dims
+    )
 
 
-def linear_slope(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def linear_slope(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Linear Slope (Hansen et al., 2010, p. 25)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -230,7 +273,9 @@ def linear_slope(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num
     return jnp.sum(out * mask), jnp.array(0.0)
 
 
-def attractive_sector(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def attractive_sector(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Attractive Sector Function (Hansen et al., 2010, p. 30)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -245,7 +290,9 @@ def attractive_sector(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array
     return jnp.power(transform_osz(out), 0.9), jnp.array(0.0)
 
 
-def step_ellipsoidal(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def step_ellipsoidal(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Step Ellipsoidal Function (Hansen et al., 2010, p. 35)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -261,12 +308,17 @@ def step_ellipsoidal(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array,
 
     z = jnp.matmul(q, z_tilde)
 
-    exp = jnp.where(num_dims > 1, 2.0 * jnp.arange(max_num_dims) / (num_dims - 1.0), 2.0) * mask
+    exp = (
+        jnp.where(num_dims > 1, 2.0 * jnp.arange(max_num_dims) / (num_dims - 1.0), 2.0)
+        * mask
+    )
     out = jnp.sum(100.0 * jnp.power(10.0, exp) * jnp.square(z) * mask)
     return 0.1 * jnp.maximum(jnp.abs(z_hat[0]) / 1e4, out), f_pen(x, num_dims)
 
 
-def rosenbrock(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def rosenbrock(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Rosenbrock Function, original (Hansen et al., 2010, p. 40)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
@@ -280,12 +332,16 @@ def rosenbrock(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_d
     return jnp.sum(out * mask), jnp.array(0.0)
 
 
-def rosenbrock_rotated(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def rosenbrock_rotated(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Rosenbrock Function, rotated (Hansen et al., 2010, p. 45)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
 
-    z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(r, x - x_opt) + 0.5  # TODO: check if correct
+    z = (
+        jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(r, x - x_opt) + 0.5
+    )  # TODO: check if correct
     z_i = z[:-1]
     z_ip1 = jnp.roll(z, -1)[:-1]
 
@@ -293,7 +349,9 @@ def rosenbrock_rotated(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Arra
     return jnp.sum(out * mask), jnp.array(0.0)
 
 
-def ellipsoidal_rotated(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def ellipsoidal_rotated(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Ellipsoidal Function (Hansen et al., 2010, p. 50)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -301,12 +359,17 @@ def ellipsoidal_rotated(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Arr
     z = jnp.matmul(r, x - x_opt)
     z = transform_osz(z)
 
-    exp = jnp.where(num_dims > 1, 6.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0) * mask
+    exp = (
+        jnp.where(num_dims > 1, 6.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0)
+        * mask
+    )
     out = jnp.power(10, exp) * jnp.square(z)
     return jnp.sum(out * mask), jnp.array(0.0)
 
 
-def discus(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def discus(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Discus Function (Hansen et al., 2010, p. 55)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -319,7 +382,9 @@ def discus(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims:
     return jnp.sum(out * mask), jnp.array(0.0)
 
 
-def bent_cigar(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def bent_cigar(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Bent Cigar Function (Hansen et al., 2010, p. 60)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -333,7 +398,9 @@ def bent_cigar(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_d
     return jnp.sum(out * mask), jnp.array(0.0)
 
 
-def sharp_ridge(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def sharp_ridge(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Sharp Ridge Function (Hansen et al., 2010, p. 65)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
@@ -346,19 +413,28 @@ def sharp_ridge(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_
     return z_squared[0] + 100 * jnp.sqrt(jnp.sum(z_squared[1:] * mask)), jnp.array(0.0)
 
 
-def different_powers(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def different_powers(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Different Powers Function (Hansen et al., 2010, p. 70)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
 
     z = jnp.matmul(r, x - x_opt)
 
-    exp = jnp.where(num_dims > 1, 2.0 + 4.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0) * mask
+    exp = (
+        jnp.where(
+            num_dims > 1, 2.0 + 4.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0
+        )
+        * mask
+    )
     out = jnp.power(jnp.abs(z), exp)
     return jnp.sqrt(jnp.sum(out * mask)), jnp.array(0.0)
 
 
-def rastrigin_rotated(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def rastrigin_rotated(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Rastrigin Function (Hansen et al., 2010, p. 75)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -371,10 +447,14 @@ def rastrigin_rotated(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array
 
     out_1 = jnp.cos(2 * jnp.pi * z)
     out_2 = jnp.square(z)
-    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), jnp.array(0.0)
+    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), jnp.array(
+        0.0
+    )
 
 
-def weierstrass(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def weierstrass(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Weierstrass Function (Hansen et al., 2010, p. 80)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -390,11 +470,17 @@ def weierstrass(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_
     three_pow_k = jnp.power(3, jnp.arange(k_order))
     f_0 = jnp.sum(half_pow_k * jnp.cos(jnp.pi * three_pow_k))
 
-    out = jnp.sum(half_pow_k * jnp.cos(2 * jnp.pi * three_pow_k * (z[:, None] + 0.5)) * mask[:, None])
+    out = jnp.sum(
+        half_pow_k
+        * jnp.cos(2 * jnp.pi * three_pow_k * (z[:, None] + 0.5))
+        * mask[:, None]
+    )
     return 10 * (out / num_dims - f_0) ** 3, 10 * f_pen(x, num_dims) / num_dims
 
 
-def schaffers_f7(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def schaffers_f7(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Schaffers F7 Function (Hansen et al., 2010, p. 85)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
@@ -438,12 +524,16 @@ def schaffers_f7_ill_conditioned(
     return (out / (num_dims - 1.0)) ** 2, 10 * f_pen(x, num_dims)
 
 
-def griewank_rosenbrock(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def griewank_rosenbrock(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Composite Griewank-Rosenbrock Function F8F2 (Hansen et al., 2010, p. 95)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
 
-    z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(r, x - x_opt) + 0.5  # TODO: check if correct
+    z = (
+        jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(r, x - x_opt) + 0.5
+    )  # TODO: check if correct
     # z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(r, x - x_opt) + 1.0
     z_i = z[:-1]
     z_ip1 = jnp.roll(z, -1)[:-1]
@@ -453,7 +543,9 @@ def griewank_rosenbrock(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Arr
     return 10.0 * jnp.sum(out * mask) / (num_dims - 1) + 10, jnp.array(0.0)
 
 
-def schwefel(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def schwefel(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Schwefel Function (Hansen et al., 2010, p. 100)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -467,13 +559,20 @@ def schwefel(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dim
     x_hat_im1 = jnp.roll(x_hat, 1).at[0].set(0.0)
     x_opt_im1 = jnp.roll(x_opt, 1).at[0].set(0.0)
     z_hat = x_hat_i + 0.25 * (x_hat_im1 - 2 * jnp.abs(x_opt_im1))
-    z = 100 * (jnp.matmul(lambda_alpha(10, max_num_dims, num_dims), z_hat - 2 * jnp.abs(x_opt)) + 2 * jnp.abs(x_opt))
+    z = 100 * (
+        jnp.matmul(lambda_alpha(10, max_num_dims, num_dims), z_hat - 2 * jnp.abs(x_opt))
+        + 2 * jnp.abs(x_opt)
+    )
 
     out = z * jnp.sin(jnp.sqrt(jnp.abs(z)))
-    return -(jnp.sum(out * mask) / (100.0 * num_dims)) + 4.189828872724339, 100 * f_pen(z / 100, num_dims)
+    return -(jnp.sum(out * mask) / (100.0 * num_dims)) + 4.189828872724339, 100 * f_pen(
+        z / 100, num_dims
+    )
 
 
-def gallagher_101_me(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def gallagher_101_me(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Gallagher's Gaussian 101-me Peaks Function (Hansen et al., 2010, p. 105)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -482,7 +581,11 @@ def gallagher_101_me(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array,
     key = jax.random.key(0)
     key = jax.random.fold_in(key, q[0, 0])
 
-    w = jnp.where(jnp.arange(num_optima) == 0, 10.0, 1.1 + 8.0 * (jnp.arange(num_optima) - 1.0) / (num_optima - 2.0))
+    w = jnp.where(
+        jnp.arange(num_optima) == 0,
+        10.0,
+        1.1 + 8.0 * (jnp.arange(num_optima) - 1.0) / (num_optima - 2.0),
+    )
 
     alpha = jnp.zeros(num_optima)
     alpha_set = jnp.power(1000.0, 2.0 * jnp.arange(num_optima - 1) / (num_optima - 2))
@@ -490,13 +593,17 @@ def gallagher_101_me(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array,
     alpha_permuted = jax.random.permutation(subkey, alpha_set)
     alpha = alpha.at[0].set(1000.0)
     alpha = alpha.at[1:].set(alpha_permuted)
-    c = jax.vmap(lambda alpha: lambda_alpha(alpha, max_num_dims, num_dims) / alpha**0.25)(alpha)
+    c = jax.vmap(
+        lambda alpha: lambda_alpha(alpha, max_num_dims, num_dims) / alpha**0.25
+    )(alpha)
 
     key, subkey = jax.random.split(key)
     keys = jax.random.split(subkey, num_optima)
 
     def permute_diag(c_i, key):
-        perm = jax.random.choice(key, jnp.arange(max_num_dims), shape=(max_num_dims,), replace=False, p=mask)
+        perm = jax.random.choice(
+            key, jnp.arange(max_num_dims), shape=(max_num_dims,), replace=False, p=mask
+        )
         diag = jnp.diag(c_i)
         new_diag = diag[perm]
         return c_i.at[jnp.arange(max_num_dims), jnp.arange(max_num_dims)].set(new_diag)
@@ -526,7 +633,9 @@ def gallagher_101_me(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array,
     return jnp.square(transform_osz(10.0 - jnp.max(out))), f_pen(x, num_dims)
 
 
-def gallagher_21_hi(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def gallagher_21_hi(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Gallagher's Gaussian 21-hi Peaks Function (Hansen et al., 2010, p. 110)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -537,7 +646,11 @@ def gallagher_21_hi(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, 
     key = jax.random.key(0)
     key = jax.random.fold_in(key, q[0, 0])
 
-    w = jnp.where(jnp.arange(num_optima) == 0, 10.0, 1.1 + 8.0 * (jnp.arange(num_optima) - 1.0) / (num_optima - 2.0))
+    w = jnp.where(
+        jnp.arange(num_optima) == 0,
+        10.0,
+        1.1 + 8.0 * (jnp.arange(num_optima) - 1.0) / (num_optima - 2.0),
+    )
 
     alpha = jnp.zeros(num_optima)
     alpha_set = jnp.power(1000.0, 2.0 * jnp.arange(num_optima - 1) / (num_optima - 2))
@@ -545,13 +658,17 @@ def gallagher_21_hi(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, 
     alpha_permuted = jax.random.permutation(subkey, alpha_set)
     alpha = alpha.at[0].set(1000.0**2)
     alpha = alpha.at[1:].set(alpha_permuted)
-    c = jax.vmap(lambda alpha: lambda_alpha(alpha, max_num_dims, num_dims) / alpha**0.25)(alpha)
+    c = jax.vmap(
+        lambda alpha: lambda_alpha(alpha, max_num_dims, num_dims) / alpha**0.25
+    )(alpha)
 
     key, subkey = jax.random.split(key)
     keys = jax.random.split(subkey, num_optima)
 
     def permute_diag(c_i, key):
-        perm = jax.random.choice(key, jnp.arange(max_num_dims), shape=(max_num_dims,), replace=False, p=mask)
+        perm = jax.random.choice(
+            key, jnp.arange(max_num_dims), shape=(max_num_dims,), replace=False, p=mask
+        )
         diag = jnp.diag(c_i)
         new_diag = diag[perm]
         return c_i.at[jnp.arange(max_num_dims), jnp.arange(max_num_dims)].set(new_diag)
@@ -581,7 +698,9 @@ def gallagher_21_hi(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, 
     return jnp.square(transform_osz(10.0 - jnp.max(out))), f_pen(x, num_dims)
 
 
-def katsuura(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def katsuura(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Katsuura Function (Hansen et al., 2010, p. 115)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -594,12 +713,19 @@ def katsuura(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dim
     z = jnp.matmul(q, z)
 
     two_pow_j = jnp.power(2, jnp.arange(1, num_terms + 1))
-    sum = jnp.sum(jnp.abs(two_pow_j * z[:, None] - jnp.round(two_pow_j * z[:, None])) / two_pow_j, axis=1)
+    sum = jnp.sum(
+        jnp.abs(two_pow_j * z[:, None] - jnp.round(two_pow_j * z[:, None])) / two_pow_j,
+        axis=1,
+    )
     prod = jnp.prod(1 + jnp.arange(1, max_num_dims + 1) * sum * mask)
-    return (10.0 / num_dims**2) * (jnp.power(prod, 10.0 / num_dims**1.2) - 1.0), f_pen(x, num_dims)
+    return (10.0 / num_dims**2) * (jnp.power(prod, 10.0 / num_dims**1.2) - 1.0), f_pen(
+        x, num_dims
+    )
 
 
-def lunacek(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int) -> jax.Array:
+def lunacek(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
     """Lunacek bi-Rastrigin Function (Hansen et al., 2010, p. 120)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -619,7 +745,9 @@ def lunacek(x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims
     s_1 = jnp.sum(jnp.square(x_hat - mu_0) * mask)
     s_2 = jnp.sum(jnp.square(x_hat - mu_1) * mask)
     s_3 = jnp.sum(jnp.cos(2 * jnp.pi * z) * mask)
-    return jnp.minimum(s_1, d * num_dims + s * s_2) + 10.0 * (num_dims - s_3), 10**4 * f_pen(x, num_dims)
+    return jnp.minimum(s_1, d * num_dims + s * s_2) + 10.0 * (
+        num_dims - s_3
+    ), 10**4 * f_pen(x, num_dims)
 
 
 bbob_fns = {

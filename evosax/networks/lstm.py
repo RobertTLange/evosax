@@ -1,4 +1,3 @@
-
 import chex
 import jax
 from flax import linen as nn

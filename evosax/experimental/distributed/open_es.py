@@ -1,6 +1,5 @@
 """Distributed version of OpenAI-ES. Supports z-scoring fitness trafo only."""
 
-
 import chex
 import jax
 import jax.numpy as jnp
