@@ -1,14 +1,16 @@
 from functools import partial
+
+import chex
 import jax.numpy as jnp
 from flax import linen as nn
-import chex
+
+from .attention import AttentionEncoder
 from .evo_modules import (
     CompressionPerceiver,
-    SolutionPerceiver,
     DistributionAttention,
     DistributionUpdateNetwork,
+    SolutionPerceiver,
 )
-from .attention import AttentionEncoder
 
 
 class EvoTransformer(nn.Module):

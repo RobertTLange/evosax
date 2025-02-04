@@ -2,7 +2,8 @@ import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from ..core.fitness import z_score_trafo, range_norm_trafo
+
+from ..core.fitness import range_norm_trafo, z_score_trafo
 
 
 def tanh_age(x: chex.Array, gen_counter: float) -> chex.Array:
@@ -17,11 +18,13 @@ class MultiHeadSelfAttention(nn.Module):
     @nn.compact
     def __call__(self, x: chex.Array) -> chex.Array:
         """Applies multi-head dot product self-attention on the input data.
+
         Args:
           x: input of shape `[length, features_in]`.
 
         Returns:
             output of shape `[length, num_features]`.
+
         """
         assert self.num_features % self.num_heads == 0, (
             "Memory dimension must be divisible by number of heads."
@@ -48,12 +51,14 @@ class MultiHeadCrossAttention(nn.Module):
     @nn.compact
     def __call__(self, x: chex.Array, y: chex.Array) -> chex.Array:
         """Applies multi-head dot product self-attention on the input data.
+
         Args:
           x: input of shape `[length_1, features_in]`. - Key/value input.
           y: input of shape `[length_2, features_in]`. - Query input.
 
         Returns:
             output of shape `[length_2, num_features]`.
+
         """
         assert self.num_features % self.num_heads == 0, (
             "Memory dimension must be divisible by number of heads."
@@ -95,8 +100,7 @@ def mix_head_outputs(x: chex.Array, num_features: int, label: str) -> chex.Array
 
 
 def scaled_dot_product(q: chex.Array, k: chex.Array, v: chex.Array) -> chex.Array:
-    """
-    Computes dot-product attention given multi-headed query, key, and value.
+    """Computes dot-product attention given multi-headed query, key, and value.
 
     Args:
         q - queries for calculating attention with shape of
@@ -105,8 +109,10 @@ def scaled_dot_product(q: chex.Array, k: chex.Array, v: chex.Array) -> chex.Arra
             `[length, heads, embed_dim]`.
         v - values for calculating attention with shape of
             `[length, heads, embed_dim]`.
+
     Returns:
         output of shape [length, heads, embed_dim]
+
     """
     d_k = q.shape[-1]
     attn_logits = jnp.matmul(

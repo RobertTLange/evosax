@@ -1,9 +1,8 @@
-from typing import Optional, Type, Union
 
 import jax
-from flax import struct
-from chex import Array, ArrayTree
 import jax.numpy as jnp
+from chex import Array, ArrayTree
+from flax import struct
 
 from evosax.core import OptState, exp_decay
 from evosax.strategies.open_es import EvoParams, OpenES
@@ -27,9 +26,9 @@ class SV_OpenES(OpenES):
         self,
         npop: int,
         subpopsize: int,
-        kernel: Type[Kernel] = RBF,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[ArrayTree | Array] = None,
+        kernel: type[Kernel] = RBF,
+        num_dims: int | None = None,
+        pholder_params: ArrayTree | Array | None = None,
         use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -39,11 +38,12 @@ class SV_OpenES(OpenES):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Stein Variational OpenAI-ES (Liu et al., 2017)
-        Reference: https://arxiv.org/abs/1704.02399"""
+        Reference: https://arxiv.org/abs/1704.02399
+        """
         super().__init__(
             npop * subpopsize,
             num_dims,

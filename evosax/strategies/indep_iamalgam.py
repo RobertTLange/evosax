@@ -1,13 +1,14 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from ..strategy import Strategy
+
 from ..core import exp_decay
+from ..strategy import Strategy
 from .full_iamalgam import (
-    anticipated_mean_shift,
     adaptive_variance_scaling,
+    anticipated_mean_shift,
     update_mean_amalgam,
 )
 
@@ -48,15 +49,15 @@ class Indep_iAMaLGaM(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.35,
         sigma_init: float = 0.0,
         sigma_decay: float = 0.99,
         sigma_limit: float = 0.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Diagonal Covariance
         Reference: https://tinyurl.com/y9fcccx2
@@ -120,7 +121,7 @@ class Indep_iAMaLGaM(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         rng_sample, rng_ams = jax.random.split(rng)
         x = sample(rng_sample, state.mean, state.C, state.sigma, self.popsize)

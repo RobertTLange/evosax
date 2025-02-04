@@ -1,5 +1,5 @@
 from .batch import BatchStrategy
-from .protocol import Protocol
 from .meta import MetaStrategy
+from .protocol import Protocol
 
 __all__ = ["BatchStrategy", "Protocol", "MetaStrategy"]

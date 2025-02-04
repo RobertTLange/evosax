@@ -1,8 +1,8 @@
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from typing import Union, Optional
-from jax import vjp, flatten_util
+from jax import flatten_util, vjp
 from jax.tree_util import tree_flatten
 
 
@@ -16,11 +16,11 @@ def ravel_list(*lst):
     return jnp.concatenate([jnp.ravel(elt) for elt in lst]) if lst else jnp.array([])
 
 
-class ParameterReshaper(object):
+class ParameterReshaper:
     def __init__(
         self,
-        placeholder_params: Union[chex.ArrayTree, chex.Array],
-        n_devices: Optional[int] = None,
+        placeholder_params: chex.ArrayTree | chex.Array,
+        n_devices: int | None = None,
         verbose: bool = True,
     ):
         """Reshape flat parameters vectors into generation eval shape."""

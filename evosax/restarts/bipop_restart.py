@@ -1,10 +1,11 @@
-import jax
-import chex
 from functools import partial
-from typing import Tuple, Optional
-from .restarter import RestartWrapper, WrapperState, WrapperParams
-from .termination import spread_criterion
+
+import chex
+import jax
 from flax import struct
+
+from .restarter import RestartWrapper, WrapperParams, WrapperState
+from .termination import spread_criterion
 
 
 @struct.dataclass
@@ -35,7 +36,8 @@ class BIPOP_Restarter(RestartWrapper):
     ):
         """Bi-Population Restarts (Hansen, 2009) - Interlaced population sizes.
         Reference: https://hal.inria.fr/inria-00382093/document
-        Inspired by: https://tinyurl.com/44y3ryhf"""
+        Inspired by: https://tinyurl.com/44y3ryhf
+        """
         super().__init__(base_strategy, stop_criteria)
         self.default_popsize = self.base_strategy.popsize
         self.strategy_kwargs = strategy_kwargs
@@ -51,7 +53,7 @@ class BIPOP_Restarter(RestartWrapper):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
+        self, rng: chex.PRNGKey, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
@@ -74,8 +76,8 @@ class BIPOP_Restarter(RestartWrapper):
         self,
         rng: chex.PRNGKey,
         state: WrapperState,
-        params: Optional[WrapperParams] = None,
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        params: WrapperParams | None = None,
+    ) -> tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:

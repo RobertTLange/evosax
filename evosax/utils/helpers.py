@@ -1,12 +1,12 @@
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from typing import Tuple
 
 
 def get_best_fitness_member(
     x: chex.Array, fitness: chex.Array, state, maximize: bool = False
-) -> Tuple[chex.Array, float]:
+) -> tuple[chex.Array, float]:
     """Check if fitness improved & replace in ES state."""
     fitness_min = jax.lax.select(maximize, -1 * fitness, fitness)
     max_and_later = maximize and state.gen_counter > 0

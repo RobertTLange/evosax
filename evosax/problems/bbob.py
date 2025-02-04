@@ -1,21 +1,23 @@
 """Implementation of BBOB functions provided in Hansen et al. (2009)."""
 
-from typing import Optional
+from functools import partial
+
 import chex
 import jax
 import jax.numpy as jnp
-from functools import partial
+
 from evosax.utils.visualizer_2d import BBOBVisualizer
+
 from .bbob_helpers import (
+    asymmetry_trafo,
+    boundary_penalty,
     get_rotation,
     lambda_alpha_trafo,
     oscillation_trafo,
-    asymmetry_trafo,
-    boundary_penalty,
 )
 
 
-class BBOBFitness(object):
+class BBOBFitness:
     """BBOB Functions Benchmark Task.
     Functions from Hansen et al. (2009)
     'Real-parameter black-box optimization benchmarking 2009: Noiseless functions definitions'
@@ -42,8 +44,8 @@ class BBOBFitness(object):
         self,
         rng: chex.PRNGKey,
         eval_params: chex.Array,
-        R: Optional[chex.Array] = None,
-        Q: Optional[chex.Array] = None,
+        R: chex.Array | None = None,
+        Q: chex.Array | None = None,
         noise_std: float = 0.0,
     ) -> chex.Array:
         """Batch evaluate the proposal points."""
@@ -74,8 +76,8 @@ class BBOBFitness(object):
         self,
         rng: chex.PRNGKey,
         eval_params: chex.Array,
-        R: Optional[chex.Array] = None,
-        Q: Optional[chex.Array] = None,
+        R: chex.Array | None = None,
+        Q: chex.Array | None = None,
         noise_std: float = 0.0,
     ) -> chex.Array:
         """Batch evaluate the proposal points."""

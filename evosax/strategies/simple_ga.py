@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from ..strategy import Strategy
+
 from ..core import exp_decay
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -34,19 +35,19 @@ class SimpleGA(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 0.1,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Simple Genetic Algorithm (Such et al., 2017)
         Reference: https://arxiv.org/abs/1712.06567
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
-
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+        """
         super().__init__(
             popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
@@ -87,9 +88,8 @@ class SimpleGA(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
-        """
-        `ask` for new proposed candidates to evaluate next.
+    ) -> tuple[chex.Array, EvoState]:
+        """`ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
           - Sample two current elite members (a & b)
           - Cross over all dims of a with corresponding one from b
@@ -119,8 +119,7 @@ class SimpleGA(Strategy):
         state: EvoState,
         params: EvoParams,
     ) -> EvoState:
-        """
-        `tell` update to ES state.
+        """`tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """
         # Combine current elite and recent generation info

@@ -1,5 +1,6 @@
 import chex
 import jax.numpy as jnp
+
 from ..utils.eigen_decomp import full_eigen_decomp
 
 

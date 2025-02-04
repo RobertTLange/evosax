@@ -1,19 +1,19 @@
+
+import chex
 import jax
 import jax.numpy as jnp
-from typing import Optional
-import chex
 
 
-class GymnaxFitness(object):
+class GymnaxFitness:
     def __init__(
         self,
         env_name: str = "CartPole-v1",
-        num_env_steps: Optional[int] = None,
+        num_env_steps: int | None = None,
         num_rollouts: int = 16,
         env_kwargs: dict = {},
         env_params: dict = {},
         test: bool = False,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         self.env_name = env_name
         self.num_rollouts = num_rollouts

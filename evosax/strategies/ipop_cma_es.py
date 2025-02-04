@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
-import jax
-import chex
 from functools import partial
+
+import chex
+import jax
 from flax import struct
+
+from ..restarts.restarter import WrapperParams, WrapperState
 from .cma_es import CMA_ES
-from ..restarts.restarter import WrapperState, WrapperParams
 
 
 @struct.dataclass
@@ -18,17 +19,17 @@ class RestartParams:
     copy_mean: bool = True
 
 
-class IPOP_CMA_ES(object):
+class IPOP_CMA_ES:
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """IPOP-CMA-ES (Auer & Hansen, 2005).
         Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
@@ -65,7 +66,7 @@ class IPOP_CMA_ES(object):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
+        self, rng: chex.PRNGKey, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
         return self.wrapped_strategy.initialize(rng, params)
@@ -74,8 +75,8 @@ class IPOP_CMA_ES(object):
         self,
         rng: chex.PRNGKey,
         state: WrapperState,
-        params: Optional[WrapperParams] = None,
-    ) -> Tuple[chex.Array, WrapperState]:
+        params: WrapperParams | None = None,
+    ) -> tuple[chex.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
         x, state = self.wrapped_strategy.ask(rng, state, params)
         return x, state
@@ -86,7 +87,7 @@ class IPOP_CMA_ES(object):
         x: chex.Array,
         fitness: chex.Array,
         state: WrapperState,
-        params: Optional[WrapperParams] = None,
+        params: WrapperParams | None = None,
     ) -> WrapperState:
         """`tell` performance data for strategy state update."""
         return self.wrapped_strategy.tell(x, fitness, state, params)

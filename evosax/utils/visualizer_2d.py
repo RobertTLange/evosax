@@ -3,10 +3,10 @@
 import chex
 import jax
 import jax.numpy as jnp
-import numpy as np
+import matplotlib.animation as animation
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+import numpy as np
 
 # cmap = cm.colors.LinearSegmentedColormap.from_list(
 #     "Custom", [(0, "#2f9599"), (0.45, "#eee"), (1, "#8800ff")], N=256
@@ -17,7 +17,7 @@ cmap = cm.colors.LinearSegmentedColormap.from_list(
 )
 
 
-class BBOBVisualizer(object):
+class BBOBVisualizer:
     """Fitness landscape visualizer and evaluation animator."""
 
     def __init__(
@@ -154,7 +154,6 @@ class BBOBVisualizer(object):
 
     def plot_contour_2d(self, save: bool = False):
         """Plot 2d landscape contour."""
-
         if save:
             self.fig, self.ax = plt.subplots(figsize=(6, 5))
         self.ax.set_xlim(self.x1_lower_bound, self.x1_upper_bound)
@@ -257,6 +256,7 @@ class BBOBVisualizer(object):
 
 if __name__ == "__main__":
     import jax
+
     from evosax import CMA_ES
     from evosax.problems import BBOBFitness
 

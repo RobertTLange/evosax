@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
-from evosax.networks import LSTM, MLP, CNN
 from evosax import ParameterReshaper
+from evosax.networks import CNN, MLP
 
 
 def test_flat_vector():

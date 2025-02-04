@@ -1,11 +1,12 @@
+from functools import partial
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from typing import Tuple, Optional, Union
-from functools import partial
 from flax import struct
+
+from .core import FitnessShaper, ParameterReshaper
 from .utils import get_best_fitness_member
-from .core import ParameterReshaper, FitnessShaper
 
 
 @struct.dataclass
@@ -28,15 +29,15 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-class Strategy(object):
+class Strategy:
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Base Class for an Evolution Strategy."""
         self.popsize = popsize
@@ -70,8 +71,8 @@ class Strategy(object):
     def initialize(
         self,
         rng: chex.PRNGKey,
-        params: Optional[EvoParams] = None,
-        init_mean: Optional[Union[chex.Array, chex.ArrayTree]] = None,
+        params: EvoParams | None = None,
+        init_mean: chex.Array | chex.ArrayTree | None = None,
     ) -> EvoState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
@@ -90,8 +91,8 @@ class Strategy(object):
         self,
         rng: chex.PRNGKey,
         state: EvoState,
-        params: Optional[EvoParams] = None,
-    ) -> Tuple[Union[chex.Array, chex.ArrayTree], EvoState]:
+        params: EvoParams | None = None,
+    ) -> tuple[chex.Array | chex.ArrayTree, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -112,10 +113,10 @@ class Strategy(object):
     @partial(jax.jit, static_argnums=(0,))
     def tell(
         self,
-        x: Union[chex.Array, chex.ArrayTree],
+        x: chex.Array | chex.ArrayTree,
         fitness: chex.Array,
         state: EvoState,
-        params: Optional[EvoParams] = None,
+        params: EvoParams | None = None,
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided
@@ -153,7 +154,7 @@ class Strategy(object):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """Search-specific `ask` request. Returns proposals & updated state."""
         raise NotImplementedError
 
@@ -176,7 +177,7 @@ class Strategy(object):
         return x_out
 
     def set_mean(
-        self, state: EvoState, replace_mean: Union[chex.Array, chex.ArrayTree]
+        self, state: EvoState, replace_mean: chex.Array | chex.ArrayTree
     ) -> EvoState:
         if self.use_param_reshaper:
             replace_mean = self.param_reshaper.flatten_single(replace_mean)

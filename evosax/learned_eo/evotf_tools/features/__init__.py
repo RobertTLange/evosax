@@ -1,6 +1,6 @@
-from .fitness import FitnessFeaturizer, FitnessFeaturesState
-from .solution import SolutionFeaturizer, SolutionFeaturesState
-from .distribution import DistributionFeaturizer, DistributionFeaturesState
+from .distribution import DistributionFeaturesState, DistributionFeaturizer
+from .fitness import FitnessFeaturesState, FitnessFeaturizer
+from .solution import SolutionFeaturesState, SolutionFeaturizer
 
 __all__ = [
     "FitnessFeaturizer",

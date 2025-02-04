@@ -24,7 +24,8 @@ def lambda_alpha_trafo(alpha: float, num_dims: int) -> chex.Array:
 
 def oscillation_trafo(element: float) -> chex.Array:
     """Oscillation trafo function for x array input & f value output.
-    (p.3; Hansen et al., 2009)"""
+    (p.3; Hansen et al., 2009)
+    """
     x_carat = jax.lax.select(element == 0, 0.0, jnp.log(jnp.abs(element)))
     c1 = jax.lax.select(element > 0, 10.0, 5.5)
     c2 = jax.lax.select(element > 0, 7.9, 3.1)
@@ -35,7 +36,8 @@ def oscillation_trafo(element: float) -> chex.Array:
 
 def asymmetry_trafo(vector: chex.Array, beta: float, num_dims: int) -> chex.Array:
     """Assymmetry trafo function for x array input & f value output.
-    (p.3; Hansen et al., 2009)"""
+    (p.3; Hansen et al., 2009)
+    """
     dim = vector.shape[0]
 
     def get_asy_val(idx, val):
@@ -49,7 +51,8 @@ def asymmetry_trafo(vector: chex.Array, beta: float, num_dims: int) -> chex.Arra
 
 def boundary_penalty(vector: chex.Array, num_dims: int) -> chex.Array:
     """Penalty for large function deviations to ensure boundary handling.
-    (p.3; Hansen et al., 2009)"""
+    (p.3; Hansen et al., 2009)
+    """
     out = jnp.abs(vector) - 5.0
     mask = jnp.arange(out.shape[0]) < num_dims
     return jnp.sum(jnp.maximum(0.0, out * mask) ** 2)

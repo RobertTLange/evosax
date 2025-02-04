@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
+from ..core import GradientOptimizer, OptParams, OptState
 from ..strategy import Strategy
-from ..core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass
@@ -35,8 +36,8 @@ class ESMC(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
@@ -45,8 +46,8 @@ class ESMC(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """ESMC (Merchant et al., 2021)
         Reference: https://proceedings.mlr.press/v139/merchant21a.html
@@ -100,7 +101,7 @@ class ESMC(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         z_plus = jax.random.normal(

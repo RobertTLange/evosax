@@ -1,25 +1,26 @@
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from flax.traverse_util import flatten_dict
 from flax.core import unfreeze
-from typing import Union, Optional
+from flax.traverse_util import flatten_dict
+
+from ...core import ParameterReshaper, ravel_pytree
 from .decoder import Decoder
 from .hyper_networks import HyperNetworkMLP
-from ...core import ParameterReshaper, ravel_pytree
 
 
 class HyperDecoder(Decoder):
     def __init__(
         self,
-        placeholder_params: Union[chex.ArrayTree, chex.Array],
+        placeholder_params: chex.ArrayTree | chex.Array,
         rng: chex.PRNGKey = jax.random.PRNGKey(0),
         hypernet_config: dict = {
             "num_latent_units": 3,  # Latent units per module kernel/bias
             "num_hidden_units": 2,  # Hidden dimensionality of a_i^j embedding
         },
         identity: bool = False,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         # Get layer shapes of raw network
         flat_params = {

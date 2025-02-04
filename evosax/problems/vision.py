@@ -1,16 +1,16 @@
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from typing import Tuple, Optional
 
 
-class VisionFitness(object):
+class VisionFitness:
     def __init__(
         self,
         task_name: str = "MNIST",
         batch_size: int = 1024,
         test: bool = False,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         self.task_name = task_name
         self.batch_size = batch_size
@@ -67,14 +67,14 @@ class VisionFitness(object):
         return -1 * loss, acc
 
     @property
-    def input_shape(self) -> Tuple[int]:
+    def input_shape(self) -> tuple[int]:
         """Get the shape of the observation."""
         return (1,) + self.dataloader.data_shape
 
 
 def loss_and_acc(
     y_pred: chex.Array, y_true: chex.Array, num_classes: int
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
     labels = jax.nn.one_hot(y_true, num_classes)
@@ -96,7 +96,7 @@ class BatchLoader:
         self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key: chex.PRNGKey) -> Tuple[chex.Array, chex.Array]:
+    def sample(self, key: chex.PRNGKey) -> tuple[chex.Array, chex.Array]:
         """Sample a single batch of X, y data."""
         sample_idx = jax.random.choice(
             key,

@@ -1,10 +1,11 @@
-import jax
-import chex
 from functools import partial
-from typing import Tuple, Optional
-from .restarter import RestartWrapper, WrapperState, WrapperParams
-from .termination import spread_criterion
+
+import chex
+import jax
 from flax import struct
+
+from .restarter import RestartWrapper, WrapperParams, WrapperState
+from .termination import spread_criterion
 
 
 @struct.dataclass
@@ -47,7 +48,7 @@ class IPOP_Restarter(RestartWrapper):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
+        self, rng: chex.PRNGKey, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
@@ -66,8 +67,8 @@ class IPOP_Restarter(RestartWrapper):
         self,
         rng: chex.PRNGKey,
         state: WrapperState,
-        params: Optional[WrapperParams] = None,
-    ) -> Tuple[chex.Array, WrapperState]:
+        params: WrapperParams | None = None,
+    ) -> tuple[chex.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:

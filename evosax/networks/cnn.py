@@ -1,23 +1,24 @@
+
+import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-import chex
-from typing import Tuple, Optional
+
 from .shared import (
-    identity_out,
-    tanh_out,
     categorical_out,
-    gaussian_out,
     default_bias_init,
+    gaussian_out,
+    identity_out,
     kernel_init_fn,
+    tanh_out,
 )
 
 
 def conv_relu_block(
     x: chex.Array,
     features: int,
-    kernel_size: Tuple[int, int],
-    strides: Tuple[int, int],
+    kernel_size: tuple[int, int],
+    strides: tuple[int, int],
     padding: str = "SAME",
     kernel_init_type: str = "lecun_normal",
 ) -> chex.Array:
@@ -38,8 +39,8 @@ def conv_relu_block(
 def conv_relu_pool_block(
     x: chex.Array,
     features: int,
-    kernel_size: Tuple[int, int],
-    strides: Tuple[int, int],
+    kernel_size: tuple[int, int],
+    strides: tuple[int, int],
     padding: str = "SAME",
     kernel_init_type: str = "lecun_normal",
 ) -> chex.Array:
@@ -78,7 +79,7 @@ class CNN(nn.Module):
     model_name: str = "CNN"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: Optional[chex.PRNGKey] = None) -> chex.Array:
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey | None = None) -> chex.Array:
         # Add batch dimension if only processing single 3d array
         if len(x.shape) < 4:
             x = jnp.expand_dims(x, 0)
@@ -141,7 +142,8 @@ class CNN(nn.Module):
 
 class All_CNN_C(nn.Module):
     """All-CNN-inspired architecture as in Springenberg et al. (2015).
-    Reference: https://arxiv.org/abs/1412.6806"""
+    Reference: https://arxiv.org/abs/1412.6806
+    """
 
     num_output_units: int = 10
     depth_1: int = 1
@@ -152,13 +154,13 @@ class All_CNN_C(nn.Module):
     kernel_2: int = 5
     strides_1: int = 1
     strides_2: int = 1
-    final_window: Tuple[int, int] = (28, 28)
+    final_window: tuple[int, int] = (28, 28)
     output_activation: str = "identity"
     kernel_init_type: str = "lecun_normal"
     model_name: str = "All_CNN_C"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: Optional[chex.PRNGKey] = None) -> chex.Array:
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey | None = None) -> chex.Array:
         # Add batch dimension if only processing single 3d array
         if len(x.shape) < 4:
             x = jnp.expand_dims(x, 0)

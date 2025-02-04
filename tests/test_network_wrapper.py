@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from evosax.networks import MLP, LSTM, CNN, All_CNN_C
+from evosax.networks import CNN, MLP, All_CNN_C
 
 
 def test_mlp_forward():

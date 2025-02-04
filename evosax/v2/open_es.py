@@ -1,9 +1,11 @@
-from typing import Any, Tuple, Optional, Union
+from typing import Any
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from ..core import GradientOptimizer, OptState, OptParams, exp_decay
+
+from ..core import GradientOptimizer, OptParams, OptState, exp_decay
 from .distributed import DistributedStrategy
 
 
@@ -37,8 +39,8 @@ class OpenES(DistributedStrategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -50,11 +52,12 @@ class OpenES(DistributedStrategy):
         mean_decay: float = 0.0,
         n_devices: int = 1,
         param_dtype: Any = jnp.float32,
-        **fitness_kwargs: Union[bool, int, float],
+        **fitness_kwargs: bool | int | float,
     ):
         """OpenAI-ES (Salimans et al. (2017)
         Reference: https://arxiv.org/pdf/1703.03864.pdf
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+        """
         super().__init__(
             popsize,
             num_dims,
@@ -112,7 +115,7 @@ class OpenES(DistributedStrategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         if self.use_antithetic_sampling:

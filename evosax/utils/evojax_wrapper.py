@@ -2,6 +2,7 @@ import chex
 import jax
 import jax.numpy as jnp
 from evojax.algo.base import NEAlgorithm
+
 from evosax import Strategy
 
 

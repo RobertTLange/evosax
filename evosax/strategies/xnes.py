@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from .snes import get_snes_weights
+
 from ..strategy import Strategy
+from .snes import get_snes_weights
 
 
 @struct.dataclass
@@ -39,16 +40,17 @@ class xNES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Exponential Natural ES (Wierstra et al., 2014)
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
-        Inspired by: https://github.com/chanshing/xnes"""
+        Inspired by: https://github.com/chanshing/xnes
+        """
         super().__init__(
             popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
@@ -95,7 +97,7 @@ class xNES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(rng, (self.popsize, self.num_dims))
 

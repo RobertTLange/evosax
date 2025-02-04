@@ -1,14 +1,14 @@
-import jax
+
 import chex
-from typing import Union, Optional
+import jax
 
 
-class Decoder(object):
+class Decoder:
     def __init__(
         self,
         num_encoding_dims: int,
-        placeholder_params: Union[chex.ArrayTree, chex.Array],
-        n_devices: Optional[int] = None,
+        placeholder_params: chex.ArrayTree | chex.Array,
+        n_devices: int | None = None,
     ):
         self.num_encoding_dims = num_encoding_dims
         self.total_params = num_encoding_dims

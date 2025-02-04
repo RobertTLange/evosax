@@ -1,10 +1,13 @@
-from typing import Any, Tuple, Optional, Union
+from typing import Any
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from .distributed import DistributedStrategy
+
 from evosax.strategies.des import get_des_weights
+
+from .distributed import DistributedStrategy
 
 
 @struct.dataclass
@@ -48,14 +51,14 @@ class SNES(DistributedStrategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         temperature: float = 0.0,  # good values tend to be between 12 and 20
         mean_decay: float = 0.0,
         n_devices: int = 1,
         param_dtype: Any = jnp.float32,
-        **fitness_kwargs: Union[bool, int, float],
+        **fitness_kwargs: bool | int | float,
     ):
         """Separable Exponential Natural ES (Wierstra et al., 2014)
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
@@ -113,7 +116,7 @@ class SNES(DistributedStrategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(
             rng, (self.popsize, self.num_dims), dtype=self.param_dtype

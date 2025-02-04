@@ -1,9 +1,10 @@
-from typing import Tuple, Optional, Union
+import math
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-import math
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -45,7 +46,7 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_recombination_weights(popsize: int) -> Tuple[chex.Array, chex.Array]:
+def get_recombination_weights(popsize: int) -> tuple[chex.Array, chex.Array]:
     """Get recombination weights for different ranks."""
 
     def get_weight(i):
@@ -77,12 +78,12 @@ class CR_FM_NES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Cost-Reduced Fast-Moving Natural ES (Nomura & Ono, 2022)
         Reference: https://arxiv.org/abs/2201.11422
@@ -170,7 +171,7 @@ class CR_FM_NES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         z_plus = jax.random.normal(
             rng,

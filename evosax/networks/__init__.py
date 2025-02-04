@@ -1,7 +1,6 @@
-from .mlp import MLP
 from .cnn import CNN, All_CNN_C
 from .lstm import LSTM
-
+from .mlp import MLP
 
 # Helper that returns model based on string name
 NetworkMapper = {

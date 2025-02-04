@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from .cma_es import get_cma_elite_weights
+
 from ..strategy import Strategy
+from .cma_es import get_cma_elite_weights
 
 
 @struct.dataclass
@@ -42,14 +43,14 @@ class LM_MA_ES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Limited Memory MA-ES (Loshchilov et al., 2017)
         Reference: https://arxiv.org/pdf/1705.06693.pdf
@@ -131,7 +132,7 @@ class LM_MA_ES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             rng,
@@ -194,7 +195,7 @@ def update_mean(
     sorted_solutions: chex.Array,
     c_m: float,
     weights_truncated: chex.Array,
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Update mean of strategy."""
     z_k = sorted_solutions[:, 1:] - mean  # ~ N(0, σ^2 C)
     y_k = z_k / sigma  # ~ N(0, C)
@@ -209,7 +210,7 @@ def update_p_sigma(
     c_sigma: float,
     mu_eff: float,
     weights_truncated: chex.Array,
-) -> Tuple[chex.Array, float]:
+) -> tuple[chex.Array, float]:
     """Update evolution path for covariance matrix."""
     z_w = jnp.sum(z_k.T * weights_truncated, axis=1)
     p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(

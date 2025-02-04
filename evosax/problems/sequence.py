@@ -1,11 +1,11 @@
-import jax
-import jax.numpy as jnp
-import chex
-from typing import Tuple, Optional
 from functools import partial
 
+import chex
+import jax
+import jax.numpy as jnp
 
-class SequenceFitness(object):
+
+class SequenceFitness:
     def __init__(
         self,
         task_name: str = "SeqMNIST",
@@ -13,7 +13,7 @@ class SequenceFitness(object):
         seq_length: int = 150,  # Sequence length in addition task
         permute_seq: bool = False,  # Permuted S-MNIST task option
         test: bool = False,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         self.task_name = task_name
         self.batch_size = batch_size
@@ -78,7 +78,7 @@ class SequenceFitness(object):
 
     def rollout_rnn(
         self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Evaluate a network on a supervised learning task."""
         rng, rng_sample = jax.random.split(rng_input)
         X, y = self.dataloader.sample(rng_sample)
@@ -121,14 +121,14 @@ class SequenceFitness(object):
         return y_pred
 
     @property
-    def input_shape(self) -> Tuple[int]:
+    def input_shape(self) -> tuple[int]:
         """Get the shape of the observation."""
         return self.dataloader.data_shape
 
 
 def loss_and_acc(
     y_pred: chex.Array, y_true: chex.Array, num_classes: int
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
     labels = jax.nn.one_hot(y_true, num_classes)
@@ -139,7 +139,7 @@ def loss_and_acc(
 
 def loss_and_mae(
     y_pred: chex.Array, y_true: chex.Array
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Compute mean squared error loss and mean absolute error."""
     loss = jnp.mean((y_pred.squeeze() - y_true) ** 2)
     mae = jnp.mean(jnp.abs(y_pred.squeeze() - y_true))
@@ -159,7 +159,7 @@ class BatchLoader:
         self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key: chex.PRNGKey) -> Tuple[chex.Array, chex.Array]:
+    def sample(self, key: chex.PRNGKey) -> tuple[chex.Array, chex.Array]:
         """Sample a single batch of X, y data."""
         sample_idx = jax.random.choice(
             key,
@@ -201,8 +201,7 @@ def get_smnist_loaders(test: bool = False):
 
 
 def get_adding_data(T: int = 150, test: bool = False):
-    """
-    Sample a mask, [0, 1] samples and sum of targets for len T.
+    """Sample a mask, [0, 1] samples and sum of targets for len T.
     Reference:  Martens & Sutskever. ICML, 2011.
     """
     rng = jax.random.PRNGKey(0)

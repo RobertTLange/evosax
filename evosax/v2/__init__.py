@@ -1,8 +1,7 @@
-from .snes import SNES
 from .open_es import OpenES
 from .pgpe import PGPE
 from .sep_cma_es import Sep_CMA_ES
-
+from .snes import SNES
 
 DistributedStrategies = {
     "SNES": SNES,

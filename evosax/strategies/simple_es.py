@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -31,17 +32,18 @@ class SimpleES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Simple Gaussian Evolution Strategy (Rechenberg, 1975)
         Reference: https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+        """
         super().__init__(
             popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
@@ -79,7 +81,7 @@ class SimpleES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
         z = jax.random.normal(rng, (self.popsize, self.num_dims))  # ~ N(0, I)
         x = state.mean + state.sigma * z  # ~ N(m, σ^2 I)
@@ -107,7 +109,7 @@ def update_mean(
     mean: chex.Array,
     c_m: float,
     weights: chex.Array,
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = x_k - mean

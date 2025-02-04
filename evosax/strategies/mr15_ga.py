@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from .simple_ga import single_mate
+
 from ..strategy import Strategy
+from .simple_ga import single_mate
 
 
 @struct.dataclass
@@ -33,18 +34,17 @@ class MR15_GA(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.0,
         sigma_ratio: float = 0.15,
         sigma_init: float = 0.1,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """1/5 MR Genetic Algorithm (Rechenberg, 1987)
         Reference: https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
         """
-
         super().__init__(
             popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
@@ -80,9 +80,8 @@ class MR15_GA(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
-        """
-        `ask` for new proposed candidates to evaluate next.
+    ) -> tuple[chex.Array, EvoState]:
+        """`ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
           - Sample two current elite members (a & b)
           - Cross over all dims of a with corresponding one from b
@@ -112,8 +111,7 @@ class MR15_GA(Strategy):
         state: EvoState,
         params: EvoParams,
     ) -> EvoState:
-        """
-        `tell` update to ES state.
+        """`tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """
         # Combine current elite and recent generation info

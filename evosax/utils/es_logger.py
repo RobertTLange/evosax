@@ -1,17 +1,18 @@
-from typing import Optional, Union
 import pickle
+from functools import partial
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from functools import partial
+
 from ..core.reshape import ParameterReshaper
 
 
-class ESLog(object):
+class ESLog:
     def __init__(
         self,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         num_generations: int = 200,
         top_k: int = 5,
         maximize: bool = False,

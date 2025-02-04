@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -32,16 +33,15 @@ class SAMR_GA(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.0,
         sigma_init: float = 0.07,
         sigma_meta: float = 2.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Self-Adaptation Mutation Rate (SAMR) GA."""
-
         super().__init__(
             popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
@@ -77,7 +77,7 @@ class SAMR_GA(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
         rng, rng_idx, rng_eps_x, rng_eps_s = jax.random.split(rng, 4)
         eps_x = jax.random.normal(rng_eps_x, (self.popsize, self.num_dims))

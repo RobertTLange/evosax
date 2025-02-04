@@ -1,6 +1,7 @@
+from collections.abc import Callable
+
 from flax import linen as nn
 from flax.traverse_util import unflatten_dict
-from typing import Callable
 
 
 class HyperNetworkMLP(nn.Module):

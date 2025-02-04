@@ -1,8 +1,7 @@
 import jax
 import jax.numpy as jnp
-from evosax.networks import LSTM, MLP
-from evosax.experimental.decodings import RandomDecoder, HyperDecoder
-
+from evosax.experimental.decodings import HyperDecoder
+from evosax.networks import MLP
 
 # def test_random_decoding():
 #     rng = jax.random.PRNGKey(0)

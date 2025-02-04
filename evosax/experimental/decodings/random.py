@@ -1,18 +1,19 @@
-import jax
+
 import chex
-from typing import Union, Optional
-from .decoder import Decoder
+import jax
+
 from ...core import ParameterReshaper
+from .decoder import Decoder
 
 
 class RandomDecoder(Decoder):
     def __init__(
         self,
         num_encoding_dims: int,
-        placeholder_params: Union[chex.ArrayTree, chex.Array],
+        placeholder_params: chex.ArrayTree | chex.Array,
         rng: chex.PRNGKey = jax.random.PRNGKey(0),
         rademacher: bool = False,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         """Random Projection Decoder (Gaussian/Rademacher random matrix)."""
         super().__init__(num_encoding_dims, placeholder_params, n_devices)

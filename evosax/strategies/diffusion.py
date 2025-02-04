@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 from ..utils import get_best_fitness_member
 
@@ -39,20 +40,21 @@ class DiffusionEvolution(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         num_generations: int = 100,
         fitness_mapping: str = "energy",
         alpha_schedule: str = "cosine",
         sigma_init: float = 0.03,
         scale_factor: float = 1.0,
         init_scale: float = 1.0,
-        num_latent_dims: Optional[int] = None,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        num_latent_dims: int | None = None,
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Diffusion Evolution (Zhang et al., 2024)
-        Reference: https://arxiv.org/pdf/2410.02543"""
+        Reference: https://arxiv.org/pdf/2410.02543
+        """
         super().__init__(
             popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
@@ -119,9 +121,8 @@ class DiffusionEvolution(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
-        """
-        `ask` for new proposed candidates to evaluate next.
+    ) -> tuple[chex.Array, EvoState]:
+        """`ask` for new proposed candidates to evaluate next.
         """
         alpha_t = state.alphas[state.gen_counter - 1]
         alpha_pt = state.alphas_past[state.gen_counter - 1]
@@ -148,8 +149,7 @@ class DiffusionEvolution(Strategy):
         state: EvoState,
         params: EvoParams,
     ) -> EvoState:
-        """
-        `tell` update to ES state.
+        """`tell` update to ES state.
         """
         # map fitness to density (integrates to 1)
         # note -> by default reference implementation maximizes!
@@ -243,7 +243,7 @@ def single_point_gaussian_prob(x_i, mu, sigma):
     return jnp.exp(-(dist**2) / (2 * sigma**2))
 
 
-def generate_cosine_schedule(num_step: int) -> Tuple[jnp.ndarray, jnp.ndarray]:
+def generate_cosine_schedule(num_step: int) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Generates the cosine schedule upfront."""
     alphas = jnp.cos(jnp.linspace(0, jnp.pi, num_step)) + 1
     alphas = alphas / 2
@@ -254,7 +254,7 @@ def generate_cosine_schedule(num_step: int) -> Tuple[jnp.ndarray, jnp.ndarray]:
     return alphas_now, alphas_past
 
 
-def generate_ddpm_schedule(num_step: int) -> Tuple[jnp.ndarray, jnp.ndarray]:
+def generate_ddpm_schedule(num_step: int) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Generates the DDPM schedule upfront."""
     eps = 1e-4
     beta = ((num_step**2) * jnp.log(1 / (1 - eps)) + jnp.log(eps)) / (num_step - 1)
@@ -272,7 +272,7 @@ def generate_ddpm_schedule(num_step: int) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
 def generate_ddim_schedule(
     num_step: int, power: float = 1.0, eps: float = 1e-4
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Generates the DDIM schedule upfront."""
     # Compute alpha values based on DDIM schedule
     alphas = (

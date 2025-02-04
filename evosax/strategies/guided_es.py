@@ -1,11 +1,12 @@
-from typing import Tuple, Optional, Union
+from functools import partial
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from functools import partial
 from flax import struct
+
+from ..core import GradientOptimizer, OptParams, OptState, exp_decay
 from ..strategy import Strategy
-from ..core import GradientOptimizer, OptState, OptParams, exp_decay
 from ..utils import get_best_fitness_member
 
 
@@ -38,8 +39,8 @@ class GuidedES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         subspace_dims: int = 1,  # k param in example notebook
         opt_name: str = "sgd",
         lrate_init: float = 0.05,
@@ -49,8 +50,8 @@ class GuidedES(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Guided ES (Maheswaranathan et al., 2018)
         Reference: https://arxiv.org/abs/1806.10230
@@ -114,7 +115,7 @@ class GuidedES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         a = state.sigma * jnp.sqrt(params.alpha / self.num_dims)
         c = state.sigma * jnp.sqrt((1.0 - params.alpha) / self.subspace_dims)
@@ -139,8 +140,8 @@ class GuidedES(Strategy):
         x: chex.Array,
         fitness: chex.Array,
         state: EvoState,
-        params: Optional[EvoParams] = None,
-        gradient: Optional[chex.Array] = None,
+        params: EvoParams | None = None,
+        gradient: chex.Array | None = None,
     ) -> EvoState:
         """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided

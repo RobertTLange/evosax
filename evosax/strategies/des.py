@@ -1,9 +1,10 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from flax import struct
 from flax import linen as nn
+from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -43,13 +44,13 @@ class DES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         temperature: float = 12.5,
         sigma_init: float = 0.1,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Discovered Evolution Strategy (Lange et al., 2023)"""
         super().__init__(
@@ -84,7 +85,7 @@ class DES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
         z = jax.random.normal(rng, (self.popsize, self.num_dims))  # ~ N(0, I)
         x = state.mean + z * state.sigma.reshape(1, self.num_dims)  # ~ N(m, σ^2 I)

@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -40,7 +41,7 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_elite_weights(elite_popsize: int) -> Tuple[chex.Array, chex.Array]:
+def get_elite_weights(elite_popsize: int) -> tuple[chex.Array, chex.Array]:
     """Utility helper to create truncated elite weights for mean update."""
     weights = jnp.array(
         [
@@ -61,14 +62,14 @@ class RmES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Rank-m ES (Li & Zhang, 2017)
         Reference: https://ieeexplore.ieee.org/document/8080257
@@ -127,7 +128,7 @@ class RmES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             rng,
@@ -223,7 +224,7 @@ def update_P_matrix(
     t_gap: chex.Array,
     t_uncorr: int,
     gen_counter: int,
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Update the P matrix storing m evolution paths."""
     memory_size = P.shape[1]
     # Use evo paths in separated generations - keep them uncorrelated!

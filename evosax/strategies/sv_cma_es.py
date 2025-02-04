@@ -1,4 +1,3 @@
-from typing import Optional, Type
 
 import jax
 import jax.numpy as jnp
@@ -6,17 +5,17 @@ from chex import Array, ArrayTree, PRNGKey
 from flax.struct import dataclass
 
 from evosax.strategies.cma_es import (
+    CMA_ES,
+    EvoParams,
     get_cma_elite_weights,
+    sample,
+    update_covariance,
     update_p_c,
     update_p_sigma,
-    sample,
     update_sigma,
-    update_covariance,
-    EvoParams,
-    CMA_ES,
 )
 from evosax.utils.eigen_decomp import full_eigen_decomp
-from evosax.utils.kernel import Kernel, RBF
+from evosax.utils.kernel import RBF, Kernel
 
 
 @dataclass
@@ -24,8 +23,8 @@ class EvoState:
     p_sigma: Array
     p_c: Array
     C: Array
-    D: Optional[Array]
-    B: Optional[Array]
+    D: Array | None
+    B: Array | None
     mean: Array
     sigma: Array
     weights: Array
@@ -42,17 +41,18 @@ class SV_CMA_ES(CMA_ES):
         self,
         npop: int,
         subpopsize: int,
-        kernel: Type[Kernel] = RBF,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[ArrayTree | Array] = None,
+        kernel: type[Kernel] = RBF,
+        num_dims: int | None = None,
+        pholder_params: ArrayTree | Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Stein Variational CMA-ES (Braun et al., 2024)
-        Reference: https://arxiv.org/abs/2410.10390"""
+        Reference: https://arxiv.org/abs/2410.10390
+        """
         self.npop = npop
         self.subpopsize = subpopsize
         popsize = int(npop * subpopsize)

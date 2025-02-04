@@ -1,19 +1,19 @@
-from typing import Union, Optional
-import jax
-import jax.numpy as jnp
-import chex
 from functools import partial
 
+import chex
+import jax
+import jax.numpy as jnp
 
-class FitnessShaper(object):
+
+class FitnessShaper:
     def __init__(
         self,
-        centered_rank: Union[bool, int] = False,
-        z_score: Union[bool, int] = False,
-        norm_range: Union[bool, int] = False,
+        centered_rank: bool | int = False,
+        z_score: bool | int = False,
+        norm_range: bool | int = False,
         w_decay: float = 0.0,
-        maximize: Union[bool, int] = False,
-        fitness_trafo: Optional[str] = None,
+        maximize: bool | int = False,
+        fitness_trafo: str | None = None,
     ):
         """JAX-compatible fitness shaping tool."""
         self.w_decay = w_decay

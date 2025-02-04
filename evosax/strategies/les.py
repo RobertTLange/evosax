@@ -1,16 +1,17 @@
-from typing import Optional, Tuple, Union
+import pkgutil
+
 import chex
-from flax import struct
 import jax
 import jax.numpy as jnp
-import pkgutil
+from flax import struct
+
 from ..learned_eo.les_tools import (
     AttentionWeights,
-    EvoPathMLP,
-    tanh_timestamp,
     EvolutionPath,
+    EvoPathMLP,
     FitnessFeatures,
     load_pkl_object,
+    tanh_timestamp,
 )
 from ..strategy import Strategy
 
@@ -46,14 +47,14 @@ class LES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        net_params: Optional[chex.ArrayTree] = None,
-        net_ckpt_path: Optional[str] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        net_params: chex.ArrayTree | None = None,
+        net_ckpt_path: str | None = None,
         sigma_init: float = 0.1,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         super().__init__(
             popsize,
@@ -113,7 +114,7 @@ class LES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(rng, (self.popsize, self.num_dims))
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)

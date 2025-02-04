@@ -1,6 +1,4 @@
 # Import additional utilities for reshaping flat parameters into net dict
-from .reshape import ParameterReshaper, ravel_pytree
-
 # Import additional utilities for reshaping fitness
 from .fitness import FitnessShaper
 
@@ -8,13 +6,14 @@ from .fitness import FitnessShaper
 from .optimizer import (
     SGD,
     Adam,
-    RMSProp,
-    ClipUp,
     Adan,
-    OptState,
+    ClipUp,
     OptParams,
+    OptState,
+    RMSProp,
     exp_decay,
 )
+from .reshape import ParameterReshaper, ravel_pytree
 
 GradientOptimizer = {
     "sgd": SGD,

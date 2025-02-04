@@ -1,13 +1,14 @@
-from flax import linen as nn
+
 import chex
-from typing import Optional
+from flax import linen as nn
+
 from .shared import (
-    identity_out,
-    tanh_out,
     categorical_out,
-    gaussian_out,
     default_bias_init,
+    gaussian_out,
+    identity_out,
     kernel_init_fn,
+    tanh_out,
 )
 
 
@@ -23,7 +24,7 @@ class MLP(nn.Module):
     model_name: str = "MLP"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: Optional[chex.PRNGKey] = None) -> chex.Array:
+    def __call__(self, x: chex.Array, rng: chex.PRNGKey | None = None) -> chex.Array:
         # Flatten a single 3d image into a plain flat vector
         if len(x.shape) <= 3:
             x = x.reshape(-1)

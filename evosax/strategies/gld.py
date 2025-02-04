@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 from ..utils import get_best_fitness_member
 
@@ -30,14 +31,15 @@ class GLD(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Gradientless Descent (Golovin et al., 2019)
-        Reference: https://arxiv.org/pdf/1911.06317.pdf"""
+        Reference: https://arxiv.org/pdf/1911.06317.pdf
+        """
         super().__init__(
             popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
@@ -64,7 +66,7 @@ class GLD(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
         # Sampling of N(0, 1) noise
         z = jax.random.normal(
