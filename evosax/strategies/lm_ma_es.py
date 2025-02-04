@@ -49,18 +49,13 @@ class LM_MA_ES(Strategy):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Limited Memory MA-ES (Loshchilov et al., 2017)
         Reference: https://arxiv.org/pdf/1705.06693.pdf
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
@@ -85,16 +80,13 @@ class LM_MA_ES(Strategy):
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
         d_sigma = (
             1
-            + 2
-            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.max_dims_sq ** 2))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
         )
-        mu_w = 1 / jnp.sum(weights_truncated ** 2)
+        mu_w = 1 / jnp.sum(weights_truncated**2)
         params = EvoParams(
             mu_eff=mu_eff,
             c_1=c_1,
@@ -107,21 +99,14 @@ class LM_MA_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
         )
-        c_d = jnp.array(
-            [1 / (1.5 ** i * self.num_dims) for i in range(self.memory_size)]
-        )
+        c_d = jnp.array([1 / (1.5**i * self.num_dims) for i in range(self.memory_size)])
         c_c = jnp.array(
-            [
-                self.popsize / (4 ** i * self.num_dims)
-                for i in range(self.memory_size)
-            ]
+            [self.popsize / (4**i * self.num_dims) for i in range(self.memory_size)]
         )
         c_c = jnp.minimum(c_c, 1.99)
 
@@ -263,9 +248,7 @@ def update_sigma(
     chi_n: float,
 ) -> float:
     """Update stepsize sigma."""
-    sigma_new = sigma * jnp.exp(
-        (c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1)
-    )
+    sigma_new = sigma * jnp.exp((c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1))
     return sigma_new
 
 

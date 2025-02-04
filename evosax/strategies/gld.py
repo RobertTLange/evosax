@@ -34,7 +34,7 @@ class GLD(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Gradientless Descent (Golovin et al., 2019)
         Reference: https://arxiv.org/pdf/1911.06317.pdf"""

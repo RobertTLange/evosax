@@ -44,7 +44,7 @@ class xNES(Strategy):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Exponential Natural ES (Wierstra et al., 2014)
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf

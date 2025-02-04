@@ -39,18 +39,14 @@ class MR15_GA(Strategy):
         sigma_ratio: float = 0.15,
         sigma_init: float = 0.1,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """1/5 MR Genetic Algorithm (Rechenberg, 1987)
         Reference: https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
         """
 
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
@@ -63,13 +59,9 @@ class MR15_GA(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(
-            sigma_init=self.sigma_init, sigma_ratio=self.sigma_ratio
-        )
+        return EvoParams(sigma_init=self.sigma_init, sigma_ratio=self.sigma_ratio)
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -100,8 +92,7 @@ class MR15_GA(Strategy):
         rng, rng_eps, rng_idx_a, rng_idx_b = jax.random.split(rng, 4)
         rng_mate = jax.random.split(rng, self.popsize)
         epsilon = (
-            jax.random.normal(rng_eps, (self.popsize, self.num_dims))
-            * state.sigma
+            jax.random.normal(rng_eps, (self.popsize, self.num_dims)) * state.sigma
         )
         elite_ids = jnp.arange(self.elite_popsize)
         idx_a = jax.random.choice(rng_idx_a, elite_ids, (self.popsize,))
@@ -135,9 +126,7 @@ class MR15_GA(Strategy):
         # Update mutation sigma - double if more than 15% improved
         good_mutations_ratio = jnp.mean(fitness < state.best_fitness)
         increase_sigma = good_mutations_ratio > params.sigma_ratio
-        sigma = jax.lax.select(
-            increase_sigma, 2 * state.sigma, 0.5 * state.sigma
-        )
+        sigma = jax.lax.select(increase_sigma, 2 * state.sigma, 0.5 * state.sigma)
         # Set mean to best member seen so far
         improved = fitness[0] < state.best_fitness
         best_mean = jax.lax.select(improved, archive[0], state.best_member)

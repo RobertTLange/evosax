@@ -155,15 +155,18 @@ class GymnaxFitness(object):
             )
             new_cum_reward = cum_reward + reward * valid_mask
             new_valid_mask = valid_mask * (1 - done)
-            carry, y = [
-                next_o.squeeze(),
-                next_s,
-                policy_params,
-                rng,
-                hidden,
-                new_cum_reward,
-                new_valid_mask,
-            ], [new_valid_mask]
+            carry, y = (
+                [
+                    next_o.squeeze(),
+                    next_s,
+                    policy_params,
+                    rng,
+                    hidden,
+                    new_cum_reward,
+                    new_valid_mask,
+                ],
+                [new_valid_mask],
+            )
             return carry, y
 
         # Scan over episode step loop

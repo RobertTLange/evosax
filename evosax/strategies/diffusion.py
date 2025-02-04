@@ -36,7 +36,6 @@ class EvoParams:
 
 
 class DiffusionEvolution(Strategy):
-
     def __init__(
         self,
         popsize: int,

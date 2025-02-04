@@ -45,17 +45,12 @@ class ARS(Strategy):
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Augmented Random Search (Mania et al., 2018)
         Reference: https://arxiv.org/pdf/1803.07055.pdf"""
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert not self.popsize & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
@@ -90,9 +85,7 @@ class ARS(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,

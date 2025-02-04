@@ -77,5 +77,5 @@ __all__ = [
     "EvoTF_ES",
     "DiffusionEvolution",
     "SV_CMA_ES",
-    "SV_OpenES"
+    "SV_OpenES",
 ]

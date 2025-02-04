@@ -67,9 +67,7 @@ def get_cma_elite_weights(
         * (mu_eff - 2 + 1 / mu_eff)
         / ((max_dims_sq + 2) ** 2 + alpha_cov * mu_eff / 2),
     )
-    min_alpha = jnp.minimum(
-        1 + c_1 / c_mu, 1 + (2 * mu_eff_minus) / (mu_eff + 2)
-    )
+    min_alpha = jnp.minimum(1 + c_1 / c_mu, 1 + (2 * mu_eff_minus) / (mu_eff + 2))
     min_alpha = jnp.minimum(min_alpha, (1 - c_1 - c_mu) / (num_dims * c_mu))
     positive_sum = jnp.sum(weights_prime * (weights_prime > 0))
     negative_sum = jnp.sum(jnp.abs(weights_prime * (weights_prime < 0)))
@@ -92,18 +90,13 @@ class CMA_ES(Strategy):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """CMA-ES (e.g. Hansen, 2016)
         Reference: https://arxiv.org/abs/1604.00772
         Inspired by: https://github.com/CyberAgentAILab/cmaes"""
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
@@ -127,17 +120,14 @@ class CMA_ES(Strategy):
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
         d_sigma = (
             1
-            + 2
-            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
         c_c = (4 + mu_eff / self.num_dims) / (
             self.num_dims + 4 + 2 * mu_eff / self.num_dims
         )
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.max_dims_sq ** 2))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
         )
 
         params = EvoParams(
@@ -152,9 +142,7 @@ class CMA_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
@@ -312,14 +300,10 @@ def update_p_c(
 ) -> Tuple[chex.Array, float, float]:
     """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
-    h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
-        1 - (1 - c_sigma) ** (2 * gen_counter)
-    )
+    h_sigma_cond_left = norm_p_sigma / jnp.sqrt(1 - (1 - c_sigma) ** (2 * gen_counter))
     h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * chi_n
     h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
-    p_c_new = (1 - c_c) * p_c + h_sigma * jnp.sqrt(
-        c_c * (2 - c_c) * mu_eff
-    ) * y_w
+    p_c_new = (1 - c_c) * p_c + h_sigma * jnp.sqrt(c_c * (2 - c_c) * mu_eff) * y_w
     return p_c_new, norm_p_sigma, h_sigma
 
 
@@ -343,7 +327,7 @@ def update_covariance(
     )
     delta_h_sigma = (1 - h_sigma) * c_c * (2 - c_c)
     rank_one = jnp.outer(p_c, p_c)
-    rank_mu = jnp.einsum('i,ij,ik->jk', w_io, y_k, y_k)
+    rank_mu = jnp.einsum("i,ij,ik->jk", w_io, y_k, y_k)
     C = (
         (1 + c_1 * delta_h_sigma - c_1 - c_mu * jnp.sum(weights)) * C
         + c_1 * rank_one
@@ -360,9 +344,7 @@ def update_sigma(
     chi_n: float,
 ) -> float:
     """Update stepsize sigma."""
-    sigma_new = sigma * jnp.exp(
-        (c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1)
-    )
+    sigma_new = sigma * jnp.exp((c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1))
     return sigma_new
 
 

@@ -38,7 +38,7 @@ class MetaStrategy(BatchStrategy):
         self.meta_strategy = Strategies[self.meta_strategy_name](
             popsize=self.num_subpops,
             num_dims=self.num_meta_dims,
-            **meta_strategy_kwargs
+            **meta_strategy_kwargs,
         )
 
     @property
@@ -66,9 +66,7 @@ class MetaStrategy(BatchStrategy):
         inner_params: chex.ArrayTree,
     ) -> Tuple[chex.Array, chex.ArrayTree]:
         """`ask` for meta-parameters of different subpopulations."""
-        meta_x, meta_state = self.meta_strategy.ask(
-            rng, meta_state, meta_params
-        )
+        meta_x, meta_state = self.meta_strategy.ask(rng, meta_state, meta_params)
         meta_x = meta_x.reshape(-1, self.num_meta_dims)
         re_inner_params = flax.serialization.to_state_dict(inner_params)
         for i, k in enumerate(self.meta_params):

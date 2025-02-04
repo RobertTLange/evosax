@@ -155,13 +155,11 @@ class Adam(Optimizer):
     ) -> Tuple[chex.Array, OptState]:
         """Perform a simple Adam GD step."""
         m = (1 - params.beta_1) * grads + params.beta_1 * state.m
-        v = (1 - params.beta_2) * (grads ** 2) + params.beta_2 * state.v
+        v = (1 - params.beta_2) * (grads**2) + params.beta_2 * state.v
         mhat = m / (1 - params.beta_1 ** (state.gen_counter + 1))
         vhat = v / (1 - params.beta_2 ** (state.gen_counter + 1))
         mean_new = mean - state.lrate * mhat / (jnp.sqrt(vhat) + params.eps)
-        return mean_new, state.replace(
-            m=m, v=v, gen_counter=state.gen_counter + 1
-        )
+        return mean_new, state.replace(m=m, v=v, gen_counter=state.gen_counter + 1)
 
 
 class RMSProp(Optimizer):
@@ -196,12 +194,10 @@ class RMSProp(Optimizer):
         params: OptParams,
     ) -> Tuple[chex.Array, OptState]:
         """Perform a simple RMSprop GD step."""
-        v = (1 - params.beta_1) * (grads ** 2) + params.beta_1 * state.v
+        v = (1 - params.beta_1) * (grads**2) + params.beta_1 * state.v
         m = params.momentum * state.m + grads / (jnp.sqrt(v) + params.eps)
         mean_new = mean - state.lrate * m
-        return mean_new, state.replace(
-            m=m, v=v, gen_counter=state.gen_counter + 1
-        )
+        return mean_new, state.replace(m=m, v=v, gen_counter=state.gen_counter + 1)
 
 
 class ClipUp(Optimizer):

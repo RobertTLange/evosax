@@ -33,16 +33,12 @@ class PBT(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Synchronous Population-Based Training (Jaderberg et al., 2017)
         Reference: https://arxiv.org/abs/1711.09846"""
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.strategy_name = "PBT"
 
@@ -51,9 +47,7 @@ class PBT(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """
         `initialize` the differential evolution strategy.
         """
@@ -129,9 +123,7 @@ def single_member_explore(
     params: EvoParams,
 ) -> chex.Array:
     """Perform multiplicative noise exploration."""
-    explore_noise = (
-        jax.random.normal(rng, hyperparams.shape) * params.noise_scale
-    )
+    explore_noise = jax.random.normal(rng, hyperparams.shape) * params.noise_scale
     hyperparams_explore = jax.lax.select(
         exploit_bool, hyperparams + explore_noise, hyperparams
     )

@@ -66,9 +66,9 @@ class GuidedES(Strategy):
         )
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
-        assert (
-            subspace_dims <= self.num_dims
-        ), "Subspace has to be smaller than optimization dims."
+        assert subspace_dims <= self.num_dims, (
+            "Subspace has to be smaller than optimization dims."
+        )
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.subspace_dims = min(subspace_dims, self.num_dims)
         if self.subspace_dims < subspace_dims:
@@ -91,9 +91,7 @@ class GuidedES(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(opt_params=self.optimizer.default_params)
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         rng_init, rng_sub = jax.random.split(rng)
         initialization = jax.random.uniform(
@@ -103,9 +101,7 @@ class GuidedES(Strategy):
             maxval=params.init_max,
         )
 
-        grad_subspace = jax.random.normal(
-            rng_sub, (self.subspace_dims, self.num_dims)
-        )
+        grad_subspace = jax.random.normal(rng_sub, (self.subspace_dims, self.num_dims))
 
         state = EvoState(
             mean=initialization,

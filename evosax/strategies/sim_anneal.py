@@ -42,17 +42,13 @@ class SimAnneal(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Simulated Annealing (Rasdi Rere et al., 2015)
         Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.strategy_name = "SimAnneal"
 
@@ -70,9 +66,7 @@ class SimAnneal(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         rng_init, rng_rep = jax.random.split(rng)
         initialization = jax.random.uniform(
@@ -117,9 +111,7 @@ class SimAnneal(Strategy):
         improved = improve_diff > 0
 
         # Calculate temperature replacement constant (replace by best in gen)
-        metropolis = jnp.exp(
-            improve_diff / (state.temp * params.boltzmann_const)
-        )
+        metropolis = jnp.exp(improve_diff / (state.temp * params.boltzmann_const))
 
         # Replace mean either if improvement or random metropolis acceptance
         rand_replace = jnp.logical_or(improved, state.replace_rng > metropolis)

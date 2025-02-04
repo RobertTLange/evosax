@@ -100,9 +100,7 @@ class ASEBO(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -182,9 +180,9 @@ class ASEBO(Strategy):
         fit_diff_noise = jnp.dot(noise_1.T, fit_1 - fit_2)
         theta_grad = 1.0 / 2.0 * fit_diff_noise
 
-        alpha = jnp.linalg.norm(
-            jnp.dot(theta_grad, state.UUT_ort)
-        ) / jnp.linalg.norm(jnp.dot(theta_grad, state.UUT))
+        alpha = jnp.linalg.norm(jnp.dot(theta_grad, state.UUT_ort)) / jnp.linalg.norm(
+            jnp.dot(theta_grad, state.UUT)
+        )
         subspace_ready = state.gen_counter > self.subspace_dims
         alpha = jax.lax.select(subspace_ready, alpha, 1.0)
 
@@ -206,6 +204,4 @@ class ASEBO(Strategy):
         # Update lrate and standard deviation based on min and decay
         sigma = state.sigma * params.sigma_decay
         sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
-        return state.replace(
-            mean=mean, sigma=sigma, opt_state=opt_state, alpha=alpha
-        )
+        return state.replace(mean=mean, sigma=sigma, opt_state=opt_state, alpha=alpha)

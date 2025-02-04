@@ -39,7 +39,7 @@ class DistributedStrategy(object):
         mean_decay: float = 0.0,
         n_devices: int = 1,
         param_dtype: Any = jnp.float32,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Base Class for an Evolution Strategy."""
         self.total_popsize = popsize
@@ -54,9 +54,9 @@ class DistributedStrategy(object):
             self.num_dims = self.param_reshaper.total_params
         else:
             self.num_dims = num_dims
-        assert (
-            self.num_dims is not None
-        ), "Provide either num_dims or pholder_params to strategy."
+        assert self.num_dims is not None, (
+            "Provide either num_dims or pholder_params to strategy."
+        )
 
         # Mean exponential decay coefficient m' = coeff * m
         # Implements form of weight decay regularization

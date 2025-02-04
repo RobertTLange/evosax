@@ -29,9 +29,7 @@ class FitnessShaper(object):
             self.norm_range = bool(norm_range)
         # Check that only single fitness shaping transformation is used
         num_options_on = self.centered_rank + self.z_score + self.norm_range
-        assert (
-            num_options_on < 2
-        ), "Only use one fitness shaping transformation."
+        assert num_options_on < 2, "Only use one fitness shaping transformation."
 
     @partial(jax.jit, static_argnums=(0,))
     def apply(self, x: chex.Array, fitness: chex.Array) -> chex.Array:

@@ -64,7 +64,6 @@ def get_cma_elite_weights(
 
 
 class Sep_CMA_ES(DistributedStrategy):
-
     def __init__(
         self,
         popsize: int,
@@ -75,7 +74,7 @@ class Sep_CMA_ES(DistributedStrategy):
         mean_decay: float = 0.0,
         n_devices: int = 1,
         param_dtype: Any = jnp.float32,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
         Reference: https://hal.inria.fr/inria-00287367/document

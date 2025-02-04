@@ -47,7 +47,7 @@ class PGPE(Strategy):
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """PGPE (e.g. Sehnke et al., 2010)
         Reference: https://tinyurl.com/2p8bn956

@@ -28,7 +28,7 @@ class BIPOP_CMA_ES(object):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """BIPOP-CMA-ES (Hansen, 2009).
         Reference: https://hal.inria.fr/inria-00382093/document

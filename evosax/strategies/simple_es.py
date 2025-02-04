@@ -37,18 +37,13 @@ class SimpleES(Strategy):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Simple Gaussian Evolution Strategy (Rechenberg, 1975)
         Reference: https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
@@ -63,9 +58,7 @@ class SimpleES(Strategy):
         # Only parents have positive weight - equal weighting!
         return EvoParams(sigma_init=self.sigma_init)
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights = jnp.zeros(self.popsize)
         weights = weights.at[: self.elite_popsize].set(1 / self.elite_popsize)
@@ -104,9 +97,7 @@ class SimpleES(Strategy):
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
         sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        mean, y_k = update_mean(
-            sorted_solutions, state.mean, params.c_m, state.weights
-        )
+        mean, y_k = update_mean(sorted_solutions, state.mean, params.c_m, state.weights)
         sigma = update_sigma(y_k, state.sigma, params.c_sigma, state.weights)
         return state.replace(mean=mean, sigma=sigma)
 
@@ -129,6 +120,6 @@ def update_sigma(
     y_k: chex.Array, sigma: chex.Array, c_sigma: float, weights: chex.Array
 ) -> chex.Array:
     """Update stepsize sigma."""
-    sigma_est = jnp.sqrt(jnp.sum((y_k.T ** 2 * weights), axis=1))
+    sigma_est = jnp.sqrt(jnp.sum((y_k.T**2 * weights), axis=1))
     sigma_new = (1 - c_sigma) * sigma + c_sigma * sigma_est
     return sigma_new

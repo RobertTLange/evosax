@@ -12,6 +12,7 @@ def test_es_log():
     assert log["top_params"][0][0] == 6
     assert log["top_params"][0][1] == 7
 
+
 def test_top_k():
     es_logging = ESLog(num_dims=2, num_generations=10, top_k=3, maximize=True)
     log = es_logging.initialize()

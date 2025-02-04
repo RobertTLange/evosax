@@ -46,18 +46,13 @@ class ESMC(Strategy):
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """ESMC (Merchant et al., 2021)
         Reference: https://proceedings.mlr.press/v139/merchant21a.html
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert self.popsize & 1, "Population size must be odd"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
@@ -87,9 +82,7 @@ class ESMC(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -114,9 +107,7 @@ class ESMC(Strategy):
             rng,
             (int(self.popsize / 2), self.num_dims),
         )
-        z = jnp.concatenate(
-            [jnp.zeros((1, self.num_dims)), z_plus, -1.0 * z_plus]
-        )
+        z = jnp.concatenate([jnp.zeros((1, self.num_dims)), z_plus, -1.0 * z_plus])
         x = state.mean + z * state.sigma.reshape(1, self.num_dims)
         return x, state
 
@@ -136,9 +127,7 @@ class ESMC(Strategy):
         noise_1 = noise[: int((self.popsize - 1) / 2)]
         fit_1 = fitness[: int((self.popsize - 1) / 2)]
         fit_2 = fitness[int((self.popsize - 1) / 2) :]
-        fit_diff = jnp.minimum(fit_1, bline_fitness) - jnp.minimum(
-            fit_2, bline_fitness
-        )
+        fit_diff = jnp.minimum(fit_1, bline_fitness) - jnp.minimum(fit_2, bline_fitness)
         fit_diff_noise = jnp.dot(noise_1.T, fit_diff)
         theta_grad = 1.0 / int((self.popsize - 1) / 2) * fit_diff_noise
         # Grad update using optimizer instance - decay lrate if desired

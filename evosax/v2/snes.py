@@ -45,7 +45,6 @@ def get_snes_weights(popsize: int, use_baseline: bool = True):
 
 
 class SNES(DistributedStrategy):
-
     def __init__(
         self,
         popsize: int,
@@ -56,7 +55,7 @@ class SNES(DistributedStrategy):
         mean_decay: float = 0.0,
         n_devices: int = 1,
         param_dtype: Any = jnp.float32,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Separable Exponential Natural ES (Wierstra et al., 2014)
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
@@ -68,7 +67,7 @@ class SNES(DistributedStrategy):
             mean_decay,
             n_devices,
             param_dtype,
-            **fitness_kwargs
+            **fitness_kwargs,
         )
         self.strategy_name = "SNES"
 

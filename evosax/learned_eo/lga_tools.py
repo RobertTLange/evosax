@@ -23,9 +23,9 @@ class MultiHeadSelfAttention(nn.Module):
         Returns:
             output of shape `[length, num_features]`.
         """
-        assert (
-            self.num_features % self.num_heads == 0
-        ), "Memory dimension must be divisible by number of heads."
+        assert self.num_features % self.num_heads == 0, (
+            "Memory dimension must be divisible by number of heads."
+        )
         head_dim = self.num_features // self.num_heads
         # project x to multi-headed q/k/v + apply dot-product attention
         # dimensions are then [length, n_heads, n_features_per_head]
@@ -55,9 +55,9 @@ class MultiHeadCrossAttention(nn.Module):
         Returns:
             output of shape `[length_2, num_features]`.
         """
-        assert (
-            self.num_features % self.num_heads == 0
-        ), "Memory dimension must be divisible by number of heads."
+        assert self.num_features % self.num_heads == 0, (
+            "Memory dimension must be divisible by number of heads."
+        )
         head_dim = self.num_features // self.num_heads
         # project x to multi-headed q/k/v + apply dot-product attention
         # dimensions are then [length, n_heads, n_features_per_head]
@@ -84,9 +84,7 @@ def multi_head_embedding(
     )(x)
 
 
-def mix_head_outputs(
-    x: chex.Array, num_features: int, label: str
-) -> chex.Array:
+def mix_head_outputs(x: chex.Array, num_features: int, label: str) -> chex.Array:
     """Simple dense mixing of heads layer."""
     return nn.linear.DenseGeneral(
         features=num_features,
@@ -96,9 +94,7 @@ def mix_head_outputs(
     )(x)
 
 
-def scaled_dot_product(
-    q: chex.Array, k: chex.Array, v: chex.Array
-) -> chex.Array:
+def scaled_dot_product(q: chex.Array, k: chex.Array, v: chex.Array) -> chex.Array:
     """
     Computes dot-product attention given multi-headed query, key, and value.
 
@@ -130,9 +126,7 @@ class SamplingAttention(nn.Module):
     @nn.compact
     def __call__(self, F_E: chex.Array) -> chex.Array:
         # Perform cross-attention between kids and parents
-        S = MultiHeadSelfAttention(self.num_att_heads, self.att_hidden_dims)(
-            F_E
-        )
+        S = MultiHeadSelfAttention(self.num_att_heads, self.att_hidden_dims)(F_E)
         logits = nn.Dense(1)(S)
         return nn.softmax(logits.squeeze(axis=-1))
 
@@ -146,9 +140,7 @@ class SelectionAttention(nn.Module):
         self, rng: chex.PRNGKey, F_X: chex.Array, F_E: chex.Array
     ) -> chex.Array:
         # Perform cross-attention between kids and parents
-        A = MultiHeadCrossAttention(self.num_att_heads, self.att_hidden_dims)(
-            F_X, F_E
-        )
+        A = MultiHeadCrossAttention(self.num_att_heads, self.att_hidden_dims)(F_X, F_E)
         # Construct raw selection matrix with row-wise logits
         queries_S = nn.Dense(self.att_hidden_dims)(A)
         keys_S = nn.Dense(self.att_hidden_dims)(F_X)

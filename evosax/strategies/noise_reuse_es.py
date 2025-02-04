@@ -48,18 +48,13 @@ class NoiseReuseES(Strategy):
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Noise-Reuse ES (Li et al., 2023).
         Reference: https://arxiv.org/pdf/2304.12180.pdf
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
@@ -116,8 +111,7 @@ class NoiseReuseES(Strategy):
         # Generate antithetic perturbations
         # NOTE: Sample each ask call - only use when trajectory is reset
         pos_perts = (
-            jax.random.normal(rng, (self.popsize // 2, self.num_dims))
-            * state.sigma
+            jax.random.normal(rng, (self.popsize // 2, self.num_dims)) * state.sigma
         )
         neg_perts = -pos_perts
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)

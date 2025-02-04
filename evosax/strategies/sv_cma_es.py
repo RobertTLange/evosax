@@ -49,7 +49,7 @@ class SV_CMA_ES(CMA_ES):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: bool | int | float
+        **fitness_kwargs: bool | int | float,
     ):
         """Stein Variational CMA-ES (Braun et al., 2024)
         Reference: https://arxiv.org/abs/2410.10390"""
@@ -64,7 +64,7 @@ class SV_CMA_ES(CMA_ES):
             sigma_init,
             mean_decay,
             n_devices,
-            **fitness_kwargs
+            **fitness_kwargs,
         )
         self.elite_popsize = max(1, int(self.subpopsize * self.elite_ratio))
         self.strategy_name = "SV_CMA_ES"

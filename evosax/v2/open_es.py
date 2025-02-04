@@ -34,7 +34,6 @@ class EvoUpdate:
 
 
 class OpenES(DistributedStrategy):
-
     def __init__(
         self,
         popsize: int,
@@ -51,7 +50,7 @@ class OpenES(DistributedStrategy):
         mean_decay: float = 0.0,
         n_devices: int = 1,
         param_dtype: Any = jnp.float32,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """OpenAI-ES (Salimans et al. (2017)
         Reference: https://arxiv.org/pdf/1703.03864.pdf
@@ -63,7 +62,7 @@ class OpenES(DistributedStrategy):
             mean_decay,
             n_devices,
             param_dtype,
-            **fitness_kwargs
+            **fitness_kwargs,
         )
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]

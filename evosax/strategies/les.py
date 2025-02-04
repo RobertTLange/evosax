@@ -69,9 +69,7 @@ class LES(Strategy):
         )
         self.weight_layer = AttentionWeights(8)
         self.lrate_layer = EvoPathMLP(8)
-        self.fitness_features = FitnessFeatures(
-            centered_rank=True, z_score=True
-        )
+        self.fitness_features = FitnessFeatures(centered_rank=True, z_score=True)
         self.sigma_init = sigma_init
 
         # Set net params provided at instantiation
@@ -92,13 +90,9 @@ class LES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(
-            net_params=self.les_net_params, sigma_init=self.sigma_init
-        )
+        return EvoParams(net_params=self.les_net_params, sigma_init=self.sigma_init)
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         init_mean = jax.random.uniform(
             rng,
@@ -136,9 +130,7 @@ class LES(Strategy):
         """`tell` performance data for strategy state update."""
         fit_re = self.fitness_features.apply(x, fitness, state.best_fitness)
         time_embed = tanh_timestamp(state.gen_counter)
-        weights = self.weight_layer.apply(
-            params.net_params["recomb_weights"], fit_re
-        )
+        weights = self.weight_layer.apply(params.net_params["recomb_weights"], fit_re)
         weight_diff = (weights * (x - state.mean)).sum(axis=0)
         weight_noise = (weights * (x - state.mean) / state.sigma).sum(axis=0)
         path_c = self.evopath.update(state.path_c, weight_diff)
@@ -150,9 +142,7 @@ class LES(Strategy):
             time_embed,
         )
         weighted_mean = (weights * x).sum(axis=0)
-        weighted_sigma = jnp.sqrt(
-            (weights * (x - state.mean) ** 2).sum(axis=0) + 1e-10
-        )
+        weighted_sigma = jnp.sqrt((weights * (x - state.mean) ** 2).sum(axis=0) + 1e-10)
         mean_change = lrates_mean * (weighted_mean - state.mean)
         sigma_change = lrates_sigma * (weighted_sigma - state.sigma)
         mean = state.mean + mean_change

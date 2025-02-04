@@ -15,10 +15,8 @@ def lambda_alpha_trafo(alpha: float, num_dims: int) -> chex.Array:
     """LambdaAlpha matrix. Diagonal matrix with alpha powers."""
 
     def get_diag(i):
-        exp = (0.5 * (i / (num_dims - 1))) * (num_dims > 1) + 0.5 * (
-            num_dims <= 1
-        )
-        return alpha ** exp
+        exp = (0.5 * (i / (num_dims - 1))) * (num_dims > 1) + 0.5 * (num_dims <= 1)
+        return alpha**exp
 
     diag_vals = jax.vmap(get_diag, in_axes=0)(jnp.arange(num_dims))
     return jnp.diag(diag_vals)
@@ -35,18 +33,16 @@ def oscillation_trafo(element: float) -> chex.Array:
     )
 
 
-def asymmetry_trafo(
-    vector: chex.Array, beta: float, num_dims: int
-) -> chex.Array:
+def asymmetry_trafo(vector: chex.Array, beta: float, num_dims: int) -> chex.Array:
     """Assymmetry trafo function for x array input & f value output.
     (p.3; Hansen et al., 2009)"""
     dim = vector.shape[0]
 
     def get_asy_val(idx, val):
         t = jax.lax.select(num_dims > 1, idx / (num_dims - 1.0), 1.0)
-        exp_l0 = 1 + beta * t * (val ** 0.5)
+        exp_l0 = 1 + beta * t * (val**0.5)
         exp = jax.lax.select(val > 0, exp_l0, 1.0)
-        return val ** exp
+        return val**exp
 
     return jax.vmap(get_asy_val, in_axes=(0, 0))(jnp.arange(dim), vector)
 

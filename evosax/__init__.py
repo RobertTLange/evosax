@@ -38,7 +38,7 @@ from .strategies import (
     EvoTF_ES,
     DiffusionEvolution,
     SV_CMA_ES,
-    SV_OpenES
+    SV_OpenES,
 )
 from .core import FitnessShaper, ParameterReshaper
 from .utils import ESLog
@@ -136,5 +136,5 @@ __all__ = [
     "EvoTF_ES",
     "DiffusionEvolution",
     "SV_CMA_ES",
-    "SV_OpenES"
+    "SV_OpenES",
 ]

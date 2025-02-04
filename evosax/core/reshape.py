@@ -13,11 +13,7 @@ def ravel_pytree(pytree):
 
 
 def ravel_list(*lst):
-    return (
-        jnp.concatenate([jnp.ravel(elt) for elt in lst])
-        if lst
-        else jnp.array([])
-    )
+    return jnp.concatenate([jnp.ravel(elt) for elt in lst]) if lst else jnp.array([])
 
 
 class ParameterReshaper(object):
@@ -32,9 +28,7 @@ class ParameterReshaper(object):
         self.placeholder_params = placeholder_params
 
         # Set total parameters depending on type of placeholder params
-        flat, self.unravel_pytree = flatten_util.ravel_pytree(
-            placeholder_params
-        )
+        flat, self.unravel_pytree = flatten_util.ravel_pytree(placeholder_params)
         self.total_params = flat.shape[0]
         self.reshape_single = jax.jit(self.unravel_pytree)
 

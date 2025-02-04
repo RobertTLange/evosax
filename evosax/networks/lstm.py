@@ -38,13 +38,9 @@ class LSTM(nn.Module):
             x = tanh_out(x, self.num_output_units, self.kernel_init_type)
         # Categorical and gaussian output heads require rng for sampling
         elif self.output_activation == "categorical":
-            x = categorical_out(
-                rng, x, self.num_output_units, self.kernel_init_type
-            )
+            x = categorical_out(rng, x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "gaussian":
-            x = gaussian_out(
-                rng, x, self.num_output_units, self.kernel_init_type
-            )
+            x = gaussian_out(rng, x, self.num_output_units, self.kernel_init_type)
         return lstm_state, x
 
     def initialize_carry(self) -> Tuple[chex.ArrayTree, chex.ArrayTree]:

@@ -25,8 +25,7 @@ class Protocol(object):
             self.broadcast = self.best_subpop
         else:
             raise ValueError(
-                f"{self.communication} is not currently an implemented"
-                " protocol."
+                f"{self.communication} is not currently an implemented protocol."
             )
 
     @partial(jax.jit, static_argnums=(0,))
@@ -44,9 +43,7 @@ class Protocol(object):
         to the same as the subpop containing the globally best. Tie currently goes
         to whichever candidate comes first"""
         global_best_arg = batch_fitness.argmin()
-        best_subpop_ind = jnp.unravel_index(
-            global_best_arg, batch_fitness.shape
-        )[0]
+        best_subpop_ind = jnp.unravel_index(global_best_arg, batch_fitness.shape)[0]
 
         best_subpop_x = batch_x[best_subpop_ind]
         best_subpop_fitness = batch_fitness[best_subpop_ind]

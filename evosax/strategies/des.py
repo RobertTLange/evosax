@@ -49,7 +49,7 @@ class DES(Strategy):
         sigma_init: float = 0.1,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Discovered Evolution Strategy (Lange et al., 2023)"""
         super().__init__(

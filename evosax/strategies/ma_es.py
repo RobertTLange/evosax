@@ -45,18 +45,13 @@ class MA_ES(Strategy):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """MA-ES (Bayer & Sendhoff, 2017)
         Reference: https://www.honda-ri.de/pubs/pdf/3376.pdf
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
@@ -80,15 +75,12 @@ class MA_ES(Strategy):
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
         d_sigma = (
             1
-            + 2
-            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
 
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.max_dims_sq ** 2))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
         )
 
         params = EvoParams(
@@ -102,9 +94,7 @@ class MA_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
@@ -227,9 +217,7 @@ def update_M_matrix(
     """Update the M matrix."""
     rank_one = jnp.outer(p_sigma, p_sigma)
     rank_mu = jnp.sum(
-        jnp.array(
-            [w * jnp.outer(z, z) for w, z in zip(weights_truncated, z_k)]
-        ),
+        jnp.array([w * jnp.outer(z, z) for w, z in zip(weights_truncated, z_k)]),
         axis=0,
     )
     M_new = M @ (
@@ -248,9 +236,7 @@ def update_sigma(
     chi_n: float,
 ) -> float:
     """Update stepsize sigma."""
-    sigma_new = sigma * jnp.exp(
-        (c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1)
-    )
+    sigma_new = sigma * jnp.exp((c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1))
     return sigma_new
 
 

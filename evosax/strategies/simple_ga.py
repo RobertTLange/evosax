@@ -41,18 +41,14 @@ class SimpleGA(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Simple Genetic Algorithm (Such et al., 2017)
         Reference: https://arxiv.org/abs/1712.06567
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
 
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
@@ -72,9 +68,7 @@ class SimpleGA(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -105,8 +99,7 @@ class SimpleGA(Strategy):
         rng, rng_eps, rng_idx_a, rng_idx_b = jax.random.split(rng, 4)
         rng_mate = jax.random.split(rng, self.popsize)
         epsilon = (
-            jax.random.normal(rng_eps, (self.popsize, self.num_dims))
-            * state.sigma
+            jax.random.normal(rng_eps, (self.popsize, self.num_dims)) * state.sigma
         )
         elite_ids = jnp.arange(self.elite_popsize)
         idx_a = jax.random.choice(rng_idx_a, elite_ids, (self.popsize,))

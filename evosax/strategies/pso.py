@@ -37,16 +37,12 @@ class PSO(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
         Reference: https://ieeexplore.ieee.org/document/488968"""
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.strategy_name = "PSO"
 
@@ -55,9 +51,7 @@ class PSO(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -71,8 +65,7 @@ class PSO(Strategy):
             fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
             velocity=jnp.zeros((self.popsize, self.num_dims)),
             best_archive=initialization,
-            best_archive_fitness=jnp.zeros(self.popsize)
-            + jnp.finfo(jnp.float32).max,
+            best_archive_fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
             best_member=initialization.mean(axis=0),
         )
         return state

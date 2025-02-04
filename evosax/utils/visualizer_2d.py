@@ -1,4 +1,5 @@
 """Fitness landscape visualizer and evaluation animator."""
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -69,12 +70,8 @@ class BBOBVisualizer(object):
         try:
             self.num_frames = X.shape[0]
             self.static_frames = int(0.2 * self.num_frames)
-            self.azimuths = jnp.linspace(
-                0, 89, self.num_frames - self.static_frames
-            )
-            self.angles = jnp.linspace(
-                0, 89, self.num_frames - self.static_frames
-            )
+            self.azimuths = jnp.linspace(0, 89, self.num_frames - self.static_frames)
+            self.angles = jnp.linspace(0, 89, self.num_frames - self.static_frames)
         except Exception:
             pass
 
@@ -135,8 +132,7 @@ class BBOBVisualizer(object):
         if self.plot_title:
             if self.plot_log_fn:
                 self.ax.set_title(
-                    f"Log {self.fn_name}: {self.title} - Generation"
-                    f" {frame + 1}",
+                    f"Log {self.fn_name}: {self.title} - Generation {frame + 1}",
                     fontsize=15,
                 )
             else:
@@ -154,9 +150,7 @@ class BBOBVisualizer(object):
             x = jnp.stack([x1, x2])
             return self.fn(x, self.R, self.Q)
 
-        return jax.vmap(jax.vmap(fn_val, in_axes=(0, None)), in_axes=(None, 0))(
-            x1, x2
-        )
+        return jax.vmap(jax.vmap(fn_val, in_axes=(0, None)), in_axes=(None, 0))(x1, x2)
 
     def plot_contour_2d(self, save: bool = False):
         """Plot 2d landscape contour."""

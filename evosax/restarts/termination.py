@@ -18,8 +18,7 @@ def spread_criterion(
 ) -> bool:
     """Stop if min/max fitness spread of recent generation is below thresh."""
     fit_var_too_low = (
-        jnp.max(fitness) - jnp.min(fitness)
-        < params.restart_params.min_fitness_spread
+        jnp.max(fitness) - jnp.min(fitness) < params.restart_params.min_fitness_spread
     )
     return fit_var_too_low
 
@@ -43,9 +42,7 @@ def cma_criterion(
 
     # Stop if std of normal distrib is smaller than tolx in all coordinates
     # and pc is smaller than tolx in all components.
-    cond_s_1 = jnp.all(
-        state.strategy_state.sigma * dC < params.restart_params.tol_x
-    )
+    cond_s_1 = jnp.all(state.strategy_state.sigma * dC < params.restart_params.tol_x)
     cond_s_2 = jnp.all(
         state.strategy_state.sigma * state.strategy_state.p_c
         < params.restart_params.tol_x
@@ -53,16 +50,13 @@ def cma_criterion(
     cma_term += jnp.logical_and(cond_s_1, cond_s_2)
 
     # Stop if detecting divergent behavior -> Stepsize sigma exploded.
-    cma_term += (
-        state.strategy_state.sigma * jnp.max(D) > params.restart_params.tol_x_up
-    )
+    cma_term += state.strategy_state.sigma * jnp.max(D) > params.restart_params.tol_x_up
 
     # No effect coordinates: stop if adding 0.2-standard deviations
     # in any single coordinate does not change mean.
     cond_no_coord_change = jnp.any(
         state.strategy_state.mean
-        == state.strategy_state.mean
-        + (0.2 * state.strategy_state.sigma * jnp.sqrt(dC))
+        == state.strategy_state.mean + (0.2 * state.strategy_state.sigma * jnp.sqrt(dC))
     )
     cma_term += cond_no_coord_change
 
@@ -76,9 +70,7 @@ def cma_criterion(
     cma_term += cond_no_axis_change
 
     # Stop if the condition number of the covariance matrix exceeds 1e14.
-    cond_condition_cov = (
-        jnp.max(D) / jnp.min(D) > params.restart_params.tol_condition_C
-    )
+    cond_condition_cov = jnp.max(D) / jnp.min(D) > params.restart_params.tol_condition_C
     cma_term += cond_condition_cov
     return cma_term > 0
 

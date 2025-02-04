@@ -48,19 +48,14 @@ class PersistentES(Strategy):
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Persistent ES (Vicol et al., 2021).
         Reference: http://proceedings.mlr.press/v139/vicol21a.html
         Inspired by: http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
@@ -116,8 +111,7 @@ class PersistentES(Strategy):
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         pos_perts = (
-            jax.random.normal(rng, (self.popsize // 2, self.num_dims))
-            * state.sigma
+            jax.random.normal(rng, (self.popsize // 2, self.num_dims)) * state.sigma
         )
         neg_perts = -pos_perts
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)
@@ -135,7 +129,7 @@ class PersistentES(Strategy):
     ) -> EvoState:
         """`tell` update to ES state."""
         theta_grad = jnp.mean(
-            state.pert_accum * fitness.reshape(-1, 1) / (state.sigma ** 2),
+            state.pert_accum * fitness.reshape(-1, 1) / (state.sigma**2),
             axis=0,
         )
         # Grad update using optimizer instance - decay lrate if desired

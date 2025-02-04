@@ -33,7 +33,7 @@ class HillClimber(Strategy):
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Simple Gaussian Hill Climbing"""
         super().__init__(

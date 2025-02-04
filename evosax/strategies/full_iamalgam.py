@@ -51,27 +51,19 @@ class Full_iAMaLGaM(Strategy):
         sigma_limit: float = 0.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Full Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         alpha_ams = (
-            0.5
-            * self.elite_ratio
-            * self.popsize
-            / (self.popsize - self.elite_popsize)
+            0.5 * self.elite_ratio * self.popsize / (self.popsize - self.elite_popsize)
         )
         self.ams_popsize = int(alpha_ams * (self.popsize - 1))
         self.strategy_name = "Full_iAMaLGaM"
@@ -87,14 +79,10 @@ class Full_iAMaLGaM(Strategy):
         a_0_sigma, a_1_sigma, a_2_sigma = -1.1, 1.2, 1.6
         a_0_shift, a_1_shift, a_2_shift = -1.2, 0.31, 0.5
         eta_sigma = 1 - jnp.exp(
-            a_0_sigma
-            * self.elite_popsize ** a_1_sigma
-            / (self.num_dims ** a_2_sigma)
+            a_0_sigma * self.elite_popsize**a_1_sigma / (self.num_dims**a_2_sigma)
         )
         eta_shift = 1 - jnp.exp(
-            a_0_shift
-            * self.elite_popsize ** a_1_shift
-            / (self.num_dims ** a_2_shift)
+            a_0_shift * self.elite_popsize**a_1_shift / (self.num_dims**a_2_shift)
         )
 
         return EvoParams(
@@ -105,9 +93,7 @@ class Full_iAMaLGaM(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
@@ -159,9 +145,7 @@ class Full_iAMaLGaM(Strategy):
         # If there has been a fitness improvement -> Run AVS based on SDR
         improvements = fitness_elite < state.best_fitness
         any_improvement = jnp.sum(improvements) > 0
-        sdr = standard_deviation_ratio(
-            improvements, members_elite, state.mean, state.C
-        )
+        sdr = standard_deviation_ratio(improvements, members_elite, state.mean, state.C)
         c_mult, nis_counter = adaptive_variance_scaling(
             any_improvement,
             sdr,
@@ -202,7 +186,7 @@ def sample(
     popsize: int,
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
-    S = C + sigma ** 2 * jnp.eye(C.shape[0])
+    S = C + sigma**2 * jnp.eye(C.shape[0])
     candidates = jax.random.multivariate_normal(
         rng, mean, S, (popsize,)
     )  # ~ N(m, S) - shape: (popsize, num_dims)
@@ -233,9 +217,9 @@ def standard_deviation_ratio(
 ) -> float:
     """SDR - relate dist. of improvements to mean in param space."""
     # Compute avg. member for candidates that improve fitness -> SDR
-    x_avg_imp = jnp.sum(
-        improvements[:, jnp.newaxis] * members_elite, axis=0
-    ) / jnp.sum(improvements)
+    x_avg_imp = jnp.sum(improvements[:, jnp.newaxis] * members_elite, axis=0) / jnp.sum(
+        improvements
+    )
     # Expensive! Can we somehow reuse this in sampling step?
     L = jax.scipy.linalg.cholesky(C)
     conditioned_diff = jnp.linalg.inv(L) @ (x_avg_imp - mean)
@@ -290,9 +274,7 @@ def update_mean_amalgam(
 ) -> Tuple[chex.Array, chex.Array]:
     """Iterative update of mean and mean shift based on elite and history."""
     new_mean = jnp.mean(members_elite, axis=0)
-    new_mean_shift = (1 - eta_shift) * mean_shift + eta_shift * (
-        new_mean - mean
-    )
+    new_mean_shift = (1 - eta_shift) * mean_shift + eta_shift * (new_mean - mean)
     return new_mean, new_mean_shift
 
 
@@ -304,7 +286,5 @@ def update_cov_amalgam(
 ) -> chex.Array:
     """Iterative update of mean and mean shift based on elite and history."""
     S_bar = members_elite - mean
-    new_C = (1 - eta_sigma) * C + eta_sigma * (
-        S_bar.T @ S_bar
-    ) / members_elite.shape[0]
+    new_C = (1 - eta_sigma) * C + eta_sigma * (S_bar.T @ S_bar) / members_elite.shape[0]
     return new_C

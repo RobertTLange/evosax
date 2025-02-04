@@ -68,9 +68,7 @@ class RestartWrapper(object):
         if params is None:
             params = self.default_params
 
-        strategy_state = self.base_strategy.initialize(
-            rng, params.strategy_params
-        )
+        strategy_state = self.base_strategy.initialize(rng, params.strategy_params)
         restart_state = RestartState(restart_counter=0, restart_next=False)
         return WrapperState(strategy_state, restart_state)
 

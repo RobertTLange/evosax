@@ -35,17 +35,13 @@ class DE(Strategy):
         num_dims: Optional[int] = None,
         pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Differential Evolution (Storn & Price, 1997)
         Reference: https://tinyurl.com/4pje5a74"""
         assert popsize > 6, "DE requires popsize > 6."
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.strategy_name = "DE"
 
@@ -53,9 +49,7 @@ class DE(Strategy):
     def params_strategy(self) -> EvoParams:
         return EvoParams()
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """
         `initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
@@ -118,9 +112,7 @@ class DE(Strategy):
             jnp.expand_dims(replace, 1) * x
             + (1 - jnp.expand_dims(replace, 1)) * state.archive
         )
-        fitness_archive = (
-            replace * fitness + (1 - replace) * state.fitness_archive
-        )
+        fitness_archive = replace * fitness + (1 - replace) * state.fitness_archive
         # Keep mean across stored archive around for evaluation protocol
         mean = archive.mean(axis=0)
         return state.replace(

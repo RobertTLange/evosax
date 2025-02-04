@@ -28,7 +28,7 @@ class IPOP_CMA_ES(object):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """IPOP-CMA-ES (Auer & Hansen, 2005).
         Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
@@ -43,7 +43,7 @@ class IPOP_CMA_ES(object):
             sigma_init=sigma_init,
             mean_decay=mean_decay,
             n_devices=n_devices,
-            **fitness_kwargs
+            **fitness_kwargs,
         )
         from ..restarts import IPOP_Restarter
         from ..restarts.termination import cma_criterion, spread_criterion

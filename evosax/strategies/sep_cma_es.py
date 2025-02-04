@@ -64,7 +64,7 @@ class Sep_CMA_ES(Strategy):
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
         Reference: https://hal.inria.fr/inria-00287367/document
@@ -299,7 +299,7 @@ def update_covariance(
     """Update cov. matrix estimator using rank 1 + μ updates."""
     delta_h_sigma = (1 - h_sigma) * c_c * (2 - c_c)
     rank_one = p_c**2
-    rank_mu = jnp.einsum('i,ij->j', weights_truncated, y_k**2)
+    rank_mu = jnp.einsum("i,ij->j", weights_truncated, y_k**2)
     C = (
         (1 + c_1 * delta_h_sigma - c_1 - c_mu * jnp.sum(weights_truncated)) * C
         + c_1 * rank_one

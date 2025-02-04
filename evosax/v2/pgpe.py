@@ -36,7 +36,6 @@ class EvoUpdate:
 
 
 class PGPE(DistributedStrategy):
-
     def __init__(
         self,
         popsize: int,
@@ -53,7 +52,7 @@ class PGPE(DistributedStrategy):
         mean_decay: float = 0.0,
         n_devices: int = 1,
         param_dtype: Any = jnp.float32,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: Union[bool, int, float],
     ):
         """PGPE (e.g. Sehnke et al., 2010)
         Reference: https://tinyurl.com/2p8bn956
@@ -65,7 +64,7 @@ class PGPE(DistributedStrategy):
             mean_decay,
             n_devices,
             param_dtype,
-            **fitness_kwargs
+            **fitness_kwargs,
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio

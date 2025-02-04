@@ -19,11 +19,7 @@ def get_best_fitness_member(
         x[best_in_gen],
     )
     replace_best = best_in_gen_fitness < best_fit_min
-    best_fitness = jax.lax.select(
-        replace_best, best_in_gen_fitness, best_fit_min
-    )
-    best_member = jax.lax.select(
-        replace_best, best_in_gen_member, state.best_member
-    )
+    best_fitness = jax.lax.select(replace_best, best_in_gen_fitness, best_fit_min)
+    best_member = jax.lax.select(replace_best, best_in_gen_member, state.best_member)
     best_fitness = jax.lax.select(maximize, -1 * best_fitness, best_fitness)
     return best_member, best_fitness

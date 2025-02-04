@@ -4,7 +4,9 @@ from typing import Tuple
 
 
 def full_eigen_decomp(
-    C: chex.Array, B: chex.Array, D: chex.Array,
+    C: chex.Array,
+    B: chex.Array,
+    D: chex.Array,
 ) -> Tuple[chex.Array, chex.Array, chex.Array]:
     """Perform eigendecomposition of covariance matrix."""
     if B is not None and D is not None:

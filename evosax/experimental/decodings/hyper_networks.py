@@ -14,9 +14,7 @@ class HyperNetworkMLP(nn.Module):
     def setup(self):
         # Define the latents Z for each layer
         self.latents = [
-            self.param(
-                f"latent_{i}", self.kernel_init, (self.num_latent_units, 1)
-            )
+            self.param(f"latent_{i}", self.kernel_init, (self.num_latent_units, 1))
             for i, s in enumerate(self.raw_network_shapes.keys())
         ]
         # Get max number of out units - use to embed all latents
@@ -38,9 +36,7 @@ class HyperNetworkMLP(nn.Module):
         a_latent = []
         # Perform projection for all in dims - loop over modules
         for i, s in enumerate(self.network_shapes.keys()):
-            a = nn.DenseGeneral(
-                (self.num_hidden_units, self.network_shapes[s][0])
-            )
+            a = nn.DenseGeneral((self.num_hidden_units, self.network_shapes[s][0]))
             stacked_d = a(self.latents[i].squeeze())
             # Shape stacked_d - (num_hidden_units, out_dim of layer)
             a_latent.append(stacked_d)
