@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evosax"
+version = "0.1.6"
+dependencies = [
+	"numpy>=1.25",
+	"jax>=0.5.0",
+	"flax>=0.10.0",
+	"chex",
+	"pyyaml",
+	"matplotlib",
+	"dotmap",
+]
+requires-python = ">=3.10"
+authors = [
+  { name="Robert Tjarko Lange", email="robertlange0@gmail.com" },
+]
+description = "Evolution Strategies in JAX"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["evolutionary-algorithms", "evolution-strategy", "neuroevolution"]
+classifiers = [
+	"Programming Language :: Python :: 3.10",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13",
+	"License :: OSI Approved :: Apache Software License",
+	"Operating System :: OS Independent",
+	"Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=8.3.2",
+	"pytest-cov>=5.0.0",
+	"ruff>=0.6.4",
+	"mypy>=1.11.2",
+]
+examples = [
+	"ipykernel",
+]
+
+[project.urls]
+Homepage = "https://github.com/RobertTLange/evosax"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["evosax*"]
+
+[tool.setuptools.package-data]
+evosax = [
+	"strategies/ckpt/les/*.pkl",
+	"strategies/ckpt/lga/*.pkl",
+	"strategies/ckpt/evotf/*.pkl"
+]
+
+[tool.ruff]
+src = ["evosax", "tests"]
+target-version = "py311"
+line-length = 88
+indent-width = 4
+
+[tool.ruff.lint]
+select = ["E", "D", "F", "I", "N", "SIM", "UP", "W"]
+ignore = ["D203", "D206", "D213", "W191"]
+
+[tool.mypy]
+python_version = "3.11"
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = true
+show_error_codes = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
