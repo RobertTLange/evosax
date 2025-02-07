@@ -26,7 +26,6 @@ class SV_OpenES(OpenES):
         npop: int,
         subpopsize: int,
         kernel: type[Kernel] = RBF,
-        num_dims: int | None = None,
         pholder_params: ArrayTree | Array | None = None,
         use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
@@ -37,7 +36,6 @@ class SV_OpenES(OpenES):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Stein Variational OpenAI-ES (Liu et al., 2017)
@@ -45,7 +43,6 @@ class SV_OpenES(OpenES):
         """
         super().__init__(
             npop * subpopsize,
-            num_dims,
             pholder_params,
             use_antithetic_sampling,
             opt_name,
@@ -56,7 +53,6 @@ class SV_OpenES(OpenES):
             sigma_decay,
             sigma_limit,
             mean_decay,
-            n_devices,
             **fitness_kwargs,
         )
         assert not subpopsize & 1, "Sub-population size size must be even"

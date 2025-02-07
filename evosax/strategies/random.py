@@ -28,15 +28,11 @@ class RandomSearch(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Simple Random Search Baseline"""
-        super().__init__(
-            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, **fitness_kwargs)
         self.strategy_name = "RandomSearch"
 
     @property

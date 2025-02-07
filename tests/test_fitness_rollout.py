@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from evosax import ARS, CMA_ES, NetworkMapper, ParameterReshaper
+from evosax import ARS, CMA_ES, NetworkMapper
 from evosax.problems import (
     BBOBFitness,
     GymnaxFitness,
@@ -11,7 +11,8 @@ from evosax.problems import (
 def test_classic_rollout(classic_name: str):
     rng = jax.random.PRNGKey(0)
     evaluator = BBOBFitness(classic_name, num_dims=2)
-    strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
+    x = evaluator.sample_x(rng)
+    strategy = CMA_ES(popsize=20, pholder_params=x, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(rng, params)
 
@@ -38,16 +39,14 @@ def test_env_ffw_rollout(env_name: str):
         x=pholder,
         rng=rng,
     )
-    reshaper = ParameterReshaper(net_params)
     evaluator.set_apply_fn(network.apply)
 
-    strategy = ARS(popsize=20, num_dims=reshaper.total_params, elite_ratio=0.5)
+    strategy = ARS(popsize=20, pholder_params=net_params, elite_ratio=0.5)
     state = strategy.initialize(rng)
     # Run the ask-eval-tell loop
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
     x, state = strategy.ask(rng_gen, state)
-    x_re = reshaper.reshape(x)
-    fitness = evaluator.rollout(rng_eval, x_re)
+    fitness = evaluator.rollout(rng_eval, x)
 
     # Assert shape (#popmembers, #rollouts)
     assert fitness.shape == (20, 10)
@@ -108,17 +107,15 @@ def test_vision_fitness():
         rng=rng,
     )
 
-    reshaper = ParameterReshaper(net_params)
     evaluator.set_apply_fn(network.apply)
 
-    strategy = ARS(popsize=4, num_dims=reshaper.total_params, elite_ratio=0.5)
+    strategy = ARS(popsize=4, pholder_params=net_params, elite_ratio=0.5)
     state = strategy.initialize(rng)
 
     # Run the ask-eval-tell loop
     rng, rng_gen, rng_eval = jax.random.split(rng, 3)
     x, state = strategy.ask(rng_gen, state)
-    x_re = reshaper.reshape(x)
-    loss, acc = evaluator.rollout(rng_eval, x_re)
+    loss, acc = evaluator.rollout(rng_eval, x)
     assert loss.shape == (4, 1)
     assert acc.shape == (4, 1)
 

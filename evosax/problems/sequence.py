@@ -13,7 +13,6 @@ class SequenceFitness:
         seq_length: int = 150,  # Sequence length in addition task
         permute_seq: bool = False,  # Permuted S-MNIST task option
         test: bool = False,
-        n_devices: int | None = None,
     ):
         self.task_name = task_name
         self.batch_size = batch_size
@@ -40,40 +39,18 @@ class SequenceFitness:
         self.dataloader = BatchLoader(*data, batch_size=self.batch_size)
         self.num_rnn_steps = self.dataloader.data_shape[1]
 
-        if n_devices is None:
-            self.n_devices = jax.local_device_count()
-        else:
-            self.n_devices = n_devices
-
     def set_apply_fn(self, network, carry_init):
         """Set the network forward function."""
         self.network = network
         self.carry_init = carry_init
         self.rollout_pop = jax.vmap(self.rollout_rnn, in_axes=(None, 0))
-        # pmap over popmembers if > 1 device is available - otherwise pmap
-        if self.n_devices > 1:
-            self.rollout = self.rollout_pmap
-            print(
-                f"SequenceFitness: {self.n_devices} devices detected. Please"
-                " make sure that the ES population size divides evenly across"
-                " the number of devices to pmap/parallelize over."
-            )
-        else:
-            self.rollout = jax.jit(self.rollout_vmap)
+        self.rollout = jax.jit(self.rollout_vmap)
 
     def rollout_vmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
         """Vectorize rollout. Reshape output correctly."""
         loss, perf = self.rollout_pop(rng_input, network_params)
         loss_re = loss.reshape(-1, 1)
         perf_re = perf.reshape(-1, 1)
-        return loss_re, perf_re
-
-    def rollout_pmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
-        """Parallelize rollout across devices. Split keys/reshape correctly."""
-        keys_pmap = jnp.tile(rng_input, (self.n_devices, 1))
-        loss_dev, perf_dev = jax.pmap(self.rollout_pop)(keys_pmap, network_params)
-        loss_re = loss_dev.reshape(-1, 1)
-        perf_re = perf_dev.reshape(-1, 1)
         return loss_re, perf_re
 
     def rollout_rnn(

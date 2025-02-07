@@ -1,7 +1,7 @@
 import chex
 import jax
 
-from ...core import ParameterReshaper
+from ...utils.helpers import get_ravel_fn
 from .decoder import Decoder
 
 
@@ -12,25 +12,23 @@ class RandomDecoder(Decoder):
         placeholder_params: chex.ArrayTree | chex.Array,
         rng: chex.PRNGKey = jax.random.PRNGKey(0),
         rademacher: bool = False,
-        n_devices: int | None = None,
     ):
         """Random Projection Decoder (Gaussian/Rademacher random matrix)."""
-        super().__init__(num_encoding_dims, placeholder_params, n_devices)
+        super().__init__(num_encoding_dims, placeholder_params)
         self.rademacher = rademacher
-        # Instantiate base reshaper class
-        self.base_reshaper = ParameterReshaper(
-            placeholder_params, n_devices, verbose=False
-        )
-        self.vmap_dict = self.base_reshaper.vmap_dict
+
+        self.ravel_params, self.unravel_params = get_ravel_fn(placeholder_params)
+        flat_params = self.ravel_params(placeholder_params)
+        total_params = flat_params.size
 
         # Sample a random matrix - Gaussian or Rademacher (+1/-1)
         if not self.rademacher:
             self.project_matrix = jax.random.normal(
-                rng, (self.num_encoding_dims, self.base_reshaper.total_params)
+                rng, (self.num_encoding_dims, total_params)
             )
         else:
             self.project_matrix = jax.random.rademacher(
-                rng, (self.num_encoding_dims, self.base_reshaper.total_params)
+                rng, (self.num_encoding_dims, total_params)
             )
         print(f"RandomDecoder: Encoding parameters to optimize - {num_encoding_dims}")
 
@@ -40,8 +38,8 @@ class RandomDecoder(Decoder):
         project_x = (
             x @ self.project_matrix
         )  # (popsize, num_enc_dim) x (num_enc_dim, num_dims)
-        # 2. Reshape using base reshaper class
-        x_reshaped = self.base_reshaper.reshape(project_x)
+        # 2. Reshape
+        x_reshaped = jax.vmap(self.unravel_params)(project_x)
         return x_reshaped
 
     def reshape_single(self, x: chex.Array) -> chex.ArrayTree:
@@ -49,6 +47,6 @@ class RandomDecoder(Decoder):
         x_re = x.reshape(1, self.num_encoding_dims)
         # 1. Project parameters to raw dimensionality using pre-sampled matrix
         project_x = (x_re @ self.project_matrix).squeeze()
-        # 2. Reshape using base reshaper class
-        x_reshaped = self.base_reshaper.reshape_single(project_x)
+        # 2. Reshape
+        x_reshaped = self.unravel_params(project_x)
         return x_reshaped

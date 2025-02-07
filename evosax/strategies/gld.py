@@ -30,18 +30,14 @@ class GLD(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Gradientless Descent (Golovin et al., 2019)
         Reference: https://arxiv.org/pdf/1911.06317.pdf
         """
-        super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
         self.strategy_name = "GLD"
 
     @property

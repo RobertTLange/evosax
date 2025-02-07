@@ -1,5 +1,4 @@
 import chex
-import jax
 
 
 class Decoder:
@@ -7,21 +6,10 @@ class Decoder:
         self,
         num_encoding_dims: int,
         placeholder_params: chex.ArrayTree | chex.Array,
-        n_devices: int | None = None,
     ):
         self.num_encoding_dims = num_encoding_dims
         self.total_params = num_encoding_dims
         self.placeholder_params = placeholder_params
-        if n_devices is None:
-            self.n_devices = jax.local_device_count()
-        else:
-            self.n_devices = n_devices
-        if self.n_devices > 1:
-            print(
-                f"Decoder: {self.n_devices} devices detected. Please"
-                " make sure that the ES population size divides evenly across"
-                " the number of devices to pmap/parallelize over."
-            )
 
     def reshape(self, x: chex.Array) -> chex.ArrayTree:
         raise NotImplementedError

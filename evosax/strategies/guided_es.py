@@ -39,7 +39,6 @@ class GuidedES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         subspace_dims: int = 1,  # k param in example notebook
         opt_name: str = "sgd",
@@ -50,7 +49,6 @@ class GuidedES(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Guided ES (Maheswaranathan et al., 2018)
@@ -59,10 +57,8 @@ class GuidedES(Strategy):
         """
         super().__init__(
             popsize,
-            num_dims,
             pholder_params,
             mean_decay,
-            n_devices,
             **fitness_kwargs,
         )
         assert not self.popsize & 1, "Population size must be even"
@@ -148,9 +144,8 @@ class GuidedES(Strategy):
         if params is None:
             params = self.default_params
 
-        # Flatten params if using param reshaper for ES update
-        if self.use_param_reshaper:
-            x = self.param_reshaper.flatten(x)
+        # Ravel params
+        x = jax.vmap(self.ravel_params)(x)
 
         # Perform fitness reshaping inside of strategy tell call (if desired)
         fitness_re = self.fitness_shaper.apply(x, fitness)

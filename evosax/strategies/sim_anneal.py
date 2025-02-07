@@ -36,20 +36,16 @@ class SimAnneal(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 0.03,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Simulated Annealing (Rasdi Rere et al., 2015)
         Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
         """
-        super().__init__(
-            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, **fitness_kwargs)
         self.strategy_name = "SimAnneal"
 
         # Set core kwargs es_params (lrate/sigma schedules)

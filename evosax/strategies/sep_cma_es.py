@@ -59,12 +59,10 @@ class Sep_CMA_ES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
@@ -73,10 +71,8 @@ class Sep_CMA_ES(Strategy):
         """
         super().__init__(
             popsize,
-            num_dims,
             pholder_params,
             mean_decay,
-            n_devices,
             **fitness_kwargs,
         )
         assert 0 <= elite_ratio <= 1
@@ -331,7 +327,9 @@ def sample(
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
     z = jax.random.normal(rng, (n_dim, pop_size))  # ~ N(0, I)
-    y = jnp.diag(D).dot(z)  # ~ N(0, C)
+    y = jnp.diag(D).dot(
+        z
+    )  # ~ N(0, C)  TODO: check if this is correct (discrepency between C and D
     y = jnp.swapaxes(y, 1, 0)
     x = mean + sigma_scale * y  # ~ N(m, σ^2 C)
     return x

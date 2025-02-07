@@ -53,20 +53,16 @@ class LGA(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 1.0,
         net_params: chex.ArrayTree | None = None,
         net_ckpt_path: str | None = None,
         sigma_init: float = 1.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         super().__init__(
             popsize,
-            num_dims,
             pholder_params,
-            n_devices=n_devices,
             **fitness_kwargs,
         )
         self.strategy_name = "LGA"

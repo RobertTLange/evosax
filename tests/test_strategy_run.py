@@ -13,16 +13,20 @@ def test_strategy_run(strategy_name):
     # Loop over all strategies and test ask API
     rng = jax.random.PRNGKey(0)
     Strat = Strategies[strategy_name]
+
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+
     # PBT also returns copy ID integer - treat separately
     if strategy_name == "ESMC":
         popsize = 21
     else:
         popsize = 20
-    if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES"]:
-        strategy = Strat(npop=1, subpopsize=popsize, num_dims=2)
+    if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
+        strategy = Strat(npop=1, subpopsize=popsize, pholder_params=x)
     else:
-        strategy = Strat(popsize=popsize, num_dims=2)
-    evaluator = BBOBFitness("Sphere", 2)
+        strategy = Strat(popsize=popsize, pholder_params=x)
+    evaluator = BBOBFitness("sphere", 2)
     fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
@@ -45,38 +49,41 @@ def test_strategy_scan(strategy_name):
     # Loop over all strategies and test ask API
     rng = jax.random.PRNGKey(0)
     Strat = Strategies[strategy_name]
+
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+
     # PBT also returns copy ID integer - treat separately
     if strategy_name == "ESMC":
         popsize = 21
     else:
         popsize = 20
-    if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES"]:
-        strategy = Strat(npop=1, subpopsize=popsize, num_dims=2)
+    if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
+        strategy = Strat(npop=1, subpopsize=popsize, pholder_params=x)
+    elif strategy_name in ["BIPOP_CMA_ES", "IPOP_CMA_ES"]:
+        return
     else:
-        strategy = Strat(popsize=popsize, num_dims=2)
-    evaluator = BBOBFitness("Sphere", 2)
+        strategy = Strat(popsize=popsize, pholder_params=x)
+    evaluator = BBOBFitness("sphere", 2)
     fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
     es_params = strategy.default_params
 
-    @partial(jax.jit, static_argnums=(1,))
-    def run_plain_es(rng, num_steps):
-        """Run evolution ask-eval-tell loop."""
-        state = strategy.initialize(rng, es_params)
+    state = strategy.initialize(rng, es_params)
 
-        def step(state_input, tmp):
-            """Helper function to lax.scan through."""
-            rng, state = state_input
-            rng, rng_eval, rng_iter = jax.random.split(rng, 3)
-            x, state = strategy.ask(rng_iter, state, es_params)
-            fitness = batch_eval(rng_eval, x)
-            fitness_shaped = fitness_shaper.apply(x, fitness)
-            state = strategy.tell(x, fitness_shaped, state, es_params)
-            best_id = jnp.argmin(fitness)
-            return [rng, state], fitness[best_id]
+    def step(carry, _):
+        """Helper function to lax.scan."""
+        rng, state = carry
+        rng, rng_eval, rng_iter = jax.random.split(rng, 3)
+        x, state = strategy.ask(rng_iter, state, es_params)
+        fitness = batch_eval(rng_eval, x)
+        fitness_shaped = fitness_shaper.apply(x, fitness)
+        state = strategy.tell(x, fitness_shaped, state, es_params)
+        return (rng, state), jnp.min(fitness)
 
-        _, scan_out = jax.lax.scan(step, [rng, state], [jnp.zeros(num_steps)])
-        return jnp.min(scan_out)
-
-    run_plain_es(rng, num_iters)
+    _, best_fitness = jax.lax.scan(
+        step,
+        init=(rng, state),
+        length=num_iters,
+    )

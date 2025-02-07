@@ -34,22 +34,18 @@ class SimpleGA(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 0.1,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Simple Genetic Algorithm (Such et al., 2017)
         Reference: https://arxiv.org/abs/1712.06567
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
         """
-        super().__init__(
-            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.strategy_name = "SimpleGA"

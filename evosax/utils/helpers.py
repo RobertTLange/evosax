@@ -1,6 +1,17 @@
 import chex
 import jax
 import jax.numpy as jnp
+from jax import flatten_util
+
+
+def get_ravel_fn(pholder_params: chex.ArrayTree):
+    def ravel_params(params):
+        flat, _ = flatten_util.ravel_pytree(params)
+        return flat
+
+    _, unravel_params = flatten_util.ravel_pytree(pholder_params)
+
+    return ravel_params, unravel_params
 
 
 def get_best_fitness_member(

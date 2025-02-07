@@ -18,17 +18,20 @@ class BBOBFitness:
         self,
         fn_name: str = "sphere",
         num_dims: int = 2,
-        n_devices: int = 1,
         seed: int = 0,
     ):
         self.fn_name = fn_name
-        self.max_num_dims = num_dims
         self.num_dims = num_dims
-        self.n_devices = n_devices
+        self.max_num_dims = num_dims
+        self.x_range = (-5.0, 5.0)
+        self.x_opt_range = (-4.0, 4.0)
 
         key = jax.random.key(seed)
         self.x_opt = jax.random.uniform(
-            key, shape=(self.max_num_dims,), minval=-4.0, maxval=4.0
+            key,
+            shape=(self.max_num_dims,),
+            minval=self.x_opt_range[0],
+            maxval=self.x_opt_range[1],
         )
         self.r, self.q = self.get_rotation_matrices(key, num_dims)
 
@@ -40,35 +43,8 @@ class BBOBFitness:
             num_dims=self.num_dims,
         )
 
-    def rollout(
-        self,
-        key: jax.Array,
-        eval_params: jax.Array,
-        noise_std: float = 0.0,
-    ) -> jax.Array:
-        """Batch evaluate the proposal points."""
-        if self.n_devices > 1:
-            return self.rollout_pmap(key, eval_params, noise_std)
-        else:
-            return self.rollout_single(key, eval_params, noise_std)
-
-    def rollout_pmap(
-        self,
-        key: jax.Array,
-        eval_params: jax.Array,
-        noise_std: float,
-    ):
-        """Evaluate the proposal points in parallel across devices."""
-        # split the key into n_devices
-        keys = jax.random.split(key, self.n_devices)
-        # pmap over the devices
-        val = jax.pmap(self.rollout_single, in_axes=(0, 0, None))(
-            keys, eval_params, noise_std
-        )
-        return val
-
     @partial(jax.jit, static_argnums=(0,))
-    def rollout_single(
+    def rollout(
         self,
         key: jax.Array,
         eval_params: jax.Array,
@@ -80,8 +56,16 @@ class BBOBFitness:
         eval_noise = jax.random.normal(key, shape=fn_value.shape) * noise_std
         return fn_value + eval_noise
 
+    def sample_x(self, key: jax.Array) -> jax.Array:
+        return jax.random.uniform(
+            key,
+            shape=(self.max_num_dims,),
+            minval=self.x_range[0],
+            maxval=self.x_range[1],
+        )
+
     def generate_random_rotation(self, key: jax.Array, num_dims: int) -> jax.Array:
-        """Generate a random (n, n) rotation matrix uniformly sampled from SO(n).
+        """Generate a random rotation matrix uniformly sampled from SO(num_dims).
 
         This implementation follows the method described in:
         "How to generate a random unitary matrix" [Maris Ozols 2006]

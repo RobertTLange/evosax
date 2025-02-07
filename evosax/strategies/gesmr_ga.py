@@ -32,19 +32,15 @@ class GESMR_GA(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_ratio: float = 0.5,
         sigma_init: float = 0.07,
         sigma_meta: float = 2.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Group Elite Selection of Mutation Rates (GESMR) GA."""
-        super().__init__(
-            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         self.num_sigma_groups = int(jnp.sqrt(self.popsize))
