@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
+from ..core import GradientOptimizer, OptParams, OptState, exp_decay
 from ..strategy import Strategy
-from ..core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass
@@ -35,8 +36,8 @@ class PGPE(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 1.0,
         opt_name: str = "adam",
         lrate_init: float = 0.15,
@@ -46,12 +47,13 @@ class PGPE(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """PGPE (e.g. Sehnke et al., 2010)
         Reference: https://tinyurl.com/2p8bn956
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+        """
         super().__init__(
             popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
@@ -105,7 +107,7 @@ class PGPE(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         z_plus = jax.random.normal(

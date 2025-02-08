@@ -1,8 +1,9 @@
-from typing import List, Tuple
 from functools import partial
+
+import chex
 import jax.numpy as jnp
 from flax import linen as nn
-import chex
+
 from .attention import AttentionEncoder
 from .perceiver import PerceiverEncoder
 
@@ -42,7 +43,7 @@ class CompressionPerceiver(nn.Module):
     @nn.compact
     def __call__(
         self, x: chex.Array, train: bool = False
-    ) -> Tuple[chex.Array, List[chex.Array]]:
+    ) -> tuple[chex.Array, list[chex.Array]]:
         x = x.transpose(1, 0, 2, 3)
         out, att = self.lift_cross(name="CompressionPerceiver")(
             x,
@@ -91,7 +92,7 @@ class SolutionPerceiver(nn.Module):
     @nn.compact
     def __call__(
         self, x: chex.Array, train: bool = False
-    ) -> Tuple[chex.Array, List[chex.Array]]:
+    ) -> tuple[chex.Array, list[chex.Array]]:
         x = x.transpose(3, 0, 1, 2, 4)
         out, att = self.lift_cross(name="SolutionPerceiver")(
             x,
@@ -135,7 +136,7 @@ class DistributionAttention(nn.Module):
     @nn.compact
     def __call__(
         self, x: chex.Array, train: bool = True
-    ) -> Tuple[chex.Array, List[chex.Array]]:
+    ) -> tuple[chex.Array, list[chex.Array]]:
         x = x.transpose(1, 0, 2, 3)
         out, att = self.lift_att(name="DistributionAttention")(x, None, False, train)
         out = out.transpose(1, 0, 2, 3)

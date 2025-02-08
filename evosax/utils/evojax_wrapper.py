@@ -2,6 +2,7 @@ import chex
 import jax
 import jax.numpy as jnp
 from evojax.algo.base import NEAlgorithm
+
 from evosax import Strategy
 
 
@@ -31,9 +32,7 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
     def ask(self) -> chex.Array:
         """Ask strategy for next set of solution candidates to evaluate."""
         self.rand_key, ask_key = jax.random.split(self.rand_key)
-        self.params, self.es_state = self.es.ask(
-            ask_key, self.es_state, self.es_params
-        )
+        self.params, self.es_state = self.es.ask(ask_key, self.es_state, self.es_params)
         return self.params
 
     def tell(self, fitness: chex.Array) -> None:

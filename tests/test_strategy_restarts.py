@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
-from evosax import OpenES, CMA_ES, IPOP_CMA_ES, BIPOP_CMA_ES
-from evosax.restarts import Simple_Restarter, BIPOP_Restarter, IPOP_Restarter
+from evosax import BIPOP_CMA_ES, CMA_ES, IPOP_CMA_ES, OpenES
+from evosax.restarts import BIPOP_Restarter, IPOP_Restarter, Simple_Restarter
 
 
 def test_simple_restart():

@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
+from ..core import GradientOptimizer, OptParams, OptState, exp_decay
 from ..strategy import Strategy
-from ..core import GradientOptimizer, OptState, OptParams, exp_decay
 
 
 @struct.dataclass
@@ -38,8 +39,8 @@ class ASEBO(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         subspace_dims: int = 50,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -49,8 +50,8 @@ class ASEBO(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """ASEBO (Choromanski et al., 2019)
         Reference: https://arxiv.org/abs/1903.04268
@@ -100,9 +101,7 @@ class ASEBO(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -127,7 +126,7 @@ class ASEBO(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         X = state.grad_subspace
@@ -182,9 +181,9 @@ class ASEBO(Strategy):
         fit_diff_noise = jnp.dot(noise_1.T, fit_1 - fit_2)
         theta_grad = 1.0 / 2.0 * fit_diff_noise
 
-        alpha = jnp.linalg.norm(
-            jnp.dot(theta_grad, state.UUT_ort)
-        ) / jnp.linalg.norm(jnp.dot(theta_grad, state.UUT))
+        alpha = jnp.linalg.norm(jnp.dot(theta_grad, state.UUT_ort)) / jnp.linalg.norm(
+            jnp.dot(theta_grad, state.UUT)
+        )
         subspace_ready = state.gen_counter > self.subspace_dims
         alpha = jax.lax.select(subspace_ready, alpha, 1.0)
 
@@ -206,6 +205,4 @@ class ASEBO(Strategy):
         # Update lrate and standard deviation based on min and decay
         sigma = state.sigma * params.sigma_decay
         sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
-        return state.replace(
-            mean=mean, sigma=sigma, opt_state=opt_state, alpha=alpha
-        )
+        return state.replace(mean=mean, sigma=sigma, opt_state=opt_state, alpha=alpha)

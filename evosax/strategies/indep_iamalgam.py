@@ -1,13 +1,14 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from ..strategy import Strategy
+
 from ..core import exp_decay
+from ..strategy import Strategy
 from .full_iamalgam import (
-    anticipated_mean_shift,
     adaptive_variance_scaling,
+    anticipated_mean_shift,
     update_mean_amalgam,
 )
 
@@ -48,35 +49,27 @@ class Indep_iAMaLGaM(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.35,
         sigma_init: float = 0.0,
         sigma_decay: float = 0.99,
         sigma_limit: float = 0.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Diagonal Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
         alpha_ams = (
-            0.5
-            * self.elite_ratio
-            * self.popsize
-            / (self.popsize - self.elite_popsize)
+            0.5 * self.elite_ratio * self.popsize / (self.popsize - self.elite_popsize)
         )
         self.ams_popsize = int(alpha_ams * (self.popsize - 1))
         self.strategy_name = "Indep_iAMaLGaM"
@@ -92,14 +85,10 @@ class Indep_iAMaLGaM(Strategy):
         a_0_sigma, a_1_sigma, a_2_sigma = -1.1, 1.2, 1.6
         a_0_shift, a_1_shift, a_2_shift = -1.2, 0.31, 0.5
         eta_sigma = 1 - jnp.exp(
-            a_0_sigma
-            * self.elite_popsize ** a_1_sigma
-            / (self.num_dims ** a_2_sigma)
+            a_0_sigma * self.elite_popsize**a_1_sigma / (self.num_dims**a_2_sigma)
         )
         eta_shift = 1 - jnp.exp(
-            a_0_shift
-            * self.elite_popsize ** a_1_shift
-            / (self.num_dims ** a_2_shift)
+            a_0_shift * self.elite_popsize**a_1_shift / (self.num_dims**a_2_shift)
         )
 
         return EvoParams(
@@ -110,9 +99,7 @@ class Indep_iAMaLGaM(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
@@ -134,7 +121,7 @@ class Indep_iAMaLGaM(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         rng_sample, rng_ams = jax.random.split(rng)
         x = sample(rng_sample, state.mean, state.C, state.sigma, self.popsize)
@@ -164,9 +151,7 @@ class Indep_iAMaLGaM(Strategy):
         # If there has been a fitness improvement -> Run AVS based on SDR
         improvements = fitness_elite < state.best_fitness
         any_improvement = jnp.sum(improvements) > 0
-        sdr = standard_deviation_ratio(
-            improvements, members_elite, state.mean, state.C
-        )
+        sdr = standard_deviation_ratio(improvements, members_elite, state.mean, state.C)
         c_mult, nis_counter = adaptive_variance_scaling(
             any_improvement,
             sdr,
@@ -223,9 +208,9 @@ def standard_deviation_ratio(
 ) -> float:
     """SDR - relate dist. of improvements to mean in param space."""
     # Compute avg. member for candidates that improve fitness -> SDR
-    x_avg_imp = jnp.sum(
-        improvements[:, jnp.newaxis] * members_elite, axis=0
-    ) / jnp.sum(improvements)
+    x_avg_imp = jnp.sum(improvements[:, jnp.newaxis] * members_elite, axis=0) / jnp.sum(
+        improvements
+    )
     conditioned_diff = (x_avg_imp - mean) / C
     sdr = jnp.max(jnp.abs(conditioned_diff))
     return sdr
@@ -241,6 +226,6 @@ def update_cov_amalgam(
     S_bar = members_elite - mean
     # Univariate update to standard deviations
     new_C = (1 - eta_sigma) * C + eta_sigma * jnp.sum(
-        S_bar ** 2, axis=0
+        S_bar**2, axis=0
     ) / members_elite.shape[0]
     return new_C

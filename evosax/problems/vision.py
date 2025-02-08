@@ -1,16 +1,16 @@
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from typing import Tuple, Optional
 
 
-class VisionFitness(object):
+class VisionFitness:
     def __init__(
         self,
         task_name: str = "MNIST",
         batch_size: int = 1024,
         test: bool = False,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         self.task_name = task_name
         self.batch_size = batch_size
@@ -40,23 +40,17 @@ class VisionFitness(object):
         else:
             self.rollout = jax.jit(self.rollout_vmap)
 
-    def rollout_vmap(
-        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ):
+    def rollout_vmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
         """Vectorize rollout. Reshape output correctly."""
         loss, acc = self.rollout_pop(rng_input, network_params)
         loss_re = loss.reshape(-1, 1)
         acc_re = acc.reshape(-1, 1)
         return loss_re, acc_re
 
-    def rollout_pmap(
-        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ):
+    def rollout_pmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
         """Parallelize rollout across devices. Split keys/reshape correctly."""
         keys_pmap = jnp.tile(rng_input, (self.n_devices, 1))
-        loss_dev, acc_dev = jax.pmap(self.rollout_pop)(
-            keys_pmap, network_params
-        )
+        loss_dev, acc_dev = jax.pmap(self.rollout_pop)(keys_pmap, network_params)
         loss_re = loss_dev.reshape(-1, 1)
         acc_re = acc_dev.reshape(-1, 1)
         return loss_re, acc_re
@@ -73,14 +67,14 @@ class VisionFitness(object):
         return -1 * loss, acc
 
     @property
-    def input_shape(self) -> Tuple[int]:
+    def input_shape(self) -> tuple[int]:
         """Get the shape of the observation."""
         return (1,) + self.dataloader.data_shape
 
 
 def loss_and_acc(
     y_pred: chex.Array, y_true: chex.Array, num_classes: int
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
     labels = jax.nn.one_hot(y_true, num_classes)
@@ -102,7 +96,7 @@ class BatchLoader:
         self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key: chex.PRNGKey) -> Tuple[chex.Array, chex.Array]:
+    def sample(self, key: chex.PRNGKey) -> tuple[chex.Array, chex.Array]:
         """Sample a single batch of X, y data."""
         sample_idx = jax.random.choice(
             key,
@@ -135,9 +129,7 @@ def get_mnist_loaders(test: bool = False):
     )
     bs = 10000 if test else 60000
     loader = torch.utils.data.DataLoader(
-        datasets.MNIST(
-            "~/data", download=True, train=not test, transform=transform
-        ),
+        datasets.MNIST("~/data", download=True, train=not test, transform=transform),
         batch_size=bs,
         shuffle=False,
     )
@@ -187,9 +179,7 @@ def get_cifar_loaders(test: bool = False):
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize(
-                (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
-            ),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             transforms.Lambda(lambda x: x.permute(1, 2, 0)),
         ]
     )

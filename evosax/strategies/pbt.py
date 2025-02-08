@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -30,19 +31,16 @@ class PBT(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Synchronous Population-Based Training (Jaderberg et al., 2017)
-        Reference: https://arxiv.org/abs/1711.09846"""
+        Reference: https://arxiv.org/abs/1711.09846
+        """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.strategy_name = "PBT"
 
@@ -51,11 +49,8 @@ class PBT(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
-        """
-        `initialize` the differential evolution strategy.
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+        """`initialize` the differential evolution strategy.
         """
         initialization = jax.random.uniform(
             rng,
@@ -73,9 +68,8 @@ class PBT(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
-        """
-        `ask` for new proposed candidates to evaluate next.
+    ) -> tuple[chex.Array, EvoState]:
+        """`ask` for new proposed candidates to evaluate next.
         Perform explore-exploit step.
         1) Check exploit criterion (e.g. in top 20% of performer).
         2) If not exploit: Copy hyperparams from id and explore/perturb around.
@@ -113,7 +107,7 @@ def single_member_exploit(
     archive: chex.Array,
     fitness: chex.Array,
     params: EvoParams,
-) -> Tuple[bool, int, chex.Array]:
+) -> tuple[bool, int, chex.Array]:
     """Get the top and bottom performers."""
     best_id = jnp.argmax(fitness)
     exploit_bool = member_id != best_id  # Copy if worker not best
@@ -129,9 +123,7 @@ def single_member_explore(
     params: EvoParams,
 ) -> chex.Array:
     """Perform multiplicative noise exploration."""
-    explore_noise = (
-        jax.random.normal(rng, hyperparams.shape) * params.noise_scale
-    )
+    explore_noise = jax.random.normal(rng, hyperparams.shape) * params.noise_scale
     hyperparams_explore = jax.lax.select(
         exploit_bool, hyperparams + explore_noise, hyperparams
     )

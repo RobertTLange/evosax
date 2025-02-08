@@ -1,10 +1,11 @@
-import jax
-import chex
 from functools import partial
-from typing import Tuple, Optional
-from .restarter import RestartWrapper, WrapperState, WrapperParams
-from .termination import spread_criterion
+
+import chex
+import jax
 from flax import struct
+
+from .restarter import RestartWrapper, WrapperParams, WrapperState
+from .termination import spread_criterion
 
 
 @struct.dataclass
@@ -35,7 +36,8 @@ class BIPOP_Restarter(RestartWrapper):
     ):
         """Bi-Population Restarts (Hansen, 2009) - Interlaced population sizes.
         Reference: https://hal.inria.fr/inria-00382093/document
-        Inspired by: https://tinyurl.com/44y3ryhf"""
+        Inspired by: https://tinyurl.com/44y3ryhf
+        """
         super().__init__(base_strategy, stop_criteria)
         self.default_popsize = self.base_strategy.popsize
         self.strategy_kwargs = strategy_kwargs
@@ -51,16 +53,14 @@ class BIPOP_Restarter(RestartWrapper):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
+        self, rng: chex.PRNGKey, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
 
-        strategy_state = self.base_strategy.initialize(
-            rng, params.strategy_params
-        )
+        strategy_state = self.base_strategy.initialize(rng, params.strategy_params)
         restart_state = RestartState(
             restart_counter=0,
             restart_next=False,
@@ -76,8 +76,8 @@ class BIPOP_Restarter(RestartWrapper):
         self,
         rng: chex.PRNGKey,
         state: WrapperState,
-        params: Optional[WrapperParams] = None,
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+        params: WrapperParams | None = None,
+    ) -> tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -105,14 +105,12 @@ class BIPOP_Restarter(RestartWrapper):
             state.restart_state.small_pop_active,
             state.restart_state.large_eval_budget,
             state.restart_state.large_eval_budget
-            + state.restart_state.active_popsize
-            * state.strategy_state.gen_counter,
+            + state.restart_state.active_popsize * state.strategy_state.gen_counter,
         )
         small_eval_budget = jax.lax.select(
             state.restart_state.small_pop_active,
             state.restart_state.small_eval_budget
-            + state.restart_state.active_popsize
-            * state.strategy_state.gen_counter,
+            + state.restart_state.active_popsize * state.strategy_state.gen_counter,
             state.restart_state.small_eval_budget,
         )
         small_pop_active = small_eval_budget < large_eval_budget
@@ -127,20 +125,14 @@ class BIPOP_Restarter(RestartWrapper):
         large_popsize = self.default_popsize * pop_mult
 
         # Reinstantiate new strategy - based on name of previous strategy
-        active_popsize = jax.lax.select(
-            small_pop_active, small_popsize, large_popsize
-        )
+        active_popsize = jax.lax.select(small_pop_active, small_popsize, large_popsize)
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
-            popsize=int(active_popsize),
-            num_dims=self.num_dims,
-            **self.strategy_kwargs
+            popsize=int(active_popsize), num_dims=self.num_dims, **self.strategy_kwargs
         )
 
-        strategy_state = self.base_strategy.initialize(
-            rng, params.strategy_params
-        )
+        strategy_state = self.base_strategy.initialize(rng, params.strategy_params)
         strategy_state = strategy_state.replace(
             mean=jax.lax.select(
                 params.restart_params.copy_mean,

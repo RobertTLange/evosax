@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -34,19 +35,16 @@ class PSO(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
-        Reference: https://ieeexplore.ieee.org/document/488968"""
+        Reference: https://ieeexplore.ieee.org/document/488968
+        """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.strategy_name = "PSO"
 
@@ -55,9 +53,7 @@ class PSO(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -71,17 +67,15 @@ class PSO(Strategy):
             fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
             velocity=jnp.zeros((self.popsize, self.num_dims)),
             best_archive=initialization,
-            best_archive_fitness=jnp.zeros(self.popsize)
-            + jnp.finfo(jnp.float32).max,
+            best_archive_fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
             best_member=initialization.mean(axis=0),
         )
         return state
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
-        """
-        `ask` for new proposed candidates to evaluate next.
+    ) -> tuple[chex.Array, EvoState]:
+        """`ask` for new proposed candidates to evaluate next.
         1. Update v_i(t+1) velocities base on:
           - Inertia: w * v_i(t)
           - Cognitive: c_1 * r_1 * (p_(i, lb)(t) - x_i(t))
@@ -115,8 +109,7 @@ class PSO(Strategy):
         state: EvoState,
         params: EvoParams,
     ) -> EvoState:
-        """
-        `tell` update to ES state.
+        """`tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """
         replace = fitness <= state.best_archive_fitness

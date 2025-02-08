@@ -1,11 +1,11 @@
 from .evo_transformer import EvoTransformer
 from .features import (
-    FitnessFeaturizer,
-    FitnessFeaturesState,
-    SolutionFeaturizer,
-    SolutionFeaturesState,
-    DistributionFeaturizer,
     DistributionFeaturesState,
+    DistributionFeaturizer,
+    FitnessFeaturesState,
+    FitnessFeaturizer,
+    SolutionFeaturesState,
+    SolutionFeaturizer,
 )
 
 __all__ = [

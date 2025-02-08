@@ -1,11 +1,12 @@
-import jax
-import jax.numpy as jnp
-from typing import Optional, Tuple, List
+from functools import partial
+
 import chex
 import flax
-from functools import partial
-from .batch import BatchStrategy
+import jax
+import jax.numpy as jnp
+
 from ... import Strategies
+from .batch import BatchStrategy
 
 
 class MetaStrategy(BatchStrategy):
@@ -13,14 +14,14 @@ class MetaStrategy(BatchStrategy):
         self,
         meta_strategy_name: str,
         inner_strategy_name: str,
-        meta_params: List[str],
+        meta_params: list[str],
         num_dims: int,
         popsize: int,
         num_subpops: int,
         meta_strategy_kwargs: dict = {},
         inner_strategy_kwargs: dict = {},
         communication: str = "independent",
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         # Initialize the batch strategy - subpops of inner strategies
         super().__init__(
@@ -38,7 +39,7 @@ class MetaStrategy(BatchStrategy):
         self.meta_strategy = Strategies[self.meta_strategy_name](
             popsize=self.num_subpops,
             num_dims=self.num_meta_dims,
-            **meta_strategy_kwargs
+            **meta_strategy_kwargs,
         )
 
     @property
@@ -64,11 +65,9 @@ class MetaStrategy(BatchStrategy):
         meta_state: chex.ArrayTree,
         meta_params: chex.ArrayTree,
         inner_params: chex.ArrayTree,
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+    ) -> tuple[chex.Array, chex.ArrayTree]:
         """`ask` for meta-parameters of different subpopulations."""
-        meta_x, meta_state = self.meta_strategy.ask(
-            rng, meta_state, meta_params
-        )
+        meta_x, meta_state = self.meta_strategy.ask(rng, meta_state, meta_params)
         meta_x = meta_x.reshape(-1, self.num_meta_dims)
         re_inner_params = flax.serialization.to_state_dict(inner_params)
         for i, k in enumerate(self.meta_params):

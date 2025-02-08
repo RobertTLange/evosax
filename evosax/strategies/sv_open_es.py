@@ -1,9 +1,8 @@
-from typing import Optional, Type, Union
 
 import jax
-from flax import struct
-from chex import Array, ArrayTree
 import jax.numpy as jnp
+from chex import Array, ArrayTree
+from flax import struct
 
 from evosax.core import OptState, exp_decay
 from evosax.strategies.open_es import EvoParams, OpenES
@@ -18,8 +17,8 @@ class EvoState:
     best_member: Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     gen_counter: int = 0
-    bandwidth: float = 1.
-    alpha: float = 1.
+    bandwidth: float = 1.0
+    alpha: float = 1.0
 
 
 class SV_OpenES(OpenES):
@@ -27,9 +26,9 @@ class SV_OpenES(OpenES):
         self,
         npop: int,
         subpopsize: int,
-        kernel: Type[Kernel] = RBF,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[ArrayTree | Array] = None,
+        kernel: type[Kernel] = RBF,
+        num_dims: int | None = None,
+        pholder_params: ArrayTree | Array | None = None,
         use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -39,11 +38,12 @@ class SV_OpenES(OpenES):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Stein Variational OpenAI-ES (Liu et al., 2017)
-        Reference: https://arxiv.org/abs/1704.02399"""
+        Reference: https://arxiv.org/abs/1704.02399
+        """
         super().__init__(
             npop * subpopsize,
             num_dims,
@@ -58,7 +58,7 @@ class SV_OpenES(OpenES):
             sigma_limit,
             mean_decay,
             n_devices,
-            **fitness_kwargs
+            **fitness_kwargs,
         )
         assert not subpopsize & 1, "Sub-population size size must be even"
         self.strategy_name = "SV_OpenAI_ES"
@@ -89,12 +89,14 @@ class SV_OpenES(OpenES):
             rng,
             (self.npop, self.num_dims),
             minval=params.init_min,
-            maxval=params.init_max
+            maxval=params.init_max,
         )
         state = EvoState(
             mean=x_init,
             sigma=jnp.ones((self.npop, self.num_dims)) * params.sigma_init,
-            opt_state=jax.vmap(lambda _: self.optimizer.initialize(params.opt_params))(jnp.arange(self.npop)),
+            opt_state=jax.vmap(lambda _: self.optimizer.initialize(params.opt_params))(
+                jnp.arange(self.npop)
+            ),
             best_member=x_init[0],  # pholder best
         )
 
@@ -132,19 +134,27 @@ class SV_OpenES(OpenES):
 
         # Compute MC gradients from fitness scores
         noise = (state.mean[:, None] - x) / state.sigma[:, None]
-        scores = jnp.einsum("ijk,ij->ik", noise, fitness) / (self.subpopsize * state.sigma)
+        scores = jnp.einsum("ijk,ij->ik", noise, fitness) / (
+            self.subpopsize * state.sigma
+        )
 
         # Compute SVGD steps
         svgd_scores = svgd_grad(state.mean, scores, self.kernel, state.bandwidth)
         svgd_kerns = svgd_kern(state.mean, scores, self.kernel, state.bandwidth)
-        gradients = -(svgd_scores + svgd_kerns * state.alpha)  # flip the grads for minimization
+        gradients = -(
+            svgd_scores + svgd_kerns * state.alpha
+        )  # flip the grads for minimization
 
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = jax.vmap(self.optimizer.step, (0, 0, 0, None))(
             state.mean, gradients, state.opt_state, params.opt_params
         )
-        opt_state = jax.vmap(self.optimizer.update, (0, None))(opt_state, params.opt_params)
-        sigma = jax.vmap(exp_decay, (0, None, None))(state.sigma, params.sigma_decay, params.sigma_limit)
+        opt_state = jax.vmap(self.optimizer.update, (0, None))(
+            opt_state, params.opt_params
+        )
+        sigma = jax.vmap(exp_decay, (0, None, None))(
+            state.sigma, params.sigma_decay, params.sigma_limit
+        )
 
         return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
 
@@ -153,7 +163,7 @@ def svgd_kern(x: Array, scores: Array, kernel: Kernel, bandwidth: float) -> Arra
     """SVGD repulsive force."""
     phi = lambda xi: jnp.mean(
         jax.vmap(lambda xj, scorej: jax.grad(kernel)(xj, xi, bandwidth))(x, scores),
-        axis=0
+        axis=0,
     )
     return jax.vmap(phi)(x)
 
@@ -162,6 +172,6 @@ def svgd_grad(x: Array, scores: Array, kernel: Kernel, bandwidth: float) -> Arra
     """SVGD driving force."""
     phi = lambda xi: jnp.mean(
         jax.vmap(lambda xj, scorej: kernel(xj, xi, bandwidth) * scorej)(x, scores),
-        axis=0
+        axis=0,
     )
     return jax.vmap(phi)(x)

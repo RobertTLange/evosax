@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -32,20 +33,17 @@ class DE(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Differential Evolution (Storn & Price, 1997)
-        Reference: https://tinyurl.com/4pje5a74"""
+        Reference: https://tinyurl.com/4pje5a74
+        """
         assert popsize > 6, "DE requires popsize > 6."
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.strategy_name = "DE"
 
@@ -53,11 +51,8 @@ class DE(Strategy):
     def params_strategy(self) -> EvoParams:
         return EvoParams()
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
-        """
-        `initialize` the differential evolution strategy.
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+        """`initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
         positions in search-space (defined in `params`).
         """
@@ -77,9 +72,8 @@ class DE(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
-        """
-        `ask` for new proposed candidates to evaluate next.
+    ) -> tuple[chex.Array, EvoState]:
+        """`ask` for new proposed candidates to evaluate next.
         For each population member x:
         - Pick 3 unique members (a, b, c) from rest of pop. at random.
         - Pick a random dimension R from the parameter space.
@@ -108,8 +102,7 @@ class DE(Strategy):
         state: chex.ArrayTree,
         params: EvoParams,
     ) -> EvoState:
-        """
-        `tell` update to ES state.
+        """`tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """
         # Replace member in archive if performance was improved
@@ -118,9 +111,7 @@ class DE(Strategy):
             jnp.expand_dims(replace, 1) * x
             + (1 - jnp.expand_dims(replace, 1)) * state.archive
         )
-        fitness_archive = (
-            replace * fitness + (1 - replace) * state.fitness_archive
-        )
+        fitness_archive = replace * fitness + (1 - replace) * state.fitness_archive
         # Keep mean across stored archive around for evaluation protocol
         mean = archive.mean(axis=0)
         return state.replace(

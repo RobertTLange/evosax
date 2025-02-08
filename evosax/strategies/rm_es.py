@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -40,7 +41,7 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_elite_weights(elite_popsize: int) -> Tuple[chex.Array, chex.Array]:
+def get_elite_weights(elite_popsize: int) -> tuple[chex.Array, chex.Array]:
     """Utility helper to create truncated elite weights for mean update."""
     weights = jnp.array(
         [
@@ -61,25 +62,20 @@ class RmES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Rank-m ES (Li & Zhang, 2017)
         Reference: https://ieeexplore.ieee.org/document/8080257
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
@@ -94,7 +90,7 @@ class RmES(Strategy):
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         weights = get_elite_weights(self.elite_popsize)
-        mu_eff = 1 / jnp.sum(weights ** 2)
+        mu_eff = 1 / jnp.sum(weights**2)
         c_cov = 1 / (3 * jnp.sqrt(self.num_dims) + 5)
         c_c = 2 / (self.num_dims + 7)
         params = EvoParams(
@@ -106,9 +102,7 @@ class RmES(Strategy):
         )
         return params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights = get_elite_weights(self.elite_popsize)
         # Initialize evolution paths & covariance matrix
@@ -134,7 +128,7 @@ class RmES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             rng,
@@ -158,13 +152,9 @@ class RmES(Strategy):
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
-        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()][
-            : self.elite_popsize
-        ]
+        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()][: self.elite_popsize]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        mean = update_mean(
-            state.mean, sorted_solutions, params.c_m, state.weights
-        )
+        mean = update_mean(state.mean, sorted_solutions, params.c_m, state.weights)
         p_sigma = update_p_sigma(
             state.mean,
             mean,
@@ -209,9 +199,7 @@ def update_mean(
     weights: chex.Array,
 ) -> chex.Array:
     """Update mean of strategy."""
-    mean = (1 - c_m) * mean + c_m * jnp.sum(
-        sorted_solutions[:, 1:].T * weights, axis=1
-    )
+    mean = (1 - c_m) * mean + c_m * jnp.sum(sorted_solutions[:, 1:].T * weights, axis=1)
     return mean
 
 
@@ -236,7 +224,7 @@ def update_P_matrix(
     t_gap: chex.Array,
     t_uncorr: int,
     gen_counter: int,
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Update the P matrix storing m evolution paths."""
     memory_size = P.shape[1]
     # Use evo paths in separated generations - keep them uncorrelated!
@@ -256,9 +244,7 @@ def update_P_matrix(
     i_min = jnp.argmin(t_gap[:-1] - t_gap[1:])
     for i in range(memory_size - 1):
         replace_bool = i >= i_min
-        P_c2 = jax.lax.select(
-            replace_bool, P_c2.at[:, i].set(P_c2[:, i + 1]), P_c2
-        )
+        P_c2 = jax.lax.select(replace_bool, P_c2.at[:, i].set(P_c2[:, i + 1]), P_c2)
         t_gap_c2 = jax.lax.select(
             replace_bool, t_gap_c2.at[i].set(t_gap_c2[i + 1]), t_gap_c2
         )
@@ -296,8 +282,7 @@ def sample(
         update_bool = gen_counter > j
         new_z = (
             jnp.sqrt(1 - c_cov) * z
-            + (jnp.sqrt(c_cov) * P[:, j])[:, jnp.newaxis]
-            * r[:, j][:, jnp.newaxis]
+            + (jnp.sqrt(c_cov) * P[:, j])[:, jnp.newaxis] * r[:, j][:, jnp.newaxis]
         )
         z = jax.lax.select(update_bool, new_z, z)
     z = jnp.swapaxes(z, 1, 0)

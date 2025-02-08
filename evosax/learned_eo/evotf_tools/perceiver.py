@@ -1,8 +1,9 @@
-from typing import Optional, Tuple, List
-from flax import linen as nn
-import jax.numpy as jnp
+
 import chex
-from .shared import expand_mask, scaled_dot_product, MLP, PositionalEncoding
+import jax.numpy as jnp
+from flax import linen as nn
+
+from .shared import MLP, PositionalEncoding, expand_mask, scaled_dot_product
 
 
 class MultiheadPerceiver(nn.Module):
@@ -47,9 +48,9 @@ class MultiheadPerceiver(nn.Module):
     def __call__(
         self,
         x: chex.Array,
-        mask: Optional[chex.Array] = None,
+        mask: chex.Array | None = None,
         train: bool = True,
-    ) -> Tuple[chex.Array, chex.Array]:
+    ) -> tuple[chex.Array, chex.Array]:
         batch_size, seq_length, embed_dim = x.shape
         if mask is not None:
             mask = expand_mask(mask)
@@ -100,8 +101,8 @@ class PerceiverBlock(nn.Module):
         self.mlp = MLP(self.embed_dim, self.dropout_prob, self.use_bias)
 
     def __call__(
-        self, x: chex.Array, mask: Optional[chex.Array] = None, train: bool = True
-    ) -> Tuple[chex.Array, chex.Array]:
+        self, x: chex.Array, mask: chex.Array | None = None, train: bool = True
+    ) -> tuple[chex.Array, chex.Array]:
         attn_out, attn = self.perceive(self.ln_1(x), mask, train)
         x = self.mlp(self.ln_2(attn_out), train)
         return x, attn
@@ -138,10 +139,10 @@ class PerceiverEncoder(nn.Module):
     def __call__(
         self,
         x: chex.Array,
-        mask: Optional[chex.Array] = None,
+        mask: chex.Array | None = None,
         add_positional_encoding: bool = True,
         train: bool = True,
-    ) -> Tuple[chex.Array, List[chex.Array]]:
+    ) -> tuple[chex.Array, list[chex.Array]]:
         x = self.input_layer(x)
         if add_positional_encoding:
             x = self.positional_encoding(x)

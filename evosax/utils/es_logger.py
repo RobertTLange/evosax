@@ -1,17 +1,18 @@
-from typing import Optional, Union
 import pickle
+from functools import partial
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from functools import partial
+
 from ..core.reshape import ParameterReshaper
 
 
-class ESLog(object):
+class ESLog:
     def __init__(
         self,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         num_generations: int = 200,
         top_k: int = 5,
         maximize: bool = False,
@@ -79,15 +80,11 @@ class ESLog(object):
             log["log_top_1"].at[log["gen_counter"]].set(log["top_fitness"][0])
         )
         log["log_top_mean"] = (
-            log["log_top_mean"]
-            .at[log["gen_counter"]]
-            .set(jnp.mean(log["top_fitness"]))
+            log["log_top_mean"].at[log["gen_counter"]].set(jnp.mean(log["top_fitness"]))
         )
 
         log["log_top_std"] = (
-            log["log_top_std"]
-            .at[log["gen_counter"]]
-            .set(jnp.std(log["top_fitness"]))
+            log["log_top_std"].at[log["gen_counter"]].set(jnp.std(log["top_fitness"]))
         )
         log["log_gen_1"] = (
             log["log_gen_1"]
@@ -132,17 +129,13 @@ class ESLog(object):
         if fig is None or ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(6, 3))
         int_range = jnp.arange(1, log["gen_counter"] + 1)
-        ax.plot(
-            int_range, log["log_top_1"][: log["gen_counter"]], label="Top 1"
-        )
+        ax.plot(int_range, log["log_top_1"][: log["gen_counter"]], label="Top 1")
         ax.plot(
             int_range,
             log["log_top_mean"][: log["gen_counter"]],
             label=f"Top-{self.top_k} Mean",
         )
-        ax.plot(
-            int_range, log["log_gen_1"][: log["gen_counter"]], label="Gen. 1"
-        )
+        ax.plot(int_range, log["log_gen_1"][: log["gen_counter"]], label="Gen. 1")
         ax.plot(
             int_range,
             log["log_gen_mean"][: log["gen_counter"]],

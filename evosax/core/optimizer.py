@@ -1,7 +1,7 @@
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from typing import Optional, Dict, Tuple
 from flax import struct
 
 # TODO: Add gradient clipping - select leads to more compute
@@ -24,9 +24,9 @@ def exp_decay(
 class OptState:
     lrate: float
     m: chex.Array
-    v: Optional[chex.Array] = None
-    n: Optional[chex.Array] = None
-    last_grads: Optional[chex.Array] = None
+    v: chex.Array | None = None
+    n: chex.Array | None = None
+    last_grads: chex.Array | None = None
     gen_counter: int = 0
 
 
@@ -35,15 +35,15 @@ class OptParams:
     lrate_init: float = 0.01
     lrate_decay: float = 0.999
     lrate_limit: float = 0.001
-    momentum: Optional[float] = None
-    beta_1: Optional[float] = None
-    beta_2: Optional[float] = None
-    beta_3: Optional[float] = None
-    eps: Optional[float] = None
-    max_speed: Optional[float] = None
+    momentum: float | None = None
+    beta_1: float | None = None
+    beta_2: float | None = None
+    beta_3: float | None = None
+    eps: float | None = None
+    max_speed: float | None = None
 
 
-class Optimizer(object):
+class Optimizer:
     def __init__(self, num_dims: int):
         """Simple JAX-Compatible Optimizer Class."""
         self.num_dims = num_dims
@@ -87,7 +87,7 @@ class Optimizer(object):
         grads: chex.Array,
         state: OptState,
         params: OptParams,
-    ) -> Tuple[chex.Array, OptState]:
+    ) -> tuple[chex.Array, OptState]:
         """Optimizer-specific step to update parameter estimates."""
         raise NotImplementedError
 
@@ -99,7 +99,7 @@ class SGD(Optimizer):
         self.opt_name = "sgd"
 
     @property
-    def params_opt(self) -> Dict[str, float]:
+    def params_opt(self) -> dict[str, float]:
         """Return default SGD+Momentum parameters."""
         return {
             "momentum": 0.0,
@@ -115,7 +115,7 @@ class SGD(Optimizer):
         grads: chex.Array,
         state: chex.ArrayTree,
         params: chex.ArrayTree,
-    ) -> Tuple[chex.Array, OptState]:
+    ) -> tuple[chex.Array, OptState]:
         """Perform a simple SGD + Momentum step."""
         m = grads + params.momentum * state.m
         mean_new = mean - state.lrate * state.m
@@ -125,12 +125,13 @@ class SGD(Optimizer):
 class Adam(Optimizer):
     def __init__(self, num_dims: int):
         """JAX-Compatible Adam Optimizer (Kingma & Ba, 2015)
-        Reference: https://arxiv.org/abs/1412.6980"""
+        Reference: https://arxiv.org/abs/1412.6980
+        """
         super().__init__(num_dims)
         self.opt_name = "adam"
 
     @property
-    def params_opt(self) -> Dict[str, float]:
+    def params_opt(self) -> dict[str, float]:
         """Return default Adam parameters."""
         return {
             "beta_1": 0.99,
@@ -152,27 +153,26 @@ class Adam(Optimizer):
         grads: chex.Array,
         state: OptState,
         params: OptParams,
-    ) -> Tuple[chex.Array, OptState]:
+    ) -> tuple[chex.Array, OptState]:
         """Perform a simple Adam GD step."""
         m = (1 - params.beta_1) * grads + params.beta_1 * state.m
-        v = (1 - params.beta_2) * (grads ** 2) + params.beta_2 * state.v
+        v = (1 - params.beta_2) * (grads**2) + params.beta_2 * state.v
         mhat = m / (1 - params.beta_1 ** (state.gen_counter + 1))
         vhat = v / (1 - params.beta_2 ** (state.gen_counter + 1))
         mean_new = mean - state.lrate * mhat / (jnp.sqrt(vhat) + params.eps)
-        return mean_new, state.replace(
-            m=m, v=v, gen_counter=state.gen_counter + 1
-        )
+        return mean_new, state.replace(m=m, v=v, gen_counter=state.gen_counter + 1)
 
 
 class RMSProp(Optimizer):
     def __init__(self, num_dims: int):
         """JAX-Compatible RMSProp Optimizer (Hinton et al., 2012)
-        Reference: https://tinyurl.com/2sbbcnrv"""
+        Reference: https://tinyurl.com/2sbbcnrv
+        """
         super().__init__(num_dims)
         self.opt_name = "rmsprop"
 
     @property
-    def params_opt(self) -> Dict[str, float]:
+    def params_opt(self) -> dict[str, float]:
         """Return default RMSProp parameters."""
         return {
             "momentum": 0.9,
@@ -194,25 +194,24 @@ class RMSProp(Optimizer):
         grads: chex.Array,
         state: OptState,
         params: OptParams,
-    ) -> Tuple[chex.Array, OptState]:
+    ) -> tuple[chex.Array, OptState]:
         """Perform a simple RMSprop GD step."""
-        v = (1 - params.beta_1) * (grads ** 2) + params.beta_1 * state.v
+        v = (1 - params.beta_1) * (grads**2) + params.beta_1 * state.v
         m = params.momentum * state.m + grads / (jnp.sqrt(v) + params.eps)
         mean_new = mean - state.lrate * m
-        return mean_new, state.replace(
-            m=m, v=v, gen_counter=state.gen_counter + 1
-        )
+        return mean_new, state.replace(m=m, v=v, gen_counter=state.gen_counter + 1)
 
 
 class ClipUp(Optimizer):
     def __init__(self, num_dims: int):
         """JAX-Compatible ClipUp Optimizer (Toklu et al., 2020)
-        Reference: https://arxiv.org/abs/2008.02387"""
+        Reference: https://arxiv.org/abs/2008.02387
+        """
         super().__init__(num_dims)
         self.opt_name = "clipup"
 
     @property
-    def params_opt(self) -> Dict[str, float]:
+    def params_opt(self) -> dict[str, float]:
         """Return default ClipUp parameters."""
         return {
             "lrate_init": 0.15,
@@ -232,7 +231,7 @@ class ClipUp(Optimizer):
         grads: chex.Array,
         state: OptState,
         params: OptParams,
-    ) -> Tuple[chex.Array, OptState]:
+    ) -> tuple[chex.Array, OptState]:
         """Perform a ClipUp step. mom = 0.9, lrate = vmax/2, vmax = small"""
         # Normalize length of gradients - vmax & alpha control max step magnitude
         grad_magnitude = jnp.sqrt(jnp.sum(grads * grads))
@@ -257,12 +256,13 @@ class ClipUp(Optimizer):
 class Adan(Optimizer):
     def __init__(self, num_dims: int):
         """JAX-Compatible Adan Optimizer (Xi et al., 2022)
-        Reference: https://arxiv.org/pdf/2208.06677.pdf"""
+        Reference: https://arxiv.org/pdf/2208.06677.pdf
+        """
         super().__init__(num_dims)
         self.opt_name = "adan"
 
     @property
-    def params_opt(self) -> Dict[str, float]:
+    def params_opt(self) -> dict[str, float]:
         """Return default Adam parameters."""
         return {
             "beta_1": 0.98,
@@ -287,7 +287,7 @@ class Adan(Optimizer):
         grads: chex.Array,
         state: OptState,
         params: OptParams,
-    ) -> Tuple[chex.Array, OptState]:
+    ) -> tuple[chex.Array, OptState]:
         """Perform a simple Adan GD step."""
         m = (1 - params.beta_1) * grads + params.beta_1 * state.m
         grad_diff = grads - state.last_grads

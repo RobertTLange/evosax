@@ -1,8 +1,9 @@
-import jax
 import chex
+import jax
+from flax import struct
+
 from .restarter import RestartWrapper
 from .termination import spread_criterion
-from flax import struct
 
 
 @struct.dataclass

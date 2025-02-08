@@ -1,15 +1,15 @@
-from typing import Optional
-from flax import linen as nn
+
+import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-import chex
+from flax import linen as nn
 
 
 def scaled_dot_product(
     q: chex.Array,
     k: chex.Array,
-    mask: Optional[chex.Array] = None,
+    mask: chex.Array | None = None,
 ) -> chex.Array:
     d_k = q.shape[-1]
     attn_logits = jnp.matmul(q, jnp.swapaxes(k, -2, -1))

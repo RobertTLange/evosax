@@ -1,14 +1,15 @@
 import functools
-from typing import List
+
 import chex
-from flax import struct
 import jax
 import jax.numpy as jnp
-from evosax.strategies.snes import get_snes_weights
+from flax import struct
+
 from evosax.core.fitness import centered_rank_trafo
+from evosax.strategies.snes import get_snes_weights
 
 
-class TraceConstructor(object):
+class TraceConstructor:
     def __init__(self, num_dims: int, timescales: chex.Array):
         self.num_dims = num_dims
         self.timescales = timescales
@@ -35,7 +36,7 @@ class DistributionFeaturesState:
     evopath_sigma: chex.Array
 
 
-class DistributionFeaturizer(object):
+class DistributionFeaturizer:
     def __init__(
         self,
         popsize: int,
@@ -45,8 +46,8 @@ class DistributionFeaturizer(object):
         use_sigma: bool = False,
         use_evopaths: bool = False,
         use_momentum: bool = False,
-        evopath_timescales: List[float] = [0.9, 0.95, 1.0],
-        momentum_timescales: List[float] = [0.9, 0.95, 1.0],
+        evopath_timescales: list[float] = [0.9, 0.95, 1.0],
+        momentum_timescales: list[float] = [0.9, 0.95, 1.0],
         use_oai_grad: bool = False,
         verbose: bool = False,
     ):

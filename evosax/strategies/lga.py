@@ -1,17 +1,18 @@
-from typing import Optional, Tuple, Union
+import pkgutil
+
 import chex
-from flax import struct
 import jax
 import jax.numpy as jnp
-import pkgutil
+from flax import struct
+
 from ..learned_eo.les_tools import (
     FitnessFeatures,
     load_pkl_object,
 )
 from ..learned_eo.lga_tools import (
-    SelectionAttention,
-    SamplingAttention,
     MutationAttention,
+    SamplingAttention,
+    SelectionAttention,
     tanh_age,
 )
 from ..strategy import Strategy
@@ -52,14 +53,14 @@ class LGA(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 1.0,
-        net_params: Optional[chex.ArrayTree] = None,
-        net_ckpt_path: Optional[str] = None,
+        net_params: chex.ArrayTree | None = None,
+        net_ckpt_path: str | None = None,
         sigma_init: float = 1.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         super().__init__(
             popsize,
@@ -123,7 +124,7 @@ class LGA(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         rng, rng_idx = jax.random.split(rng)
         elite_ids = jnp.arange(self.elite_popsize)

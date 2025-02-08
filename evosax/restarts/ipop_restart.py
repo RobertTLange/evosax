@@ -1,10 +1,11 @@
-import jax
-import chex
 from functools import partial
-from typing import Tuple, Optional
-from .restarter import RestartWrapper, WrapperState, WrapperParams
-from .termination import spread_criterion
+
+import chex
+import jax
 from flax import struct
+
+from .restarter import RestartWrapper, WrapperParams, WrapperState
+from .termination import spread_criterion
 
 
 @struct.dataclass
@@ -47,16 +48,14 @@ class IPOP_Restarter(RestartWrapper):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
+        self, rng: chex.PRNGKey, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
 
-        strategy_state = self.base_strategy.initialize(
-            rng, params.strategy_params
-        )
+        strategy_state = self.base_strategy.initialize(rng, params.strategy_params)
         restart_state = RestartState(
             restart_counter=0,
             restart_next=False,
@@ -68,8 +67,8 @@ class IPOP_Restarter(RestartWrapper):
         self,
         rng: chex.PRNGKey,
         state: WrapperState,
-        params: Optional[WrapperParams] = None,
-    ) -> Tuple[chex.Array, WrapperState]:
+        params: WrapperParams | None = None,
+    ) -> tuple[chex.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -101,14 +100,10 @@ class IPOP_Restarter(RestartWrapper):
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
-            popsize=int(active_popsize),
-            num_dims=self.num_dims,
-            **self.strategy_kwargs
+            popsize=int(active_popsize), num_dims=self.num_dims, **self.strategy_kwargs
         )
 
-        strategy_state = self.base_strategy.initialize(
-            rng, params.strategy_params
-        )
+        strategy_state = self.base_strategy.initialize(rng, params.strategy_params)
         strategy_state = strategy_state.replace(
             mean=jax.lax.select(
                 params.restart_params.copy_mean,

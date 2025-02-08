@@ -1,11 +1,11 @@
-import jax
-import jax.numpy as jnp
-import chex
-from typing import Tuple, Optional
 from functools import partial
 
+import chex
+import jax
+import jax.numpy as jnp
 
-class SequenceFitness(object):
+
+class SequenceFitness:
     def __init__(
         self,
         task_name: str = "SeqMNIST",
@@ -13,7 +13,7 @@ class SequenceFitness(object):
         seq_length: int = 150,  # Sequence length in addition task
         permute_seq: bool = False,  # Permuted S-MNIST task option
         test: bool = False,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         self.task_name = task_name
         self.batch_size = batch_size
@@ -61,30 +61,24 @@ class SequenceFitness(object):
         else:
             self.rollout = jax.jit(self.rollout_vmap)
 
-    def rollout_vmap(
-        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ):
+    def rollout_vmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
         """Vectorize rollout. Reshape output correctly."""
         loss, perf = self.rollout_pop(rng_input, network_params)
         loss_re = loss.reshape(-1, 1)
         perf_re = perf.reshape(-1, 1)
         return loss_re, perf_re
 
-    def rollout_pmap(
-        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ):
+    def rollout_pmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
         """Parallelize rollout across devices. Split keys/reshape correctly."""
         keys_pmap = jnp.tile(rng_input, (self.n_devices, 1))
-        loss_dev, perf_dev = jax.pmap(self.rollout_pop)(
-            keys_pmap, network_params
-        )
+        loss_dev, perf_dev = jax.pmap(self.rollout_pop)(keys_pmap, network_params)
         loss_re = loss_dev.reshape(-1, 1)
         perf_re = perf_dev.reshape(-1, 1)
         return loss_re, perf_re
 
     def rollout_rnn(
         self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Evaluate a network on a supervised learning task."""
         rng, rng_sample = jax.random.split(rng_input)
         X, y = self.dataloader.sample(rng_sample)
@@ -127,14 +121,14 @@ class SequenceFitness(object):
         return y_pred
 
     @property
-    def input_shape(self) -> Tuple[int]:
+    def input_shape(self) -> tuple[int]:
         """Get the shape of the observation."""
         return self.dataloader.data_shape
 
 
 def loss_and_acc(
     y_pred: chex.Array, y_true: chex.Array, num_classes: int
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
     labels = jax.nn.one_hot(y_true, num_classes)
@@ -145,7 +139,7 @@ def loss_and_acc(
 
 def loss_and_mae(
     y_pred: chex.Array, y_true: chex.Array
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Compute mean squared error loss and mean absolute error."""
     loss = jnp.mean((y_pred.squeeze() - y_true) ** 2)
     mae = jnp.mean(jnp.abs(y_pred.squeeze() - y_true))
@@ -165,7 +159,7 @@ class BatchLoader:
         self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key: chex.PRNGKey) -> Tuple[chex.Array, chex.Array]:
+    def sample(self, key: chex.PRNGKey) -> tuple[chex.Array, chex.Array]:
         """Sample a single batch of X, y data."""
         sample_idx = jax.random.choice(
             key,
@@ -199,9 +193,7 @@ def get_smnist_loaders(test: bool = False):
     )
     bs = 10000 if test else 60000
     loader = torch.utils.data.DataLoader(
-        datasets.MNIST(
-            "~/data", download=True, train=not test, transform=transform
-        ),
+        datasets.MNIST("~/data", download=True, train=not test, transform=transform),
         batch_size=bs,
         shuffle=False,
     )
@@ -209,8 +201,7 @@ def get_smnist_loaders(test: bool = False):
 
 
 def get_adding_data(T: int = 150, test: bool = False):
-    """
-    Sample a mask, [0, 1] samples and sum of targets for len T.
+    """Sample a mask, [0, 1] samples and sum of targets for len T.
     Reference:  Martens & Sutskever. ICML, 2011.
     """
     rng = jax.random.PRNGKey(0)
@@ -219,9 +210,7 @@ def get_adding_data(T: int = 150, test: bool = False):
     def get_single_addition(rng, T):
         rng_numb, rng_mask = jax.random.split(rng)
         numbers = jax.random.uniform(rng_numb, (T,), minval=0, maxval=1)
-        mask_ids = jax.random.choice(
-            rng_mask, jnp.arange(T), (2,), replace=False
-        )
+        mask_ids = jax.random.choice(rng_mask, jnp.arange(T), (2,), replace=False)
         mask = jnp.zeros(T).at[mask_ids].set(1)
         target = jnp.sum(mask * numbers)
         return jnp.stack([numbers, mask], axis=1), target

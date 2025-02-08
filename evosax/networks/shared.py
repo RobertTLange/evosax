@@ -1,7 +1,7 @@
+import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-import chex
 from jax.nn.initializers import (
     glorot_normal,
     glorot_uniform,
@@ -14,7 +14,6 @@ from jax.nn.initializers import (
     xavier_normal,
     xavier_uniform,
 )
-
 
 kernel_init_fn = {
     "glorot_normal": glorot_normal,

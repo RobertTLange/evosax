@@ -1,9 +1,10 @@
 import functools
-from typing import Tuple
+
 import chex
-from flax import struct
 import jax
 import jax.numpy as jnp
+from flax import struct
+
 from evosax.core.fitness import range_norm_trafo
 from evosax.utils.helpers import get_best_fitness_member
 
@@ -15,7 +16,7 @@ class SolutionFeaturesState:
     gen_counter: int
 
 
-class SolutionFeaturizer(object):
+class SolutionFeaturizer:
     def __init__(
         self,
         popsize: int,
@@ -110,7 +111,7 @@ class SolutionFeaturizer(object):
         )
 
     @property
-    def example_batch_shape(self) -> Tuple[int, ...]:
+    def example_batch_shape(self) -> tuple[int, ...]:
         return (
             1,  # Batchsize
             self.seq_len,  # Timesteps

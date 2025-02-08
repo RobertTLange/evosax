@@ -1,15 +1,17 @@
-from typing import Any
 import functools
 import sys
+from typing import Any
+
 import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+
 from ..core.fitness import (
-    z_score_trafo,
     centered_rank_trafo,
-    range_norm_trafo,
     compute_l2_norm,
+    range_norm_trafo,
+    z_score_trafo,
 )
 
 if sys.version_info < (3, 8):
@@ -42,7 +44,7 @@ def tanh_timestamp(x: chex.Array) -> chex.Array:
     return jax.vmap(single_frequency)(all_frequencies)
 
 
-class EvolutionPath(object):
+class EvolutionPath:
     def __init__(self, num_dims: int, timescales: chex.Array):
         self.num_dims = num_dims
         self.timescales = timescales
@@ -62,7 +64,7 @@ class EvolutionPath(object):
         )
 
 
-class FitnessFeatures(object):
+class FitnessFeatures:
     """Fitness Feature Constructor."""
 
     def __init__(

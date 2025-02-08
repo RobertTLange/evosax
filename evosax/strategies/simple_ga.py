@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from ..strategy import Strategy
+
 from ..core import exp_decay
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -34,25 +35,21 @@ class SimpleGA(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 0.1,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Simple Genetic Algorithm (Such et al., 2017)
         Reference: https://arxiv.org/abs/1712.06567
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
-
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+        """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            n_devices=n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, n_devices=n_devices, **fitness_kwargs
         )
         self.elite_ratio = elite_ratio
         self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
@@ -72,9 +69,7 @@ class SimpleGA(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             rng,
@@ -93,9 +88,8 @@ class SimpleGA(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
-        """
-        `ask` for new proposed candidates to evaluate next.
+    ) -> tuple[chex.Array, EvoState]:
+        """`ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
           - Sample two current elite members (a & b)
           - Cross over all dims of a with corresponding one from b
@@ -105,8 +99,7 @@ class SimpleGA(Strategy):
         rng, rng_eps, rng_idx_a, rng_idx_b = jax.random.split(rng, 4)
         rng_mate = jax.random.split(rng, self.popsize)
         epsilon = (
-            jax.random.normal(rng_eps, (self.popsize, self.num_dims))
-            * state.sigma
+            jax.random.normal(rng_eps, (self.popsize, self.num_dims)) * state.sigma
         )
         elite_ids = jnp.arange(self.elite_popsize)
         idx_a = jax.random.choice(rng_idx_a, elite_ids, (self.popsize,))
@@ -126,8 +119,7 @@ class SimpleGA(Strategy):
         state: EvoState,
         params: EvoParams,
     ) -> EvoState:
-        """
-        `tell` update to ES state.
+        """`tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """
         # Combine current elite and recent generation info

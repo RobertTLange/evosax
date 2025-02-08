@@ -1,14 +1,15 @@
-import jax
-import jax.numpy as jnp
+from functools import partial
+
 import chex
 import flax
-from typing import Optional, Tuple
-from functools import partial
+import jax
+import jax.numpy as jnp
+
 from ... import Strategies
 from .protocol import Protocol
 
 
-class BatchStrategy(object):
+class BatchStrategy:
     def __init__(
         self,
         strategy_name: str,
@@ -17,7 +18,7 @@ class BatchStrategy(object):
         num_subpops: int,
         strategy_kwargs: dict = {},
         communication: str = "independent",
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         """Parallelization/vectorization of ES across subpopulations."""
         self.num_subpops = num_subpops
@@ -60,9 +61,7 @@ class BatchStrategy(object):
     @property
     def default_params(self) -> chex.ArrayTree:
         """Return default parameters of evolution strategy."""
-        base_params = flax.serialization.to_state_dict(
-            self.strategy.default_params
-        )
+        base_params = flax.serialization.to_state_dict(self.strategy.default_params)
         # Repeat the default parameters for each subpopulation
         repeated_params = {}
         for k, v in base_params.items():
@@ -77,9 +76,7 @@ class BatchStrategy(object):
     ) -> chex.ArrayTree:
         """Auto-vectorized `initialize` for the batch evolution strategy."""
         batch_rng = jax.random.split(rng, self.num_subpops_per_device)
-        state = jax.vmap(self.strategy.initialize, in_axes=(0, 0))(
-            batch_rng, params
-        )
+        state = jax.vmap(self.strategy.initialize, in_axes=(0, 0))(batch_rng, params)
         return state
 
     def initialize_pmap(
@@ -102,7 +99,7 @@ class BatchStrategy(object):
     @partial(jax.jit, static_argnums=(0,))
     def ask(
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+    ) -> tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates."""
         x, state = self.ask_map(rng, state, params)
         return x, state
@@ -110,7 +107,7 @@ class BatchStrategy(object):
     @partial(jax.jit, static_argnums=(0,))
     def ask_vmap(
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+    ) -> tuple[chex.Array, chex.ArrayTree]:
         """Auto-vectorized `ask` for new parameter candidates."""
         batch_rng = jax.random.split(rng, self.num_subpops_per_device)
         batch_x, state = jax.vmap(self.strategy.ask, in_axes=(0, 0, 0))(
@@ -123,7 +120,7 @@ class BatchStrategy(object):
 
     def ask_pmap(
         self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> Tuple[chex.Array, chex.ArrayTree]:
+    ) -> tuple[chex.Array, chex.ArrayTree]:
         """Device parallel `ask` for new parameter candidates."""
         keys_pmap = jnp.tile(rng, (self.n_devices, 1))
         params_pmap = jax.tree_map(
@@ -161,9 +158,7 @@ class BatchStrategy(object):
         batch_x = x.reshape(self.num_subpops, self.sub_popsize, self.num_dims)
 
         # Communicate and reshape information between subpopulations
-        b_x_comm, b_fitness_comm = self.protocol.broadcast(
-            batch_x, batch_fitness
-        )
+        b_x_comm, b_fitness_comm = self.protocol.broadcast(batch_x, batch_fitness)
 
         # Update the strategy (vectorize vs device parallel)
         state = self.tell_map(b_x_comm, b_fitness_comm, state, params)

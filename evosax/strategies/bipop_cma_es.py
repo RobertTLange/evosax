@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
-import jax
-import chex
 from functools import partial
+
+import chex
+import jax
 from flax import struct
+
+from ..restarts.restarter import WrapperParams, WrapperState
 from .cma_es import CMA_ES
-from ..restarts.restarter import WrapperState, WrapperParams
 
 
 @struct.dataclass
@@ -18,21 +19,22 @@ class RestartParams:
     copy_mean: bool = True
 
 
-class BIPOP_CMA_ES(object):
+class BIPOP_CMA_ES:
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """BIPOP-CMA-ES (Hansen, 2009).
         Reference: https://hal.inria.fr/inria-00382093/document
-        Inspired by: https://tinyurl.com/44y3ryhf"""
+        Inspired by: https://tinyurl.com/44y3ryhf
+        """
         self.strategy_name = "BIPOP_CMA_ES"
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
@@ -46,7 +48,7 @@ class BIPOP_CMA_ES(object):
             **fitness_kwargs,
         )
         from ..restarts import BIPOP_Restarter
-        from ..restarts.termination import spread_criterion, cma_criterion
+        from ..restarts.termination import cma_criterion, spread_criterion
 
         self.wrapped_strategy = BIPOP_Restarter(
             self.strategy,
@@ -65,7 +67,7 @@ class BIPOP_CMA_ES(object):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: Optional[WrapperParams] = None
+        self, rng: chex.PRNGKey, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
@@ -77,8 +79,8 @@ class BIPOP_CMA_ES(object):
         self,
         rng: chex.PRNGKey,
         state: WrapperState,
-        params: Optional[WrapperParams] = None,
-    ) -> Tuple[chex.Array, WrapperState]:
+        params: WrapperParams | None = None,
+    ) -> tuple[chex.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -92,7 +94,7 @@ class BIPOP_CMA_ES(object):
         x: chex.Array,
         fitness: chex.Array,
         state: WrapperState,
-        params: Optional[WrapperParams] = None,
+        params: WrapperParams | None = None,
     ) -> WrapperState:
         """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided

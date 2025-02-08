@@ -1,9 +1,10 @@
-import jax
-import jax.numpy as jnp
+from typing import Any
+
 import chex
-from typing import Tuple, Optional, Union, Any
+import jax.numpy as jnp
 from flax import struct
-from evosax.core import ParameterReshaper, FitnessShaper
+
+from evosax.core import FitnessShaper, ParameterReshaper
 
 
 @struct.dataclass
@@ -30,16 +31,16 @@ class EvoUpdate:
     delta_sigma: chex.Array
 
 
-class DistributedStrategy(object):
+class DistributedStrategy:
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         mean_decay: float = 0.0,
         n_devices: int = 1,
         param_dtype: Any = jnp.float32,
-        **fitness_kwargs: Union[bool, int, float]
+        **fitness_kwargs: bool | int | float,
     ):
         """Base Class for an Evolution Strategy."""
         self.total_popsize = popsize
@@ -54,9 +55,9 @@ class DistributedStrategy(object):
             self.num_dims = self.param_reshaper.total_params
         else:
             self.num_dims = num_dims
-        assert (
-            self.num_dims is not None
-        ), "Provide either num_dims or pholder_params to strategy."
+        assert self.num_dims is not None, (
+            "Provide either num_dims or pholder_params to strategy."
+        )
 
         # Mean exponential decay coefficient m' = coeff * m
         # Implements form of weight decay regularization
@@ -75,8 +76,8 @@ class DistributedStrategy(object):
     def initialize(
         self,
         rng: chex.PRNGKey,
-        params: Optional[EvoParams] = None,
-        init_mean: Optional[Union[chex.Array, chex.ArrayTree]] = None,
+        params: EvoParams | None = None,
+        init_mean: chex.Array | chex.ArrayTree | None = None,
     ) -> EvoState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
@@ -98,8 +99,8 @@ class DistributedStrategy(object):
         self,
         rng: chex.PRNGKey,
         state: EvoState,
-        params: Optional[EvoParams] = None,
-    ) -> Tuple[Union[chex.Array, chex.ArrayTree], EvoState]:
+        params: EvoParams | None = None,
+    ) -> tuple[chex.Array | chex.ArrayTree, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -119,16 +120,16 @@ class DistributedStrategy(object):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """Search-specific `ask` request. Returns proposals & updated state."""
         raise NotImplementedError
 
     def tell(
         self,
-        x: Union[chex.Array, chex.ArrayTree],
+        x: chex.Array | chex.ArrayTree,
         fitness: chex.Array,
         state: EvoState,
-        params: Optional[EvoParams] = None,
+        params: EvoParams | None = None,
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided
@@ -149,7 +150,7 @@ class DistributedStrategy(object):
 
     def get_update(
         self,
-        x: Union[chex.Array, chex.ArrayTree],
+        x: chex.Array | chex.ArrayTree,
         fitness: chex.Array,
         state: EvoState,
         params: EvoParams,
@@ -173,7 +174,7 @@ class DistributedStrategy(object):
         self,
         update: EvoUpdate,
         state: EvoState,
-        params: Optional[EvoParams] = None,
+        params: EvoParams | None = None,
     ) -> EvoState:
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -206,7 +207,7 @@ class DistributedStrategy(object):
         return x_out
 
     def set_mean(
-        self, state: EvoState, replace_mean: Union[chex.Array, chex.ArrayTree]
+        self, state: EvoState, replace_mean: chex.Array | chex.ArrayTree
     ) -> EvoState:
         if self.use_param_reshaper:
             replace_mean = self.param_reshaper.flatten_single(replace_mean)

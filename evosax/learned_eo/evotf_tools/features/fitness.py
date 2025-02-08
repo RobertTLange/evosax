@@ -1,17 +1,18 @@
 import functools
-from typing import Tuple
+
 import chex
-from flax import struct
 import jax
 import jax.numpy as jnp
-from evosax.strategies.des import get_des_weights
-from evosax.strategies.snes import get_snes_weights
+from flax import struct
+
 from evosax.core.fitness import (
     centered_rank_trafo,
-    z_score_trafo,
     compute_l2_norm,
     range_norm_trafo,
+    z_score_trafo,
 )
+from evosax.strategies.des import get_des_weights
+from evosax.strategies.snes import get_snes_weights
 
 
 @struct.dataclass
@@ -19,7 +20,7 @@ class FitnessFeaturesState:
     best_fitness: float
 
 
-class FitnessFeaturizer(object):
+class FitnessFeaturizer:
     def __init__(
         self,
         popsize: int,
@@ -66,7 +67,7 @@ class FitnessFeaturizer(object):
     @functools.partial(jax.jit, static_argnums=0)
     def featurize(
         self, x: chex.Array, fitness: chex.Array, state: FitnessFeaturesState
-    ) -> Tuple[chex.Array, FitnessFeaturesState]:
+    ) -> tuple[chex.Array, FitnessFeaturesState]:
         fitness = jax.lax.select(self.maximize, -1 * fitness, fitness)
         fit_out = centered_rank_trafo(fitness).reshape(-1, 1)
 
@@ -123,7 +124,7 @@ class FitnessFeaturizer(object):
         )
 
     @property
-    def example_batch_shape(self) -> Tuple[int, ...]:
+    def example_batch_shape(self) -> tuple[int, ...]:
         return (
             1,  # batchsize
             self.seq_len,  # timesteps

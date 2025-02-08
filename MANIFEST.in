@@ -1,3 +1,0 @@
-include evosax/strategies/ckpt/les/*.pkl
-include evosax/strategies/ckpt/lga/*.pkl
-include evosax/strategies/ckpt/evotf/*.pkl

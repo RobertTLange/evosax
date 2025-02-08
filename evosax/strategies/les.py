@@ -1,16 +1,17 @@
-from typing import Optional, Tuple, Union
+import pkgutil
+
 import chex
-from flax import struct
 import jax
 import jax.numpy as jnp
-import pkgutil
+from flax import struct
+
 from ..learned_eo.les_tools import (
     AttentionWeights,
-    EvoPathMLP,
-    tanh_timestamp,
     EvolutionPath,
+    EvoPathMLP,
     FitnessFeatures,
     load_pkl_object,
+    tanh_timestamp,
 )
 from ..strategy import Strategy
 
@@ -46,14 +47,14 @@ class LES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
-        net_params: Optional[chex.ArrayTree] = None,
-        net_ckpt_path: Optional[str] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        net_params: chex.ArrayTree | None = None,
+        net_ckpt_path: str | None = None,
         sigma_init: float = 0.1,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         super().__init__(
             popsize,
@@ -69,9 +70,7 @@ class LES(Strategy):
         )
         self.weight_layer = AttentionWeights(8)
         self.lrate_layer = EvoPathMLP(8)
-        self.fitness_features = FitnessFeatures(
-            centered_rank=True, z_score=True
-        )
+        self.fitness_features = FitnessFeatures(centered_rank=True, z_score=True)
         self.sigma_init = sigma_init
 
         # Set net params provided at instantiation
@@ -92,13 +91,9 @@ class LES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        return EvoParams(
-            net_params=self.les_net_params, sigma_init=self.sigma_init
-        )
+        return EvoParams(net_params=self.les_net_params, sigma_init=self.sigma_init)
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         init_mean = jax.random.uniform(
             rng,
@@ -119,7 +114,7 @@ class LES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(rng, (self.popsize, self.num_dims))
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
@@ -136,9 +131,7 @@ class LES(Strategy):
         """`tell` performance data for strategy state update."""
         fit_re = self.fitness_features.apply(x, fitness, state.best_fitness)
         time_embed = tanh_timestamp(state.gen_counter)
-        weights = self.weight_layer.apply(
-            params.net_params["recomb_weights"], fit_re
-        )
+        weights = self.weight_layer.apply(params.net_params["recomb_weights"], fit_re)
         weight_diff = (weights * (x - state.mean)).sum(axis=0)
         weight_noise = (weights * (x - state.mean) / state.sigma).sum(axis=0)
         path_c = self.evopath.update(state.path_c, weight_diff)
@@ -150,9 +143,7 @@ class LES(Strategy):
             time_embed,
         )
         weighted_mean = (weights * x).sum(axis=0)
-        weighted_sigma = jnp.sqrt(
-            (weights * (x - state.mean) ** 2).sum(axis=0) + 1e-10
-        )
+        weighted_sigma = jnp.sqrt((weights * (x - state.mean) ** 2).sum(axis=0) + 1e-10)
         mean_change = lrates_mean * (weighted_mean - state.mean)
         sigma_change = lrates_sigma * (weighted_sigma - state.sigma)
         mean = state.mean + mean_change

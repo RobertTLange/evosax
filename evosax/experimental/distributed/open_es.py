@@ -1,12 +1,12 @@
 """Distributed version of OpenAI-ES. Supports z-scoring fitness trafo only."""
 
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from typing import Tuple, Optional, Union
-from flax import struct
 from evosax import Strategy
-from evosax.core import GradientOptimizer, OptState, OptParams, exp_decay
+from evosax.core import GradientOptimizer, OptParams, OptState, exp_decay
+from flax import struct
 
 
 @struct.dataclass
@@ -35,8 +35,8 @@ class OpenES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         opt_name: str = "adam",
         lrate_init: float = 0.01,
         lrate_decay: float = 0.999,
@@ -45,12 +45,13 @@ class OpenES(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
+        n_devices: int | None = None,
     ):
         """Pmapped version of OpenAI-ES (Salimans et al. (2017)
         Samples directly on different devices and updates mean using pmean grad.
         Reference: https://arxiv.org/pdf/1703.03864.pdf
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py"""
+        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+        """
         super().__init__(popsize, num_dims, pholder_params)
         assert not self.popsize & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
@@ -112,7 +113,7 @@ class OpenES(Strategy):
 
     def multi_init(
         self, rng: chex.PRNGKey, params: EvoParams
-    ) -> Tuple[chex.Array, chex.Array, OptState]:
+    ) -> tuple[chex.Array, chex.Array, OptState]:
         """`initialize` the evolution strategy on multiple devices (same)."""
         # Use rng tile to create same random sample across devices
         batch_rng = jnp.tile(rng, (self.n_devices, 1))
@@ -121,7 +122,7 @@ class OpenES(Strategy):
 
     def single_init(
         self, rng: chex.PRNGKey, params: EvoParams
-    ) -> Tuple[chex.Array, chex.Array, OptState]:
+    ) -> tuple[chex.Array, chex.Array, OptState]:
         """`initialize` the evolution strategy on a single device."""
         initialization = jax.random.uniform(
             rng,
@@ -136,7 +137,7 @@ class OpenES(Strategy):
 
     def ask(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         if self.n_devices > 1:
             x = self.multi_ask(rng, state.mean, state.sigma)
@@ -199,7 +200,7 @@ class OpenES(Strategy):
 
     def multi_tell(
         self, x, fitness, state, params
-    ) -> Tuple[chex.Array, chex.Array, OptState]:
+    ) -> tuple[chex.Array, chex.Array, OptState]:
         """Pmapped tell update call over multiple devices."""
         fitness = pmap_zscore(fitness)
 
@@ -223,7 +224,7 @@ class OpenES(Strategy):
 
     def single_tell(
         self, x, fitness, state, params
-    ) -> Tuple[chex.Array, chex.Array, OptState]:
+    ) -> tuple[chex.Array, chex.Array, OptState]:
         """Single device tell update."""
         fitness = (fitness - jnp.mean(fitness)) / (jnp.std(fitness) + 1e-10)
         # Reconstruct noise from last mean/std estimates

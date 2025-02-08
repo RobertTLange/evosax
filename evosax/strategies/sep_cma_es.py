@@ -1,8 +1,9 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
+
 from ..strategy import Strategy
 from ..utils.eigen_decomp import diag_eigen_decomp
 
@@ -12,7 +13,7 @@ class EvoState:
     p_sigma: chex.Array
     p_c: chex.Array
     C: chex.Array
-    D: Optional[chex.Array]
+    D: chex.Array | None
     mean: chex.Array
     sigma: chex.Array
     sigma_scale: float
@@ -42,9 +43,10 @@ class EvoParams:
 
 def get_cma_elite_weights(
     popsize: int, elite_popsize: int
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Utility helper to create truncated elite weights for mean
-    update and full weights for covariance update."""
+    update and full weights for covariance update.
+    """
     weights_prime = jnp.array(
         [jnp.log(elite_popsize + 1) - jnp.log(i + 1) for i in range(elite_popsize)]
     )
@@ -58,13 +60,13 @@ class Sep_CMA_ES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Separable CMA-ES (e.g. Ros & Hansen, 2008)
         Reference: https://hal.inria.fr/inria-00287367/document
@@ -156,7 +158,7 @@ class Sep_CMA_ES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             rng,
@@ -239,7 +241,7 @@ def update_mean(
     sorted_solutions: chex.Array,
     c_m: float,
     weights_truncated: chex.Array,
-) -> Tuple[chex.Array, chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array, chex.Array]:
     """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = (x_k - mean) / sigma  # ~ N(0, C)
@@ -255,7 +257,7 @@ def update_p_sigma(
     y_w: chex.Array,
     c_sigma: float,
     mu_eff: float,
-) -> Tuple[chex.Array, None]:
+) -> tuple[chex.Array, None]:
     """Update evolution path for covariance matrix."""
     D = diag_eigen_decomp(C, D)
     p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
@@ -274,7 +276,7 @@ def update_p_c(
     c_c: float,
     chi_n: float,
     mu_eff: float,
-) -> Tuple[chex.Array, float, float]:
+) -> tuple[chex.Array, float, float]:
     """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
     h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
@@ -299,7 +301,7 @@ def update_covariance(
     """Update cov. matrix estimator using rank 1 + μ updates."""
     delta_h_sigma = (1 - h_sigma) * c_c * (2 - c_c)
     rank_one = p_c**2
-    rank_mu = jnp.einsum('i,ij->j', weights_truncated, y_k**2)
+    rank_mu = jnp.einsum("i,ij->j", weights_truncated, y_k**2)
     C = (
         (1 + c_1 * delta_h_sigma - c_1 - c_mu * jnp.sum(weights_truncated)) * C
         + c_1 * rank_one

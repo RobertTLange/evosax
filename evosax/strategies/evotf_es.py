@@ -1,17 +1,18 @@
-from typing import Tuple, Optional, Union
+import pkgutil
+
 import chex
-from flax import struct
 import jax
 import jax.numpy as jnp
-import pkgutil
-from ..strategy import Strategy
-from ..learned_eo.les_tools import load_pkl_object
+from flax import struct
+
 from ..learned_eo.evotf_tools import (
-    EvoTransformer,
-    SolutionFeaturizer,
-    FitnessFeaturizer,
     DistributionFeaturizer,
+    EvoTransformer,
+    FitnessFeaturizer,
+    SolutionFeaturizer,
 )
+from ..learned_eo.les_tools import load_pkl_object
+from ..strategy import Strategy
 
 
 @struct.dataclass
@@ -67,8 +68,8 @@ class EvoTF_ES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         max_context_len: int = 100,
         model_config: dict = dict(
@@ -108,11 +109,11 @@ class EvoTF_ES(Strategy):
             use_oai_grad=True,
         ),
         use_antithetic_sampling: bool = False,
-        net_params: Optional[chex.ArrayTree] = None,
-        net_ckpt_path: Optional[str] = None,
+        net_params: chex.ArrayTree | None = None,
+        net_ckpt_path: str | None = None,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float],
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         super().__init__(
             popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
@@ -262,7 +263,7 @@ class EvoTF_ES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         if not self.use_antithetic_sampling:
             noise = jax.random.normal(rng, (self.popsize, self.num_dims))

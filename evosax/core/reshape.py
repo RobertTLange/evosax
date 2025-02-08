@@ -1,8 +1,8 @@
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-from typing import Union, Optional
-from jax import vjp, flatten_util
+from jax import flatten_util, vjp
 from jax.tree_util import tree_flatten
 
 
@@ -13,18 +13,14 @@ def ravel_pytree(pytree):
 
 
 def ravel_list(*lst):
-    return (
-        jnp.concatenate([jnp.ravel(elt) for elt in lst])
-        if lst
-        else jnp.array([])
-    )
+    return jnp.concatenate([jnp.ravel(elt) for elt in lst]) if lst else jnp.array([])
 
 
-class ParameterReshaper(object):
+class ParameterReshaper:
     def __init__(
         self,
-        placeholder_params: Union[chex.ArrayTree, chex.Array],
-        n_devices: Optional[int] = None,
+        placeholder_params: chex.ArrayTree | chex.Array,
+        n_devices: int | None = None,
         verbose: bool = True,
     ):
         """Reshape flat parameters vectors into generation eval shape."""
@@ -32,9 +28,7 @@ class ParameterReshaper(object):
         self.placeholder_params = placeholder_params
 
         # Set total parameters depending on type of placeholder params
-        flat, self.unravel_pytree = flatten_util.ravel_pytree(
-            placeholder_params
-        )
+        flat, self.unravel_pytree = flatten_util.ravel_pytree(placeholder_params)
         self.total_params = flat.shape[0]
         self.reshape_single = jax.jit(self.unravel_pytree)
 

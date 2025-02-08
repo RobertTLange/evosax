@@ -1,7 +1,7 @@
-from .control_gym import GymnaxFitness
-from .vision import VisionFitness
 from .bbob import BBOBFitness
+from .control_gym import GymnaxFitness
 from .sequence import SequenceFitness
+from .vision import VisionFitness
 
 ProblemMapper = {
     "Gymnax": GymnaxFitness,

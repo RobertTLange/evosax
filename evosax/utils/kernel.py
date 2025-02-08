@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 
 import jax.numpy as jnp
 from chex import Array
@@ -10,7 +10,9 @@ class Kernel(ABC):
         """Compute the kernel function between two input arrays."""
         pass
 
+
 class RBF(Kernel):
     """Radial Basis Function (RBF) kernel implementation."""
+
     def __call__(self, x1: Array, x2: Array, bandwidth: float) -> Array:
         return jnp.exp(-0.5 * jnp.sum((x1 - x2) ** 2) / bandwidth)

@@ -1,11 +1,10 @@
 import jax
 import jax.numpy as jnp
-from evosax import CMA_ES, ARS, ParameterReshaper, NetworkMapper
+from evosax import ARS, CMA_ES, NetworkMapper, ParameterReshaper
 from evosax.problems import (
     BBOBFitness,
     GymnaxFitness,
     VisionFitness,
-    SequenceFitness,
 )
 
 

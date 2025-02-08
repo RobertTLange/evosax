@@ -1,10 +1,11 @@
-from typing import Tuple, Optional, Union
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
 from flax import struct
-from .cma_es import get_cma_elite_weights
+
 from ..strategy import Strategy
+from .cma_es import get_cma_elite_weights
 
 
 @struct.dataclass
@@ -39,24 +40,19 @@ class MA_ES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """MA-ES (Bayer & Sendhoff, 2017)
         Reference: https://www.honda-ri.de/pubs/pdf/3376.pdf
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
@@ -80,15 +76,12 @@ class MA_ES(Strategy):
         c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
         d_sigma = (
             1
-            + 2
-            * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
+            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
             + c_sigma
         )
 
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.max_dims_sq ** 2))
+            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
         )
 
         params = EvoParams(
@@ -102,9 +95,7 @@ class MA_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
@@ -128,7 +119,7 @@ class MA_ES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             rng,
@@ -191,7 +182,7 @@ def update_mean(
     sorted_solutions: chex.Array,
     c_m: float,
     weights_truncated: chex.Array,
-) -> Tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array]:
     """Update mean of strategy."""
     z_k = sorted_solutions[:, 1:] - mean  # ~ N(0, σ^2 C)
     y_k = z_k / sigma  # ~ N(0, C)
@@ -206,7 +197,7 @@ def update_p_sigma(
     c_sigma: float,
     mu_eff: float,
     weights_truncated: chex.Array,
-) -> Tuple[chex.Array, float]:
+) -> tuple[chex.Array, float]:
     """Update evolution path for covariance matrix."""
     z_w = jnp.sum(z_k.T * weights_truncated, axis=1)
     p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
@@ -227,9 +218,7 @@ def update_M_matrix(
     """Update the M matrix."""
     rank_one = jnp.outer(p_sigma, p_sigma)
     rank_mu = jnp.sum(
-        jnp.array(
-            [w * jnp.outer(z, z) for w, z in zip(weights_truncated, z_k)]
-        ),
+        jnp.array([w * jnp.outer(z, z) for w, z in zip(weights_truncated, z_k)]),
         axis=0,
     )
     M_new = M @ (
@@ -248,9 +237,7 @@ def update_sigma(
     chi_n: float,
 ) -> float:
     """Update stepsize sigma."""
-    sigma_new = sigma * jnp.exp(
-        (c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1)
-    )
+    sigma_new = sigma * jnp.exp((c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1))
     return sigma_new
 
 

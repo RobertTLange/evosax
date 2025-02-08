@@ -1,9 +1,10 @@
-from typing import Tuple, Optional, Union
+import math
+
+import chex
 import jax
 import jax.numpy as jnp
-import chex
-import math
 from flax import struct
+
 from ..strategy import Strategy
 
 
@@ -45,7 +46,7 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_recombination_weights(popsize: int) -> Tuple[chex.Array, chex.Array]:
+def get_recombination_weights(popsize: int) -> tuple[chex.Array, chex.Array]:
     """Get recombination weights for different ranks."""
 
     def get_weight(i):
@@ -77,23 +78,18 @@ class CR_FM_NES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: Optional[int] = None,
-        pholder_params: Optional[Union[chex.ArrayTree, chex.Array]] = None,
+        num_dims: int | None = None,
+        pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: Optional[int] = None,
-        **fitness_kwargs: Union[bool, int, float]
+        n_devices: int | None = None,
+        **fitness_kwargs: bool | int | float,
     ):
         """Cost-Reduced Fast-Moving Natural ES (Nomura & Ono, 2022)
         Reference: https://arxiv.org/abs/2201.11422
         """
         super().__init__(
-            popsize,
-            num_dims,
-            pholder_params,
-            mean_decay,
-            n_devices,
-            **fitness_kwargs
+            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
         )
         assert not self.popsize & 1, "Population size must be even"
         self.strategy_name = "CR_FM_NES"
@@ -105,9 +101,7 @@ class CR_FM_NES(Strategy):
     def default_params(self) -> EvoParams:
         """Return default parameters of evolutionary strategy."""
         w_rank_hat, w_rank = get_recombination_weights(self.popsize)
-        mueff = 1 / (
-            (w_rank + (1 / self.popsize)).T @ (w_rank + (1 / self.popsize))
-        )
+        mueff = 1 / ((w_rank + (1 / self.popsize)).T @ (w_rank + (1 / self.popsize)))
         c_s = (mueff + 2.0) / (self.num_dims + mueff + 5.0)
         c_c = (4.0 + mueff / self.num_dims) / (
             self.num_dims + 4.0 + 2.0 * mueff / self.num_dims
@@ -119,17 +113,13 @@ class CR_FM_NES(Strategy):
             + 1.0 / (21.0 * self.num_dims * self.num_dims)
         )
         h_inv = get_h_inv(self.num_dims)
-        alpha_dist = h_inv * jnp.minimum(
-            1.0, jnp.sqrt(self.popsize / self.num_dims)
-        )
+        alpha_dist = h_inv * jnp.minimum(1.0, jnp.sqrt(self.popsize / self.num_dims))
         lrate_move_sigma = 1.0
         lrate_stag_sigma = jnp.tanh(
-            (0.024 * self.popsize + 0.7 * self.num_dims + 20.0)
-            / (self.num_dims + 12.0)
+            (0.024 * self.popsize + 0.7 * self.num_dims + 20.0) / (self.num_dims + 12.0)
         )
         lrate_conv_sigma = 2.0 * jnp.tanh(
-            (0.025 * self.popsize + 0.75 * self.num_dims + 10.0)
-            / (self.num_dims + 4.0)
+            (0.025 * self.popsize + 0.75 * self.num_dims + 10.0) / (self.num_dims + 4.0)
         )
         c1 = c1_cma * (self.num_dims - 5) / 6
         lrate_B = jnp.tanh(
@@ -152,9 +142,7 @@ class CR_FM_NES(Strategy):
         )
         return params
 
-    def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
         """`initialize` the evolutionary strategy."""
         rng_init, rng_v = jax.random.split(rng)
         initialization = jax.random.uniform(
@@ -183,7 +171,7 @@ class CR_FM_NES(Strategy):
 
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
-    ) -> Tuple[chex.Array, EvoState]:
+    ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         z_plus = jax.random.normal(
             rng,
@@ -192,7 +180,7 @@ class CR_FM_NES(Strategy):
         z = jnp.concatenate([z_plus, -1.0 * z_plus])
         z = jnp.swapaxes(z, 0, 1)
         normv = jnp.linalg.norm(state.v)
-        normv2 = normv ** 2
+        normv2 = normv**2
         vbar = state.v / normv
 
         # Rescale/reparametrize noise
@@ -247,8 +235,8 @@ class CR_FM_NES(Strategy):
 
         normv = jnp.linalg.norm(state.v)
         vbar = state.v / normv
-        normv2 = normv ** 2
-        normv4 = normv2 ** 2
+        normv2 = normv**2
+        normv4 = normv2**2
 
         exY = jnp.append(y, p_c / state.D, axis=1)
         yy = exY * exY
@@ -258,14 +246,12 @@ class CR_FM_NES(Strategy):
         vbarbar = vbar * vbar
         alphavd = jnp.minimum(
             1,
-            jnp.sqrt(
-                normv4 + (2 * gammav - jnp.sqrt(gammav)) / jnp.max(vbarbar)
-            )
+            jnp.sqrt(normv4 + (2 * gammav - jnp.sqrt(gammav)) / jnp.max(vbarbar))
             / (2 + normv2),
         )
-        t = exY * ip_yvbar - vbar * (ip_yvbar ** 2 + gammav) / 2
-        b = -(1 - alphavd ** 2) * normv4 / gammav + 2 * alphavd ** 2
-        H = jnp.ones([self.num_dims, 1]) * 2 - (b + 2 * alphavd ** 2) * vbarbar
+        t = exY * ip_yvbar - vbar * (ip_yvbar**2 + gammav) / 2
+        b = -(1 - alphavd**2) * normv4 / gammav + 2 * alphavd**2
+        H = jnp.ones([self.num_dims, 1]) * 2 - (b + 2 * alphavd**2) * vbarbar
         invH = H ** (-1)
         s_step1 = (
             yy
@@ -304,6 +290,4 @@ class CR_FM_NES(Strategy):
             / self.num_dims
         )
         sigma = state.sigma * jnp.exp(lrate_sigma / 2 * G_s)
-        return state.replace(
-            p_sigma=p_sigma, mean=mean, p_c=p_c, v=v, D=D, sigma=sigma
-        )
+        return state.replace(p_sigma=p_sigma, mean=mean, p_c=p_c, v=v, D=D, sigma=sigma)
