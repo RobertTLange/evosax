@@ -32,7 +32,7 @@ class EvoParams:
 class OpenES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
@@ -49,8 +49,8 @@ class OpenES(Strategy):
         Reference: https://arxiv.org/pdf/1703.03864.pdf
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
-        assert not self.popsize & 1, "Population size must be even"
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        assert not self.population_size & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "OpenES"
@@ -103,11 +103,11 @@ class OpenES(Strategy):
         if self.use_antithetic_sampling:
             z_plus = jax.random.normal(
                 key,
-                (int(self.popsize / 2), self.num_dims),
+                (int(self.population_size / 2), self.num_dims),
             )
             z = jnp.concatenate([z_plus, -1.0 * z_plus])
         else:
-            z = jax.random.normal(key, (self.popsize, self.num_dims))
+            z = jax.random.normal(key, (self.population_size, self.num_dims))
         x = state.mean + state.sigma * z
         return x, state
 
@@ -121,7 +121,9 @@ class OpenES(Strategy):
         """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        theta_grad = 1.0 / (self.popsize * state.sigma) * jnp.dot(noise.T, fitness)
+        theta_grad = (
+            1.0 / (self.population_size * state.sigma) * jnp.dot(noise.T, fitness)
+        )
 
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(

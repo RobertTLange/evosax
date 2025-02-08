@@ -29,14 +29,14 @@ class EvoParams:
 class PBT(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Synchronous Population-Based Training (Jaderberg et al., 2017)
         Reference: https://arxiv.org/abs/1711.09846
         """
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.strategy_name = "PBT"
 
     @property
@@ -48,14 +48,14 @@ class PBT(Strategy):
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
-            (self.popsize, self.num_dims),
+            (self.population_size, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
         )
         state = EvoState(
             archive=initialization,
-            fitness=jnp.zeros(self.popsize) - 20e10,
-            copy_id=jnp.zeros(self.popsize, dtype=jnp.int32),
+            fitness=jnp.zeros(self.population_size) - 20e10,
+            copy_id=jnp.zeros(self.population_size, dtype=jnp.int32),
             best_member=jnp.zeros(self.num_dims),
         )
         return state
@@ -69,8 +69,8 @@ class PBT(Strategy):
         2) If not exploit: Copy hyperparams from id and explore/perturb around.
         3) Return new hyperparameters and copy_id (same if exploit)
         """
-        keys = jax.random.split(key, self.popsize)
-        member_ids = jnp.arange(self.popsize)
+        keys = jax.random.split(key, self.population_size)
+        member_ids = jnp.arange(self.population_size)
         exploit_bool, copy_id, hyperparams = jax.vmap(
             single_member_exploit, in_axes=(0, None, None, None)
         )(member_ids, state.archive, state.fitness, params)

@@ -38,7 +38,7 @@ class EvoParams:
 class GuidedES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         subspace_dims: int = 1,  # k param in example notebook
         opt_name: str = "sgd",
@@ -56,12 +56,12 @@ class GuidedES(Strategy):
         Note that there are a couple of JAX-based adaptations:
         """
         super().__init__(
-            popsize,
+            population_size,
             pholder_params,
             mean_decay,
             **fitness_kwargs,
         )
-        assert not self.popsize & 1, "Population size must be even"
+        assert not self.population_size & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         assert subspace_dims <= self.num_dims, (
             "Subspace has to be smaller than optimization dims."
@@ -117,10 +117,10 @@ class GuidedES(Strategy):
         c = state.sigma * jnp.sqrt((1.0 - params.alpha) / self.subspace_dims)
         key_full, key_sub = jax.random.split(key, 2)
         eps_full = jax.random.normal(
-            key_full, shape=(self.num_dims, int(self.popsize / 2))
+            key_full, shape=(self.num_dims, int(self.population_size / 2))
         )
         eps_subspace = jax.random.normal(
-            key_sub, shape=(self.subspace_dims, int(self.popsize / 2))
+            key_sub, shape=(self.subspace_dims, int(self.population_size / 2))
         )
         Q, _ = jnp.linalg.qr(state.grad_subspace)
         # Antithetic sampling of noise
@@ -152,12 +152,12 @@ class GuidedES(Strategy):
 
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        noise_1 = noise[: int(self.popsize / 2)]
-        fit_1 = fitness_re[: int(self.popsize / 2)]
-        fit_2 = fitness_re[int(self.popsize / 2) :]
+        noise_1 = noise[: int(self.population_size / 2)]
+        fit_1 = fitness_re[: int(self.population_size / 2)]
+        fit_2 = fitness_re[int(self.population_size / 2) :]
         fit_diff = fit_1 - fit_2
         fit_diff_noise = jnp.dot(noise_1.T, fit_diff)
-        theta_grad = (params.beta / self.popsize) * fit_diff_noise
+        theta_grad = (params.beta / self.population_size) * fit_diff_noise
 
         # Add grad FIFO-style to subspace archive (only if provided else FD)
         grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))

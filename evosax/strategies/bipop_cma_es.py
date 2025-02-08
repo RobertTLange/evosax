@@ -12,7 +12,7 @@ from .cma_es import CMA_ES
 class RestartParams:
     min_num_gens: int = 50
     min_fitness_spread: float = 1e-12
-    popsize_multiplier: int = 2
+    population_size_multiplier: int = 2
     tol_x: float = 1e-12
     tol_x_up: float = 1e4
     tol_condition_C: float = 1e14
@@ -22,7 +22,7 @@ class RestartParams:
 class BIPOP_CMA_ES:
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
@@ -36,7 +36,7 @@ class BIPOP_CMA_ES:
         self.strategy_name = "BIPOP_CMA_ES"
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
-            popsize=popsize,
+            population_size=population_size,
             pholder_params=pholder_params,
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,

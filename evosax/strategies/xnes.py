@@ -38,7 +38,7 @@ class EvoParams:
 class xNES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -48,7 +48,7 @@ class xNES(Strategy):
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
         Inspired by: https://github.com/chanshing/xnes
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         self.strategy_name = "xNES"
 
         # Set core kwargs es_params
@@ -77,12 +77,12 @@ class xNES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        weights = get_snes_weights(self.popsize)
+        weights = get_snes_weights(self.population_size)
         state = EvoState(
             mean=initialization,
             B=jnp.eye(self.num_dims) * params.sigma_init,
             sigma=params.sigma_init,
-            noise=jnp.zeros((self.popsize, self.num_dims)),
+            noise=jnp.zeros((self.population_size, self.num_dims)),
             lrate_sigma=params.lrate_sigma_init,
             weights=weights,
             best_member=initialization,
@@ -94,7 +94,7 @@ class xNES(Strategy):
         self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        noise = jax.random.normal(key, (self.popsize, self.num_dims))
+        noise = jax.random.normal(key, (self.population_size, self.num_dims))
 
         def scale_orient(n, sigma, B):
             return sigma * B.T @ n
@@ -166,11 +166,11 @@ def adaptation_sampling(
     prob_0 = jax.scipy.stats.multivariate_normal.logpdf(sorted_noise, mean, A)
     prob_1 = jax.scipy.stats.multivariate_normal.logpdf(sorted_noise, mean, A_prime)
     w = jnp.exp(prob_1 - prob_0)
-    popsize = sorted_noise.shape[0]
+    population_size = sorted_noise.shape[0]
     n = jnp.sum(w)
-    u = jnp.sum(w * (jnp.arange(popsize) + 0.5))
-    u_mean = popsize * n / 2
-    u_sigma = jnp.sqrt(popsize * n * (popsize + n + 1) / 12)
+    u = jnp.sum(w * (jnp.arange(population_size) + 0.5))
+    u_mean = population_size * n / 2
+    u_sigma = jnp.sqrt(population_size * n * (population_size + n + 1) / 12)
     cumulative = jax.scipy.stats.norm.cdf(u, loc=u_mean + 1e-10, scale=u_sigma + 1e-10)
 
     # Check test significance and update lrate

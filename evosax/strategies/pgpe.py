@@ -34,7 +34,7 @@ class EvoParams:
 class PGPE(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 1.0,
         opt_name: str = "adam",
@@ -51,12 +51,14 @@ class PGPE(Strategy):
         Reference: https://tinyurl.com/2p8bn956
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size / 2 * self.elite_ratio)
+        )
 
-        assert not self.popsize & 1, "Population size must be even"
+        assert not self.population_size & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "PGPE"
@@ -107,7 +109,7 @@ class PGPE(Strategy):
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
             key,
-            (int(self.popsize / 2), self.num_dims),
+            (int(self.population_size / 2), self.num_dims),
         )
         z = jnp.hstack([z_plus, -1.0 * z_plus]).reshape(-1, self.num_dims)
         x = state.mean + state.sigma * z
@@ -126,7 +128,7 @@ class PGPE(Strategy):
         noise_1 = scaled_noise[::2]
         fit_1 = fitness[::2]
         fit_2 = fitness[1::2]
-        elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
+        elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_population_size]
         fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
         fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
         fit_diff_noise = noise_1[elite_idx] * fit_diff[:, None]

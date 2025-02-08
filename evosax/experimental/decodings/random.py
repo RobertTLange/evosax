@@ -37,7 +37,7 @@ class RandomDecoder(Decoder):
         # 1. Project parameters to raw dimensionality using pre-sampled matrix
         project_x = (
             x @ self.project_matrix
-        )  # (popsize, num_enc_dim) x (num_enc_dim, num_dims)
+        )  # (population_size, num_enc_dim) x (num_enc_dim, num_dims)
         # 2. Reshape
         x_reshaped = jax.vmap(self.unravel_params)(project_x)
         return x_reshaped

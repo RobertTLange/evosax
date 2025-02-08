@@ -38,7 +38,7 @@ class EvoParams:
 class MA_ES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
@@ -48,10 +48,12 @@ class MA_ES(Strategy):
         """MA-ES (Bayer & Sendhoff, 2017)
         Reference: https://www.honda-ri.de/pubs/pdf/3376.pdf
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
+        )
         self.strategy_name = "MA_ES"
 
         # Set core kwargs es_params
@@ -64,7 +66,10 @@ class MA_ES(Strategy):
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         _, _, mu_eff, c_1, c_mu = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
+            self.population_size,
+            self.elite_population_size,
+            self.num_dims,
+            self.max_dims_sq,
         )
 
         # lrate for cumulation of step-size control and rank-one update
@@ -93,7 +98,10 @@ class MA_ES(Strategy):
     def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
+            self.population_size,
+            self.elite_population_size,
+            self.num_dims,
+            self.max_dims_sq,
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
@@ -122,7 +130,7 @@ class MA_ES(Strategy):
             state.sigma,
             state.M,
             self.num_dims,
-            self.popsize,
+            self.population_size,
         )
         return x, state
 

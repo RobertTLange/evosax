@@ -67,7 +67,7 @@ class EvoParams:
 class EvoTF_ES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         max_context_len: int = 100,
@@ -113,7 +113,7 @@ class EvoTF_ES(Strategy):
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         self.strategy_name = "EvoTransformer"
         self.max_context_len = max_context_len
         self.model_config = model_config
@@ -122,19 +122,19 @@ class EvoTF_ES(Strategy):
         self.distrib_config = distrib_config
         self.model = EvoTransformer(**model_config)
         self.sf = SolutionFeaturizer(
-            popsize=self.popsize,
+            population_size=self.population_size,
             num_dims=self.num_dims,
             seq_len=self.max_context_len,
             **solution_config,
         )
         self.ff = FitnessFeaturizer(
-            popsize=self.popsize,
+            population_size=self.population_size,
             num_dims=self.num_dims,
             seq_len=self.max_context_len,
             **fitness_config,
         )
         self.df = DistributionFeaturizer(
-            popsize=self.popsize,
+            population_size=self.population_size,
             num_dims=self.num_dims,
             seq_len=self.max_context_len,
             **distrib_config,
@@ -145,19 +145,19 @@ class EvoTF_ES(Strategy):
             self.model_config = self.ckpt["model_config"]
             self.model = EvoTransformer(**self.model_config)
             self.sf = SolutionFeaturizer(
-                popsize=self.popsize,
+                population_size=self.population_size,
                 num_dims=self.num_dims,
                 seq_len=self.max_context_len,
                 **self.ckpt["solution_config"],
             )
             self.ff = FitnessFeaturizer(
-                popsize=self.popsize,
+                population_size=self.population_size,
                 num_dims=self.num_dims,
                 seq_len=self.max_context_len,
                 **self.ckpt["fitness_config"],
             )
             self.df = DistributionFeaturizer(
-                popsize=self.popsize,
+                population_size=self.population_size,
                 num_dims=self.num_dims,
                 seq_len=self.max_context_len,
                 **self.ckpt["distrib_config"],
@@ -175,19 +175,19 @@ class EvoTF_ES(Strategy):
             self.model_config = self.ckpt["model_config"]
             self.model = EvoTransformer(**self.model_config)
             self.sf = SolutionFeaturizer(
-                popsize=self.popsize,
+                population_size=self.population_size,
                 num_dims=self.num_dims,
                 seq_len=self.max_context_len,
                 **self.ckpt["solution_config"],
             )
             self.ff = FitnessFeaturizer(
-                popsize=self.popsize,
+                population_size=self.population_size,
                 num_dims=self.num_dims,
                 seq_len=self.max_context_len,
                 **self.ckpt["fitness_config"],
             )
             self.df = DistributionFeaturizer(
-                popsize=self.popsize,
+                population_size=self.population_size,
                 num_dims=self.num_dims,
                 seq_len=self.max_context_len,
                 **self.ckpt["distrib_config"],
@@ -202,7 +202,7 @@ class EvoTF_ES(Strategy):
         self.sigma_init = sigma_init
         self.use_antithetic_sampling = use_antithetic_sampling
         if self.use_antithetic_sampling:
-            assert not self.popsize & 1, "Population size must be even"
+            assert not self.population_size & 1, "Population size must be even"
         # Setup look-ahead mask for forward pass
         self.la_mask = jnp.tril(jnp.ones((self.max_context_len, self.max_context_len)))
         self.strategy_name = "EvoTF_ES"
@@ -227,14 +227,14 @@ class EvoTF_ES(Strategy):
         scon_shape = (
             1,
             self.max_context_len,
-            self.popsize,
+            self.population_size,
             self.num_dims,
             self.sf.num_features,
         )
         fcon_shape = (
             1,
             self.max_context_len,
-            self.popsize,
+            self.population_size,
             self.ff.num_features,
         )
         dcon_shape = (
@@ -262,9 +262,11 @@ class EvoTF_ES(Strategy):
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         if not self.use_antithetic_sampling:
-            noise = jax.random.normal(key, (self.popsize, self.num_dims))
+            noise = jax.random.normal(key, (self.population_size, self.num_dims))
         else:
-            noise_p = jax.random.normal(key, (int(self.popsize / 2), self.num_dims))
+            noise_p = jax.random.normal(
+                key, (int(self.population_size / 2), self.num_dims)
+            )
             noise = jnp.concatenate([noise_p, -noise_p], axis=0)
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
         return x, state
@@ -288,7 +290,9 @@ class EvoTF_ES(Strategy):
 
         # Update the context with a sliding window
         shift_buffer = state.generation_counter >= self.max_context_len
-        idx = jax.lax.select(shift_buffer, self.max_context_len - 1, state.generation_counter)
+        idx = jax.lax.select(
+            shift_buffer, self.max_context_len - 1, state.generation_counter
+        )
         solution_context = jax.lax.select(
             shift_buffer,
             state.solution_context.at[0, :-1].set(state.solution_context[0, 1:]),
@@ -323,7 +327,9 @@ class EvoTF_ES(Strategy):
                 mask=self.la_mask,
             )
 
-        pred, att = infer_step(solution_context, fitness_context, distribution_context)  # TODO: att not used?
+        pred, att = infer_step(
+            solution_context, fitness_context, distribution_context
+        )  # TODO: att not used?
         pred_mean = state.mean + params.lrate_mean * state.sigma * pred[0, 0, idx]
         pred_sigma = state.sigma * jnp.exp(params.lrate_sigma / 2 * pred[1, 0, idx])
         pred_sigma = jnp.clip(pred_sigma, 1e-08)

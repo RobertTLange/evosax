@@ -142,17 +142,15 @@ class SelectionAttention(nn.Module):
     att_hidden_dims: int
 
     @nn.compact
-    def __call__(
-        self, key: jax.Array, F_X: chex.Array, F_E: chex.Array
-    ) -> chex.Array:
+    def __call__(self, key: jax.Array, F_X: chex.Array, F_E: chex.Array) -> chex.Array:
         # Perform cross-attention between kids and parents
         A = MultiHeadCrossAttention(self.num_att_heads, self.att_hidden_dims)(F_X, F_E)
         # Construct raw selection matrix with row-wise logits
         queries_S = nn.Dense(self.att_hidden_dims)(A)
         keys_S = nn.Dense(self.att_hidden_dims)(F_X)
-        # Selection matrix (elite_popsize, popsize)
+        # Selection matrix (elite_population_size, population_size)
         S = (queries_S @ keys_S.T) / jnp.sqrt(self.att_hidden_dims)
-        # Selection matrix w. parent (elite_popsize, popsize + 1)
+        # Selection matrix w. parent (elite_population_size, population_size + 1)
         S_p = jnp.concatenate([S, jnp.ones((S.shape[0], 1))], axis=1)
         # Sample kid id to replace or parent id to keep
         idx = jax.random.categorical(key, S_p, axis=1)

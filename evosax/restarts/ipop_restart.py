@@ -12,14 +12,14 @@ from .termination import spread_criterion
 class RestartState:
     restart_counter: int
     restart_next: bool
-    active_popsize: int
+    active_population_size: int
 
 
 @struct.dataclass
 class RestartParams:
     min_num_gens: int = 50
     min_fitness_spread: float = 1e-12
-    popsize_multiplier: int = 2
+    population_size_multiplier: int = 2
     copy_mean: bool = False
 
 
@@ -34,7 +34,7 @@ class IPOP_Restarter(RestartWrapper):
         Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
         """
         super().__init__(base_strategy, stop_criteria)
-        self.default_popsize = self.base_strategy.popsize
+        self.default_population_size = self.base_strategy.population_size
         self.strategy_kwargs = strategy_kwargs
 
         from .. import Strategies
@@ -59,7 +59,7 @@ class IPOP_Restarter(RestartWrapper):
         restart_state = RestartState(
             restart_counter=0,
             restart_next=False,
-            active_popsize=self.base_strategy.popsize,
+            active_population_size=self.base_strategy.population_size,
         )
         return WrapperState(strategy_state, restart_state)
 
@@ -74,9 +74,9 @@ class IPOP_Restarter(RestartWrapper):
         if params is None:
             params = self.default_params
 
-        # TODO: Cannot jit! Re-definition of strategy with different popsizes.
-        # Is there a clever way to mask active members/popsize?
-        # Only compile when base strategy is being updated with new popsize.
+        # TODO: Cannot jit! Re-definition of strategy with different population sizes.
+        # Is there a clever way to mask active members/population_size?
+        # Only compile when base strategy is being updated with new population_size.
         key_restart, key_ask = jax.random.split(key)
         if state.restart_state.restart_next:
             state = self.restart(key_restart, state, params)
@@ -93,14 +93,14 @@ class IPOP_Restarter(RestartWrapper):
     ) -> WrapperState:
         """Reinstantiate a new strategy with increased population sizes."""
         # Reinstantiate new strategy - based on name of previous strategy
-        active_popsize = (
-            state.restart_state.active_popsize
-            * params.restart_params.popsize_multiplier
+        active_population_size = (
+            state.restart_state.active_population_size
+            * params.restart_params.population_size_multiplier
         )
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
-            popsize=int(active_popsize),
+            population_size=int(active_population_size),
             pholder_params=self.base_strategy.pholder_params,
             **self.strategy_kwargs,
         )
@@ -117,7 +117,7 @@ class IPOP_Restarter(RestartWrapper):
         )
         # Overwrite new state with old preservables
         restart_state = state.restart_state.replace(
-            active_popsize=active_popsize,
+            active_population_size=active_population_size,
             restart_counter=state.restart_state.restart_counter + 1,
             restart_next=False,
         )

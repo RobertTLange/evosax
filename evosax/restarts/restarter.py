@@ -43,9 +43,9 @@ class RestartWrapper:
         return self.base_strategy.num_dims
 
     @property
-    def popsize(self) -> int:
+    def population_size(self) -> int:
         """Get population size from base strategy."""
-        return self.base_strategy.popsize
+        return self.base_strategy.population_size
 
     @property
     def default_params(self) -> WrapperParams:

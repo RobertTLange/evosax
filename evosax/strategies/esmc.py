@@ -34,7 +34,7 @@ class EvoParams:
 class ESMC(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -49,8 +49,8 @@ class ESMC(Strategy):
         """ESMC (Merchant et al., 2021)
         Reference: https://proceedings.mlr.press/v139/merchant21a.html
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
-        assert self.popsize & 1, "Population size must be odd"
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        assert self.population_size & 1, "Population size must be odd"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "ESMC"
@@ -101,7 +101,7 @@ class ESMC(Strategy):
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
             key,
-            (int(self.popsize / 2), self.num_dims),
+            (int(self.population_size / 2), self.num_dims),
         )
         z = jnp.concatenate([jnp.zeros((1, self.num_dims)), z_plus, -1.0 * z_plus])
         x = state.mean + z * state.sigma.reshape(1, self.num_dims)
@@ -120,12 +120,12 @@ class ESMC(Strategy):
         bline_fitness = fitness[0]
         noise = noise[1:]
         fitness = fitness[1:]
-        noise_1 = noise[: int((self.popsize - 1) / 2)]
-        fit_1 = fitness[: int((self.popsize - 1) / 2)]
-        fit_2 = fitness[int((self.popsize - 1) / 2) :]
+        noise_1 = noise[: int((self.population_size - 1) / 2)]
+        fit_1 = fitness[: int((self.population_size - 1) / 2)]
+        fit_2 = fitness[int((self.population_size - 1) / 2) :]
         fit_diff = jnp.minimum(fit_1, bline_fitness) - jnp.minimum(fit_2, bline_fitness)
         fit_diff_noise = jnp.dot(noise_1.T, fit_diff)
-        theta_grad = 1.0 / int((self.popsize - 1) / 2) * fit_diff_noise
+        theta_grad = 1.0 / int((self.population_size - 1) / 2) * fit_diff_noise
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(
             state.mean, theta_grad, state.opt_state, params.opt_params

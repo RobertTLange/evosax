@@ -75,7 +75,7 @@ def centered_rank_trafo(fitness: chex.Array) -> chex.Array:
 
 
 def compute_l2_norm(x: chex.Array) -> chex.Array:
-    """Compute L2-norm of x_i. Assumes x to have shape (popsize, num_dims)."""
+    """Compute L2-norm of x_i. Assumes x to have shape (population_size, num_dims)."""
     return jnp.nanmean(x * x, axis=1)
 
 

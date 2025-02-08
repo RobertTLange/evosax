@@ -24,7 +24,7 @@ class SV_OpenES(OpenES):
     def __init__(
         self,
         npop: int,
-        subpopsize: int,
+        subpopulation_size: int,
         kernel: type[Kernel] = RBF,
         pholder_params: ArrayTree | Array | None = None,
         use_antithetic_sampling: bool = True,
@@ -42,7 +42,7 @@ class SV_OpenES(OpenES):
         Reference: https://arxiv.org/abs/1704.02399
         """
         super().__init__(
-            npop * subpopsize,
+            npop * subpopulation_size,
             pholder_params,
             use_antithetic_sampling,
             opt_name,
@@ -55,10 +55,10 @@ class SV_OpenES(OpenES):
             mean_decay,
             **fitness_kwargs,
         )
-        assert not subpopsize & 1, "Sub-population size size must be even"
+        assert not subpopulation_size & 1, "Sub-population size size must be even"
         self.strategy_name = "SV_OpenAI_ES"
         self.npop = npop
-        self.subpopsize = subpopsize
+        self.subpopulation_size = subpopulation_size
         self.kernel = kernel()
 
     @property
@@ -76,9 +76,7 @@ class SV_OpenES(OpenES):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, key: jax.Array, params: EvoParams
-    ) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         x_init = jax.random.uniform(
             key,
@@ -105,14 +103,14 @@ class SV_OpenES(OpenES):
         if self.use_antithetic_sampling:
             z_plus = jax.random.normal(
                 key,
-                (self.npop, int(self.subpopsize / 2), self.num_dims),
+                (self.npop, int(self.subpopulation_size / 2), self.num_dims),
             )
             z = jnp.concatenate([z_plus, -1.0 * z_plus], axis=1)
         else:
-            z = jax.random.normal(key, (self.npop, self.subpopsize, self.num_dims))
+            z = jax.random.normal(key, (self.npop, self.subpopulation_size, self.num_dims))
 
         x = state.mean[:, None] + state.sigma[:, None] * z
-        x = x.reshape(self.popsize, self.num_dims)
+        x = x.reshape(self.population_size, self.num_dims)
 
         return x, state
 
@@ -124,13 +122,13 @@ class SV_OpenES(OpenES):
         params: EvoParams,
     ) -> EvoState:
         """`tell` performance data for strategy state update."""
-        x = x.reshape(self.npop, self.subpopsize, self.num_dims)
-        fitness = fitness.reshape(self.npop, self.subpopsize)
+        x = x.reshape(self.npop, self.subpopulation_size, self.num_dims)
+        fitness = fitness.reshape(self.npop, self.subpopulation_size)
 
         # Compute MC gradients from fitness scores
         noise = (state.mean[:, None] - x) / state.sigma[:, None]
         scores = jnp.einsum("ijk,ij->ik", noise, fitness) / (
-            self.subpopsize * state.sigma
+            self.subpopulation_size * state.sigma
         )
 
         # Compute SVGD steps

@@ -46,7 +46,7 @@ class LES(Strategy):
     # The results may therefore differ from the ones shown in the paper.
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         net_params: chex.ArrayTree | None = None,
         net_ckpt_path: str | None = None,
@@ -55,7 +55,7 @@ class LES(Strategy):
         **fitness_kwargs: bool | int | float,
     ):
         super().__init__(
-            popsize,
+            population_size,
             pholder_params,
             mean_decay,
             **fitness_kwargs,
@@ -112,7 +112,7 @@ class LES(Strategy):
         self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        noise = jax.random.normal(key, (self.popsize, self.num_dims))
+        noise = jax.random.normal(key, (self.population_size, self.num_dims))
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
         x = jnp.clip(x, params.clip_min, params.clip_max)
         return x, state

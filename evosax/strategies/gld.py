@@ -29,7 +29,7 @@ class EvoParams:
 class GLD(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
@@ -37,7 +37,7 @@ class GLD(Strategy):
         """Gradientless Descent (Golovin et al., 2019)
         Reference: https://arxiv.org/pdf/1911.06317.pdf
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         self.strategy_name = "GLD"
 
     @property
@@ -66,11 +66,11 @@ class GLD(Strategy):
         # Sampling of N(0, 1) noise
         z = jax.random.normal(
             key,
-            (self.popsize, self.num_dims),
+            (self.population_size, self.num_dims),
         )
         # Exponentially decaying sigma scale
         sigma_scale = params.radius_min + jnp.exp2(
-            -jnp.arange(self.popsize) / params.radius_decay
+            -jnp.arange(self.population_size) / params.radius_decay
         ) * (params.radius_max - params.radius_min)
         sigma_scale = sigma_scale.reshape(-1, 1)
         # print(state["best_member"].shape, (sigma_scale * z).shape)

@@ -1,4 +1,3 @@
-from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -18,11 +17,11 @@ def test_strategy_run(strategy_name):
     x = jnp.zeros((num_dims,))
 
     # PBT also returns copy ID integer - treat separately
-    popsize = 21 if strategy_name == "ESMC" else 20
+    population_size = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
-        strategy = Strategy(npop=1, subpopsize=popsize, pholder_params=x)
+        strategy = Strategy(npop=1, subpopulation_size=population_size, pholder_params=x)
     else:
-        strategy = Strategy(popsize=popsize, pholder_params=x)
+        strategy = Strategy(population_size=population_size, pholder_params=x)
     evaluator = BBOBFitness("sphere", 2)
     fitness_shaper = FitnessShaper()
 
@@ -51,13 +50,13 @@ def test_strategy_scan(strategy_name):
     x = jnp.zeros((num_dims,))
 
     # PBT also returns copy ID integer - treat separately
-    popsize = 21 if strategy_name == "ESMC" else 20
+    population_size = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
-        strategy = Strategy(npop=1, subpopsize=popsize, pholder_params=x)
+        strategy = Strategy(npop=1, subpopulation_size=population_size, pholder_params=x)
     elif strategy_name in ["BIPOP_CMA_ES", "IPOP_CMA_ES"]:
         return
     else:
-        strategy = Strategy(popsize=popsize, pholder_params=x)
+        strategy = Strategy(population_size=population_size, pholder_params=x)
     evaluator = BBOBFitness("sphere", 2)
     fitness_shaper = FitnessShaper()
 

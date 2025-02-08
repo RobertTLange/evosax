@@ -31,7 +31,7 @@ class EvoParams:
 class SAMR_GA(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.0,
         sigma_init: float = 0.07,
@@ -39,9 +39,11 @@ class SAMR_GA(Strategy):
         **fitness_kwargs: bool | int | float,
     ):
         """Self-Adaptation Mutation Rate (SAMR) GA."""
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
+        )
         self.strategy_name = "SAMR_GA"
 
         # Set core kwargs es_params
@@ -57,15 +59,15 @@ class SAMR_GA(Strategy):
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
-            (self.elite_popsize, self.num_dims),
+            (self.elite_population_size, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
         )
         state = EvoState(
             mean=initialization.mean(axis=0),
             archive=initialization,
-            fitness=jnp.zeros(self.elite_popsize) + jnp.finfo(jnp.float32).max,
-            sigma=jnp.zeros(self.elite_popsize) + params.sigma_init,
+            fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
+            sigma=jnp.zeros(self.elite_population_size) + params.sigma_init,
             best_member=initialization.mean(axis=0),
         )
         return state
@@ -77,10 +79,12 @@ class SAMR_GA(Strategy):
         key_idx, key_eps_x, key_eps_s = jax.random.split(key, 3)
 
         idx = jax.random.choice(
-            key_idx, jnp.arange(self.elite_popsize), (self.popsize - 1,)
+            key_idx, jnp.arange(self.elite_population_size), (self.population_size - 1,)
         )
-        eps_x = jax.random.normal(key_eps_x, (self.popsize, self.num_dims))
-        eps_s = jax.random.uniform(key_eps_s, (self.popsize,), minval=-1, maxval=1)
+        eps_x = jax.random.normal(key_eps_x, (self.population_size, self.num_dims))
+        eps_s = jax.random.uniform(
+            key_eps_s, (self.population_size,), minval=-1, maxval=1
+        )
 
         sigma_0 = jnp.array([jnp.maximum(params.sigma_best_limit, state.sigma[0])])
         sigma = jnp.concatenate([sigma_0, state.sigma[idx]])
@@ -98,7 +102,7 @@ class SAMR_GA(Strategy):
         params: EvoParams,
     ) -> EvoState:
         """`tell` update to ES state."""
-        idx = jnp.argsort(fitness)[: self.elite_popsize]
+        idx = jnp.argsort(fitness)[: self.elite_population_size]
         fitness = fitness[idx]
         archive = x[idx]
         sigma = state.sigma[idx]

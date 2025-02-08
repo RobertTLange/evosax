@@ -33,7 +33,7 @@ class EvoParams:
 class SimpleGA(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 0.1,
@@ -45,9 +45,11 @@ class SimpleGA(Strategy):
         Reference: https://arxiv.org/abs/1712.06567
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
         """
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
+        )
         self.strategy_name = "SimpleGA"
 
         # Set core kwargs es_params
@@ -68,14 +70,14 @@ class SimpleGA(Strategy):
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
-            (self.elite_popsize, self.num_dims),
+            (self.elite_population_size, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
         )
         state = EvoState(
             mean=initialization.mean(axis=0),
             archive=initialization,
-            fitness=jnp.zeros(self.elite_popsize) + jnp.finfo(jnp.float32).max,
+            fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
             sigma=params.sigma_init,
             best_member=initialization.mean(axis=0),
         )
@@ -92,15 +94,16 @@ class SimpleGA(Strategy):
           - Additionally add noise on top of all elite parameters
         """
         key, key_eps, key_idx_a, key_idx_b = jax.random.split(key, 4)
-        key_mate = jax.random.split(key, self.popsize)
+        key_mate = jax.random.split(key, self.population_size)
 
         epsilon = (
-            jax.random.normal(key_eps, (self.popsize, self.num_dims)) * state.sigma
+            jax.random.normal(key_eps, (self.population_size, self.num_dims))
+            * state.sigma
         )
 
-        elite_ids = jnp.arange(self.elite_popsize)
-        idx_a = jax.random.choice(key_idx_a, elite_ids, (self.popsize,))
-        idx_b = jax.random.choice(key_idx_b, elite_ids, (self.popsize,))
+        elite_ids = jnp.arange(self.elite_population_size)
+        idx_a = jax.random.choice(key_idx_a, elite_ids, (self.population_size,))
+        idx_b = jax.random.choice(key_idx_b, elite_ids, (self.population_size,))
         members_a = state.archive[idx_a]
         members_b = state.archive[idx_b]
 
@@ -124,7 +127,7 @@ class SimpleGA(Strategy):
         fitness = jnp.concatenate([fitness, state.fitness])
         solution = jnp.concatenate([x, state.archive])
         # Select top elite from total archive info
-        idx = jnp.argsort(fitness)[0 : self.elite_popsize]
+        idx = jnp.argsort(fitness)[0 : self.elite_population_size]
         fitness = fitness[idx]
         archive = solution[idx]
         # Update mutation epsilon - multiplicative decay

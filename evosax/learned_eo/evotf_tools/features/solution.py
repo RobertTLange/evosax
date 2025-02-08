@@ -19,7 +19,7 @@ class SolutionFeaturesState:
 class SolutionFeaturizer:
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         num_dims: int,
         seq_len: int,
         norm_diff_mean: bool = False,
@@ -29,7 +29,7 @@ class SolutionFeaturizer:
         maximize: bool = False,
         verbose: bool = False,
     ):
-        self.popsize = popsize
+        self.population_size = population_size
         self.num_dims = num_dims
         self.seq_len = seq_len
         self.norm_diff_mean = norm_diff_mean
@@ -113,9 +113,9 @@ class SolutionFeaturizer:
     @property
     def example_batch_shape(self) -> tuple[int, ...]:
         return (
-            1,  # Batchsize
-            self.seq_len,  # Timesteps
-            self.popsize,  # Popsize
-            self.num_dims,  # Number of dims
-            self.num_features,  # Solution features
+            1,
+            self.seq_len,
+            self.population_size,
+            self.num_dims,
+            self.num_features,
         )

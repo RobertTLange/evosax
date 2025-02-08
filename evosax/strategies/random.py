@@ -27,12 +27,12 @@ class EvoParams:
 class RandomSearch(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Simple Random Search Baseline"""
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.strategy_name = "RandomSearch"
 
     @property
@@ -60,7 +60,7 @@ class RandomSearch(Strategy):
         """`ask` for new proposed candidates to evaluate next."""
         x = jax.random.uniform(
             key,
-            (self.popsize, self.num_dims),
+            (self.population_size, self.num_dims),
             minval=params.range_min,
             maxval=params.range_max,
         )

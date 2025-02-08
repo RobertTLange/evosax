@@ -16,7 +16,7 @@ class MetaStrategy(BatchStrategy):
         inner_strategy_name: str,
         meta_params: list[str],
         num_dims: int,
-        popsize: int,
+        population_size: int,
         num_subpops: int,
         meta_strategy_kwargs: dict = {},
         inner_strategy_kwargs: dict = {},
@@ -27,7 +27,7 @@ class MetaStrategy(BatchStrategy):
         super().__init__(
             inner_strategy_name,
             num_dims,
-            popsize,
+            population_size,
             num_subpops,
             inner_strategy_kwargs,
             communication,
@@ -37,7 +37,7 @@ class MetaStrategy(BatchStrategy):
         self.meta_params = meta_params
         self.num_meta_dims = len(self.meta_params)
         self.meta_strategy = Strategies[self.meta_strategy_name](
-            popsize=self.num_subpops,
+            population_size=self.num_subpops,
             num_dims=self.num_meta_dims,
             **meta_strategy_kwargs,
         )
@@ -94,7 +94,7 @@ class MetaStrategy(BatchStrategy):
     ) -> chex.ArrayTree:
         """`tell` performance data for meta-strategy state update."""
         # TODO: Default - mean subpop fitness -> more flexible (min/max/median)
-        batch_fitness = fitness.reshape(self.num_subpops, self.sub_popsize)
+        batch_fitness = fitness.reshape(self.num_subpops, self.subpopulation_size)
         meta_fitness = batch_fitness.mean(axis=1)
         # Reconstruct meta_x for dict of inner params
         meta_x = []

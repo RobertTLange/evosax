@@ -23,7 +23,7 @@ class FitnessFeaturesState:
 class FitnessFeaturizer:
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         num_dims: int,
         seq_len: int,
         improved_best: bool = False,
@@ -36,7 +36,7 @@ class FitnessFeaturizer:
         maximize: bool = False,
         verbose: bool = False,
     ):
-        self.popsize = popsize
+        self.population_size = population_size
         self.num_dims = num_dims
         self.seq_len = seq_len
         self.improved_best = improved_best
@@ -128,7 +128,7 @@ class FitnessFeaturizer:
         return (
             1,  # batchsize
             self.seq_len,  # timesteps
-            self.popsize,  # popsize
+            self.population_size,  # population_size
             self.num_features,
         )
 

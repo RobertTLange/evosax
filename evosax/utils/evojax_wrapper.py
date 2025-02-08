@@ -20,7 +20,7 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
         seed: int = 42,
     ):
         self.es = evosax_strategy(
-            popsize=pop_size, num_dims=param_size, **es_config, **opt_params
+            population_size=pop_size, num_dims=param_size, **es_config, **opt_params
         )
         self.es_params = self.es.default_params.replace(**es_params)
         self.pop_size = pop_size

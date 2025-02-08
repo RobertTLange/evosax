@@ -12,7 +12,7 @@ from .termination import spread_criterion
 class RestartState:
     restart_counter: int
     restart_next: bool
-    active_popsize: int
+    active_population_size: int
     restart_large_counter: int
     large_eval_budget: int
     small_eval_budget: int
@@ -23,7 +23,7 @@ class RestartState:
 class RestartParams:
     min_num_gens: int = 50
     min_fitness_spread: float = 1e-12
-    popsize_multiplier: int = 2
+    population_size_multiplier: int = 2
     copy_mean: bool = False
 
 
@@ -39,7 +39,7 @@ class BIPOP_Restarter(RestartWrapper):
         Inspired by: https://tinyurl.com/44y3ryhf
         """
         super().__init__(base_strategy, stop_criteria)
-        self.default_popsize = self.base_strategy.popsize
+        self.default_population_size = self.base_strategy.population_size
         self.strategy_kwargs = strategy_kwargs
 
         from .. import Strategies
@@ -64,7 +64,7 @@ class BIPOP_Restarter(RestartWrapper):
         restart_state = RestartState(
             restart_counter=0,
             restart_next=False,
-            active_popsize=self.base_strategy.popsize,
+            active_population_size=self.base_strategy.population_size,
             restart_large_counter=0,
             large_eval_budget=0,
             small_eval_budget=0,
@@ -82,9 +82,9 @@ class BIPOP_Restarter(RestartWrapper):
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
-        # TODO: Cannot jit! Re-definition of strategy with different popsizes.
-        # Is there a clever way to mask active members/popsize?
-        # Only compile when base strategy is being updated with new popsize.
+        # TODO: Cannot jit! Re-definition of strategy with different population sizes.
+        # Is there a clever way to mask active members/population_size?
+        # Only compile when base strategy is being updated with new population_size.
         key_restart, key_ask = jax.random.split(key)
         if state.restart_state.restart_next:
             state = self.restart(key_restart, state, params)
@@ -107,31 +107,33 @@ class BIPOP_Restarter(RestartWrapper):
             state.restart_state.small_pop_active,
             state.restart_state.large_eval_budget,
             state.restart_state.large_eval_budget
-            + state.restart_state.active_popsize * state.strategy_state.generation_counter,
+            + state.restart_state.active_population_size
+            * state.strategy_state.generation_counter,
         )
         small_eval_budget = jax.lax.select(
             state.restart_state.small_pop_active,
             state.restart_state.small_eval_budget
-            + state.restart_state.active_popsize * state.strategy_state.generation_counter,
+            + state.restart_state.active_population_size
+            * state.strategy_state.generation_counter,
             state.restart_state.small_eval_budget,
         )
         small_pop_active = small_eval_budget < large_eval_budget
 
         # Update the population size based on active population size
-        pop_mult = params.restart_params.popsize_multiplier ** (
+        pop_mult = params.restart_params.population_size_multiplier ** (
             state.restart_state.restart_large_counter + 1
         )
-        small_popsize = jax.lax.floor(
-            self.default_popsize * pop_mult ** (jax.random.uniform(key_uniform) ** 2)
+        small_population_size = jax.lax.floor(
+            self.default_population_size * pop_mult ** (jax.random.uniform(key_uniform) ** 2)
         ).astype(int)
-        large_popsize = self.default_popsize * pop_mult
+        large_population_size = self.default_population_size * pop_mult
 
         # Reinstantiate new strategy - based on name of previous strategy
-        active_popsize = jax.lax.select(small_pop_active, small_popsize, large_popsize)
+        active_population_size = jax.lax.select(small_pop_active, small_population_size, large_population_size)
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
-            popsize=int(active_popsize),
+            population_size=int(active_population_size),
             pholder_params=self.base_strategy.pholder_params,
             **self.strategy_kwargs,
         )
@@ -148,7 +150,7 @@ class BIPOP_Restarter(RestartWrapper):
         )
         # Overwrite new state with old preservables
         restart_state = state.restart_state.replace(
-            active_popsize=active_popsize,
+            active_population_size=active_population_size,
             small_pop_active=small_pop_active,
             large_eval_budget=large_eval_budget,
             small_eval_budget=small_eval_budget,

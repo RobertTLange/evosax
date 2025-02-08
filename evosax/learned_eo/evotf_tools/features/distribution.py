@@ -39,7 +39,7 @@ class DistributionFeaturesState:
 class DistributionFeaturizer:
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         num_dims: int,
         seq_len: int,
         use_mean: bool = False,
@@ -51,7 +51,7 @@ class DistributionFeaturizer:
         use_oai_grad: bool = False,
         verbose: bool = False,
     ):
-        self.popsize = popsize
+        self.population_size = population_size
         self.num_dims = num_dims
         self.seq_len = seq_len
         self.use_mean = use_mean
@@ -128,9 +128,9 @@ class DistributionFeaturizer:
                 [distrib_features, mom_mean, mom_sigma], axis=1
             )
         if self.use_oai_grad:
-            popsize = x.shape[0]
+            population_size = x.shape[0]
             fitness_re = centered_rank_trafo(fitness)
-            oai_grad = 1.0 / (popsize * sigma) * jnp.dot(noise.T, fitness_re)
+            oai_grad = 1.0 / (population_size * sigma) * jnp.dot(noise.T, fitness_re)
             distrib_features = jnp.concatenate(
                 [distrib_features, oai_grad.reshape(-1, 1)], axis=1
             )

@@ -112,7 +112,9 @@ class EvoTransformer(nn.Module):
         train=False,
         verbose=False,
     ):
-        batch_size, seq_len, popsize, num_dims, feature_dim = solution_features.shape
+        batch_size, seq_len, population_size, num_dims, feature_dim = (
+            solution_features.shape
+        )
         sol_encoding, sol_att = self.sol_perceiver(solution_features, train)
         if self.use_fitness_encoder:
             fit_encoding, fit_att = self.fit_perceiver(fitness_features, train)

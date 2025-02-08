@@ -39,7 +39,7 @@ class SV_CMA_ES(CMA_ES):
     def __init__(
         self,
         npop: int,
-        subpopsize: int,
+        subpopulation_size: int,
         kernel: type[Kernel] = RBF,
         pholder_params: ArrayTree | Array | None = None,
         elite_ratio: float = 0.5,
@@ -51,24 +51,24 @@ class SV_CMA_ES(CMA_ES):
         Reference: https://arxiv.org/abs/2410.10390
         """
         self.npop = npop
-        self.subpopsize = subpopsize
-        popsize = int(npop * subpopsize)
+        self.subpopulation_size = subpopulation_size
+        population_size = int(npop * subpopulation_size)
         super().__init__(
-            popsize,
+            population_size,
             pholder_params,
             elite_ratio,
             sigma_init,
             mean_decay,
             **fitness_kwargs,
         )
-        self.elite_popsize = max(1, int(self.subpopsize * self.elite_ratio))
+        self.elite_population_size = max(1, int(self.subpopulation_size * self.elite_ratio))
         self.strategy_name = "SV_CMA_ES"
         self.kernel = kernel()
 
     def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.subpopsize, self.elite_popsize, self.num_dims, self.max_dims_sq
+            self.subpopulation_size, self.elite_population_size, self.num_dims, self.max_dims_sq
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
@@ -105,11 +105,11 @@ class SV_CMA_ES(CMA_ES):
             Bs,
             Ds,
             self.num_dims,
-            self.subpopsize,
+            self.subpopulation_size,
         )
 
         # Reshape for evaluation
-        x = x.reshape(self.popsize, self.num_dims)
+        x = x.reshape(self.population_size, self.num_dims)
 
         return x, state.replace(C=Cs, B=Bs, D=Ds)
 
@@ -121,8 +121,8 @@ class SV_CMA_ES(CMA_ES):
         params: EvoParams,
     ) -> EvoState:
         """`tell` performance data for strategy state update."""
-        x = x.reshape(self.npop, self.subpopsize, self.num_dims)
-        fitness = fitness.reshape(self.npop, self.subpopsize)
+        x = x.reshape(self.npop, self.subpopulation_size, self.num_dims)
+        fitness = fitness.reshape(self.npop, self.subpopulation_size)
 
         # Compute grads
         y_ks, y_ws = jax.vmap(cmaes_grad, (0, 0, 0, 0, None))(

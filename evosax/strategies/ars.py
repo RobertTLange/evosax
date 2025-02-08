@@ -32,7 +32,7 @@ class EvoParams:
 class ARS(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.1,
         opt_name: str = "adam",
@@ -48,13 +48,15 @@ class ARS(Strategy):
         """Augmented Random Search (Mania et al., 2018)
         Reference: https://arxiv.org/pdf/1803.07055.pdf
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
-        assert not self.popsize & 1, "Population size must be even"
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        assert not self.population_size & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
         # "b" elite perturbation directions for the update
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize / 2 * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size / 2 * self.elite_ratio)
+        )
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "ARS"
@@ -83,7 +85,7 @@ class ARS(Strategy):
         )
 
     def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """initialize the evolution strategy."""
+        """Initialize the evolution strategy."""
         initialization = jax.random.uniform(
             key,
             (self.num_dims,),
@@ -106,7 +108,7 @@ class ARS(Strategy):
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
             key,
-            (int(self.popsize / 2), self.num_dims),
+            (int(self.population_size / 2), self.num_dims),
         )
         z = jnp.concatenate([z_plus, -1.0 * z_plus])
         x = state.mean + state.sigma * z
@@ -122,17 +124,17 @@ class ARS(Strategy):
         """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        noise_1 = noise[: int(self.popsize / 2)]
-        fit_1 = fitness[: int(self.popsize / 2)]
-        fit_2 = fitness[int(self.popsize / 2) :]
-        elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_popsize]
+        noise_1 = noise[: int(self.population_size / 2)]
+        fit_1 = fitness[: int(self.population_size / 2)]
+        fit_2 = fitness[int(self.population_size / 2) :]
+        elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_population_size]
 
         fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
         # Add small constant to ensure non-zero division stability
         sigma_fitness = jnp.std(fitness_elite) + 1e-05
         fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
         fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
-        theta_grad = 1.0 / (self.elite_popsize * sigma_fitness) * fit_diff_noise
+        theta_grad = 1.0 / (self.elite_population_size * sigma_fitness) * fit_diff_noise
 
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = self.optimizer.step(

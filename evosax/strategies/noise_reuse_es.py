@@ -36,7 +36,7 @@ class EvoParams:
 class NoiseReuseES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -51,8 +51,8 @@ class NoiseReuseES(Strategy):
         """Noise-Reuse ES (Li et al., 2023).
         Reference: https://arxiv.org/pdf/2304.12180.pdf
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
-        assert not self.popsize & 1, "Population size must be even"
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        assert not self.population_size & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "NoiseReuseES"
@@ -80,9 +80,7 @@ class NoiseReuseES(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, key: jax.Array, params: EvoParams
-    ) -> chex.ArrayTree:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -92,7 +90,7 @@ class NoiseReuseES(Strategy):
         )
         state = EvoState(
             mean=initialization,
-            unroll_pert=jnp.zeros((self.popsize, self.num_dims)),
+            unroll_pert=jnp.zeros((self.population_size, self.num_dims)),
             opt_state=self.optimizer.initialize(params.opt_params),
             sigma=params.sigma_init,
             inner_step_counter=0,
@@ -107,7 +105,8 @@ class NoiseReuseES(Strategy):
         # Generate antithetic perturbations
         # NOTE: Sample each ask call - only use when trajectory is reset
         pos_perts = (
-            jax.random.normal(key, (self.popsize // 2, self.num_dims)) * state.sigma
+            jax.random.normal(key, (self.population_size // 2, self.num_dims))
+            * state.sigma
         )
         neg_perts = -pos_perts
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)

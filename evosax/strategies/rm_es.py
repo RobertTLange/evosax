@@ -40,18 +40,18 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_elite_weights(elite_popsize: int) -> tuple[chex.Array, chex.Array]:
+def get_elite_weights(elite_population_size: int) -> tuple[chex.Array, chex.Array]:
     """Utility helper to create truncated elite weights for mean update."""
     weights = jnp.array(
         [
             (
-                (jnp.log(elite_popsize + 1) - jnp.log(i + 1))
+                (jnp.log(elite_population_size + 1) - jnp.log(i + 1))
                 / (
-                    elite_popsize * jnp.log(elite_popsize + 1)
-                    - jnp.sum(jnp.log(jnp.arange(1, elite_popsize + 1)))
+                    elite_population_size * jnp.log(elite_population_size + 1)
+                    - jnp.sum(jnp.log(jnp.arange(1, elite_population_size + 1)))
                 )
             )
-            for i in range(elite_popsize)
+            for i in range(elite_population_size)
         ]
     )
     return weights
@@ -60,7 +60,7 @@ def get_elite_weights(elite_popsize: int) -> tuple[chex.Array, chex.Array]:
 class RmES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
@@ -71,10 +71,12 @@ class RmES(Strategy):
         """Rank-m ES (Li & Zhang, 2017)
         Reference: https://ieeexplore.ieee.org/document/8080257
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
+        )
         self.memory_size = memory_size  # number of ranks
         self.strategy_name = "RmES"
 
@@ -84,7 +86,7 @@ class RmES(Strategy):
     @property
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
-        weights = get_elite_weights(self.elite_popsize)
+        weights = get_elite_weights(self.elite_population_size)
         mu_eff = 1 / jnp.sum(weights**2)
         c_cov = 1 / (3 * jnp.sqrt(self.num_dims) + 5)
         c_c = 2 / (self.num_dims + 7)
@@ -99,7 +101,7 @@ class RmES(Strategy):
 
     def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
-        weights = get_elite_weights(self.elite_popsize)
+        weights = get_elite_weights(self.elite_population_size)
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
             key,
@@ -116,7 +118,7 @@ class RmES(Strategy):
             s_rank_rate=0.0,
             weights=weights,
             # Store previous generations fitness for rank-based success rule
-            fitness_archive=jnp.zeros(self.popsize) + 1e20,
+            fitness_archive=jnp.zeros(self.population_size) + 1e20,
             best_member=initialization,
         )
         return state
@@ -131,7 +133,7 @@ class RmES(Strategy):
             state.sigma,
             state.P,
             self.num_dims,
-            self.popsize,
+            self.population_size,
             params.c_cov,
             state.generation_counter,
         )
@@ -147,7 +149,9 @@ class RmES(Strategy):
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
-        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()][: self.elite_popsize]
+        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()][
+            : self.elite_population_size
+        ]
         # Update mean, isotropic/anisotropic paths, covariance, stepsize
         mean = update_mean(state.mean, sorted_solutions, params.c_m, state.weights)
         p_sigma = update_p_sigma(
@@ -295,8 +299,8 @@ def rank_success_rule(
     c_s: float,
 ) -> float:
     """Compute rank-based success rule (cumulative rank rate)."""
-    elite_popsize = weights.shape[0]
-    popsize = fitness.shape[0]
+    elite_population_size = weights.shape[0]
+    population_size = fitness.shape[0]
 
     # Step 1: Sort all fitnesses in ascending order and get ranks
     # Rank parents + kids jointly - subdivide afterwards & take elite from both
@@ -304,15 +308,15 @@ def rank_success_rule(
         [jnp.expand_dims(fitness, 1), jnp.expand_dims(fitness_archive, 1)]
     )
     ranks = jnp.zeros(concat_all.shape[0])
-    ranks = ranks.at[concat_all[:, 0].argsort()].set(jnp.arange(2 * popsize))
+    ranks = ranks.at[concat_all[:, 0].argsort()].set(jnp.arange(2 * population_size))
 
-    ranks_current = ranks[:popsize]
-    ranks_current = ranks_current[ranks_current.argsort()][:elite_popsize]
-    ranks_last = ranks[popsize:]
-    ranks_last = ranks_last[ranks_last.argsort()][:elite_popsize]
+    ranks_current = ranks[:population_size]
+    ranks_current = ranks_current[ranks_current.argsort()][:elite_population_size]
+    ranks_last = ranks[population_size:]
+    ranks_last = ranks_last[ranks_last.argsort()][:elite_population_size]
 
     # Step 2: Compute rank difference (Parents vs. kids) - paper assumes min!
-    q = 1 / elite_popsize * jnp.sum(weights * (ranks_last - ranks_current))
+    q = 1 / elite_population_size * jnp.sum(weights * (ranks_last - ranks_current))
 
     # Step 3: Compute comulative rank rate using decaying memory
     new_s_rank_rate = (1 - c_s) * s_rank_rate + c_s * (q - q_star)

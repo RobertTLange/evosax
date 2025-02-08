@@ -33,14 +33,14 @@ class EvoParams:
 class PSO(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
         Reference: https://ieeexplore.ieee.org/document/488968
         """
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.strategy_name = "PSO"
 
     @property
@@ -52,17 +52,18 @@ class PSO(Strategy):
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
-            (self.popsize, self.num_dims),
+            (self.population_size, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
         )
         state = EvoState(
             mean=initialization.mean(axis=0),
             archive=initialization,
-            fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
-            velocity=jnp.zeros((self.popsize, self.num_dims)),
+            fitness=jnp.zeros(self.population_size) + jnp.finfo(jnp.float32).max,
+            velocity=jnp.zeros((self.population_size, self.num_dims)),
             best_archive=initialization,
-            best_archive_fitness=jnp.zeros(self.popsize) + jnp.finfo(jnp.float32).max,
+            best_archive_fitness=jnp.zeros(self.population_size)
+            + jnp.finfo(jnp.float32).max,
             best_member=initialization.mean(axis=0),
         )
         return state
@@ -77,8 +78,8 @@ class PSO(Strategy):
           - Social: c_2 * r_2 * (p_(gb)(t) - x_i(t))
         2. Update "particle" positions: x_i(t+1) = x_i(t) + v_i(t+1)
         """
-        keys = jax.random.split(key, self.popsize)
-        member_ids = jnp.arange(self.popsize)
+        keys = jax.random.split(key, self.population_size)
+        member_ids = jnp.arange(self.population_size)
         vel = jax.vmap(
             single_member_velocity,
             in_axes=(0, 0, None, None, None, None, None, None, None),

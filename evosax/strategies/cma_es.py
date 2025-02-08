@@ -41,8 +41,8 @@ class EvoParams:
 
 
 def get_cma_elite_weights(
-    popsize: int,
-    elite_popsize: int,
+    population_size: int,
+    elite_population_size: int,
     num_dims: int,
     max_dims_sq: int,
 ) -> tuple[chex.Array, chex.Array, float, float, float]:
@@ -50,13 +50,16 @@ def get_cma_elite_weights(
     update and full weights for covariance update.
     """
     weights_prime = jnp.array(
-        [jnp.log((popsize + 1) / 2) - jnp.log(i + 1) for i in range(popsize)]
+        [
+            jnp.log((population_size + 1) / 2) - jnp.log(i + 1)
+            for i in range(population_size)
+        ]
     )
-    mu_eff = (jnp.sum(weights_prime[:elite_popsize]) ** 2) / jnp.sum(
-        weights_prime[:elite_popsize] ** 2
+    mu_eff = (jnp.sum(weights_prime[:elite_population_size]) ** 2) / jnp.sum(
+        weights_prime[:elite_population_size] ** 2
     )
-    mu_eff_minus = (jnp.sum(weights_prime[elite_popsize:]) ** 2) / jnp.sum(
-        weights_prime[elite_popsize:] ** 2
+    mu_eff_minus = (jnp.sum(weights_prime[elite_population_size:]) ** 2) / jnp.sum(
+        weights_prime[elite_population_size:] ** 2
     )
 
     # lrates for rank-one and rank-μ C updates
@@ -77,14 +80,14 @@ def get_cma_elite_weights(
         1 / positive_sum * weights_prime,
         min_alpha / negative_sum * weights_prime,
     )
-    weights_truncated = weights.at[elite_popsize:].set(0)
+    weights_truncated = weights.at[elite_population_size:].set(0)
     return weights, weights_truncated, mu_eff, c_1, c_mu
 
 
 class CMA_ES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
@@ -95,10 +98,12 @@ class CMA_ES(Strategy):
         Reference: https://arxiv.org/abs/1604.00772
         Inspired by: https://github.com/CyberAgentAILab/cmaes
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
+        )
         self.strategy_name = "CMA_ES"
 
         # Set core kwargs es_params
@@ -111,7 +116,10 @@ class CMA_ES(Strategy):
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         _, _, mu_eff, c_1, c_mu = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
+            self.population_size,
+            self.elite_population_size,
+            self.num_dims,
+            self.max_dims_sq,
         )
 
         # lrate for cumulation of step-size control and rank-one update
@@ -143,7 +151,10 @@ class CMA_ES(Strategy):
     def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
+            self.population_size,
+            self.elite_population_size,
+            self.num_dims,
+            self.max_dims_sq,
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
@@ -178,7 +189,7 @@ class CMA_ES(Strategy):
             B,
             D,
             self.num_dims,
-            self.popsize,
+            self.population_size,
         )
         return x, state.replace(C=C, B=B, D=D)
 
@@ -298,7 +309,9 @@ def update_p_c(
 ) -> tuple[chex.Array, float, float]:
     """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
-    h_sigma_cond_left = norm_p_sigma / jnp.sqrt(1 - (1 - c_sigma) ** (2 * generation_counter))
+    h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
+        1 - (1 - c_sigma) ** (2 * generation_counter)
+    )
     h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * chi_n
     h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
     p_c_new = (1 - c_c) * p_c + h_sigma * jnp.sqrt(c_c * (2 - c_c) * mu_eff) * y_w

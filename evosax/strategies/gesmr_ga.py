@@ -31,7 +31,7 @@ class EvoParams:
 class GESMR_GA(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_ratio: float = 0.5,
@@ -40,13 +40,17 @@ class GESMR_GA(Strategy):
         **fitness_kwargs: bool | int | float,
     ):
         """Group Elite Selection of Mutation Rates (GESMR) GA."""
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
-        self.num_sigma_groups = int(jnp.sqrt(self.popsize))
-        self.members_per_group = int(jnp.ceil(self.popsize / self.num_sigma_groups))
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
+        )
+        self.num_sigma_groups = int(jnp.sqrt(self.population_size))
+        self.members_per_group = int(
+            jnp.ceil(self.population_size / self.num_sigma_groups)
+        )
         self.sigma_ratio = sigma_ratio
-        self.sigma_popsize = max(1, int(self.num_sigma_groups * self.sigma_ratio))
+        self.sigma_population_size = max(1, int(self.num_sigma_groups * self.sigma_ratio))
         self.strategy_name = "GESMR_GA"
         # Set core kwargs es_params
         self.sigma_init = sigma_init
@@ -62,7 +66,7 @@ class GESMR_GA(Strategy):
         key_init, key_state = jax.random.split(key_state)
         initialization = jax.random.uniform(
             key_init,
-            (self.elite_popsize, self.num_dims),
+            (self.elite_population_size, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
         )
@@ -70,7 +74,7 @@ class GESMR_GA(Strategy):
             key=key_state,
             mean=initialization[0],
             archive=initialization,
-            fitness=jnp.zeros(self.elite_popsize) + jnp.finfo(jnp.float32).max,
+            fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
             sigma=jnp.zeros(self.num_sigma_groups) + params.sigma_init,
             best_member=initialization[0],
         )
@@ -82,14 +86,14 @@ class GESMR_GA(Strategy):
         """`ask` for new proposed candidates to evaluate next."""
         key_eps_x, key_eps_s, key_idx = jax.random.split(key, 3)
         # Sample noise for mutation of x and sigma
-        eps_x = jax.random.normal(key_eps_x, (self.popsize, self.num_dims))
+        eps_x = jax.random.normal(key_eps_x, (self.population_size, self.num_dims))
         eps_s = jax.random.uniform(
             key_eps_s, (self.num_sigma_groups,), minval=-1, maxval=1
         )
 
         # Sample members to evaluate from parent archive
         idx = jax.random.choice(
-            key_idx, jnp.arange(self.elite_popsize), (self.popsize - 1,)
+            key_idx, jnp.arange(self.elite_population_size), (self.population_size - 1,)
         )
         x = jnp.concatenate([state.archive[0][None, :], state.archive[idx]])
 
@@ -99,7 +103,7 @@ class GESMR_GA(Strategy):
         # Apply sigma mutation on group level -> repeat for popmember broadcast
         sigma_perturb = state.sigma * params.sigma_meta**eps_s
         sigma_repeated = jnp.repeat(sigma_perturb, self.members_per_group)[
-            : self.popsize
+            : self.population_size
         ]
         sigma = jnp.concatenate([state.sigma[0][None], sigma_repeated[1:]])
 
@@ -116,13 +120,13 @@ class GESMR_GA(Strategy):
     ) -> EvoState:
         """`tell` update to ES state."""
         # Select best x members
-        idx = jnp.argsort(fitness)[: self.elite_popsize]
+        idx = jnp.argsort(fitness)[: self.elite_population_size]
         archive = x[idx]
 
         # Select best sigma based on function value improvement
         group_ids = jnp.repeat(
             jnp.arange(self.members_per_group), self.num_sigma_groups
-        )[: self.popsize]
+        )[: self.population_size]
         delta_fitness = fitness - state.fitness
 
         best_deltas = []
@@ -134,14 +138,14 @@ class GESMR_GA(Strategy):
             max_sub_delta = jnp.min(sub_delta)
             best_deltas.append(max_sub_delta)
 
-        idx_select = jnp.argsort(jnp.array(best_deltas))[: self.sigma_popsize]
+        idx_select = jnp.argsort(jnp.array(best_deltas))[: self.sigma_population_size]
         sigma_elite = state.sigma[idx_select]
 
         # Resample sigmas with replacement
         key, key_sigma = jax.random.split(state.key)
         idx_s = jax.random.choice(
             key_sigma,
-            jnp.arange(self.sigma_popsize),
+            jnp.arange(self.sigma_population_size),
             (self.num_sigma_groups - 1,),
         )
         sigma = jnp.concatenate([state.sigma[0][None], sigma_elite[idx_s]])

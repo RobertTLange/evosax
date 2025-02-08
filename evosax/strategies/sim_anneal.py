@@ -35,7 +35,7 @@ class EvoParams:
 class SimAnneal(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 0.03,
         sigma_decay: float = 1.0,
@@ -45,7 +45,7 @@ class SimAnneal(Strategy):
         """Simulated Annealing (Rasdi Rere et al., 2015)
         Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
         """
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.strategy_name = "SimAnneal"
 
         # Set core kwargs es_params (lrate/sigma schedules)
@@ -88,7 +88,7 @@ class SimAnneal(Strategy):
         # Sampling of N(0, 1) noise
         z = jax.random.normal(
             key_noise,
-            (self.popsize, self.num_dims),
+            (self.population_size, self.num_dims),
         )
         x = state.mean + state.sigma * z
         return x, state.replace(acceptance=jax.random.uniform(key_acceptance))
@@ -126,4 +126,6 @@ class SimAnneal(Strategy):
             state.temp * params.temp_decay,
             state.temp,
         )
-        return state.replace(mean=mean, sigma=sigma, temp=temp)  # TODO: best member is not updated?
+        return state.replace(
+            mean=mean, sigma=sigma, temp=temp
+        )  # TODO: best member is not updated?

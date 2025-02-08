@@ -10,17 +10,19 @@ def test_strategy_ask(strategy_name):
 
     # Loop over all strategies and test ask API
     key = jax.random.key(0)
-    popsize = 21 if strategy_name == "ESMC" else 20
+    population_size = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
         strategy = Strategies[strategy_name](
-            npop=1, subpopsize=popsize, pholder_params=x
+            npop=1, subpopulation_size=population_size, pholder_params=x
         )
     else:
-        strategy = Strategies[strategy_name](popsize=popsize, pholder_params=x)
+        strategy = Strategies[strategy_name](
+            population_size=population_size, pholder_params=x
+        )
     params = strategy.default_params
     state = strategy.initialize(key, params)
     x, state = strategy.ask(key, state, params)
-    assert x.shape[0] == popsize
+    assert x.shape[0] == population_size
     assert x.shape[1] == 2
     return
 
@@ -31,13 +33,15 @@ def test_strategy_ask_tell(strategy_name):
 
     # Loop over all strategies and test ask API
     key = jax.random.key(0)
-    popsize = 21 if strategy_name == "ESMC" else 20
+    population_size = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
         strategy = Strategies[strategy_name](
-            npop=1, subpopsize=popsize, pholder_params=x
+            npop=1, subpopulation_size=population_size, pholder_params=x
         )
     else:
-        strategy = Strategies[strategy_name](popsize=popsize, pholder_params=x)
+        strategy = Strategies[strategy_name](
+            population_size=population_size, pholder_params=x
+        )
     params = strategy.default_params
     state = strategy.initialize(key, params)
     x, state = strategy.ask(key, state, params)

@@ -41,7 +41,7 @@ class EvoParams:
 class LM_MA_ES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
@@ -52,10 +52,12 @@ class LM_MA_ES(Strategy):
         """Limited Memory MA-ES (Loshchilov et al., 2017)
         Reference: https://arxiv.org/pdf/1705.06693.pdf
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
+        )
         self.memory_size = memory_size
         self.strategy_name = "LM_MA_ES"
 
@@ -69,7 +71,10 @@ class LM_MA_ES(Strategy):
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         _, weights_truncated, mu_eff, c_1, c_mu = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
+            self.population_size,
+            self.elite_population_size,
+            self.num_dims,
+            self.max_dims_sq,
         )
 
         # lrate for cumulation of step-size control and rank-one update
@@ -98,11 +103,17 @@ class LM_MA_ES(Strategy):
     def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
+            self.population_size,
+            self.elite_population_size,
+            self.num_dims,
+            self.max_dims_sq,
         )
         c_d = jnp.array([1 / (1.5**i * self.num_dims) for i in range(self.memory_size)])
         c_c = jnp.array(
-            [self.popsize / (4**i * self.num_dims) for i in range(self.memory_size)]
+            [
+                self.population_size / (4**i * self.num_dims)
+                for i in range(self.memory_size)
+            ]
         )
         c_c = jnp.minimum(c_c, 1.99)
 
@@ -135,7 +146,7 @@ class LM_MA_ES(Strategy):
             state.sigma,
             state.M,
             self.num_dims,
-            self.popsize,
+            self.population_size,
             state.c_d,
             state.generation_counter,
         )

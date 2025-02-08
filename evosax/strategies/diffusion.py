@@ -38,7 +38,7 @@ class EvoParams:
 class DiffusionEvolution(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         num_generations: int = 100,
         fitness_mapping: str = "energy",
@@ -52,7 +52,7 @@ class DiffusionEvolution(Strategy):
         """Diffusion Evolution (Zhang et al., 2024)
         Reference: https://arxiv.org/pdf/2410.02543
         """
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.strategy_name = "DiffusionEvolution"
         self.sigma_init = sigma_init
         self.scale_factor = scale_factor
@@ -90,7 +90,7 @@ class DiffusionEvolution(Strategy):
         initialization = (
             jax.random.normal(
                 key_init,
-                (self.popsize, self.num_dims),
+                (self.population_size, self.num_dims),
             )
             * params.init_scale
         )

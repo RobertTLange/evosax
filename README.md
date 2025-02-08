@@ -15,7 +15,7 @@ from evosax import CMA_ES
 
 # Instantiate the search strategy
 key = jax.random.key(0)
-strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
+strategy = CMA_ES(population_size=20, num_dims=2, elite_ratio=0.5)
 es_params = strategy.default_params
 state = strategy.initialize(key, es_params)
 
@@ -111,7 +111,7 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 ```python
 from evosax.strategies.ars import ARS, EvoParams
 # E.g. vectorize over different initial perturbation stds
-strategy = ARS(popsize=100, num_dims=20)
+strategy = ARS(population_size=100, num_dims=20)
 es_params = EvoParams(sigma_init=jnp.array([0.1, 0.01, 0.001]), sigma_decay=0.999, ...)
 
 # Specify how to map over ES hyperparameters 
@@ -176,7 +176,7 @@ fit_shaped = fit_shaper.apply(x, fitness)
 
     # Instantiate Base CMA-ES & wrap with BIPOP restarts
     # Pass strategy-specific kwargs separately (e.g. elite_ration or opt_name)
-    strategy = CMA_ES(num_dims, popsize, elite_ratio)
+    strategy = CMA_ES(num_dims, population_size, elite_ratio)
     re_strategy = BIPOP_Restarter(
         strategy,
         stop_criteria=[std_criterion],
@@ -202,7 +202,7 @@ fit_shaped = fit_shaper.apply(x, fitness)
     strategy = BatchStrategy(
             strategy_name="CMA_ES",
             num_dims=4096,
-            popsize=100,
+            population_size=100,
             num_subpops=5,
             strategy_kwargs={"elite_ratio": 0.5},
             communication="best_subpop",

@@ -29,9 +29,9 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_des_weights(popsize: int, temperature: float = 12.5):
+def get_des_weights(population_size: int, temperature: float = 12.5):
     """Compute discovered recombination weights."""
-    ranks = jnp.arange(popsize)
+    ranks = jnp.arange(population_size)
     ranks /= ranks.size - 1
     ranks = ranks - 0.5
     sigout = nn.sigmoid(temperature * ranks)
@@ -42,7 +42,7 @@ def get_des_weights(popsize: int, temperature: float = 12.5):
 class DES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         temperature: float = 12.5,
         sigma_init: float = 0.1,
@@ -50,7 +50,7 @@ class DES(Strategy):
         **fitness_kwargs: bool | int | float,
     ):
         """Discovered Evolution Strategy (Lange et al., 2023)"""
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         self.strategy_name = "DES"
         self.temperature = temperature
         self.sigma_init = sigma_init
@@ -63,7 +63,7 @@ class DES(Strategy):
     def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Get DES discovered recombination weights.
-        weights = get_des_weights(self.popsize, params.temperature)
+        weights = get_des_weights(self.population_size, params.temperature)
         initialization = jax.random.uniform(
             key,
             (self.num_dims,),
@@ -82,7 +82,7 @@ class DES(Strategy):
         self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
-        z = jax.random.normal(key, (self.popsize, self.num_dims))  # ~ N(0, I)
+        z = jax.random.normal(key, (self.population_size, self.num_dims))  # ~ N(0, I)
         x = state.mean + z * state.sigma.reshape(1, self.num_dims)  # ~ N(m, σ^2 I)
         return x, state
 

@@ -14,7 +14,7 @@ class BatchStrategy:
         self,
         strategy_name: str,
         num_dims: int,
-        popsize: int,
+        population_size: int,
         num_subpops: int,
         strategy_kwargs: dict = {},
         communication: str = "independent",
@@ -24,13 +24,15 @@ class BatchStrategy:
         self.num_subpops = num_subpops
         self.strategy_name = strategy_name
         self.num_dims = num_dims
-        self.popsize = popsize
-        self.sub_popsize = int(popsize / num_subpops)
+        self.population_size = population_size
+        self.subpopulation_size = int(population_size / num_subpops)
         self.strategy = Strategies[self.strategy_name](
-            popsize=self.sub_popsize, num_dims=self.num_dims, **strategy_kwargs
+            population_size=self.subpopulation_size,
+            num_dims=self.num_dims,
+            **strategy_kwargs,
         )
         self.protocol = Protocol(
-            communication, self.num_dims, self.num_subpops, self.sub_popsize
+            communication, self.num_dims, self.num_subpops, self.subpopulation_size
         )
 
         if n_devices is None:
@@ -49,14 +51,14 @@ class BatchStrategy:
             self.ask_map = self.ask_pmap
             self.tell_map = self.tell_pmap
             self.num_subpops_per_device = int(self.num_subpops / self.n_devices)
-            self.popsize_per_device = int(self.popsize / self.n_devices)
+            self.population_size_per_device = int(self.population_size / self.n_devices)
         else:
             # Set auto-vectorize core functionality
             self.initialize = self.initialize_vmap
             self.ask_map = self.ask_vmap
             self.tell_map = self.tell_vmap
             self.num_subpops_per_device = self.num_subpops
-            self.popsize_per_device = self.popsize
+            self.population_size_per_device = self.population_size
 
     @property
     def default_params(self) -> chex.ArrayTree:
@@ -71,17 +73,13 @@ class BatchStrategy:
         )
 
     @partial(jax.jit, static_argnums=(0,))
-    def initialize_vmap(
-        self, key: jax.Array, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def initialize_vmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
         """Auto-vectorized `initialize` for the batch evolution strategy."""
         keys = jax.random.split(key, self.num_subpops_per_device)
         state = jax.vmap(self.strategy.initialize, in_axes=(0, 0))(keys, params)
         return state
 
-    def initialize_pmap(
-        self, key: jax.Array, params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def initialize_pmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
         """Device parallel `initialize` for the batch evolution strategy."""
         # Tile/reshape both key and params!
         keys = jnp.tile(key, (self.n_devices, 1))
@@ -114,8 +112,8 @@ class BatchStrategy:
             keys, state, params
         )
         # Flatten subpopulation proposals back into flat vector
-        # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)
-        x_re = batch_x.reshape(self.popsize_per_device, self.num_dims)
+        # batch_x -> Shape: (subpops, population_size_per_subpop, num_dims)
+        x_re = batch_x.reshape(self.population_size_per_device, self.num_dims)
         return x_re, state
 
     def ask_pmap(
@@ -129,12 +127,10 @@ class BatchStrategy:
         state_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), state
         )
-        batch_x, state_pmap = jax.pmap(self.ask_vmap)(
-            keys, state_pmap, params_pmap
-        )
+        batch_x, state_pmap = jax.pmap(self.ask_vmap)(keys, state_pmap, params_pmap)
         # Flatten subpopulation proposals back into flat vector
-        # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)
-        x_re = batch_x.reshape(self.popsize, self.num_dims)
+        # batch_x -> Shape: (subpops, population_size_per_subpop, num_dims)
+        x_re = batch_x.reshape(self.population_size, self.num_dims)
         state_re = jax.tree.map(
             lambda x: jnp.reshape(x, (self.num_subpops, *x.shape[2:])),
             state_pmap,
@@ -151,11 +147,11 @@ class BatchStrategy:
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
         # Reshape flat fitness/search vector into subpopulation array then tell
-        # batch_fitness -> Shape: (subpops, popsize_per_subpop)
-        # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)
+        # batch_fitness -> Shape: (subpops, population_size_per_subpop)
+        # batch_x -> Shape: (subpops, population_size_per_subpop, num_dims)
         # Base independent update of each strategy only with subpop-specific data
-        batch_fitness = fitness.reshape(self.num_subpops, self.sub_popsize)
-        batch_x = x.reshape(self.num_subpops, self.sub_popsize, self.num_dims)
+        batch_fitness = fitness.reshape(self.num_subpops, self.subpopulation_size)
+        batch_x = x.reshape(self.num_subpops, self.subpopulation_size, self.num_dims)
 
         # Communicate and reshape information between subpopulations
         b_x_comm, b_fitness_comm = self.protocol.broadcast(batch_x, batch_fitness)

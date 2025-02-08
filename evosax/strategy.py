@@ -33,13 +33,13 @@ class EvoParams:
 class Strategy:
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
         """Base Class for an Evolution Strategy."""
-        self.popsize = popsize
+        self.population_size = population_size
 
         # Set total parameters depending on type of placeholder params
         self.pholder_params = pholder_params

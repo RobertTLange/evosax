@@ -36,7 +36,7 @@ class EvoParams:
 class PersistentES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -52,8 +52,8 @@ class PersistentES(Strategy):
         Reference: http://proceedings.mlr.press/v139/vicol21a.html
         Inspired by: http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
-        assert not self.popsize & 1, "Population size must be even"
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        assert not self.population_size & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "PersistentES"
@@ -81,9 +81,7 @@ class PersistentES(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(
-        self, key: jax.Array, params: EvoParams
-    ) -> chex.ArrayTree:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -93,7 +91,7 @@ class PersistentES(Strategy):
         )
         state = EvoState(
             mean=initialization,
-            pert_accum=jnp.zeros((self.popsize, self.num_dims)),
+            pert_accum=jnp.zeros((self.population_size, self.num_dims)),
             opt_state=self.optimizer.initialize(params.opt_params),
             sigma=params.sigma_init,
             inner_step_counter=0,
@@ -107,7 +105,8 @@ class PersistentES(Strategy):
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         pos_perts = (
-            jax.random.normal(key, (self.popsize // 2, self.num_dims)) * state.sigma
+            jax.random.normal(key, (self.population_size // 2, self.num_dims))
+            * state.sigma
         )
         neg_perts = -pos_perts
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)
@@ -140,7 +139,7 @@ class PersistentES(Strategy):
         reset = inner_step_counter >= params.T
         inner_step_counter = jax.lax.select(reset, 0, inner_step_counter)
         pert_accum = jax.lax.select(
-            reset, jnp.zeros((self.popsize, self.num_dims)), state.pert_accum
+            reset, jnp.zeros((self.population_size, self.num_dims)), state.pert_accum
         )
         return state.replace(
             mean=mean,

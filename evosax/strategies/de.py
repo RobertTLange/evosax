@@ -31,15 +31,15 @@ class EvoParams:
 class DE(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Differential Evolution (Storn & Price, 1997)
         Reference: https://tinyurl.com/4pje5a74
         """
-        assert popsize > 6, "DE requires popsize > 6."
-        super().__init__(popsize, pholder_params, **fitness_kwargs)
+        assert population_size > 6, "DE requires population_size > 6."
+        super().__init__(population_size, pholder_params, **fitness_kwargs)
         self.strategy_name = "DE"
 
     @property
@@ -53,14 +53,15 @@ class DE(Strategy):
         """
         initialization = jax.random.uniform(
             key,
-            (self.popsize, self.num_dims),
+            (self.population_size, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
         )
         state = EvoState(
             mean=initialization.mean(axis=0),
             archive=initialization,
-            fitness_archive=jnp.zeros(self.popsize) + 20e10,  # TODO: what is 20e10?
+            fitness_archive=jnp.zeros(self.population_size)
+            + 20e10,  # TODO: what is 20e10?
             best_member=initialization.mean(axis=0),
         )
         return state
@@ -78,8 +79,8 @@ class DE(Strategy):
             - Else y_i = x_i
         Return new potential position y.
         """
-        keys = jax.random.split(key, self.popsize)
-        member_ids = jnp.arange(self.popsize)
+        keys = jax.random.split(key, self.population_size)
+        member_ids = jnp.arange(self.population_size)
         x = jax.vmap(single_member_ask, in_axes=(0, 0, None, None, None, None))(
             keys,
             member_ids,

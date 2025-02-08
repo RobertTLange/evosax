@@ -47,7 +47,7 @@ class EvoParams:
 class Indep_iAMaLGaM(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.35,
         sigma_init: float = 0.0,
@@ -59,14 +59,19 @@ class Indep_iAMaLGaM(Strategy):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Diagonal Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
-        alpha_ams = (
-            0.5 * self.elite_ratio * self.popsize / (self.popsize - self.elite_popsize)
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
         )
-        self.ams_popsize = int(alpha_ams * (self.popsize - 1))
+        alpha_ams = (
+            0.5
+            * self.elite_ratio
+            * self.population_size
+            / (self.population_size - self.elite_population_size)
+        )
+        self.ams_population_size = int(alpha_ams * (self.population_size - 1))
         self.strategy_name = "Indep_iAMaLGaM"
 
         # Set core kwargs es_params
@@ -80,10 +85,14 @@ class Indep_iAMaLGaM(Strategy):
         a_0_sigma, a_1_sigma, a_2_sigma = -1.1, 1.2, 1.6
         a_0_shift, a_1_shift, a_2_shift = -1.2, 0.31, 0.5
         eta_sigma = 1 - jnp.exp(
-            a_0_sigma * self.elite_popsize**a_1_sigma / (self.num_dims**a_2_sigma)
+            a_0_sigma
+            * self.elite_population_size**a_1_sigma
+            / (self.num_dims**a_2_sigma)
         )
         eta_shift = 1 - jnp.exp(
-            a_0_shift * self.elite_popsize**a_1_shift / (self.num_dims**a_2_shift)
+            a_0_shift
+            * self.elite_population_size**a_1_shift
+            / (self.num_dims**a_2_shift)
         )
 
         return EvoParams(
@@ -119,11 +128,11 @@ class Indep_iAMaLGaM(Strategy):
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         key_sample, key_ams = jax.random.split(key)
-        x = sample(key_sample, state.mean, state.C, state.sigma, self.popsize)
+        x = sample(key_sample, state.mean, state.C, state.sigma, self.population_size)
         x_ams = anticipated_mean_shift(
             key_ams,
             x,
-            self.ams_popsize,
+            self.ams_population_size,
             params.delta_ams,
             state.c_mult,
             state.mean_shift,
@@ -139,7 +148,7 @@ class Indep_iAMaLGaM(Strategy):
     ) -> EvoState:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite
-        idx = jnp.argsort(fitness)[0 : self.elite_popsize]
+        idx = jnp.argsort(fitness)[0 : self.elite_population_size]
         fitness_elite = fitness[idx]
         members_elite = x[idx]
 
@@ -184,11 +193,11 @@ def sample(
     mean: chex.Array,
     C: chex.Array,
     sigma: float,
-    popsize: int,
+    population_size: int,
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
     sigmas = jnp.sqrt(C) + sigma
-    z = jax.random.normal(key, (mean.shape[0], popsize))  # ~ N(0, I)
+    z = jax.random.normal(key, (mean.shape[0], population_size))  # ~ N(0, I)
     y = jnp.diag(sigmas).dot(z)  # ~ N(0, C)
     y = jnp.swapaxes(y, 1, 0)
     x = mean + y  # ~ N(m, σ^2 C)

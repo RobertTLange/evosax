@@ -37,7 +37,7 @@ class EvoParams:
 class ASEBO(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         subspace_dims: int = 50,
         opt_name: str = "adam",
@@ -57,12 +57,12 @@ class ASEBO(Strategy):
         2. We keep a fixed archive of gradients to estimate the subspace
         """
         super().__init__(
-            popsize,
+            population_size,
             pholder_params,
             mean_decay,
             **fitness_kwargs,
         )
-        assert not self.popsize & 1, "Population size must be even"
+        assert not self.population_size & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.subspace_dims = min(subspace_dims, self.num_dims)
@@ -137,10 +137,10 @@ class ASEBO(Strategy):
             return u, v
 
         U, Vt = svd_flip(U, Vt)
-        U = Vt[: int(self.popsize / 2)]
+        U = Vt[: int(self.population_size / 2)]
         UUT = jnp.matmul(U.T, U)
 
-        U_ort = Vt[int(self.popsize / 2) :]
+        U_ort = Vt[int(self.population_size / 2) :]
         UUT_ort = jnp.matmul(U_ort.T, U_ort)
 
         subspace_ready = state.generation_counter > self.subspace_dims
@@ -150,10 +150,10 @@ class ASEBO(Strategy):
         )
         cov = (
             state.sigma * (state.alpha / self.num_dims) * jnp.eye(self.num_dims)
-            + ((1 - state.alpha) / int(self.popsize / 2)) * UUT
+            + ((1 - state.alpha) / int(self.population_size / 2)) * UUT
         )
         chol = jnp.linalg.cholesky(cov)
-        noise = jax.random.normal(key, (self.num_dims, int(self.popsize / 2)))
+        noise = jax.random.normal(key, (self.num_dims, int(self.population_size / 2)))
         z_plus = jnp.swapaxes(chol @ noise, 0, 1)
         z_plus /= jnp.linalg.norm(z_plus, axis=-1)[:, jnp.newaxis]
         z = jnp.concatenate([z_plus, -1.0 * z_plus])
@@ -170,9 +170,9 @@ class ASEBO(Strategy):
         """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma
-        noise_1 = noise[: int(self.popsize / 2)]
-        fit_1 = fitness[: int(self.popsize / 2)]
-        fit_2 = fitness[int(self.popsize / 2) :]
+        noise_1 = noise[: int(self.population_size / 2)]
+        fit_1 = fitness[: int(self.population_size / 2)]
+        fit_2 = fitness[int(self.population_size / 2) :]
         fit_diff_noise = jnp.dot(noise_1.T, fit_1 - fit_2)
         theta_grad = 1.0 / 2.0 * fit_diff_noise
 

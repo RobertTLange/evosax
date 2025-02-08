@@ -28,13 +28,13 @@ class EvoParams:
 class HillClimber(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
         """Simple Gaussian Hill Climbing"""
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         self.strategy_name = "HillClimber"
 
     @property
@@ -64,7 +64,7 @@ class HillClimber(Strategy):
         # Sampling of N(0, 1) noise
         z = jax.random.normal(
             key,
-            (self.popsize, self.num_dims),
+            (self.population_size, self.num_dims),
         )
         x = state.best_member + state.sigma.reshape(1, self.num_dims) * z
         return x, state

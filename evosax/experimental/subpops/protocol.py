@@ -11,13 +11,13 @@ class Protocol:
         communication: str,
         num_dims: int,
         num_subpops: int,
-        sub_popsize: int,
+        subpopulation_size: int,
     ):
         """Base communication protocol for info exchange between subpops."""
         self.communication = communication
         self.num_dims = num_dims
         self.num_subpops = num_subpops
-        self.sub_popsize = sub_popsize
+        self.subpopulation_size = subpopulation_size
 
         if self.communication == "independent":
             self.broadcast = self.independent

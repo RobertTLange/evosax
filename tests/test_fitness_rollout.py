@@ -12,7 +12,7 @@ def test_classic_rollout(classic_name: str):
     key = jax.random.key(0)
     evaluator = BBOBFitness(classic_name, num_dims=2)
     x = evaluator.sample_x(key)
-    strategy = CMA_ES(popsize=20, pholder_params=x, elite_ratio=0.5)
+    strategy = CMA_ES(population_size=20, pholder_params=x, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.initialize(key, params)
 
@@ -41,7 +41,7 @@ def test_env_ffw_rollout(env_name: str):
     )
     evaluator.set_apply_fn(network.apply)
 
-    strategy = ARS(popsize=20, pholder_params=net_params, elite_ratio=0.5)
+    strategy = ARS(population_size=20, pholder_params=net_params, elite_ratio=0.5)
     state = strategy.initialize(key)
     # Run the ask-eval-tell loop
     key_ask, key_eval = jax.random.split(key)
@@ -77,7 +77,7 @@ def test_vision_fitness():
 
     evaluator.set_apply_fn(network.apply)
 
-    strategy = ARS(popsize=4, pholder_params=net_params, elite_ratio=0.5)
+    strategy = ARS(population_size=4, pholder_params=net_params, elite_ratio=0.5)
     state = strategy.initialize(key)
 
     # Run the ask-eval-tell loop

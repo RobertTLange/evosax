@@ -29,21 +29,21 @@ class EvoParams:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_snes_weights(popsize: int, use_baseline: bool = True):
+def get_snes_weights(population_size: int, use_baseline: bool = True):
     """Get recombination weights for different ranks."""
 
     def get_weight(i):
-        return jnp.maximum(0, jnp.log(popsize / 2 + 1) - jnp.log(i))
+        return jnp.maximum(0, jnp.log(population_size / 2 + 1) - jnp.log(i))
 
-    weights = jax.vmap(get_weight)(jnp.arange(1, popsize + 1))
+    weights = jax.vmap(get_weight)(jnp.arange(1, population_size + 1))
     weights_norm = weights / jnp.sum(weights)
-    return (weights_norm - use_baseline * (1 / popsize))[:, None]
+    return (weights_norm - use_baseline * (1 / population_size))[:, None]
 
 
 class SNES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         temperature: float = 0.0,  # good values tend to be between 12 and 20
@@ -53,7 +53,7 @@ class SNES(Strategy):
         """Separable Exponential Natural ES (Wierstra et al., 2014)
         Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         self.strategy_name = "SNES"
 
         # Set core kwargs es_params
@@ -82,8 +82,8 @@ class SNES(Strategy):
         use_des_weights = params.temperature > 0.0
         weights = jax.lax.select(
             use_des_weights,
-            get_des_weights(self.popsize, params.temperature),
-            get_snes_weights(self.popsize),
+            get_des_weights(self.population_size, params.temperature),
+            get_snes_weights(self.population_size),
         )
         state = EvoState(
             mean=initialization,
@@ -98,7 +98,7 @@ class SNES(Strategy):
         self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        noise = jax.random.normal(key, (self.popsize, self.num_dims))
+        noise = jax.random.normal(key, (self.population_size, self.num_dims))
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
         return x, state
 

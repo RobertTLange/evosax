@@ -76,11 +76,15 @@ class ESLog:
             log["log_top_1"].at[log["generation_counter"]].set(log["top_fitness"][0])
         )
         log["log_top_mean"] = (
-            log["log_top_mean"].at[log["generation_counter"]].set(jnp.mean(log["top_fitness"]))
+            log["log_top_mean"]
+            .at[log["generation_counter"]]
+            .set(jnp.mean(log["top_fitness"]))
         )
 
         log["log_top_std"] = (
-            log["log_top_std"].at[log["generation_counter"]].set(jnp.std(log["top_fitness"]))
+            log["log_top_std"]
+            .at[log["generation_counter"]]
+            .set(jnp.std(log["top_fitness"]))
         )
         log["log_gen_1"] = (
             log["log_gen_1"]
@@ -131,7 +135,9 @@ class ESLog:
             log["log_top_mean"][: log["generation_counter"]],
             label=f"Top-{self.top_k} Mean",
         )
-        ax.plot(int_range, log["log_gen_1"][: log["generation_counter"]], label="Gen. 1")
+        ax.plot(
+            int_range, log["log_gen_1"][: log["generation_counter"]], label="Gen. 1"
+        )
         ax.plot(
             int_range,
             log["log_gen_mean"][: log["generation_counter"]],

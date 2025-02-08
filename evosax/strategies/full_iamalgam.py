@@ -42,7 +42,7 @@ class EvoParams:
 class Full_iAMaLGaM(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.35,
         sigma_init: float = 0.0,
@@ -54,14 +54,19 @@ class Full_iAMaLGaM(Strategy):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Full Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
-        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
-        alpha_ams = (
-            0.5 * self.elite_ratio * self.popsize / (self.popsize - self.elite_popsize)
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
         )
-        self.ams_popsize = int(alpha_ams * (self.popsize - 1))
+        alpha_ams = (
+            0.5
+            * self.elite_ratio
+            * self.population_size
+            / (self.population_size - self.elite_population_size)
+        )
+        self.ams_population_size = int(alpha_ams * (self.population_size - 1))
         self.strategy_name = "Full_iAMaLGaM"
 
         # Set core kwargs es_params
@@ -75,10 +80,14 @@ class Full_iAMaLGaM(Strategy):
         a_0_sigma, a_1_sigma, a_2_sigma = -1.1, 1.2, 1.6
         a_0_shift, a_1_shift, a_2_shift = -1.2, 0.31, 0.5
         eta_sigma = 1 - jnp.exp(
-            a_0_sigma * self.elite_popsize**a_1_sigma / (self.num_dims**a_2_sigma)
+            a_0_sigma
+            * self.elite_population_size**a_1_sigma
+            / (self.num_dims**a_2_sigma)
         )
         eta_shift = 1 - jnp.exp(
-            a_0_shift * self.elite_popsize**a_1_shift / (self.num_dims**a_2_shift)
+            a_0_shift
+            * self.elite_population_size**a_1_shift
+            / (self.num_dims**a_2_shift)
         )
 
         return EvoParams(
@@ -114,11 +123,11 @@ class Full_iAMaLGaM(Strategy):
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         key_sample, key_ams = jax.random.split(key)
-        x = sample(key_sample, state.mean, state.C, state.sigma, self.popsize)
+        x = sample(key_sample, state.mean, state.C, state.sigma, self.population_size)
         x_ams = anticipated_mean_shift(
             key_ams,
             x,
-            self.ams_popsize,
+            self.ams_population_size,
             params.delta_ams,
             state.c_mult,
             state.mean_shift,
@@ -134,7 +143,7 @@ class Full_iAMaLGaM(Strategy):
     ) -> EvoState:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite
-        idx = jnp.argsort(fitness)[0 : self.elite_popsize]
+        idx = jnp.argsort(fitness)[0 : self.elite_population_size]
         fitness_elite = fitness[idx]
         members_elite = x[idx]
 
@@ -179,27 +188,27 @@ def sample(
     mean: chex.Array,
     C: chex.Array,
     sigma: float,
-    popsize: int,
+    population_size: int,
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
     S = C + sigma**2 * jnp.eye(C.shape[0])
     candidates = jax.random.multivariate_normal(
-        key, mean, S, (popsize,)
-    )  # ~ N(m, S) - shape: (popsize, num_dims)
+        key, mean, S, (population_size,)
+    )  # ~ N(m, S) - shape: (population_size, num_dims)
     return candidates
 
 
 def anticipated_mean_shift(
     key: jax.Array,
     x: chex.Array,
-    ams_popsize: int,
+    ams_population_size: int,
     delta_ams: float,
     c_mult: float,
     mean_shift: chex.Array,
 ) -> chex.Array:
     """AMS - move part of pop further into dir of anticipated improvement."""
     indices = jnp.arange(x.shape[0])
-    sample_idx = jax.random.choice(key, indices, (ams_popsize,), replace=False)
+    sample_idx = jax.random.choice(key, indices, (ams_population_size,), replace=False)
     x_ams_new = x[sample_idx] + c_mult * delta_ams * mean_shift
     x_ams = x.at[sample_idx].set(x_ams_new)
     return x_ams

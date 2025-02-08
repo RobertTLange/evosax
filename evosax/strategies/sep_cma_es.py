@@ -41,24 +41,27 @@ class EvoParams:
 
 
 def get_cma_elite_weights(
-    popsize: int, elite_popsize: int
+    population_size: int, elite_population_size: int
 ) -> tuple[chex.Array, chex.Array]:
     """Utility helper to create truncated elite weights for mean
     update and full weights for covariance update.
     """
     weights_prime = jnp.array(
-        [jnp.log(elite_popsize + 1) - jnp.log(i + 1) for i in range(elite_popsize)]
+        [
+            jnp.log(elite_population_size + 1) - jnp.log(i + 1)
+            for i in range(elite_population_size)
+        ]
     )
     weights = weights_prime / jnp.sum(weights_prime)
-    weights_truncated = jnp.zeros(popsize)
-    weights_truncated = weights_truncated.at[:elite_popsize].set(weights)
+    weights_truncated = jnp.zeros(population_size)
+    weights_truncated = weights_truncated.at[:elite_population_size].set(weights)
     return weights, weights_truncated
 
 
 class Sep_CMA_ES(Strategy):
     def __init__(
         self,
-        popsize: int,
+        population_size: int,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
@@ -70,14 +73,16 @@ class Sep_CMA_ES(Strategy):
         Inspired by: github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_sepcma.py
         """
         super().__init__(
-            popsize,
+            population_size,
             pholder_params,
             mean_decay,
             **fitness_kwargs,
         )
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
-        self.elite_popsize = max(1, int(self.popsize * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.population_size * self.elite_ratio)
+        )
         self.strategy_name = "Sep_CMA_ES"
 
         # Set core kwargs es_params
@@ -90,7 +95,9 @@ class Sep_CMA_ES(Strategy):
     def params_strategy(self) -> EvoParams:
         """Return default parameters of evolution strategy."""
         # Temporarily create elite weights for rest of parameters
-        weights, _ = get_cma_elite_weights(self.popsize, self.elite_popsize)
+        weights, _ = get_cma_elite_weights(
+            self.population_size, self.elite_population_size
+        )
         mu_eff = 1 / jnp.sum(weights**2)
 
         # lrates for rank-one and rank-μ C updates
@@ -128,7 +135,7 @@ class Sep_CMA_ES(Strategy):
         """`initialize` the evolution strategy."""
         # Population weightings - store in state
         weights, weights_truncated = get_cma_elite_weights(
-            self.popsize, self.elite_popsize
+            self.population_size, self.elite_population_size
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
@@ -161,7 +168,7 @@ class Sep_CMA_ES(Strategy):
             state.sigma_scale,
             state.D,
             self.num_dims,
-            self.popsize,
+            self.population_size,
         )
         return x, state
 
