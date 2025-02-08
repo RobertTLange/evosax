@@ -18,7 +18,7 @@ class EvoState:
     UUT_ort: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -143,7 +143,7 @@ class ASEBO(Strategy):
         U_ort = Vt[int(self.popsize / 2) :]
         UUT_ort = jnp.matmul(U_ort.T, U_ort)
 
-        subspace_ready = state.gen_counter > self.subspace_dims
+        subspace_ready = state.generation_counter > self.subspace_dims
 
         UUT = jax.lax.select(
             subspace_ready, UUT, jnp.zeros((self.num_dims, self.num_dims))
@@ -179,7 +179,7 @@ class ASEBO(Strategy):
         alpha = jnp.linalg.norm(jnp.dot(theta_grad, state.UUT_ort)) / jnp.linalg.norm(
             jnp.dot(theta_grad, state.UUT)
         )
-        subspace_ready = state.gen_counter > self.subspace_dims
+        subspace_ready = state.generation_counter > self.subspace_dims
         alpha = jax.lax.select(subspace_ready, alpha, 1.0)
 
         # Add grad FIFO-style to subspace archive (only if provided else FD)

@@ -26,7 +26,7 @@ class OptState:
     v: chex.Array | None = None
     n: chex.Array | None = None
     last_grads: chex.Array | None = None
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -118,7 +118,7 @@ class SGD(Optimizer):
         """Perform a simple SGD + Momentum step."""
         m = grads + params.momentum * state.m
         mean_new = mean - state.lrate * state.m
-        return mean_new, state.replace(m=m, gen_counter=state.gen_counter + 1)
+        return mean_new, state.replace(m=m, generation_counter=state.generation_counter + 1)
 
 
 class Adam(Optimizer):
@@ -156,10 +156,10 @@ class Adam(Optimizer):
         """Perform a simple Adam GD step."""
         m = (1 - params.beta_1) * grads + params.beta_1 * state.m
         v = (1 - params.beta_2) * (grads**2) + params.beta_2 * state.v
-        mhat = m / (1 - params.beta_1 ** (state.gen_counter + 1))
-        vhat = v / (1 - params.beta_2 ** (state.gen_counter + 1))
+        mhat = m / (1 - params.beta_1 ** (state.generation_counter + 1))
+        vhat = v / (1 - params.beta_2 ** (state.generation_counter + 1))
         mean_new = mean - state.lrate * mhat / (jnp.sqrt(vhat) + params.eps)
-        return mean_new, state.replace(m=m, v=v, gen_counter=state.gen_counter + 1)
+        return mean_new, state.replace(m=m, v=v, generation_counter=state.generation_counter + 1)
 
 
 class RMSProp(Optimizer):
@@ -198,7 +198,7 @@ class RMSProp(Optimizer):
         v = (1 - params.beta_1) * (grads**2) + params.beta_1 * state.v
         m = params.momentum * state.m + grads / (jnp.sqrt(v) + params.eps)
         mean_new = mean - state.lrate * m
-        return mean_new, state.replace(m=m, v=v, gen_counter=state.gen_counter + 1)
+        return mean_new, state.replace(m=m, v=v, generation_counter=state.generation_counter + 1)
 
 
 class ClipUp(Optimizer):
@@ -295,12 +295,12 @@ class Adan(Optimizer):
             grads + params.beta_2 * grad_diff
         ) ** 2 + params.beta_3 * state.n
 
-        mhat = m / (1 - params.beta_1 ** (state.gen_counter + 1))
-        vhat = v / (1 - params.beta_2 ** (state.gen_counter + 1))
-        nhat = n / (1 - params.beta_3 ** (state.gen_counter + 1))
+        mhat = m / (1 - params.beta_1 ** (state.generation_counter + 1))
+        vhat = v / (1 - params.beta_2 ** (state.generation_counter + 1))
+        nhat = n / (1 - params.beta_3 ** (state.generation_counter + 1))
         mean_new = mean - state.lrate * (mhat + params.beta_2 * vhat) / (
             jnp.sqrt(nhat) + params.eps
         )
         return mean_new, state.replace(
-            m=m, v=v, n=n, last_grads=grads, gen_counter=state.gen_counter + 1
+            m=m, v=v, n=n, last_grads=grads, generation_counter=state.generation_counter + 1
         )

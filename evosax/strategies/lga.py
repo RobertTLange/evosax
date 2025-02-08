@@ -29,7 +29,7 @@ class EvoState:
     sigma_C: chex.Array  # Children: Mutation strengths
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -128,7 +128,7 @@ class LGA(Strategy):
 
         # Sample candidates with replacement given distribution
         # Get probabilities to sample children from parent archive
-        age_features = tanh_age(state.archive_age, state.gen_counter + 1e-10)
+        age_features = tanh_age(state.archive_age, state.generation_counter + 1e-10)
         F_E = self.fitness_features.apply(
             state.archive_x, state.archive_f, state.best_fitness
         )

@@ -16,7 +16,7 @@ class EvoState:
     sigma: float
     best_member: chex.Array
     best_fitness: float
-    gen_counter: int
+    generation_counter: int
 
 
 @struct.dataclass
@@ -135,7 +135,7 @@ class Strategy:
         return state.replace(
             best_member=best_member,
             best_fitness=best_fitness,
-            gen_counter=state.gen_counter + 1,
+            generation_counter=state.generation_counter + 1,
         )
 
     def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:

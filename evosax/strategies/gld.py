@@ -12,7 +12,7 @@ class EvoState:
     mean: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass

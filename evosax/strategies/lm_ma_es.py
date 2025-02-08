@@ -18,7 +18,7 @@ class EvoState:
     weights_truncated: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -137,7 +137,7 @@ class LM_MA_ES(Strategy):
             self.num_dims,
             self.popsize,
             state.c_d,
-            state.gen_counter,
+            state.generation_counter,
         )
         return x, state
 
@@ -256,12 +256,12 @@ def sample(
     n_dim: int,
     pop_size: int,
     c_d: chex.Array,
-    gen_counter: int,
+    generation_counter: int,
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
     z = jax.random.normal(key, (n_dim, pop_size))  # ~ N(0, I)
     for j in range(M.shape[1]):
-        update_bool = gen_counter > j
+        update_bool = generation_counter > j
         new_z = (1 - c_d[j]) * z + (c_d[j] * M[:, j])[:, jnp.newaxis] * (
             M[:, j][:, jnp.newaxis] * z
         )

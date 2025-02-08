@@ -15,7 +15,7 @@ class EvoState:
     opt_state: OptState
     best_member: Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
     bandwidth: float = 1.0
     alpha: float = 1.0
 

@@ -18,7 +18,7 @@ class EvoState:
     weights: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -133,7 +133,7 @@ class RmES(Strategy):
             self.num_dims,
             self.popsize,
             params.c_cov,
-            state.gen_counter,
+            state.generation_counter,
         )
         return x, state
 
@@ -163,7 +163,7 @@ class RmES(Strategy):
             state.p_sigma,
             state.t_gap,
             params.t_uncorr,
-            state.gen_counter,
+            state.generation_counter,
         )
 
         s_rank_rate = rank_success_rule(
@@ -218,14 +218,14 @@ def update_P_matrix(
     p_sigma: chex.Array,
     t_gap: chex.Array,
     t_uncorr: int,
-    gen_counter: int,
+    generation_counter: int,
 ) -> tuple[chex.Array, chex.Array]:
     """Update the P matrix storing m evolution paths."""
     memory_size = P.shape[1]
     # Use evo paths in separated generations - keep them uncorrelated!
     T_min = jnp.min(t_gap[1:] - t_gap[:-1])
     replace_crit = T_min > t_uncorr
-    fill_up_crit = gen_counter < memory_size
+    fill_up_crit = generation_counter < memory_size
     push_replace = jnp.logical_or(replace_crit, fill_up_crit)
 
     # Case 1: Initially Record all evolution paths - make space for new one
@@ -249,7 +249,7 @@ def update_P_matrix(
 
     # Finally update with the most recent evolution path
     P = P.at[:, memory_size - 1].set(p_sigma)
-    t_gap = t_gap.at[memory_size - 1].set(gen_counter)
+    t_gap = t_gap.at[memory_size - 1].set(generation_counter)
     return P, t_gap
 
 
@@ -267,7 +267,7 @@ def sample(
     n_dim: int,
     pop_size: int,
     c_cov: chex.Array,
-    gen_counter: int,
+    generation_counter: int,
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
     key_z, key_r = jax.random.split(key, 2)
@@ -275,7 +275,7 @@ def sample(
     r = jax.random.normal(key_r, (n_dim, P.shape[1]))
 
     for j in range(P.shape[1]):
-        update_bool = gen_counter > j
+        update_bool = generation_counter > j
         new_z = (
             jnp.sqrt(1 - c_cov) * z
             + (jnp.sqrt(c_cov) * P[:, j])[:, jnp.newaxis] * r[:, j][:, jnp.newaxis]

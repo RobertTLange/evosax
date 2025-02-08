@@ -18,7 +18,7 @@ class EvoState:
     grad_subspace: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -183,5 +183,5 @@ class GuidedES(Strategy):
         return state.replace(
             best_member=best_member,
             best_fitness=best_fitness,
-            gen_counter=state.gen_counter + 1,
+            generation_counter=state.generation_counter + 1,
         )

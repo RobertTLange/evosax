@@ -14,7 +14,7 @@ class EvoState:
     acceptance: float
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -106,7 +106,7 @@ class SimAnneal(Strategy):
         improve_diff = state.best_fitness - gen_fitness
         improved = improve_diff > 0
 
-        # Calculate temperature acceptance constant (replace by best in gen)
+        # Calculate temperature acceptance constant (replace by best in generation)
         metropolis = jnp.exp(improve_diff / (state.temp * params.boltzmann_const))
 
         # Replace mean either if improvement or random metropolis acceptance

@@ -54,7 +54,7 @@ class ESLog:
             "log_gen_std": jnp.zeros(self.num_generations)
             - 1e10 * self.maximize
             + 1e10 * (1 - self.maximize),
-            "gen_counter": 0,
+            "generation_counter": 0,
         }
         return log
 
@@ -73,30 +73,30 @@ class ESLog:
         log["top_fitness"] = vals[top_idx[: self.top_k]]
         log["top_params"] = params[top_idx[: self.top_k]]
         log["log_top_1"] = (
-            log["log_top_1"].at[log["gen_counter"]].set(log["top_fitness"][0])
+            log["log_top_1"].at[log["generation_counter"]].set(log["top_fitness"][0])
         )
         log["log_top_mean"] = (
-            log["log_top_mean"].at[log["gen_counter"]].set(jnp.mean(log["top_fitness"]))
+            log["log_top_mean"].at[log["generation_counter"]].set(jnp.mean(log["top_fitness"]))
         )
 
         log["log_top_std"] = (
-            log["log_top_std"].at[log["gen_counter"]].set(jnp.std(log["top_fitness"]))
+            log["log_top_std"].at[log["generation_counter"]].set(jnp.std(log["top_fitness"]))
         )
         log["log_gen_1"] = (
             log["log_gen_1"]
-            .at[log["gen_counter"]]
+            .at[log["generation_counter"]]
             .set(
                 self.maximize * jnp.max(fitness)
                 + (1 - self.maximize) * jnp.min(fitness)
             )
         )
         log["log_gen_mean"] = (
-            log["log_gen_mean"].at[log["gen_counter"]].set(jnp.mean(fitness))
+            log["log_gen_mean"].at[log["generation_counter"]].set(jnp.mean(fitness))
         )
         log["log_gen_std"] = (
-            log["log_gen_std"].at[log["gen_counter"]].set(jnp.std(fitness))
+            log["log_gen_std"].at[log["generation_counter"]].set(jnp.std(fitness))
         )
-        log["gen_counter"] += 1
+        log["generation_counter"] += 1
         return log
 
     def save(self, log: chex.ArrayTree, filename: str):
@@ -124,17 +124,17 @@ class ESLog:
 
         if fig is None or ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(6, 3))
-        int_range = jnp.arange(1, log["gen_counter"] + 1)
-        ax.plot(int_range, log["log_top_1"][: log["gen_counter"]], label="Top 1")
+        int_range = jnp.arange(1, log["generation_counter"] + 1)
+        ax.plot(int_range, log["log_top_1"][: log["generation_counter"]], label="Top 1")
         ax.plot(
             int_range,
-            log["log_top_mean"][: log["gen_counter"]],
+            log["log_top_mean"][: log["generation_counter"]],
             label=f"Top-{self.top_k} Mean",
         )
-        ax.plot(int_range, log["log_gen_1"][: log["gen_counter"]], label="Gen. 1")
+        ax.plot(int_range, log["log_gen_1"][: log["generation_counter"]], label="Gen. 1")
         ax.plot(
             int_range,
-            log["log_gen_mean"][: log["gen_counter"]],
+            log["log_gen_mean"][: log["generation_counter"]],
             label="Gen. Mean",
         )
         if ylims is not None:

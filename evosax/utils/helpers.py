@@ -19,7 +19,7 @@ def get_best_fitness_member(
 ) -> tuple[chex.Array, float]:
     """Check if fitness improved & replace in ES state."""
     fitness_min = jax.lax.select(maximize, -1 * fitness, fitness)
-    max_and_later = maximize and state.gen_counter > 0
+    max_and_later = maximize and state.generation_counter > 0
     best_fit_min = jax.lax.select(
         max_and_later, -1 * state.best_fitness, state.best_fitness
     )

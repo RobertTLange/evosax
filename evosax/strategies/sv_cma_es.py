@@ -30,7 +30,7 @@ class EvoState:
     weights_truncated: Array
     best_member: Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
     bandwidth: float = 1.0
     alpha: float = 1.0
 
@@ -156,7 +156,7 @@ class SV_CMA_ES(CMA_ES):
             projected_steps,
             params.c_sigma,
             params.mu_eff,
-            state.gen_counter,
+            state.generation_counter,
         )
 
         p_cs, norms_p_sigma, h_sigmas = jax.vmap(
@@ -165,7 +165,7 @@ class SV_CMA_ES(CMA_ES):
             means,
             p_sigmas,
             state.p_c,
-            state.gen_counter + 1,
+            state.generation_counter + 1,
             projected_steps,
             params.c_sigma,
             params.chi_n,

@@ -13,7 +13,7 @@ from evosax.utils.helpers import get_best_fitness_member
 class SolutionFeaturesState:
     best_fitness: float
     best_member: chex.Array
-    gen_counter: int
+    generation_counter: int
 
 
 class SolutionFeaturizer:
@@ -58,7 +58,7 @@ class SolutionFeaturizer:
         return SolutionFeaturesState(
             best_fitness=jnp.finfo(jnp.float32).max,
             best_member=jnp.zeros((self.num_dims,)),
-            gen_counter=0,
+            generation_counter=0,
         )
 
     @functools.partial(jax.jit, static_argnums=0)
@@ -97,7 +97,7 @@ class SolutionFeaturizer:
         return sol_out, state.replace(
             best_member=best_member,
             best_fitness=best_fitness,
-            gen_counter=state.gen_counter + 1,
+            generation_counter=state.generation_counter + 1,
         )
 
     @property

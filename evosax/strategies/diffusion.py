@@ -18,7 +18,7 @@ class EvoState:
     latent_projection: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -120,11 +120,11 @@ class DiffusionEvolution(Strategy):
         self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
-        alpha_t = state.alphas[state.gen_counter - 1]
-        alpha_pt = state.alphas_past[state.gen_counter - 1]
-        # only do ddim step if not at 1st gen otw return init pop
+        alpha_t = state.alphas[state.generation_counter - 1]
+        alpha_pt = state.alphas_past[state.generation_counter - 1]
+        # Return initial population for first generation, otherwise perform DDIM step
         x_next = jax.lax.select(
-            state.gen_counter == 0,
+            state.generation_counter == 0,
             state.archive,
             ddim_step(
                 key,
@@ -158,7 +158,7 @@ class DiffusionEvolution(Strategy):
         # rescale x to undo scaling in ask
         x_rescale = x / params.scale_factor
         x_latent = x_rescale @ state.latent_projection
-        alpha_t = state.alphas[state.gen_counter]
+        alpha_t = state.alphas[state.generation_counter]
         x0_est = estimate_x0(
             x_rescale,
             x_latent,

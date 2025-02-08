@@ -24,7 +24,7 @@ class EvoState:
     path_sigma: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -126,7 +126,7 @@ class LES(Strategy):
     ) -> EvoState:
         """`tell` performance data for strategy state update."""
         fit_re = self.fitness_features.apply(x, fitness, state.best_fitness)
-        time_embed = tanh_timestamp(state.gen_counter)
+        time_embed = tanh_timestamp(state.generation_counter)
         weights = self.weight_layer.apply(params.net_params["recomb_weights"], fit_re)
         weight_diff = (weights * (x - state.mean)).sum(axis=0)
         weight_noise = (weights * (x - state.mean) / state.sigma).sum(axis=0)

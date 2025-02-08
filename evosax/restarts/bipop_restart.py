@@ -107,12 +107,12 @@ class BIPOP_Restarter(RestartWrapper):
             state.restart_state.small_pop_active,
             state.restart_state.large_eval_budget,
             state.restart_state.large_eval_budget
-            + state.restart_state.active_popsize * state.strategy_state.gen_counter,
+            + state.restart_state.active_popsize * state.strategy_state.generation_counter,
         )
         small_eval_budget = jax.lax.select(
             state.restart_state.small_pop_active,
             state.restart_state.small_eval_budget
-            + state.restart_state.active_popsize * state.strategy_state.gen_counter,
+            + state.restart_state.active_popsize * state.strategy_state.generation_counter,
             state.restart_state.small_eval_budget,
         )
         small_pop_active = small_eval_budget < large_eval_budget

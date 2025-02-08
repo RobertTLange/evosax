@@ -9,7 +9,7 @@ def min_gen_criterion(
 ) -> bool:
     """Allow stopping if minimal number of generations has passed."""
     min_gen_passed = (
-        state.strategy_state.gen_counter >= params.restart_params.min_num_gens
+        state.strategy_state.generation_counter >= params.restart_params.min_num_gens
     )
     return min_gen_passed
 

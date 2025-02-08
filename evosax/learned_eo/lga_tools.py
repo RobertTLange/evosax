@@ -6,9 +6,9 @@ from flax import linen as nn
 from ..core.fitness import range_norm_trafo, z_score_trafo
 
 
-def tanh_age(x: chex.Array, gen_counter: float) -> chex.Array:
+def tanh_age(x: chex.Array, generation_counter: float) -> chex.Array:
     """Return normalized tanh age."""
-    return jnp.tanh(x / jnp.float32(gen_counter) - 1.0)
+    return jnp.tanh(x / jnp.float32(generation_counter) - 1.0)
 
 
 class MultiHeadSelfAttention(nn.Module):

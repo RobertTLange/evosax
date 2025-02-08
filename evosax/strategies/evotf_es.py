@@ -34,7 +34,7 @@ class FitnessFeaturesState:
 class SolutionFeaturesState:
     best_fitness: float
     best_member: chex.Array
-    gen_counter: int
+    generation_counter: int
 
 
 @struct.dataclass
@@ -49,7 +49,7 @@ class EvoState:
     distribution_context: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -287,8 +287,8 @@ class EvoTF_ES(Strategy):
         )
 
         # Update the context with a sliding window
-        shift_buffer = state.gen_counter >= self.max_context_len
-        idx = jax.lax.select(shift_buffer, self.max_context_len - 1, state.gen_counter)
+        shift_buffer = state.generation_counter >= self.max_context_len
+        idx = jax.lax.select(shift_buffer, self.max_context_len - 1, state.generation_counter)
         solution_context = jax.lax.select(
             shift_buffer,
             state.solution_context.at[0, :-1].set(state.solution_context[0, 1:]),

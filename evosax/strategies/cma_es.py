@@ -20,7 +20,7 @@ class EvoState:
     weights_truncated: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -210,14 +210,14 @@ class CMA_ES(Strategy):
             y_w,
             params.c_sigma,
             params.mu_eff,
-            state.gen_counter,
+            state.generation_counter,
         )
 
         p_c, norm_p_sigma, h_sigma = update_p_c(
             mean,
             p_sigma,
             state.p_c,
-            state.gen_counter + 1,
+            state.generation_counter + 1,
             y_w,
             params.c_sigma,
             params.chi_n,
@@ -273,7 +273,7 @@ def update_p_sigma(
     y_w: chex.Array,
     c_sigma: float,
     mu_eff: float,
-    gen_counter: int,
+    generation_counter: int,
 ) -> tuple[chex.Array, chex.Array, chex.Array, None, None]:
     """Update evolution path for covariance matrix."""
     C, B, D = full_eigen_decomp(C, B, D)
@@ -289,7 +289,7 @@ def update_p_c(
     mean: chex.Array,
     p_sigma: chex.Array,
     p_c: chex.Array,
-    gen_counter: int,
+    generation_counter: int,
     y_w: chex.Array,
     c_sigma: float,
     chi_n: float,
@@ -298,7 +298,7 @@ def update_p_c(
 ) -> tuple[chex.Array, float, float]:
     """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
-    h_sigma_cond_left = norm_p_sigma / jnp.sqrt(1 - (1 - c_sigma) ** (2 * gen_counter))
+    h_sigma_cond_left = norm_p_sigma / jnp.sqrt(1 - (1 - c_sigma) ** (2 * generation_counter))
     h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * chi_n
     h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
     p_c_new = (1 - c_c) * p_c + h_sigma * jnp.sqrt(c_c * (2 - c_c) * mu_eff) * y_w

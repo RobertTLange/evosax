@@ -20,7 +20,7 @@ class EvoState:
     weights_truncated: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
-    gen_counter: int = 0
+    generation_counter: int = 0
 
 
 @struct.dataclass
@@ -193,7 +193,7 @@ class Sep_CMA_ES(Strategy):
             mean,
             p_sigma,
             state.p_c,
-            state.gen_counter + 1,
+            state.generation_counter + 1,
             y_w,
             params.c_sigma,
             params.c_c,
@@ -265,7 +265,7 @@ def update_p_c(
     mean: chex.Array,
     p_sigma: chex.Array,
     p_c: chex.Array,
-    gen_counter: int,
+    generation_counter: int,
     y_w: chex.Array,
     c_sigma: float,
     c_c: float,
@@ -275,7 +275,7 @@ def update_p_c(
     """Update evolution path for sigma/stepsize."""
     norm_p_sigma = jnp.linalg.norm(p_sigma)
     h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
-        1 - (1 - c_sigma) ** (2 * (gen_counter))
+        1 - (1 - c_sigma) ** (2 * (generation_counter))
     )
     h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * chi_n
     h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
