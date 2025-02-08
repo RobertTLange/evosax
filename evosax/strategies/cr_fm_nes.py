@@ -145,8 +145,8 @@ class CR_FM_NES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolutionary strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolutionary strategy."""
         key_init, key_v = jax.random.split(key)
         initialization = jax.random.uniform(
             key_init,

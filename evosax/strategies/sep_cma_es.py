@@ -131,8 +131,8 @@ class Sep_CMA_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         # Population weightings - store in state
         weights, weights_truncated = get_cma_elite_weights(
             self.population_size, self.elite_population_size

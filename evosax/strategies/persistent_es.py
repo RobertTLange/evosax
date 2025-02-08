@@ -81,8 +81,8 @@ class PersistentES(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> chex.ArrayTree:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> chex.ArrayTree:
+        """`init` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
             (self.num_dims,),
@@ -92,7 +92,7 @@ class PersistentES(Strategy):
         state = EvoState(
             mean=initialization,
             pert_accum=jnp.zeros((self.population_size, self.num_dims)),
-            opt_state=self.optimizer.initialize(params.opt_params),
+            opt_state=self.optimizer.init(params.opt_params),
             sigma=params.sigma_init,
             inner_step_counter=0,
             best_member=initialization,

@@ -107,7 +107,7 @@ class FitnessFeaturizer:
         return fit_out, FitnessFeaturesState(best_fitness=best_fitness)
 
     @functools.partial(jax.jit, static_argnames=("self",))
-    def initialize(self) -> FitnessFeaturesState:
+    def init(self) -> FitnessFeaturesState:
         return FitnessFeaturesState(best_fitness=jnp.finfo(jnp.float32).max)
 
     @property

@@ -6,7 +6,7 @@ def test_es_log():
     num_dims = 2
     x = jnp.zeros((num_dims,))
     es_logging = ESLog(pholder_params=x, num_generations=10, top_k=3, maximize=True)
-    log = es_logging.initialize()
+    log = es_logging.init()
     x = jnp.array([[1, 2], [2, 4], [4, 6], [6, 7]])
     fitness = jnp.array([1, 2, 3, 4])
     log = es_logging.update(log, x, fitness)
@@ -19,7 +19,7 @@ def test_top_k():
     num_dims = 2
     x = jnp.zeros((num_dims,))
     es_logging = ESLog(pholder_params=x, num_generations=10, top_k=3, maximize=True)
-    log = es_logging.initialize()
+    log = es_logging.init()
     x = jnp.array([[1, 2], [2, 4], [4, 6], [6, 7]])
     fitness = jnp.array([1, 2, 3, 4])
     log = es_logging.update(log, x, fitness)

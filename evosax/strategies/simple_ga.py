@@ -66,8 +66,8 @@ class SimpleGA(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the differential evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
             (self.elite_population_size, self.num_dims),

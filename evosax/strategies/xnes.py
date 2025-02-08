@@ -69,8 +69,8 @@ class xNES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolutionary strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolutionary strategy."""
         initialization = jax.random.uniform(
             key,
             (self.num_dims,),

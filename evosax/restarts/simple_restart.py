@@ -34,7 +34,7 @@ class Simple_Restarter(RestartWrapper):
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """Simple restart by state initialization."""
-        new_state = self.base_strategy.initialize(key, params.strategy_params)
+        new_state = self.base_strategy.init(key, params.strategy_params)
         new_state = new_state.replace(
             mean=jax.lax.select(
                 params.restart_params.copy_mean,

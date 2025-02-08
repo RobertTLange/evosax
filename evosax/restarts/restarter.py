@@ -61,15 +61,15 @@ class RestartWrapper:
         return RestartParams()
 
     @partial(jax.jit, static_argnames=("self",))
-    def initialize(
+    def init(
         self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:
-        """`initialize` the evolution strategy."""
+        """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
 
-        strategy_state = self.base_strategy.initialize(key, params.strategy_params)
+        strategy_state = self.base_strategy.init(key, params.strategy_params)
         restart_state = RestartState(restart_counter=0, restart_next=False)
         return WrapperState(strategy_state, restart_state)
 

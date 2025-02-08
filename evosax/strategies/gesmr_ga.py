@@ -61,8 +61,8 @@ class GESMR_GA(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
 
-    def initialize_strategy(self, key_state: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the differential evolution strategy."""
+    def init_strategy(self, key_state: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the differential evolution strategy."""
         key_init, key_state = jax.random.split(key_state)
         initialization = jax.random.uniform(
             key_init,

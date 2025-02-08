@@ -52,15 +52,15 @@ class BIPOP_Restarter(RestartWrapper):
         return RestartParams()
 
     @partial(jax.jit, static_argnames=("self",))
-    def initialize(
+    def init(
         self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:
-        """`initialize` the evolution strategy."""
+        """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
 
-        strategy_state = self.base_strategy.initialize(key, params.strategy_params)
+        strategy_state = self.base_strategy.init(key, params.strategy_params)
         restart_state = RestartState(
             restart_counter=0,
             restart_next=False,
@@ -138,7 +138,7 @@ class BIPOP_Restarter(RestartWrapper):
             **self.strategy_kwargs,
         )
 
-        strategy_state = self.base_strategy.initialize(key_init, params.strategy_params)
+        strategy_state = self.base_strategy.init(key_init, params.strategy_params)
         strategy_state = strategy_state.replace(
             mean=jax.lax.select(
                 params.restart_params.copy_mean,

@@ -27,7 +27,7 @@ class ESLog:
         self.maximize = maximize
 
     @partial(jax.jit, static_argnames=("self",))
-    def initialize(self) -> chex.ArrayTree:
+    def init(self) -> chex.ArrayTree:
         """Initialize the logger storage."""
         log = {
             "top_fitness": jnp.zeros(self.top_k)

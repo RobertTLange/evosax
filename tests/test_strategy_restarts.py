@@ -15,7 +15,7 @@ def test_simple_restart():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(key, re_es_params)
+    state = re_strategy.init(key, re_es_params)
 
     # Run 1st ask-tell-generation
     x, state = re_strategy.ask(key, state, re_es_params)
@@ -43,7 +43,7 @@ def test_ipop_restart():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(key, re_es_params)
+    state = re_strategy.init(key, re_es_params)
     # Run 1st ask-tell-generation
     x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])
@@ -77,7 +77,7 @@ def test_bipop_restart():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(key, re_es_params)
+    state = re_strategy.init(key, re_es_params)
     # Run 1st ask-tell-generation
     x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])
@@ -121,7 +121,7 @@ def test_ipop_cma_es():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(key, re_es_params)
+    state = re_strategy.init(key, re_es_params)
     # Run 1st ask-tell-generation
     x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])
@@ -153,7 +153,7 @@ def test_bipop_cma_es():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(key, re_es_params)
+    state = re_strategy.init(key, re_es_params)
     # Run 1st ask-tell-generation
     x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])

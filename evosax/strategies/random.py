@@ -40,8 +40,8 @@ class RandomSearch(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the differential evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
             (self.num_dims,),

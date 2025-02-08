@@ -57,8 +57,8 @@ class SimpleES(Strategy):
         # Only parents have positive weight - equal weighting!
         return EvoParams(sigma_init=self.sigma_init)
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         weights = jnp.zeros(self.population_size)
         weights = weights.at[: self.elite_population_size].set(
             1 / self.elite_population_size

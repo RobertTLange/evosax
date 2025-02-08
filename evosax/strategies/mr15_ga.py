@@ -58,8 +58,8 @@ class MR15_GA(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(sigma_init=self.sigma_init, sigma_ratio=self.sigma_ratio)
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the differential evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
             (self.elite_population_size, self.num_dims),

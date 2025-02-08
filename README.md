@@ -17,7 +17,7 @@ from evosax import CMA_ES
 key = jax.random.key(0)
 strategy = CMA_ES(population_size=20, num_dims=2, elite_ratio=0.5)
 es_params = strategy.default_params
-state = strategy.initialize(key, es_params)
+state = strategy.init(key, es_params)
 
 # Run ask-eval-tell loop - NOTE: By default minimization!
 for t in range(num_generations):
@@ -117,7 +117,7 @@ es_params = EvoParams(sigma_init=jnp.array([0.1, 0.01, 0.001]), sigma_decay=0.99
 # Specify how to map over ES hyperparameters 
 map_dict = EvoParams(sigma_init=0, sigma_decay=None, ...)
 
-# Vmap-composed batch initialize, ask and tell functions 
+# Vmap-composed batch init, ask and tell functions 
 batch_init = jax.vmap(strategy.init, in_axes=(None, map_dict))
 batch_ask = jax.vmap(strategy.ask, in_axes=(None, 0, map_dict))
 batch_tell = jax.vmap(strategy.tell, in_axes=(0, 0, 0, map_dict))
@@ -128,7 +128,7 @@ batch_tell = jax.vmap(strategy.tell, in_axes=(0, 0, 0, map_dict))
 ```python
 key, subkey = jax.random.split(key)
 params = strategy.default_params
-state = strategy.initialize(subkey, params)
+state = strategy.init(subkey, params)
 
 def step_fn(carry, _):
     state, key = carry
@@ -184,7 +184,7 @@ fit_shaped = fit_shaper.apply(x, fitness)
     )
 
     key, subkey = jax.random.split(key)
-    state = re_strategy.initialize(subkey)
+    state = re_strategy.init(subkey)
 
     # ask/tell loop - restarts are automatically handled 
     key, key_ask, key_eval = jax.random.split(key, 3)
@@ -208,7 +208,7 @@ fit_shaped = fit_shaper.apply(x, fitness)
             communication="best_subpop",
         )
 
-    state = strategy.initialize(key)
+    state = strategy.init(key)
     # Ask for evaluation candidates of different subpopulation ES
     x, state = strategy.ask(key_ask, state)
     fitness = ...

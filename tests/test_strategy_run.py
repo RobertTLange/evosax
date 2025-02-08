@@ -27,7 +27,7 @@ def test_strategy_run(strategy_name):
 
     batch_eval = evaluator.rollout
     params = strategy.default_params
-    state = strategy.initialize(key, params)
+    state = strategy.init(key, params)
 
     fitness_log = []
     for t in range(num_iters):
@@ -63,7 +63,7 @@ def test_strategy_scan(strategy_name):
     batch_eval = evaluator.rollout
     es_params = strategy.default_params
 
-    state = strategy.initialize(key, es_params)
+    state = strategy.init(key, es_params)
 
     def step(carry, _):
         """Helper function to lax.scan."""

@@ -308,7 +308,7 @@ if __name__ == "__main__":
         key = jax.random.key(1)
         strategy = CMA_ES(population_size=4, num_dims=2)
         es_params = strategy.default_params.replace(init_min=-2.5, init_max=2.5)
-        es_state = strategy.initialize(key, es_params)
+        es_state = strategy.init(key, es_params)
 
         problem = BBOBFitness(fn_name, 2)
 

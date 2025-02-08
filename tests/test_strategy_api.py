@@ -20,7 +20,7 @@ def test_strategy_ask(strategy_name):
             population_size=population_size, pholder_params=x
         )
     params = strategy.default_params
-    state = strategy.initialize(key, params)
+    state = strategy.init(key, params)
     x, state = strategy.ask(key, state, params)
     assert x.shape[0] == population_size
     assert x.shape[1] == 2
@@ -43,7 +43,7 @@ def test_strategy_ask_tell(strategy_name):
             population_size=population_size, pholder_params=x
         )
     params = strategy.default_params
-    state = strategy.initialize(key, params)
+    state = strategy.init(key, params)
     x, state = strategy.ask(key, state, params)
     evaluator = BBOBFitness("sphere", num_dims)
     fitness = evaluator.rollout(key, x)

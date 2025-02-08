@@ -79,8 +79,8 @@ class OpenES(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
             (self.num_dims,),
@@ -90,7 +90,7 @@ class OpenES(Strategy):
         state = EvoState(
             mean=initialization,
             sigma=jnp.ones(self.num_dims) * params.sigma_init,
-            opt_state=self.optimizer.initialize(params.opt_params),
+            opt_state=self.optimizer.init(params.opt_params),
             best_member=initialization,
         )
         return state

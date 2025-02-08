@@ -46,8 +46,8 @@ class DE(Strategy):
     def params_strategy(self) -> EvoParams:
         return EvoParams()
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the differential evolution strategy.
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the differential evolution strategy.
         Initialize all population members by randomly sampling
         positions in search-space (defined in `params`).
         """

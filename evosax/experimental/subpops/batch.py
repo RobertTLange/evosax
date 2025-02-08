@@ -47,14 +47,14 @@ class BatchStrategy:
                 " devices to pmap/parallelize over."
             )
             # Set device-mapped core functionality
-            self.initialize = self.initialize_pmap
+            self.init = self.init_pmap
             self.ask_map = self.ask_pmap
             self.tell_map = self.tell_pmap
             self.num_subpops_per_device = int(self.num_subpops / self.n_devices)
             self.population_size_per_device = int(self.population_size / self.n_devices)
         else:
             # Set auto-vectorize core functionality
-            self.initialize = self.initialize_vmap
+            self.init = self.init_vmap
             self.ask_map = self.ask_vmap
             self.tell_map = self.tell_vmap
             self.num_subpops_per_device = self.num_subpops
@@ -73,20 +73,20 @@ class BatchStrategy:
         )
 
     @partial(jax.jit, static_argnames=("self",))
-    def initialize_vmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
-        """Auto-vectorized `initialize` for the batch evolution strategy."""
+    def init_vmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
+        """Auto-vectorized `init` for the batch evolution strategy."""
         keys = jax.random.split(key, self.num_subpops_per_device)
-        state = jax.vmap(self.strategy.initialize, in_axes=(0, 0))(keys, params)
+        state = jax.vmap(self.strategy.init, in_axes=(0, 0))(keys, params)
         return state
 
-    def initialize_pmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
-        """Device parallel `initialize` for the batch evolution strategy."""
+    def init_pmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
+        """Device parallel `init` for the batch evolution strategy."""
         # Tile/reshape both key and params!
         keys = jnp.tile(key, (self.n_devices, 1))
         params_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), params
         )
-        state_pmap = jax.pmap(self.initialize_vmap)(keys, params_pmap)
+        state_pmap = jax.pmap(self.init_vmap)(keys, params_pmap)
         # Reshape from (# device, #subpops_per_device, ...) to (#subpops, ...)
         state = jax.tree.map(
             lambda x: jnp.reshape(x, (self.num_subpops, *x.shape[2:])),

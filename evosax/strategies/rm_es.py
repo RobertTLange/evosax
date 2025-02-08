@@ -99,8 +99,8 @@ class RmES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         weights = get_elite_weights(self.elite_population_size)
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(

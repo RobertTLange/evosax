@@ -27,7 +27,7 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
         self.param_size = param_size
         self.rand_key = jax.random.key(seed=seed)
         self.rand_key, init_key = jax.random.split(self.rand_key)
-        self.es_state = self.es.initialize(init_key, self.es_params)
+        self.es_state = self.es.init(init_key, self.es_params)
 
     def ask(self) -> chex.Array:
         """Ask strategy for next set of solution candidates to evaluate."""

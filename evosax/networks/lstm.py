@@ -43,7 +43,7 @@ class LSTM(nn.Module):
             x = gaussian_out(key, x, self.num_output_units, self.kernel_init_type)
         return lstm_state, x
 
-    def initialize_carry(self) -> tuple[chex.ArrayTree, chex.ArrayTree]:
+    def init_carry(self) -> tuple[chex.ArrayTree, chex.ArrayTree]:
         """Initialize hidden state of LSTM."""
         return nn.LSTMCell.initialize_carry(
             jax.random.key(0), (), self.num_hidden_units

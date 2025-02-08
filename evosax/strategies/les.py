@@ -89,8 +89,8 @@ class LES(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(net_params=self.les_net_params, sigma_init=self.sigma_init)
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         init_mean = jax.random.uniform(
             key,
             (self.num_dims,),
@@ -98,8 +98,8 @@ class LES(Strategy):
             maxval=params.init_max,
         )
         init_sigma = params.sigma_init * jnp.ones(self.num_dims)
-        init_path_c = self.evopath.initialize()
-        init_path_sigma = self.evopath.initialize()
+        init_path_c = self.evopath.init()
+        init_path_sigma = self.evopath.init()
         return EvoState(
             mean=init_mean,
             sigma=init_sigma,

@@ -83,8 +83,8 @@ class DiffusionEvolution(Strategy):
             init_scale=self.init_scale,
         )
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         key_init, key_latent = jax.random.split(key)
 
         initialization = (

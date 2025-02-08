@@ -216,8 +216,8 @@ class EvoTF_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolutionary strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolutionary strategy."""
         initialization = jax.random.uniform(
             key,
             (self.num_dims,),
@@ -246,9 +246,9 @@ class EvoTF_ES(Strategy):
         state = EvoState(
             mean=initialization,
             sigma=params.sigma_init * jnp.ones(self.num_dims),
-            sf_state=self.sf.initialize(),
-            ff_state=self.ff.initialize(),
-            df_state=self.df.initialize(),
+            sf_state=self.sf.init(),
+            ff_state=self.ff.init(),
+            df_state=self.df.init(),
             solution_context=jnp.zeros(scon_shape),
             fitness_context=jnp.zeros(fcon_shape),
             distribution_context=jnp.zeros(dcon_shape),

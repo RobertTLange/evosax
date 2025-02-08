@@ -49,7 +49,7 @@ class EvolutionPath:
         self.num_dims = num_dims
         self.timescales = timescales
 
-    def initialize(self) -> chex.Array:
+    def init(self) -> chex.Array:
         """Initialize evolution path arrays."""
         return jnp.zeros((self.num_dims, self.timescales.shape[0]))
 

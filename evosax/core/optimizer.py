@@ -52,9 +52,9 @@ class Optimizer:
         """Return shared and optimizer-specific default parameters."""
         return OptParams(**self.params_opt)
 
-    def initialize(self, params: OptParams) -> OptState:
+    def init(self, params: OptParams) -> OptState:
         """Initialize the optimizer state."""
-        return self.initialize_opt(params)
+        return self.init_opt(params)
 
     def step(
         self,
@@ -76,7 +76,7 @@ class Optimizer:
         """Optimizer-specific hyperparameters."""
         raise NotImplementedError
 
-    def initialize_opt(self, params: OptParams) -> OptState:
+    def init_opt(self, params: OptParams) -> OptState:
         """Optimizer-specific initialization of optimizer state."""
         raise NotImplementedError
 
@@ -104,7 +104,7 @@ class SGD(Optimizer):
             "momentum": 0.0,
         }
 
-    def initialize_opt(self, params: OptParams) -> OptState:
+    def init_opt(self, params: OptParams) -> OptState:
         """Initialize the momentum trace of the optimizer."""
         return OptState(m=jnp.zeros(self.num_dims), lrate=params.lrate_init)
 
@@ -140,7 +140,7 @@ class Adam(Optimizer):
             "eps": 1e-8,
         }
 
-    def initialize_opt(self, params: OptParams) -> OptState:
+    def init_opt(self, params: OptParams) -> OptState:
         """Initialize the m, v trace of the optimizer."""
         return OptState(
             m=jnp.zeros(self.num_dims),
@@ -183,7 +183,7 @@ class RMSProp(Optimizer):
             "eps": 1e-8,
         }
 
-    def initialize_opt(self, params: OptParams) -> OptState:
+    def init_opt(self, params: OptParams) -> OptState:
         """Initialize the m, v trace of the optimizer."""
         return OptState(
             m=jnp.zeros(self.num_dims),
@@ -226,7 +226,7 @@ class ClipUp(Optimizer):
             "momentum": 0.9,
         }
 
-    def initialize_opt(self, params: OptParams) -> OptState:
+    def init_opt(self, params: OptParams) -> OptState:
         """Initialize the momentum trace of the optimizer."""
         return OptState(m=jnp.zeros(self.num_dims), lrate=params.lrate_init)
 
@@ -276,7 +276,7 @@ class Adan(Optimizer):
             "eps": 1e-8,
         }
 
-    def initialize_opt(self, params: OptParams) -> OptState:
+    def init_opt(self, params: OptParams) -> OptState:
         """Initialize the m, v, n trace of the optimizer."""
         return OptState(
             m=jnp.zeros(self.num_dims),

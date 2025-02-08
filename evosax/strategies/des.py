@@ -60,8 +60,8 @@ class DES(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(temperature=self.temperature, sigma_init=self.sigma_init)
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         # Get DES discovered recombination weights.
         weights = get_des_weights(self.population_size, params.temperature)
         initialization = jax.random.uniform(

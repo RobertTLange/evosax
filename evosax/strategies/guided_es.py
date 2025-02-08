@@ -88,8 +88,8 @@ class GuidedES(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(opt_params=self.optimizer.default_params)
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         key_init, key_sub = jax.random.split(key)
         initialization = jax.random.uniform(
             key_init,
@@ -103,7 +103,7 @@ class GuidedES(Strategy):
         state = EvoState(
             mean=initialization,
             sigma=params.sigma_init,
-            opt_state=self.optimizer.initialize(params.opt_params),
+            opt_state=self.optimizer.init(params.opt_params),
             grad_subspace=grad_subspace,
             best_member=initialization,
         )

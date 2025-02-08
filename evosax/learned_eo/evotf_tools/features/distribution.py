@@ -14,7 +14,7 @@ class TraceConstructor:
         self.num_dims = num_dims
         self.timescales = timescales
 
-    def initialize(self) -> chex.Array:
+    def init(self) -> chex.Array:
         return jnp.zeros((self.num_dims, self.timescales.shape[0]))
 
     def update(self, paths: chex.Array, diff: chex.Array) -> chex.Array:
@@ -79,14 +79,14 @@ class DistributionFeaturizer:
             print(f"[{self.use_oai_grad}] OpenAI Gradient")
 
     @functools.partial(jax.jit, static_argnames=("self",))
-    def initialize(self) -> DistributionFeaturesState:
+    def init(self) -> DistributionFeaturesState:
         return DistributionFeaturesState(
             old_mean=jnp.zeros((self.num_dims,)),
             old_sigma=jnp.ones((self.num_dims,)),
-            momentum_mean=self.mompath.initialize(),
-            momentum_sigma=self.mompath.initialize(),
-            evopath_mean=self.evopath.initialize(),
-            evopath_sigma=self.evopath.initialize(),
+            momentum_mean=self.mompath.init(),
+            momentum_sigma=self.mompath.init(),
+            evopath_mean=self.evopath.init(),
+            evopath_sigma=self.evopath.init(),
         )
 
     @functools.partial(jax.jit, static_argnames=("self",))

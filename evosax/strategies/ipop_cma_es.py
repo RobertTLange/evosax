@@ -61,11 +61,11 @@ class IPOP_CMA_ES:
         return re_params.replace(restart_params=RestartParams())
 
     @partial(jax.jit, static_argnames=("self",))
-    def initialize(
+    def init(
         self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:
-        """`initialize` the evolution strategy."""
-        return self.wrapped_strategy.initialize(key, params)
+        """`init` the evolution strategy."""
+        return self.wrapped_strategy.init(key, params)
 
     def ask(
         self,

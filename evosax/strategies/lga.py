@@ -99,8 +99,8 @@ class LGA(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(net_params=self.lga_net_params, sigma_init=self.sigma_init)
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         init_x = jax.random.uniform(
             key,
             (self.elite_population_size, self.num_dims),

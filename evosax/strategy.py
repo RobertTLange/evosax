@@ -62,19 +62,19 @@ class Strategy:
         return params
 
     @partial(jax.jit, static_argnames=("self",))
-    def initialize(
+    def init(
         self,
         key: jax.Array,
         params: EvoParams | None = None,
         init_mean: chex.Array | chex.ArrayTree | None = None,
     ) -> EvoState:
-        """`initialize` the evolution strategy."""
+        """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
 
         # Initialize strategy based on strategy-specific initialize method
-        state = self.initialize_strategy(key, params)
+        state = self.init_strategy(key, params)
 
         if init_mean is not None:
             state = self.set_mean(state, init_mean)
@@ -138,8 +138,8 @@ class Strategy:
             generation_counter=state.generation_counter + 1,
         )
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """Search-specific `initialize` method. Returns initial state."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """Strategy-specific `init` method. Returns initial state."""
         raise NotImplementedError
 
     def ask_strategy(

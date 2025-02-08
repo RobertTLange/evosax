@@ -65,8 +65,8 @@ class SV_CMA_ES(CMA_ES):
         self.strategy_name = "SV_CMA_ES"
         self.kernel = kernel()
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.subpopulation_size, self.elite_population_size, self.num_dims, self.max_dims_sq
         )

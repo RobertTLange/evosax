@@ -103,8 +103,8 @@ class Indep_iAMaLGaM(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
-        """`initialize` the evolution strategy."""
+    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+        """`init` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
             key,

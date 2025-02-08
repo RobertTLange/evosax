@@ -30,7 +30,7 @@ def test_mlp_forward():
 #         output_activation="identity",
 #     )
 #     pholder = jnp.zeros((4,))
-#     carry_init = network.initialize_carry()
+#     carry_init = network.init_carry()
 #     params = network.init(
 #         key,
 #         x=pholder,

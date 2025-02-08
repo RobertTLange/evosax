@@ -54,7 +54,7 @@ class SolutionFeaturizer:
             )
 
     @functools.partial(jax.jit, static_argnames=("self",))
-    def initialize(self):
+    def init(self):
         return SolutionFeaturesState(
             best_fitness=jnp.finfo(jnp.float32).max,
             best_member=jnp.zeros((self.num_dims,)),

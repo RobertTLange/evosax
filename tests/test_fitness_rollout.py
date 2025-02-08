@@ -14,7 +14,7 @@ def test_classic_rollout(classic_name: str):
     x = evaluator.sample_x(key)
     strategy = CMA_ES(population_size=20, pholder_params=x, elite_ratio=0.5)
     params = strategy.default_params
-    state = strategy.initialize(key, params)
+    state = strategy.init(key, params)
 
     # Run the ask-eval-tell loop
     key_ask, key_eval = jax.random.split(key)
@@ -42,7 +42,7 @@ def test_env_ffw_rollout(env_name: str):
     evaluator.set_apply_fn(network.apply)
 
     strategy = ARS(population_size=20, pholder_params=net_params, elite_ratio=0.5)
-    state = strategy.initialize(key)
+    state = strategy.init(key)
     # Run the ask-eval-tell loop
     key_ask, key_eval = jax.random.split(key)
     x, state = strategy.ask(key_ask, state)
@@ -78,7 +78,7 @@ def test_vision_fitness():
     evaluator.set_apply_fn(network.apply)
 
     strategy = ARS(population_size=4, pholder_params=net_params, elite_ratio=0.5)
-    state = strategy.initialize(key)
+    state = strategy.init(key)
 
     # Run the ask-eval-tell loop
     key_ask, key_eval = jax.random.split(key)
