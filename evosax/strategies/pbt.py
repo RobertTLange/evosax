@@ -1,4 +1,3 @@
-
 import chex
 import jax
 import jax.numpy as jnp
@@ -50,8 +49,7 @@ class PBT(Strategy):
         return EvoParams()
 
     def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
-        """`initialize` the differential evolution strategy.
-        """
+        """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
             rng,
             (self.popsize, self.num_dims),

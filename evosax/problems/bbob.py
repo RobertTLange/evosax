@@ -1,99 +1,130 @@
-"""Implementation of BBOB functions provided in Hansen et al. (2009)."""
+"""Blackbox Optimization Benchmarking Functions from Hansen et al. (2010)."""
 
 from functools import partial
 
-import chex
 import jax
 import jax.numpy as jnp
 
 from evosax.utils.visualizer_2d import BBOBVisualizer
 
-from .bbob_helpers import (
-    asymmetry_trafo,
-    boundary_penalty,
-    get_rotation,
-    lambda_alpha_trafo,
-    oscillation_trafo,
-)
-
 
 class BBOBFitness:
-    """BBOB Functions Benchmark Task.
-    Functions from Hansen et al. (2009)
-    'Real-parameter black-box optimization benchmarking 2009: Noiseless functions definitions'
+    """Blackbox Optimization Benchmarking class.
+
     Link: https://numbbo.github.io/gforge/downloads/download16.00/bbobdocfunctions.pdf
     """
 
     def __init__(
         self,
-        fn_name: str = "Sphere",
+        fn_name: str = "sphere",
         num_dims: int = 2,
-        seed_id: int = 1,
         n_devices: int = 1,
+        seed: int = 0,
     ):
-        self.num_dims = num_dims
-        # Create rotation matrices for non-separability
-        rng = jax.random.PRNGKey(seed_id)
-        self.seed_id = seed_id
-        self.R, self.Q = self.get_rotation_matrices(rng)
         self.fn_name = fn_name
-        self.fn = BBOB_fns[self.fn_name]
+        self.max_num_dims = num_dims
+        self.num_dims = num_dims
         self.n_devices = n_devices
+
+        key = jax.random.key(seed)
+        self.x_opt = jax.random.uniform(
+            key, shape=(self.max_num_dims,), minval=-4.0, maxval=4.0
+        )
+        self.r, self.q = self.get_rotation_matrices(key, num_dims)
+
+        self.fn = partial(
+            bbob_fns[self.fn_name],
+            x_opt=self.x_opt,
+            r=self.r,
+            q=self.q,
+            num_dims=self.num_dims,
+        )
 
     def rollout(
         self,
-        rng: chex.PRNGKey,
-        eval_params: chex.Array,
-        R: chex.Array | None = None,
-        Q: chex.Array | None = None,
+        key: jax.Array,
+        eval_params: jax.Array,
         noise_std: float = 0.0,
-    ) -> chex.Array:
+    ) -> jax.Array:
         """Batch evaluate the proposal points."""
         if self.n_devices > 1:
-            return self.rollout_pmap(rng, eval_params, R, Q, noise_std)
+            return self.rollout_pmap(key, eval_params, noise_std)
         else:
-            return self.rollout_single(rng, eval_params, R, Q, noise_std)
+            return self.rollout_single(key, eval_params, noise_std)
 
     def rollout_pmap(
         self,
-        rng: chex.PRNGKey,
-        eval_params: chex.Array,
-        R: chex.Array,
-        Q: chex.Array,
+        key: jax.Array,
+        eval_params: jax.Array,
         noise_std: float,
     ):
         """Evaluate the proposal points in parallel across devices."""
-        # split the rng into n_devices
-        rngs = jax.random.split(rng, self.n_devices)
+        # split the key into n_devices
+        keys = jax.random.split(key, self.n_devices)
         # pmap over the devices
-        val = jax.pmap(self.rollout_single, in_axes=(0, 0, None, None, None))(
-            rngs, eval_params, R, Q, noise_std
+        val = jax.pmap(self.rollout_single, in_axes=(0, 0, None))(
+            keys, eval_params, noise_std
         )
         return val
 
     @partial(jax.jit, static_argnums=(0,))
     def rollout_single(
         self,
-        rng: chex.PRNGKey,
-        eval_params: chex.Array,
-        R: chex.Array | None = None,
-        Q: chex.Array | None = None,
+        key: jax.Array,
+        eval_params: jax.Array,
         noise_std: float = 0.0,
-    ) -> chex.Array:
+    ) -> jax.Array:
         """Batch evaluate the proposal points."""
-        if R is None:
-            R, Q = self.R, self.Q
         # vmap over population batch dimension
-        val = jax.vmap(self.fn, in_axes=(0, None, None))(eval_params, R, Q)
-        eval_noise = jax.random.normal(rng, shape=val.shape) * noise_std
-        return val + eval_noise
+        fn_value, fn_pen = jax.vmap(self.fn)(eval_params)
+        eval_noise = jax.random.normal(key, shape=fn_value.shape) * noise_std
+        return fn_value + eval_noise
 
-    def get_rotation_matrices(self, rng: chex.PRNGKey):
+    def generate_random_rotation(self, key: jax.Array, num_dims: int) -> jax.Array:
+        """Generate a random (n, n) rotation matrix uniformly sampled from SO(n).
+
+        This implementation follows the method described in:
+        "How to generate a random unitary matrix" [Maris Ozols 2006]
+        http://home.lu.lv/~sd20008/papers/essays/Random%20unitary%20[paper].pdf
+        https://github.com/alecjacobson/gptoolbox/blob/master/matrix/rand_rotation.m
+
+        Uses a fixed-size matrix of max_num_dims and masks the extra dimensions to handle
+        variable num_dims while remaining jit-compatible.
+        """
+        # Generate fixed-size random normal matrix but mask based on num_dims
+        random_matrix = jax.random.normal(key, (self.max_num_dims, self.max_num_dims))
+        mask = (jnp.arange(self.max_num_dims)[:, None] < num_dims) & (
+            jnp.arange(self.max_num_dims)[None, :] < num_dims
+        )
+        random_matrix = jnp.where(mask, random_matrix, 0.0)
+
+        # Add identity matrix for masked region to ensure valid QR decomposition
+        random_matrix = random_matrix + jnp.where(
+            ~mask, jnp.eye(self.max_num_dims), 0.0
+        )
+
+        # QR decomposition
+        orthogonal_matrix, upper_triangular = jnp.linalg.qr(random_matrix)
+
+        # Extract diagonal and create sign correction matrix
+        diagonal = jnp.diag(upper_triangular)
+        sign_correction = jnp.diag(diagonal / jnp.abs(diagonal))
+
+        # Apply sign correction
+        rotation = orthogonal_matrix @ sign_correction
+
+        # Ensure determinant is 1 by possibly flipping first row
+        determinant = jnp.linalg.det(rotation)
+        rotation = rotation.at[0].multiply(determinant)
+
+        return rotation
+
+    def get_rotation_matrices(self, key: jax.Array, num_dims: int):
         """Sample two rotation matrices."""
-        rng_q, rng_r = jax.random.split(rng)
-        R = get_rotation(rng_r, self.num_dims)
-        Q = get_rotation(rng_q, self.num_dims)
-        return R, Q
+        key_q, key_r = jax.random.split(key)
+        r = self.generate_random_rotation(key_r, num_dims)
+        q = self.generate_random_rotation(key_q, num_dims)
+        return r, q
 
     def visualize(self, plot_log_fn: bool = False):
         """Visualize fitness landscape in 2D case."""
@@ -104,468 +135,649 @@ class BBOBFitness:
         visualizer.plot_contour_3d(save=False)
 
 
-def Sphere(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Sphere fn - separable (p.5; Hansen et al., 2009)."""
-    out = arr * arr
-    return jnp.sum(out)
+def lambda_alpha(alpha: float, max_num_dims: int, num_dims: int) -> jax.Array:
+    """Masked lambda alpha matrix."""
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    exp = (
+        jnp.where(num_dims > 1, 0.5 * jnp.arange(max_num_dims) / (num_dims - 1), 0.5)
+        * mask
+    )
+    return jnp.diag(jnp.power(alpha, exp))
 
 
-def EllipsoidalOriginal(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Ellipsoidal Original fn - separable (p.10; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    z_vec = jax.vmap(oscillation_trafo)(arr)
-
-    def get_val(i):
-        exp = jax.lax.select(dim > 1, 6.0 * i / (dim - 1), 6.0)
-        s = 10**exp * z_vec[i] * z_vec[i]
-        return s
-
-    out = jax.vmap(get_val)(jnp.arange(dim))
-    return jnp.sum(out)
+def transform_osz(element: float) -> jax.Array:
+    """Oscillation transformation function."""
+    x_hat = jnp.where(element == 0.0, 0.0, jnp.log(jnp.abs(element)))
+    c_1 = jnp.where(element > 0.0, 10.0, 5.5)
+    c_2 = jnp.where(element > 0.0, 7.9, 3.1)
+    return jnp.sign(element) * jnp.exp(
+        x_hat + 0.049 * (jnp.sin(c_1 * x_hat) + jnp.sin(c_2 * x_hat))
+    )
 
 
-def RastriginOriginal(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Rastrigin fn - separable (p.15; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    z = asymmetry_trafo(jax.vmap(oscillation_trafo)(arr), 0.2, dim)
-    z = jnp.matmul(lambda_alpha_trafo(10.0, dim), z)
+def transform_asy(x: jax.Array, beta: float, num_dims: int) -> jax.Array:
+    """Asymmetry transformation function."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    exp = (
+        1
+        + beta
+        * jnp.where(num_dims > 1, jnp.arange(max_num_dims) / (num_dims - 1), 1.0)
+        * jnp.sqrt(x)
+        * mask
+    )
+    return jnp.where(x > 0.0, jnp.power(x, exp), x)
+
+
+def f_pen(x: jax.Array, num_dims: int) -> jax.Array:
+    """Boundary penalty."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    out = jnp.abs(x) - 5.0
+    return jnp.sum(jnp.square(jnp.maximum(0.0, out * mask)))
+
+
+def sphere(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Sphere Function (Hansen et al., 2010, p. 5)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = x - x_opt
+
+    out = jnp.square(z)
+    return jnp.sum(out * mask), jnp.array(0.0)
+
+
+def ellipsoidal(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Ellipsoidal Function (Hansen et al., 2010, p. 10)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = transform_osz(x - x_opt)
+
+    exp = (
+        jnp.where(num_dims > 1, 6.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0)
+        * mask
+    )
+    out = jnp.power(10, exp) * jnp.square(z)
+    return jnp.sum(out * mask), jnp.array(0.0)
+
+
+def rastrigin(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Rastrigin Function (Hansen et al., 2010, p. 15)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = transform_asy(transform_osz(x - x_opt), 0.2, num_dims)
+    z = jnp.matmul(lambda_alpha(10.0, max_num_dims, num_dims), z)
+
     out_1 = jnp.cos(2 * jnp.pi * z)
-    out_2 = z * z
-    return 10 * (dim - jnp.sum(out_1)) + jnp.sum(out_2)
-
-
-def BuecheRastrigin(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Bueche-Rastrigin fn - separable (p.20; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    t = jax.vmap(oscillation_trafo)(arr)
-
-    def calculate_si(max_dims: int, vector: chex.Array, num_dims: int) -> chex.Array:
-        def get_val(i):
-            s = jax.lax.select(
-                num_dims > 1, 10 ** (0.5 * (i / (num_dims - 1.0))), 10**0.5
-            )
-            extra_cond = jnp.logical_and(i % 2 == 0, vector[i] > 0)
-            s = jax.lax.select(extra_cond, s * 10, s)
-            return s
-
-        return jax.vmap(get_val, in_axes=0)(jnp.arange(max_dims))
-
-    L = calculate_si(dim, arr, dim) * t
-    out1 = jnp.cos(2 * jnp.pi * L)
-    out2 = L * L
-    t1 = 10 * (dim - jnp.sum(out1 * dim))
-    t2 = jnp.sum(out2 * dim)
-    t3 = 100 * boundary_penalty(arr, dim)
-    return t1 + t2 + t3
-
-
-def LinearSlope(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Linear Slope fn - separable (p.25; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    z = jnp.matmul(R, arr)
-
-    def get_val(i):
-        s = 10 ** jax.lax.select(dim > 1, i / (dim - 1.0), 1.0)
-        z_opt = 5 * jnp.sum(jnp.abs(R[i, :]))
-        return s * (z_opt - z[i])
-
-    out = jax.vmap(get_val)(jnp.arange(dim))
-    return jnp.sum(out)
-
-
-def AttractiveSector(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Attractive Sector fn - low/mod condition (p.30; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    x_opt = jnp.array([1 * (i % 2 == 0) - 1 * (i % 2 != 0) for i in range(dim)])
-    z_vec = jnp.matmul(R, arr - x_opt)
-    z_vec = jnp.matmul(lambda_alpha_trafo(10.0, dim), z_vec)
-    z_vec = jnp.matmul(Q, z_vec)
-
-    def get_val(i):
-        z = z_vec[i]
-        s = jax.lax.select(z * x_opt[i] > 0, 100, 1)
-        return (s * z) ** 2
-
-    out = jax.vmap(get_val)(jnp.arange(dim))
-    res = jnp.sum(out)
-    return jnp.power(oscillation_trafo(res), 0.9)
-
-
-def StepEllipsoidal(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Step Ellipsoidal fn - low/mod condition (p.35; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    z_hat = jnp.matmul(R, arr)
-    z_hat = jnp.matmul(lambda_alpha_trafo(10.0, dim), z_hat)
-    z_tilde = jnp.array(
-        [
-            jnp.floor(0.5 + z) * (z > 0.5) + (jnp.floor(0.5 + 10 * z)) * (z <= 0.5)
-            for z in z_hat
-        ]
+    out_2 = jnp.square(z)
+    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), jnp.array(
+        0.0
     )
-    z_tilde = jnp.matmul(Q, z_tilde)
-
-    def get_val(i):
-        exponent = jax.lax.select(dim > 1.0, 2.0 * i / (dim - 1.0), 2.0)
-        return 10.0**exponent * z_tilde[i] ** 2
-
-    out = jax.vmap(get_val)(jnp.arange(dim))
-    res = jnp.sum(out)
-    value = jnp.maximum(jnp.abs(z_hat[0]) / 1000, res)
-    return 0.1 * value + boundary_penalty(arr, dim)
 
 
-def RosenbrockOriginal(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """RosenbrockOriginal fn - low/mod condition (p.40; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    # Optimum is at origin!
-    z = jnp.maximum(1.0, (dim**0.5) / 8.0) * arr + 1
-    out = jnp.array(
-        [100.0 * (z[i] ** 2 - z[i + 1]) ** 2 + (z[i] - 1) ** 2 for i in range(dim - 1)]
+def bueche_rastrigin(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Bueche-Rastrigin Function (Hansen et al., 2010, p. 20)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    # TODO: in "Real-Parameter Black-Box Optimization Benchmarking 2009: Noiseless Functions Definitions", circular
+    # definition between z and s.
+    z = transform_osz(x - x_opt)
+
+    exp = (
+        jnp.where(num_dims > 1, 0.5 * jnp.arange(max_num_dims) / (num_dims - 1), 0.5)
+        * mask
     )
-    return jnp.sum(out)
+    cond = (z > 0.0) & (jnp.arange(max_num_dims) % 2 == 1)
+    s = jnp.where(cond, jnp.power(10, exp + 1), jnp.power(10, exp))
 
+    z = s * z
 
-def RosenbrockRotated(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """RosenbrockRotated fn - low/mod condition (p.45; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    r_x = jnp.matmul(R, arr)
-    z = jnp.maximum(1.0, (dim**0.5) / 8.0) * r_x + 0.5 * jnp.ones((dim,))
-    out = jnp.array(
-        [100.0 * (z[i] ** 2 - z[i + 1]) ** 2 + (z[i] - 1) ** 2 for i in range(dim - 1)]
-    )
-    return jnp.sum(out)
-
-
-def EllipsoidalRotated(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Ellipsoidal Rotated fn - high condition (p.50; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    r_x = jnp.matmul(R, arr)
-    z_vec = jax.vmap(oscillation_trafo)(r_x)
-
-    def get_val(i):
-        exp = jax.lax.select(dim > 1, 6.0 * i / (dim - 1), 6.0)
-        s = 10**exp * z_vec[i] * z_vec[i]
-        return s
-
-    out = jax.vmap(get_val)(jnp.arange(dim))
-    return jnp.sum(out)
-
-
-def Discus(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Discus fn - high condition (p.55; Hansen et al., 2009)."""
-    r_x = jnp.matmul(R, arr)
-    z_vec = jax.vmap(oscillation_trafo)(r_x)
-    out = jnp.array([z * z for z in z_vec[1:]])
-    return 10**6 * z_vec[0] * z_vec[0] + jnp.sum(out)
-
-
-def BentCigar(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Bent Cigar fn - high condition (p.60; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    z_vec = jnp.matmul(R, arr)
-    z_vec = asymmetry_trafo(z_vec, 0.5, dim)
-    z_vec = jnp.matmul(R, z_vec)
-    out = z_vec[1:] ** 2
-    return z_vec[0] ** 2 + 10**6 * jnp.sum(out)
-
-
-def SharpRidge(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Sharp Ridge fn - high condition (p.65; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    z_vec = jnp.matmul(R, arr)
-    z_vec = jnp.matmul(lambda_alpha_trafo(10, dim), z_vec)
-    z_vec = jnp.matmul(Q, z_vec)
-    out = z_vec[1:] ** 2
-    return z_vec[0] ** 2 + 100 * jnp.sum(out) ** 0.5
-
-
-def DifferentPowers(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Different Powers fn - high condition (p.70; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    z = jnp.matmul(R, arr)
-
-    def get_val(i):
-        exp = (2 + 4 * i / (dim - 1)) * (dim > 1) + (dim <= 1) * 6
-        s = jnp.abs(z[i]) ** exp
-        return s
-
-    out = jax.vmap(get_val)(jnp.arange(dim))
-    return jnp.sum(out) ** 0.5
-
-
-def RastriginRotated(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Rastrigin fn - multi-modal (p.75; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    z = jnp.matmul(R, arr)
-    z = asymmetry_trafo(jax.vmap(oscillation_trafo)(z), 0.2, dim)
-    z = jnp.matmul(Q, z)
-    z = jnp.matmul(lambda_alpha_trafo(10.0, dim), z)
-    z = jnp.matmul(R, z)
     out_1 = jnp.cos(2 * jnp.pi * z)
-    out_2 = z * z
-    return 10 * (dim - jnp.sum(out_1)) + jnp.sum(out_2)
+    out_2 = jnp.square(z)
+    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), 100 * f_pen(
+        x, num_dims
+    )
 
 
-def Weierstrass(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Weierstrass fn - multi-modal (p.80; Hansen et al., 2009)."""
+def linear_slope(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Linear Slope (Hansen et al., 2010, p. 25)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    # x_opt = 5.0 * (2 * jax.random.bernoulli(subkey, shape=(max_num_dims,)) - 1)
+    x_opt = jnp.where(x_opt > 0.0, 5.0, -5.0)
+
+    z = jnp.where(x * x_opt < 25.0, x, x_opt)
+
+    exp = jnp.where(num_dims > 1, jnp.arange(max_num_dims) / (num_dims - 1), 0.5) * mask
+    s = jnp.sign(x_opt) * jnp.power(10, exp)
+
+    out = 5 * jnp.abs(s) - s * z
+    return jnp.sum(out * mask), jnp.array(0.0)
+
+
+def attractive_sector(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Attractive Sector Function (Hansen et al., 2010, p. 30)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = jnp.matmul(r, x - x_opt)
+    z = jnp.matmul(lambda_alpha(10.0, max_num_dims, num_dims), z)
+    z = jnp.matmul(q, z)
+
+    s = jnp.where(z * x_opt > 0.0, 100.0, 1.0)
+
+    out = jnp.sum(jnp.square(s * z) * mask)
+    return jnp.power(transform_osz(out), 0.9), jnp.array(0.0)
+
+
+def step_ellipsoidal(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Step Ellipsoidal Function (Hansen et al., 2010, p. 35)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z_hat = jnp.matmul(r, x - x_opt)
+    z_hat = jnp.matmul(lambda_alpha(10.0, max_num_dims, num_dims), z_hat)
+
+    z_tilde = jnp.where(
+        jnp.abs(z_hat) > 0.5,
+        jnp.floor(0.5 + z_hat),
+        jnp.floor(0.5 + 10 * z_hat) / 10,
+    )
+
+    z = jnp.matmul(q, z_tilde)
+
+    exp = (
+        jnp.where(num_dims > 1, 2.0 * jnp.arange(max_num_dims) / (num_dims - 1.0), 2.0)
+        * mask
+    )
+    out = jnp.sum(100.0 * jnp.power(10.0, exp) * jnp.square(z) * mask)
+    return 0.1 * jnp.maximum(jnp.abs(z_hat[0]) / 1e4, out), f_pen(x, num_dims)
+
+
+def rosenbrock(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Rosenbrock Function, original (Hansen et al., 2010, p. 40)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
+
+    x_opt *= 3 / 4
+    z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * (x - x_opt) + 1.0
+    z_i = z[:-1]
+    z_ip1 = jnp.roll(z, -1)[:-1]
+
+    out = 100.0 * (z_i**2 - z_ip1) ** 2 + (z_i - 1) ** 2
+    return jnp.sum(out * mask), jnp.array(0.0)
+
+
+def rosenbrock_rotated(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Rosenbrock Function, rotated (Hansen et al., 2010, p. 45)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
+
+    z = (
+        jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(r, x - x_opt) + 0.5
+    )  # TODO: check if correct
+    z_i = z[:-1]
+    z_ip1 = jnp.roll(z, -1)[:-1]
+
+    out = 100.0 * (z_i**2 - z_ip1) ** 2 + (z_i - 1) ** 2
+    return jnp.sum(out * mask), jnp.array(0.0)
+
+
+def ellipsoidal_rotated(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Ellipsoidal Function (Hansen et al., 2010, p. 50)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = jnp.matmul(r, x - x_opt)
+    z = transform_osz(z)
+
+    exp = (
+        jnp.where(num_dims > 1, 6.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0)
+        * mask
+    )
+    out = jnp.power(10, exp) * jnp.square(z)
+    return jnp.sum(out * mask), jnp.array(0.0)
+
+
+def discus(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Discus Function (Hansen et al., 2010, p. 55)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = jnp.matmul(r, x - x_opt)
+    z = transform_osz(z)
+
+    z_squared = jnp.square(z)
+    out = z_squared.at[0].multiply(10**6)
+    return jnp.sum(out * mask), jnp.array(0.0)
+
+
+def bent_cigar(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Bent Cigar Function (Hansen et al., 2010, p. 60)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = jnp.matmul(r, x - x_opt)
+    z = transform_asy(z, 0.5, num_dims)
+    z = jnp.matmul(r, z)
+
+    z_squared = jnp.square(z)
+    out = z_squared.at[1:].multiply(10**6)
+    return jnp.sum(out * mask), jnp.array(0.0)
+
+
+def sharp_ridge(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Sharp Ridge Function (Hansen et al., 2010, p. 65)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
+
+    z = jnp.matmul(r, x - x_opt)
+    z = jnp.matmul(lambda_alpha(10, max_num_dims, num_dims), z)
+    z = jnp.matmul(q, z)
+
+    z_squared = jnp.square(z)
+    return z_squared[0] + 100 * jnp.sqrt(jnp.sum(z_squared[1:] * mask)), jnp.array(0.0)
+
+
+def different_powers(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Different Powers Function (Hansen et al., 2010, p. 70)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = jnp.matmul(r, x - x_opt)
+
+    exp = (
+        jnp.where(
+            num_dims > 1, 2.0 + 4.0 * jnp.arange(max_num_dims) / (num_dims - 1), 6.0
+        )
+        * mask
+    )
+    out = jnp.power(jnp.abs(z), exp)
+    return jnp.sqrt(jnp.sum(out * mask)), jnp.array(0.0)
+
+
+def rastrigin_rotated(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Rastrigin Function (Hansen et al., 2010, p. 75)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = jnp.matmul(r, x - x_opt)
+    z = transform_asy(transform_osz(z), 0.2, num_dims)
+    z = jnp.matmul(q, z)
+    z = jnp.matmul(lambda_alpha(10.0, max_num_dims, num_dims), z)
+    z = jnp.matmul(r, z)
+
+    out_1 = jnp.cos(2 * jnp.pi * z)
+    out_2 = jnp.square(z)
+    return 10 * (num_dims - jnp.sum(out_1 * mask)) + jnp.sum(out_2 * mask), jnp.array(
+        0.0
+    )
+
+
+def weierstrass(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Weierstrass Function (Hansen et al., 2010, p. 80)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    z = jnp.matmul(r, x - x_opt)
+    z = transform_osz(z)
+    z = jnp.matmul(q, z)
+    z = jnp.matmul(lambda_alpha(0.01, max_num_dims, num_dims), z)
+    z = jnp.matmul(r, z)
+
     k_order = 12
-    dim = arr.shape[0]
-    z = jnp.matmul(R, arr)
-    z = jax.vmap(oscillation_trafo)(z)
-    z = jnp.matmul(Q, z)
-    z = jnp.matmul(lambda_alpha_trafo(1.0 / 100.0, dim), z)
-    f0 = jnp.array([0.5**k * jnp.cos(jnp.pi * 3**k) for k in range(k_order)]).sum()
+    half_pow_k = jnp.power(0.5, jnp.arange(k_order))
+    three_pow_k = jnp.power(3, jnp.arange(k_order))
+    f_0 = jnp.sum(half_pow_k * jnp.cos(jnp.pi * three_pow_k))
 
-    def get_val(i):
-        s = 0
-        for k in range(k_order):
-            s += 0.5**k * jnp.cos(2 * jnp.pi * (3**k) * (z[i] + 0.5))
-        return s
-
-    out = jax.vmap(get_val)(jnp.arange(dim))
-    s = jnp.sum(out)
-    return 10 * (s / dim - f0) ** 3 + 10 * boundary_penalty(arr, dim) / dim
+    out = jnp.sum(
+        half_pow_k
+        * jnp.cos(2 * jnp.pi * three_pow_k * (z[:, None] + 0.5))
+        * mask[:, None]
+    )
+    return 10 * (out / num_dims - f_0) ** 3, 10 * f_pen(x, num_dims) / num_dims
 
 
-def SchaffersF7(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """SchaffersF7 fn - multi-modal (p.85; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    if dim == 1:
+def schaffers_f7(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Schaffers F7 Function (Hansen et al., 2010, p. 85)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
+
+    if max_num_dims == 1:
         return 0.0
-    z = jnp.matmul(R, arr)
-    z = asymmetry_trafo(z, 0.5, dim)
-    z = jnp.matmul(Q, z)
-    z = jnp.matmul(lambda_alpha_trafo(10.0, dim), z)
 
-    def get_val_arr(i):
-        s_arr = (z[i] ** 2 + z[i + 1] ** 2) ** 0.5
-        return s_arr
+    z = jnp.matmul(r, x - x_opt)
+    z = transform_asy(z, 0.5, num_dims)
+    z = jnp.matmul(q, z)
+    z = jnp.matmul(lambda_alpha(10.0, max_num_dims, num_dims), z)
 
-    s_arr = jax.vmap(get_val_arr, in_axes=0)(jnp.arange(dim - 1))
+    z_i = z[:-1]
+    z_ip1 = jnp.roll(z, -1)[:-1]
+    s = jnp.sqrt(z_i**2 + z_ip1**2)
 
-    def get_val(i):
-        return s_arr[i] ** 0.5 + (s_arr[i] ** 0.5) * jnp.sin(50 * s_arr[i] ** 0.2) ** 2
-
-    out = jax.vmap(get_val)(jnp.arange(dim - 1))
-    s = jnp.sum(out)
-    return (s / (dim - 1.0)) ** 2 + 10 * boundary_penalty(arr, dim)
+    out = jnp.sum((jnp.sqrt(s) + jnp.sqrt(s) * jnp.sin(50 * s**0.2) ** 2) * mask)
+    return (out / (num_dims - 1.0)) ** 2, 10 * f_pen(x, num_dims)
 
 
-def SchaffersF7IllConditioned(
-    arr: chex.Array, R: chex.Array, Q: chex.Array
-) -> chex.Array:
-    """SchaffersF7 ill condition - multi-modal (p.90; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    if dim == 1:
+def schaffers_f7_ill_conditioned(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Schaffers F7 Function, moderately ill-conditioned (Hansen et al., 2010, p. 90)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
+
+    if max_num_dims == 1:
         return 0.0
-    z = jnp.matmul(R, arr)
-    z = asymmetry_trafo(z, 0.5, dim)
-    z = jnp.matmul(Q, z)
-    z = jnp.matmul(lambda_alpha_trafo(1000.0, dim), z)
 
-    def get_val_arr(i):
-        s_arr = (z[i] ** 2 + z[i + 1] ** 2) ** 0.5
-        return s_arr
+    z = jnp.matmul(r, x - x_opt)
+    z = transform_asy(z, 0.5, num_dims)
+    z = jnp.matmul(q, z)
+    z = jnp.matmul(lambda_alpha(1000.0, max_num_dims, num_dims), z)
 
-    s_arr = jax.vmap(get_val_arr, in_axes=0)(jnp.arange(dim - 1))
+    z_i = z[:-1]
+    z_ip1 = jnp.roll(z, -1)[:-1]
+    s = jnp.sqrt(z_i**2 + z_ip1**2)
 
-    def get_val(i):
-        return s_arr[i] ** 0.5 + (s_arr[i] ** 0.5) * jnp.sin(50 * s_arr[i] ** 0.2) ** 2
-
-    out = jax.vmap(get_val)(jnp.arange(dim - 1))
-    s = jnp.sum(out)
-    return (s / (dim - 1.0)) ** 2 + 10 * boundary_penalty(arr, dim)
+    out = jnp.sum((jnp.sqrt(s) + jnp.sqrt(s) * jnp.sin(50 * s**0.2) ** 2) * mask)
+    return (out / (num_dims - 1.0)) ** 2, 10 * f_pen(x, num_dims)
 
 
-def GriewankRosenbrock(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Griewank-Rosenbrock fn - multi-modal weak (p.95; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    r_x = jnp.matmul(R, arr)
-    # Original BBOB: max(1.0, (dim ** 0.5)/8) * r_x + 0.5 * jnp.ones((dim,))
-    z_arr = jnp.maximum(1.0, (dim**0.5) / 8.0) * r_x + jnp.ones((dim,))
-    s_arr = jnp.zeros(dim)
+def griewank_rosenbrock(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Composite Griewank-Rosenbrock Function F8F2 (Hansen et al., 2010, p. 95)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
 
-    def get_val_arr(i):
-        s_arr = 100.0 * (z_arr[i] ** 2 - z_arr[i + 1]) ** 2 + (z_arr[i] - 1) ** 2
-        return s_arr
+    z = (
+        jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(r, x - x_opt) + 0.5
+    )  # TODO: check if correct
+    # z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(r, x - x_opt) + 1.0
+    z_i = z[:-1]
+    z_ip1 = jnp.roll(z, -1)[:-1]
 
-    s_arr = jax.vmap(get_val_arr)(jnp.arange(dim - 1))
-
-    def get_val(i):
-        val = s_arr[i] / 4000.0 - jnp.cos(s_arr[i])
-        return val
-
-    out = jax.vmap(get_val)(jnp.arange(dim - 1))
-    total = jnp.sum(out)
-    return (10.0 * total) / (dim - 1) + 10
+    s = 100.0 * (z_i**2 - z_ip1) ** 2 + (z_i - 1) ** 2
+    out = s / 4000.0 - jnp.cos(s)
+    return 10.0 * jnp.sum(out * mask) / (num_dims - 1) + 10, jnp.array(0.0)
 
 
-def Schwefel(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Schwefel fn - multi-modal weak (p.100; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    bernoulli_arr = jnp.array([jnp.power(-1, i + 1) for i in range(dim)])
-    x_opt = 4.2096874633 / 2.0 * bernoulli_arr
-    x_hat = 2.0 * (bernoulli_arr * arr)  # element-wise multiply
-    z_hat = jnp.zeros(dim)
-    z_hat = z_hat.at[0].set(x_hat[0])
+def schwefel(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Schwefel Function (Hansen et al., 2010, p. 100)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
 
-    def get_val(i):
-        val = x_hat[i] + 0.25 * (x_hat[i - 1] - 2 * jnp.abs(x_opt[i - 1]))
-        return val
+    # x_opt = 4.2096874633 * (2 * jax.random.bernoulli(subkey, shape=(max_num_dims,)) - 1) / 2
+    bernoulli = jnp.where(x_opt > 0.0, 1.0, -1.0)
+    x_opt = 4.2096874633 * bernoulli / 2
 
-    vals = jax.vmap(get_val)(jnp.arange(1, dim))
-    z_hat = z_hat.at[1:].set(vals)
-    z_vec = 100 * (
-        jnp.matmul(lambda_alpha_trafo(10, dim), z_hat - 2 * jnp.abs(x_opt))
+    x_hat = 2.0 * bernoulli * x
+    x_hat_i = x_hat
+    x_hat_im1 = jnp.roll(x_hat, 1).at[0].set(0.0)
+    x_opt_im1 = jnp.roll(x_opt, 1).at[0].set(0.0)
+    z_hat = x_hat_i + 0.25 * (x_hat_im1 - 2 * jnp.abs(x_opt_im1))
+    z = 100 * (
+        jnp.matmul(lambda_alpha(10, max_num_dims, num_dims), z_hat - 2 * jnp.abs(x_opt))
         + 2 * jnp.abs(x_opt)
     )
-    out = z_vec * jnp.sin(jnp.abs(z_vec) ** 0.5)
-    total = jnp.sum(out)
-    return (
-        -(total / (100.0 * dim))
-        + 4.189828872724339
-        + 100 * boundary_penalty(z_vec / 100, dim)
+
+    out = z * jnp.sin(jnp.sqrt(jnp.abs(z)))
+    return -(jnp.sum(out * mask) / (100.0 * num_dims)) + 4.189828872724339, 100 * f_pen(
+        z / 100, num_dims
     )
 
 
-def Gallagher101Me(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Gallagher 101 peaks - multi-modal weak (p.105; Hansen et al., 2009)."""
-    dim = arr.shape[0]
+def gallagher_101_me(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Gallagher's Gaussian 101-me Peaks Function (Hansen et al., 2010, p. 105)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
     num_optima = 101
+    key = jax.random.key(0)
+    key = jax.random.fold_in(key, q[0, 0])
 
-    def get_optima(i):
-        vec = jnp.zeros(dim)
-        for j in range(dim):
-            alpha = ((i - 1) * dim + j + 1.0) / (dim * num_optima + 2.0)
-            vec = vec.at[j].set(-5 + 10 * alpha)
-        return vec * (i != 0) + jnp.zeros([dim]) * (i == 0)
-
-    optima_list = jax.vmap(get_optima)(jnp.arange(num_optima))
-
-    def get_c_val(i):
-        alpha = 1000.0 ** (2.0 * (i - 1) / (num_optima - 2))
-        c_mat = lambda_alpha_trafo(alpha, dim) / (alpha**0.25)
-        return c_mat * (i != 0) + lambda_alpha_trafo(1000, dim) * (i == 0)
-
-    c_list = jax.vmap(get_c_val)(jnp.arange(num_optima))
-    max_value = jnp.array([-1.0])
-
-    for i in range(num_optima):
-        w = 10 * (i == 0) + (1.1 + 8.0 * (i - 1.0) / (num_optima - 2.0)) * (i != 0)
-        diff = jnp.matmul(R, (arr - optima_list[i]).reshape(-1, 1))
-        e = jnp.matmul(diff.transpose(), jnp.matmul(c_list[i], diff))
-        max_value = jnp.maximum(max_value, w * jnp.exp(-e / (2.0 * dim)))
-    return oscillation_trafo(10.0 - max_value.squeeze()) ** 2 + boundary_penalty(
-        arr, dim
+    w = jnp.where(
+        jnp.arange(num_optima) == 0,
+        10.0,
+        1.1 + 8.0 * (jnp.arange(num_optima) - 1.0) / (num_optima - 2.0),
     )
 
+    alpha = jnp.zeros(num_optima)
+    alpha_set = jnp.power(1000.0, 2.0 * jnp.arange(num_optima - 1) / (num_optima - 2))
+    key, subkey = jax.random.split(key)
+    alpha_permuted = jax.random.permutation(subkey, alpha_set)
+    alpha = alpha.at[0].set(1000.0)
+    alpha = alpha.at[1:].set(alpha_permuted)
+    c = jax.vmap(
+        lambda alpha: lambda_alpha(alpha, max_num_dims, num_dims) / alpha**0.25
+    )(alpha)
 
-def Gallagher21Hi(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Gallagher 21 peaks fn - multi-modal weak (p.110; Hansen et al., 2009)."""
-    dim = arr.shape[0]
+    key, subkey = jax.random.split(key)
+    keys = jax.random.split(subkey, num_optima)
+
+    def permute_diag(c_i, key):
+        perm = jax.random.choice(
+            key, jnp.arange(max_num_dims), shape=(max_num_dims,), replace=False, p=mask
+        )
+        diag = jnp.diag(c_i)
+        new_diag = diag[perm]
+        return c_i.at[jnp.arange(max_num_dims), jnp.arange(max_num_dims)].set(new_diag)
+
+    c = jax.vmap(permute_diag)(c, keys)
+
+    key, subkey = jax.random.split(key)
+    y = jax.random.uniform(
+        subkey,
+        shape=(
+            num_optima,
+            max_num_dims,
+        ),
+        minval=-5.0,
+        maxval=5.0,
+    )
+    y = y.at[0].set(x_opt) * mask
+
+    def f(c_i, y_i, w_i):
+        out = jnp.matmul(r, x - y_i)
+        out = jnp.matmul(c_i, out)
+        out = jnp.matmul(jnp.transpose(r), out)
+        out = jnp.dot(x - y_i, out * mask)
+        return w_i * jnp.exp(-out / (2 * num_dims))
+
+    out = jax.vmap(f)(c, y, w)
+    return jnp.square(transform_osz(10.0 - jnp.max(out))), f_pen(x, num_dims)
+
+
+def gallagher_21_hi(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Gallagher's Gaussian 21-hi Peaks Function (Hansen et al., 2010, p. 110)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    x_opt *= 3.92 / 4.0
+
     num_optima = 21
+    key = jax.random.key(0)
+    key = jax.random.fold_in(key, q[0, 0])
 
-    def get_optima(i):
-        vec = jnp.zeros(dim)
-        for j in range(dim):
-            alpha = ((i - 1) * dim + j + 1.0) / (dim * num_optima + 2.0)
-            vec = vec.at[j].set(-5 + 10 * alpha)
-        return vec * (i != 0) + jnp.zeros([dim]) * (i == 0)
+    w = jnp.where(
+        jnp.arange(num_optima) == 0,
+        10.0,
+        1.1 + 8.0 * (jnp.arange(num_optima) - 1.0) / (num_optima - 2.0),
+    )
 
-    optima_list = jax.vmap(get_optima)(jnp.arange(num_optima))
+    alpha = jnp.zeros(num_optima)
+    alpha_set = jnp.power(1000.0, 2.0 * jnp.arange(num_optima - 1) / (num_optima - 2))
+    key, subkey = jax.random.split(key)
+    alpha_permuted = jax.random.permutation(subkey, alpha_set)
+    alpha = alpha.at[0].set(1000.0**2)
+    alpha = alpha.at[1:].set(alpha_permuted)
+    c = jax.vmap(
+        lambda alpha: lambda_alpha(alpha, max_num_dims, num_dims) / alpha**0.25
+    )(alpha)
 
-    def get_c_val(i):
-        alpha = 1000.0 ** (2.0 * (i - 1) / (num_optima - 2))
-        c_mat = lambda_alpha_trafo(alpha, dim) / (alpha**0.25)
-        return c_mat * (i != 0) + lambda_alpha_trafo(1000, dim) * (i == 0)
+    key, subkey = jax.random.split(key)
+    keys = jax.random.split(subkey, num_optima)
 
-    c_list = jax.vmap(get_c_val)(jnp.arange(num_optima))
-    max_value = jnp.array([-1.0])
+    def permute_diag(c_i, key):
+        perm = jax.random.choice(
+            key, jnp.arange(max_num_dims), shape=(max_num_dims,), replace=False, p=mask
+        )
+        diag = jnp.diag(c_i)
+        new_diag = diag[perm]
+        return c_i.at[jnp.arange(max_num_dims), jnp.arange(max_num_dims)].set(new_diag)
 
-    for i in range(num_optima):
-        w = 10 * (i == 0) + (1.1 + 8.0 * (i - 1.0) / (num_optima - 2.0)) * (i != 0)
-        diff = jnp.matmul(R, (arr - optima_list[i]).reshape(-1, 1))
-        e = jnp.matmul(diff.transpose(), jnp.matmul(c_list[i], diff))
-        max_value = jnp.maximum(max_value, w * jnp.exp(-e / (2.0 * dim)))
-    return oscillation_trafo(10.0 - max_value.squeeze()) ** 2 + boundary_penalty(
-        arr, dim
+    c = jax.vmap(permute_diag)(c, keys)
+
+    key, subkey = jax.random.split(key)
+    y = jax.random.uniform(
+        subkey,
+        shape=(
+            num_optima,
+            max_num_dims,
+        ),
+        minval=-4.9,
+        maxval=4.9,
+    )
+    y = y.at[0].set(x_opt) * mask
+
+    def f(c_i, y_i, w_i):
+        out = jnp.matmul(r, x - y_i)
+        out = jnp.matmul(c_i, out)
+        out = jnp.matmul(jnp.transpose(r), out)
+        out = jnp.dot(x - y_i, out * mask)
+        return w_i * jnp.exp(-out / (2 * num_dims))
+
+    out = jax.vmap(f)(c, y, w)
+    return jnp.square(transform_osz(10.0 - jnp.max(out))), f_pen(x, num_dims)
+
+
+def katsuura(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Katsuura Function (Hansen et al., 2010, p. 115)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
+
+    # num_terms = 32 in Hansen et al., 2010, but set to 30 to avoid overflow
+    num_terms = 30
+
+    z = jnp.matmul(r, x - x_opt)
+    z = jnp.matmul(lambda_alpha(100.0, max_num_dims, num_dims), z)
+    z = jnp.matmul(q, z)
+
+    two_pow_j = jnp.power(2, jnp.arange(1, num_terms + 1))
+    sum = jnp.sum(
+        jnp.abs(two_pow_j * z[:, None] - jnp.round(two_pow_j * z[:, None])) / two_pow_j,
+        axis=1,
+    )
+    prod = jnp.prod(1 + jnp.arange(1, max_num_dims + 1) * sum * mask)
+    return (10.0 / num_dims**2) * (jnp.power(prod, 10.0 / num_dims**1.2) - 1.0), f_pen(
+        x, num_dims
     )
 
 
-def Katsuura(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Katsuura fn - multi-modal weak (p.115; Hansen et al., 2009)."""
-    # NOTE: Numerically instable - need higher precision float64
-    # from jax.config import config
-    # config.update("jax_enable_x64", True)
-    dim = arr.shape[0]
-    r_x = jnp.matmul(R, arr)
-    z_vec = jnp.matmul(lambda_alpha_trafo(100.0, dim), r_x)
-    z_vec = jnp.matmul(Q, z_vec)
+def lunacek(
+    x: jax.Array, x_opt: jax.Array, r: jax.Array, q: jax.Array, num_dims: int
+) -> jax.Array:
+    """Lunacek bi-Rastrigin Function (Hansen et al., 2010, p. 120)."""
+    max_num_dims = x.shape[0]
+    mask = jnp.arange(max_num_dims) < num_dims
 
-    def get_val(i):
-        s = 0.0
-        for j in range(1, 33):
-            s += jnp.abs(2**j * z_vec[i] - jnp.round(2**j * z_vec[i])) / 2**j
-        return (1 + (i + 1) * s) ** (10.0 / dim**1.2)
+    mu_0 = 2.5
+    d = 1
+    s = 1.0 - 1 / (2.0 * jnp.sqrt(num_dims + 20.0) - 8.2)
+    mu_1 = -jnp.sqrt((mu_0**2 - d) / s)
 
-    out = jax.vmap(get_val)(jnp.arange(dim))
-    mask = jnp.arange(dim) < dim
-    coeff = 1.0 - mask  # 1st to zero and add 1 for multiply
-    prod = jnp.prod(out * mask + coeff)
-    return (10.0 / dim**2) * prod - 10.0 / dim**2 + boundary_penalty(arr, dim)
+    x_opt = jnp.where(x_opt > 0.0, mu_0 / 2, -mu_0 / 2)
+    x_hat = 2 * jnp.sign(x_opt) * x
 
+    z = jnp.matmul(r, x_hat - mu_0)
+    z = jnp.matmul(lambda_alpha(100, max_num_dims, num_dims), z)
+    z = jnp.matmul(q, z)
 
-def Lunacek(arr: chex.Array, R: chex.Array, Q: chex.Array) -> chex.Array:
-    """Lunacek fn - multi-modal weak (p.120; Hansen et al., 2009)."""
-    dim = arr.shape[0]
-    mu0 = 2.5
-    s = 1.0 - 1.0 / (2.0 * (dim + 20.0) ** 0.5 - 8.2)
-    mu1 = -(((mu0**2 - 1) / s) ** 0.5)
-    x_opt = jnp.array([mu0 / 2] * dim)
-    x_hat = 2 * arr * jnp.sign(x_opt)
-    x_vec = x_hat - mu0
-    x_vec = jnp.matmul(R, x_vec)
-    z_vec = jnp.matmul(lambda_alpha_trafo(100, dim), x_vec)
-    z_vec = jnp.matmul(Q, z_vec)
-
-    s1 = jnp.sum((x_hat - mu0) ** 2)
-    s2 = jnp.sum((x_hat - mu1) ** 2)
-    s3 = jnp.sum(jnp.cos(2 * jnp.pi * z_vec))
-    return (
-        jnp.minimum(s1, dim + s * s2)
-        + 10.0 * (dim - s3)
-        + 10**4 * boundary_penalty(arr, dim)
-    )
+    s_1 = jnp.sum(jnp.square(x_hat - mu_0) * mask)
+    s_2 = jnp.sum(jnp.square(x_hat - mu_1) * mask)
+    s_3 = jnp.sum(jnp.cos(2 * jnp.pi * z) * mask)
+    return jnp.minimum(s_1, d * num_dims + s * s_2) + 10.0 * (
+        num_dims - s_3
+    ), 10**4 * f_pen(x, num_dims)
 
 
-BBOB_fns = {
+bbob_fns = {
     # Part 1: Separable functions
-    "Sphere": Sphere,
-    "EllipsoidalOriginal": EllipsoidalOriginal,
-    "RastriginOriginal": RastriginOriginal,
-    "BuecheRastrigin": BuecheRastrigin,
-    "LinearSlope": LinearSlope,
+    "sphere": sphere,
+    "ellipsoidal": ellipsoidal,
+    "rastrigin": rastrigin,
+    "bueche_rastrigin": bueche_rastrigin,
+    "linear_slope": linear_slope,
     # Part 2: Functions with low or moderate conditions
-    "AttractiveSector": AttractiveSector,
-    "StepEllipsoidal": StepEllipsoidal,
-    "RosenbrockOriginal": RosenbrockOriginal,
-    "RosenbrockRotated": RosenbrockRotated,
+    "attractive_sector": attractive_sector,
+    "step_ellipsoidal": step_ellipsoidal,
+    "rosenbrock": rosenbrock,
+    "rosenbrock_rotated": rosenbrock_rotated,
     # Part 3: Functions with high conditioning and unimodal
-    "EllipsoidalRotated": EllipsoidalRotated,
-    "Discus": Discus,
-    "BentCigar": BentCigar,
-    "SharpRidge": SharpRidge,
-    "DifferentPowers": DifferentPowers,
+    "ellipsoidal_rotated": ellipsoidal_rotated,
+    "discus": discus,
+    "bent_cigar": bent_cigar,
+    "sharp_ridge": sharp_ridge,
+    "different_powers": different_powers,
     # Part 4: Multi-modal functions with adequate global structure
-    "RastriginRotated": RastriginRotated,
-    "Weierstrass": Weierstrass,
-    "SchaffersF7": SchaffersF7,
-    "SchaffersF7IllConditioned": SchaffersF7IllConditioned,
-    "GriewankRosenbrock": GriewankRosenbrock,
+    "rastrigin_rotated": rastrigin_rotated,
+    "weierstrass": weierstrass,
+    "schaffers_f7": schaffers_f7,
+    "schaffers_f7_ill_conditioned": schaffers_f7_ill_conditioned,
+    "griewank_rosenbrock": griewank_rosenbrock,
     # Part 5: Multi-modal functions with weak global structure
-    "Schwefel": Schwefel,
-    "Katsuura": Katsuura,
-    "Lunacek": Lunacek,
-    "Gallagher101Me": Gallagher101Me,
-    "Gallagher21Hi": Gallagher21Hi,
+    "schwefel": schwefel,
+    "gallagher_101_me": gallagher_101_me,
+    "gallagher_21_hi": gallagher_21_hi,
+    "katsuura": katsuura,
+    "lunacek": lunacek,
 }

@@ -1,4 +1,3 @@
-
 import chex
 import jax
 import jax.numpy as jnp
@@ -122,8 +121,7 @@ class DiffusionEvolution(Strategy):
     def ask_strategy(
         self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
-        """`ask` for new proposed candidates to evaluate next.
-        """
+        """`ask` for new proposed candidates to evaluate next."""
         alpha_t = state.alphas[state.gen_counter - 1]
         alpha_pt = state.alphas_past[state.gen_counter - 1]
         # only do ddim step if not at 1st gen otw return init pop
@@ -149,8 +147,7 @@ class DiffusionEvolution(Strategy):
         state: EvoState,
         params: EvoParams,
     ) -> EvoState:
-        """`tell` update to ES state.
-        """
+        """`tell` update to ES state."""
         # map fitness to density (integrates to 1)
         # note -> by default reference implementation maximizes!
         # evosax, on the other hand, minimizes by default
