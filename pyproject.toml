@@ -10,9 +10,8 @@ dependencies = [
 	"jax>=0.5.0",
 	"flax>=0.10.0",
 	"chex",
-	"pyyaml",
-	"matplotlib",
 	"dotmap",
+	"matplotlib",
 ]
 requires-python = ">=3.10"
 authors = [
@@ -21,7 +20,7 @@ authors = [
 description = "Evolution Strategies in JAX"
 readme = "README.md"
 license = {file = "LICENSE"}
-keywords = ["evolutionary-algorithms", "evolution-strategy", "neuroevolution"]
+keywords = ["evolution-strategy", "evolutionary-algorithms", "neuroevolution"]
 classifiers = [
 	"Programming Language :: Python :: 3.10",
 	"Programming Language :: Python :: 3.11",
