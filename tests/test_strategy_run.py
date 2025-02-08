@@ -11,7 +11,7 @@ num_iters = 25
 
 def test_strategy_run(strategy_name):
     # Loop over all strategies and test ask API
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     Strat = Strategies[strategy_name]
 
     num_dims = 2
@@ -47,7 +47,7 @@ def test_strategy_run(strategy_name):
 
 def test_strategy_scan(strategy_name):
     # Loop over all strategies and test ask API
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     Strat = Strategies[strategy_name]
 
     num_dims = 2

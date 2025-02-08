@@ -181,7 +181,7 @@ def get_adding_data(T: int = 150, test: bool = False):
     """Sample a mask, [0, 1] samples and sum of targets for len T.
     Reference:  Martens & Sutskever. ICML, 2011.
     """
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     bs = 100000 if test else 10000
 
     def get_single_addition(rng, T):
@@ -212,7 +212,7 @@ def get_array_data(
 
         # Permute the sequence of the pixels if desired.
         if permute_seq:  # bs, T - fix permutation by seed
-            rng = jax.random.PRNGKey(0)
+            rng = jax.random.key(0)
             idx = jnp.arange(784)
             idx_perm = jax.random.permutation(rng, idx)
             data = data.at[:].set(data[:, idx_perm])

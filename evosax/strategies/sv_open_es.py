@@ -77,7 +77,7 @@ class SV_OpenES(OpenES):
         )
 
     def initialize_strategy(
-        self, rng: jax.random.PRNGKey, params: EvoParams
+        self, rng: jax.random.key, params: EvoParams
     ) -> EvoState:
         """`initialize` the evolution strategy."""
         x_init = jax.random.uniform(
@@ -98,7 +98,7 @@ class SV_OpenES(OpenES):
         return state
 
     def ask_strategy(
-        self, rng: jax.random.PRNGKey, state: EvoState, params: EvoParams
+        self, rng: jax.random.key, state: EvoState, params: EvoParams
     ) -> [Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise

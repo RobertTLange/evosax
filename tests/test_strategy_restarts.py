@@ -8,7 +8,7 @@ def test_simple_restart():
     num_dims = 2
     x = jnp.zeros((num_dims,))
 
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     strategy = CMA_ES(popsize=4, pholder_params=x)
     re_strategy = Simple_Restarter(strategy)
     re_es_params = re_strategy.default_params
@@ -34,7 +34,7 @@ def test_simple_restart():
 
 
 def test_ipop_restart():
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     num_dims = 2
     x = jnp.zeros((num_dims,))
     strategy = OpenES(popsize=4, pholder_params=x)
@@ -68,7 +68,7 @@ def test_ipop_restart():
 
 
 def test_bipop_restart():
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     num_dims = 2
     x = jnp.zeros((num_dims,))
     strategy = OpenES(popsize=4, pholder_params=x)
@@ -113,7 +113,7 @@ def test_bipop_restart():
 
 
 def test_ipop_cma_es():
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     num_dims = 2
     x = jnp.zeros((num_dims,))
     re_strategy = IPOP_CMA_ES(popsize=4, pholder_params=x)
@@ -145,7 +145,7 @@ def test_ipop_cma_es():
 
 
 def test_bipop_cma_es():
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     num_dims = 2
     x = jnp.zeros((num_dims,))
     re_strategy = BIPOP_CMA_ES(popsize=4, pholder_params=x)

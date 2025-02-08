@@ -10,7 +10,7 @@ class RandomDecoder(Decoder):
         self,
         num_encoding_dims: int,
         placeholder_params: chex.ArrayTree | chex.Array,
-        rng: chex.PRNGKey = jax.random.PRNGKey(0),
+        rng: chex.PRNGKey = jax.random.key(0),
         rademacher: bool = False,
     ):
         """Random Projection Decoder (Gaussian/Rademacher random matrix)."""

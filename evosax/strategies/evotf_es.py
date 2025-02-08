@@ -318,7 +318,7 @@ class EvoTF_ES(Strategy):
                 solution_context,
                 fitness_context,
                 distribution_context,
-                rngs={"dropout": jax.random.PRNGKey(0)},
+                rngs={"dropout": jax.random.key(0)},
                 train=False,
                 mask=self.la_mask,
             )

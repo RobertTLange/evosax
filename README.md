@@ -14,7 +14,7 @@ import jax
 from evosax import CMA_ES
 
 # Instantiate the search strategy
-rng = jax.random.PRNGKey(0)
+rng = jax.random.key(0)
 strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
 es_params = strategy.default_params
 state = strategy.initialize(rng, es_params)

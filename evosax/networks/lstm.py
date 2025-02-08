@@ -46,5 +46,5 @@ class LSTM(nn.Module):
     def initialize_carry(self) -> tuple[chex.ArrayTree, chex.ArrayTree]:
         """Initialize hidden state of LSTM."""
         return nn.LSTMCell.initialize_carry(
-            jax.random.PRNGKey(0), (), self.num_hidden_units
+            jax.random.key(0), (), self.num_hidden_units
         )

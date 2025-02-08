@@ -4,7 +4,7 @@ from evosax.networks import CNN, MLP, All_CNN_C
 
 
 def test_mlp_forward():
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     network = MLP(
         num_hidden_units=64,
         num_hidden_layers=2,
@@ -23,7 +23,7 @@ def test_mlp_forward():
 
 
 # def test_lstm_forward():
-#     rng = jax.random.PRNGKey(0)
+#     rng = jax.random.key(0)
 #     network = LSTM(
 #         num_hidden_units=32,
 #         num_output_units=1,
@@ -42,7 +42,7 @@ def test_mlp_forward():
 
 
 def test_cnn_forward():
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     network = CNN(
         depth_1=1,
         depth_2=1,
@@ -67,7 +67,7 @@ def test_cnn_forward():
 
 
 def test_all_cnn_forward():
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     network = All_CNN_C(
         depth_1=1,
         depth_2=1,

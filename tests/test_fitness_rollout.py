@@ -9,7 +9,7 @@ from evosax.problems import (
 
 
 def test_classic_rollout(classic_name: str):
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     evaluator = BBOBFitness(classic_name, num_dims=2)
     x = evaluator.sample_x(rng)
     strategy = CMA_ES(popsize=20, pholder_params=x, elite_ratio=0.5)
@@ -24,7 +24,7 @@ def test_classic_rollout(classic_name: str):
 
 
 def test_env_ffw_rollout(env_name: str):
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     evaluator = GymnaxFitness(env_name, num_env_steps=100, num_rollouts=10)
     network = NetworkMapper["MLP"](
         num_hidden_units=64,
@@ -53,7 +53,7 @@ def test_env_ffw_rollout(env_name: str):
 
 
 # def test_env_rec_rollout(env_name: str):
-#     rng = jax.random.PRNGKey(0)
+#     rng = jax.random.key(0)
 #     evaluator = GymnaxFitness(env_name, num_env_steps=100, num_rollouts=10)
 #     network = NetworkMapper["LSTM"](
 #         num_hidden_units=64,
@@ -85,7 +85,7 @@ def test_env_ffw_rollout(env_name: str):
 
 
 def test_vision_fitness():
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     evaluator = VisionFitness("MNIST", 4, test=True)
     network = NetworkMapper["CNN"](
         depth_1=1,
@@ -121,7 +121,7 @@ def test_vision_fitness():
 
 
 # def test_sequence_fitness():
-#     rng = jax.random.PRNGKey(0)
+#     rng = jax.random.key(0)
 #     evaluator = SequenceFitness(task_name="Addition", batch_size=10, test=False)
 #     network = NetworkMapper["LSTM"](
 #         num_hidden_units=100,

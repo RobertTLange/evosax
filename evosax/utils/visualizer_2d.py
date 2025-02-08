@@ -49,7 +49,7 @@ class BBOBVisualizer:
         self.fn_name = fn_name
         self.fn = BBOB_fns[self.fn_name]
 
-        rng = jax.random.PRNGKey(seed_id)
+        rng = jax.random.key(seed_id)
         rng_q, rng_r = jax.random.split(rng)
         self.R = get_rotation(rng_r, 2)
         self.Q = get_rotation(rng_q, 2)
@@ -305,7 +305,7 @@ if __name__ == "__main__":
         # "Gallagher101Me",
         # "Gallagher21Hi",
     ]:
-        rng = jax.random.PRNGKey(1)
+        rng = jax.random.key(1)
         strategy = CMA_ES(popsize=4, num_dims=2)
         es_params = strategy.default_params.replace(init_min=-2.5, init_max=2.5)
         es_state = strategy.initialize(rng, es_params)

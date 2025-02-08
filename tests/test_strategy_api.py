@@ -9,7 +9,7 @@ def test_strategy_ask(strategy_name):
     x = jnp.zeros((num_dims,))
 
     # Loop over all strategies and test ask API
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     if strategy_name == "ESMC":
         popsize = 21
     else:
@@ -33,7 +33,7 @@ def test_strategy_ask_tell(strategy_name):
     x = jnp.zeros((num_dims,))
 
     # Loop over all strategies and test ask API
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.key(0)
     if strategy_name == "ESMC":
         popsize = 21
     else:

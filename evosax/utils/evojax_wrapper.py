@@ -25,7 +25,7 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
         self.es_params = self.es.default_params.replace(**es_params)
         self.pop_size = pop_size
         self.param_size = param_size
-        self.rand_key = jax.random.PRNGKey(seed=seed)
+        self.rand_key = jax.random.key(seed=seed)
         self.rand_key, init_key = jax.random.split(self.rand_key)
         self.es_state = self.es.initialize(init_key, self.es_params)
 
