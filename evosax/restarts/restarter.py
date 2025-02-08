@@ -60,7 +60,7 @@ class RestartWrapper:
         """Return default parameters for strategy restarting."""
         return RestartParams()
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def initialize(
         self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:
@@ -73,7 +73,6 @@ class RestartWrapper:
         restart_state = RestartState(restart_counter=0, restart_next=False)
         return WrapperState(strategy_state, restart_state)
 
-    # @partial(jax.jit, static_argnums=(0,))
     def ask(
         self,
         key: jax.Array,
@@ -104,7 +103,7 @@ class RestartWrapper:
         )
         return x, new_state.replace(strategy_state=strategy_state)
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
         x: chex.Array,
@@ -125,7 +124,7 @@ class RestartWrapper:
         restart_state = state.restart_state.replace(restart_next=restart_next)
         return WrapperState(strategy_state, restart_state)
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def stop(
         self, fitness: chex.Array, state: WrapperState, params: WrapperParams
     ) -> bool:

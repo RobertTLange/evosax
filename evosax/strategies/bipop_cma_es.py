@@ -61,7 +61,7 @@ class BIPOP_CMA_ES:
         re_params = self.wrapped_strategy.default_params
         return re_params.replace(restart_params=RestartParams())
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def initialize(
         self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:
@@ -84,7 +84,7 @@ class BIPOP_CMA_ES:
         x, state = self.wrapped_strategy.ask(key, state, params)
         return x, state
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
         x: chex.Array,

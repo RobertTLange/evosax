@@ -78,7 +78,7 @@ class DistributionFeaturizer:
             print(f"[{self.use_momentum}] Momentum -> {self.momentum_timescales}")
             print(f"[{self.use_oai_grad}] OpenAI Gradient")
 
-    @functools.partial(jax.jit, static_argnums=0)
+    @functools.partial(jax.jit, static_argnames=("self",))
     def initialize(self) -> DistributionFeaturesState:
         return DistributionFeaturesState(
             old_mean=jnp.zeros((self.num_dims,)),
@@ -89,7 +89,7 @@ class DistributionFeaturizer:
             evopath_sigma=self.evopath.initialize(),
         )
 
-    @functools.partial(jax.jit, static_argnums=0)
+    @functools.partial(jax.jit, static_argnames=("self",))
     def featurize(
         self,
         x: chex.Array,

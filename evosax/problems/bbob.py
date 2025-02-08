@@ -43,7 +43,7 @@ class BBOBFitness:
             num_dims=self.num_dims,
         )
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def rollout(
         self,
         key: jax.Array,

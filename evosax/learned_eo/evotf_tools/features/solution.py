@@ -53,7 +53,7 @@ class SolutionFeaturizer:
                 f"[{self.norm_diff_best}] Normalized difference to best  -> (x - x_best) in [-0.5, 0.5]"
             )
 
-    @functools.partial(jax.jit, static_argnums=0)
+    @functools.partial(jax.jit, static_argnames=("self",))
     def initialize(self):
         return SolutionFeaturesState(
             best_fitness=jnp.finfo(jnp.float32).max,
@@ -61,7 +61,7 @@ class SolutionFeaturizer:
             generation_counter=0,
         )
 
-    @functools.partial(jax.jit, static_argnums=0)
+    @functools.partial(jax.jit, static_argnames=("self",))
     def featurize(
         self,
         x: chex.Array,

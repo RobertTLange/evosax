@@ -72,7 +72,7 @@ class BatchStrategy:
             self.strategy.default_params, repeated_params
         )
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def initialize_vmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
         """Auto-vectorized `initialize` for the batch evolution strategy."""
         keys = jax.random.split(key, self.num_subpops_per_device)
@@ -94,7 +94,7 @@ class BatchStrategy:
         )
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def ask(
         self, key: jax.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> tuple[chex.Array, chex.ArrayTree]:
@@ -102,7 +102,7 @@ class BatchStrategy:
         x, state = self.ask_map(key, state, params)
         return x, state
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def ask_vmap(
         self, key: jax.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> tuple[chex.Array, chex.ArrayTree]:
@@ -137,7 +137,7 @@ class BatchStrategy:
         )
         return x_re, state_re
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
         x: chex.Array,
@@ -160,7 +160,7 @@ class BatchStrategy:
         state = self.tell_map(b_x_comm, b_fitness_comm, state, params)
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def tell_vmap(
         self,
         batch_x: chex.Array,

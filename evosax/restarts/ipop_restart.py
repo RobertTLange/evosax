@@ -46,7 +46,7 @@ class IPOP_Restarter(RestartWrapper):
         """Return default parameters for strategy restarting."""
         return RestartParams()
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def initialize(
         self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:

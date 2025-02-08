@@ -31,7 +31,7 @@ class FitnessShaper:
         num_options_on = self.centered_rank + self.z_score + self.norm_range
         assert num_options_on < 2, "Only use one fitness shaping transformation."
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def apply(self, x: chex.Array, fitness: chex.Array) -> chex.Array:
         """Max objective trafo, rank shaping, z scoring & add weight decay."""
         if self.maximize:

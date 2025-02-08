@@ -58,7 +58,7 @@ class MetaStrategy(BatchStrategy):
             self.meta_strategy.default_params, base_params
         )
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def ask_meta(
         self,
         key: jax.Array,
@@ -77,14 +77,14 @@ class MetaStrategy(BatchStrategy):
             meta_state,
         )
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def initialize_meta(
         self, key: jax.Array, meta_params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """`initialize` the meta-evolution strategy."""
         return self.meta_strategy.initialize(key, meta_params)
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def tell_meta(
         self,
         inner_params: chex.ArrayTree,

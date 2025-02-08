@@ -64,7 +64,7 @@ class FitnessFeaturizer:
             print(f"[{self.des_weights}] DES weights")
             print(f"[{self.w_decay}] Scaled Weight Norm")
 
-    @functools.partial(jax.jit, static_argnums=0)
+    @functools.partial(jax.jit, static_argnames=("self",))
     def featurize(
         self, x: chex.Array, fitness: chex.Array, state: FitnessFeaturesState
     ) -> tuple[chex.Array, FitnessFeaturesState]:
@@ -106,7 +106,7 @@ class FitnessFeaturizer:
         best_fitness = update_best_fitness(fitness, state.best_fitness, self.maximize)
         return fit_out, FitnessFeaturesState(best_fitness=best_fitness)
 
-    @functools.partial(jax.jit, static_argnums=0)
+    @functools.partial(jax.jit, static_argnames=("self",))
     def initialize(self) -> FitnessFeaturesState:
         return FitnessFeaturesState(best_fitness=jnp.finfo(jnp.float32).max)
 

@@ -26,7 +26,7 @@ class ESLog:
         self.top_k = top_k
         self.maximize = maximize
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def initialize(self) -> chex.ArrayTree:
         """Initialize the logger storage."""
         log = {
@@ -58,7 +58,7 @@ class ESLog:
         }
         return log
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def update(
         self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
     ) -> chex.ArrayTree:

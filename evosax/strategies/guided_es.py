@@ -130,7 +130,7 @@ class GuidedES(Strategy):
         x = state.mean + z
         return x, state
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
         x: chex.Array,

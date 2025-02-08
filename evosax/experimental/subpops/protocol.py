@@ -28,14 +28,14 @@ class Protocol:
                 f"{self.communication} is not currently an implemented protocol."
             )
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def independent(
         self, batch_x: chex.Array, batch_fitness: chex.Array
     ) -> tuple[chex.Array, chex.ArrayTree]:
         """Simply return non-altered candidates & fitness."""
         return batch_x, batch_fitness
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def best_subpop(
         self, batch_x: chex.Array, batch_fitness: chex.Array
     ) -> tuple[chex.Array, chex.ArrayTree]:

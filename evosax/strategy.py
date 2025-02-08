@@ -61,7 +61,7 @@ class Strategy:
         params = self.params_strategy
         return params
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def initialize(
         self,
         key: jax.Array,
@@ -80,7 +80,7 @@ class Strategy:
             state = self.set_mean(state, init_mean)
         return state
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def ask(
         self,
         key: jax.Array,
@@ -101,7 +101,7 @@ class Strategy:
         x_out = jax.vmap(self.unravel_params)(x_clipped)
         return x_out, state
 
-    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
         x: chex.Array | chex.ArrayTree,

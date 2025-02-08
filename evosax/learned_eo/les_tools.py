@@ -83,7 +83,7 @@ class FitnessFeatures:
         self.norm_range = norm_range
         self.maximize = maximize
 
-    @functools.partial(jax.jit, static_argnums=0)
+    @functools.partial(jax.jit, static_argnames=("self",))
     def apply(
         self, x: chex.Array, fitness: chex.Array, best_fitness: float
     ) -> chex.Array:
