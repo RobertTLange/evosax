@@ -41,12 +41,10 @@ class SV_CMA_ES(CMA_ES):
         npop: int,
         subpopsize: int,
         kernel: type[Kernel] = RBF,
-        num_dims: int | None = None,
         pholder_params: ArrayTree | Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Stein Variational CMA-ES (Braun et al., 2024)
@@ -57,12 +55,10 @@ class SV_CMA_ES(CMA_ES):
         popsize = int(npop * subpopsize)
         super().__init__(
             popsize,
-            num_dims,
             pholder_params,
             elite_ratio,
             sigma_init,
             mean_decay,
-            n_devices,
             **fitness_kwargs,
         )
         self.elite_popsize = max(1, int(self.subpopsize * self.elite_ratio))

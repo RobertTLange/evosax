@@ -5,26 +5,23 @@ import chex
 import jax
 import jax.numpy as jnp
 
-from ..core.reshape import ParameterReshaper
+from .helpers import get_ravel_fn
 
 
 class ESLog:
     def __init__(
         self,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         num_generations: int = 200,
         top_k: int = 5,
         maximize: bool = False,
     ):
         """Simple jittable logging tool for ES rollouts."""
-        # Setup optional parameter reshaper
-        self.use_param_reshaper = pholder_params is not None
-        if self.use_param_reshaper:
-            self.param_reshaper = ParameterReshaper(pholder_params, n_devices=1)
-            self.num_dims = self.param_reshaper.total_params
-        else:
-            self.num_dims = num_dims
+        # Set total parameters depending on type of placeholder params
+        self.ravel_params, self.unravel_params = get_ravel_fn(pholder_params)
+        flat_params = self.ravel_params(pholder_params)
+        self.num_dims = flat_params.size
+
         self.num_generations = num_generations
         self.top_k = top_k
         self.maximize = maximize
@@ -68,8 +65,7 @@ class ESLog:
         """Update the logging storage with newest data."""
         # Check if there are solutions better than current archive
         vals = jnp.hstack([log["top_fitness"], fitness])
-        if self.use_param_reshaper:
-            x = self.param_reshaper.flatten(x)
+        x = jax.vmap(self.ravel_params)(x)
         params = jnp.vstack([log["top_params"], x])
         top_idx = self.maximize * ((-1) * vals).argsort() + (
             (1 - self.maximize) * vals.argsort()

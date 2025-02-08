@@ -5,8 +5,11 @@ from evosax.restarts import BIPOP_Restarter, IPOP_Restarter, Simple_Restarter
 
 
 def test_simple_restart():
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+
     rng = jax.random.PRNGKey(0)
-    strategy = CMA_ES(popsize=4, num_dims=2)
+    strategy = CMA_ES(popsize=4, pholder_params=x)
     re_strategy = Simple_Restarter(strategy)
     re_es_params = re_strategy.default_params
     re_es_params = re_es_params.replace(
@@ -32,7 +35,9 @@ def test_simple_restart():
 
 def test_ipop_restart():
     rng = jax.random.PRNGKey(0)
-    strategy = OpenES(popsize=4, num_dims=2)
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+    strategy = OpenES(popsize=4, pholder_params=x)
     re_strategy = IPOP_Restarter(strategy)
     re_es_params = re_strategy.default_params
     re_es_params = re_es_params.replace(
@@ -64,7 +69,9 @@ def test_ipop_restart():
 
 def test_bipop_restart():
     rng = jax.random.PRNGKey(0)
-    strategy = OpenES(popsize=4, num_dims=2)
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+    strategy = OpenES(popsize=4, pholder_params=x)
     re_strategy = BIPOP_Restarter(strategy)
     re_es_params = re_strategy.default_params
     re_es_params = re_es_params.replace(
@@ -107,7 +114,9 @@ def test_bipop_restart():
 
 def test_ipop_cma_es():
     rng = jax.random.PRNGKey(0)
-    re_strategy = IPOP_CMA_ES(popsize=4, num_dims=2)
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+    re_strategy = IPOP_CMA_ES(popsize=4, pholder_params=x)
     re_es_params = re_strategy.default_params
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
@@ -137,7 +146,9 @@ def test_ipop_cma_es():
 
 def test_bipop_cma_es():
     rng = jax.random.PRNGKey(0)
-    re_strategy = BIPOP_CMA_ES(popsize=4, num_dims=2)
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+    re_strategy = BIPOP_CMA_ES(popsize=4, pholder_params=x)
     re_es_params = re_strategy.default_params
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)

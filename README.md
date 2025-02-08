@@ -147,33 +147,6 @@ def run_es_loop(rng, num_steps):
     return jnp.min(scan_out)
 ```
 
-- **Population Parameter Reshaping**: We provide a `ParamaterReshaper` wrapper to reshape flat parameter vectors into PyTrees. The wrapper is compatible with JAX neural network libraries such as Flax/Haiku and makes it easier to afterwards evaluate network populations.
-
-```Python
-from flax import linen as nn
-from evosax import ParameterReshaper
-
-class MLP(nn.Module):
-    num_hidden_units: int
-    ...
-
-    @nn.compact
-    def __call__(self, obs):
-        ...
-        return ...
-
-network = MLP(64)
-net_params = network.init(rng, jnp.zeros(4,), rng)
-
-# Initialize reshaper based on placeholder network shapes
-param_reshaper = ParameterReshaper(net_params)
-
-# Get population candidates & reshape into stacked pytrees
-x = strategy.ask(...)
-x_shaped = param_reshaper.reshape(x)
-```
-
-
 - **Flexible Fitness Shaping**: By default `evosax` assumes that the fitness objective is to be minimized. If you would like to maximize instead, perform rank centering, z-scoring or add weight regularization you can use the `FitnessShaper`: 
 
 ```Python

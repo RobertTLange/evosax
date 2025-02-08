@@ -11,12 +11,9 @@ class GymnaxFitness:
         num_rollouts: int = 16,
         env_kwargs: dict = {},
         env_params: dict = {},
-        test: bool = False,
-        n_devices: int | None = None,
     ):
         self.env_name = env_name
         self.num_rollouts = num_rollouts
-        self.test = test
 
         try:
             import gymnax
@@ -37,10 +34,6 @@ class GymnaxFitness:
 
         self.action_shape = self.env.num_actions
         self.input_shape = self.env.observation_space(self.env_params).shape
-        if n_devices is None:
-            self.n_devices = jax.local_device_count()
-        else:
-            self.n_devices = n_devices
 
         # Keep track of total steps executed in environment
         self.total_env_steps = 0
@@ -56,29 +49,11 @@ class GymnaxFitness:
             self.single_rollout = self.rollout_ffw
         self.rollout_repeats = jax.vmap(self.single_rollout, in_axes=(0, None))
         self.rollout_pop = jax.vmap(self.rollout_repeats, in_axes=(None, 0))
-        # pmap over popmembers if > 1 device is available - otherwise pmap
-        if self.n_devices > 1:
-            self.rollout_map = self.rollout_pmap
-            print(
-                f"GymFitness: {self.n_devices} devices detected. Please make"
-                " sure that the ES population size divides evenly across the"
-                " number of devices to pmap/parallelize over."
-            )
-        else:
-            self.rollout_map = self.rollout_pop
-
-    def rollout_pmap(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
-        """Parallelize rollout across devices. Split keys/reshape correctly."""
-        keys_pmap = jnp.tile(rng_input, (self.n_devices, 1, 1))
-        rew_dev, steps_dev = jax.pmap(self.rollout_pop)(keys_pmap, policy_params)
-        rew_re = rew_dev.reshape(-1, self.num_rollouts)
-        steps_re = steps_dev.reshape(-1, self.num_rollouts)
-        return rew_re, steps_re
 
     def rollout(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
         """Placeholder fn call for rolling out a population for multi-evals."""
         rng_pop = jax.random.split(rng_input, self.num_rollouts)
-        scores, masks = jax.jit(self.rollout_map)(rng_pop, policy_params)
+        scores, masks = jax.jit(self.rollout_pop)(rng_pop, policy_params)
         # Update total step counter using only transitions before termination
         self.total_env_steps += masks.sum()
         return scores

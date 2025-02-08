@@ -35,7 +35,6 @@ class ESMC(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -45,15 +44,12 @@ class ESMC(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """ESMC (Merchant et al., 2021)
         Reference: https://proceedings.mlr.press/v139/merchant21a.html
         """
-        super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
         assert self.popsize & 1, "Population size must be odd"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)

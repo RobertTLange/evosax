@@ -100,7 +100,9 @@ class IPOP_Restarter(RestartWrapper):
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
-            popsize=int(active_popsize), num_dims=self.num_dims, **self.strategy_kwargs
+            popsize=int(active_popsize),
+            pholder_params=self.base_strategy.pholder_params,
+            **self.strategy_kwargs,
         )
 
         strategy_state = self.base_strategy.initialize(rng, params.strategy_params)

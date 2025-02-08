@@ -3,7 +3,9 @@ from evosax.utils import ESLog
 
 
 def test_es_log():
-    es_logging = ESLog(num_dims=2, num_generations=10, top_k=3, maximize=True)
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+    es_logging = ESLog(pholder_params=x, num_generations=10, top_k=3, maximize=True)
     log = es_logging.initialize()
     x = jnp.array([[1, 2], [2, 4], [4, 6], [6, 7]])
     fitness = jnp.array([1, 2, 3, 4])
@@ -14,7 +16,9 @@ def test_es_log():
 
 
 def test_top_k():
-    es_logging = ESLog(num_dims=2, num_generations=10, top_k=3, maximize=True)
+    num_dims = 2
+    x = jnp.zeros((num_dims,))
+    es_logging = ESLog(pholder_params=x, num_generations=10, top_k=3, maximize=True)
     log = es_logging.initialize()
     x = jnp.array([[1, 2], [2, 4], [4, 6], [6, 7]])
     fitness = jnp.array([1, 2, 3, 4])

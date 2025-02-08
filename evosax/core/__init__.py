@@ -13,7 +13,6 @@ from .optimizer import (
     RMSProp,
     exp_decay,
 )
-from .reshape import ParameterReshaper, ravel_pytree
 
 GradientOptimizer = {
     "sgd": SGD,
@@ -25,7 +24,6 @@ GradientOptimizer = {
 
 
 __all__ = [
-    "ParameterReshaper",
     "ravel_pytree",
     "FitnessShaper",
     "GradientOptimizer",

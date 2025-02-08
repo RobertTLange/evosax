@@ -40,6 +40,9 @@ dev = [
 	"mypy>=1.11.2",
 ]
 examples = [
+	"gymnax",
+	"torch",
+	"torchvision",
 	"ipykernel",
 ]
 

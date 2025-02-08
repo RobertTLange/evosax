@@ -85,12 +85,12 @@ class BatchStrategy:
         """Device parallel `initialize` for the batch evolution strategy."""
         # Tile/reshape both rng and params!
         keys_pmap = jnp.tile(rng, (self.n_devices, 1))
-        params_pmap = jax.tree_map(
+        params_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), params
         )
         state_pmap = jax.pmap(self.initialize_vmap)(keys_pmap, params_pmap)
         # Reshape from (# device, #subpops_per_device, ...) to (#subpops, ...)
-        state = jax.tree_map(
+        state = jax.tree.map(
             lambda x: jnp.reshape(x, (self.num_subpops, *x.shape[2:])),
             state_pmap,
         )
@@ -123,10 +123,10 @@ class BatchStrategy:
     ) -> tuple[chex.Array, chex.ArrayTree]:
         """Device parallel `ask` for new parameter candidates."""
         keys_pmap = jnp.tile(rng, (self.n_devices, 1))
-        params_pmap = jax.tree_map(
+        params_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), params
         )
-        state_pmap = jax.tree_map(
+        state_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), state
         )
         batch_x, state_pmap = jax.pmap(self.ask_vmap)(
@@ -135,7 +135,7 @@ class BatchStrategy:
         # Flatten subpopulation proposals back into flat vector
         # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)
         x_re = batch_x.reshape(self.popsize, self.num_dims)
-        state_re = jax.tree_map(
+        state_re = jax.tree.map(
             lambda x: jnp.reshape(x, (self.num_subpops, *x.shape[2:])),
             state_pmap,
         )
@@ -186,10 +186,10 @@ class BatchStrategy:
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """Device parallel `tell` performance data for strategy state update."""
-        params_pmap = jax.tree_map(
+        params_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), params
         )
-        state_pmap = jax.tree_map(
+        state_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), state
         )
         batch_x_pmap = jnp.stack(jnp.split(batch_x, self.n_devices))
@@ -197,7 +197,7 @@ class BatchStrategy:
         state_pmap = jax.pmap(self.tell_vmap)(
             batch_x_pmap, batch_fitness_pmap, state_pmap, params_pmap
         )
-        state_re = jax.tree_map(
+        state_re = jax.tree.map(
             lambda x: jnp.reshape(x, (self.num_subpops, *x.shape[2:])),
             state_pmap,
         )

@@ -68,7 +68,6 @@ class EvoTF_ES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         max_context_len: int = 100,
@@ -112,12 +111,9 @@ class EvoTF_ES(Strategy):
         net_params: chex.ArrayTree | None = None,
         net_ckpt_path: str | None = None,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
-        super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
         self.strategy_name = "EvoTransformer"
         self.max_context_len = max_context_len
         self.model_config = model_config
@@ -199,7 +195,7 @@ class EvoTF_ES(Strategy):
             print(f"Loaded pretrained EvoTF model from ckpt: {ckpt_fname}")
 
         self.num_network_params = sum(
-            x.size for x in jax.tree_leaves(self.default_net_params)
+            x.size for x in jax.tree.leaves(self.default_net_params)
         )
 
         # Set core kwargs es_params

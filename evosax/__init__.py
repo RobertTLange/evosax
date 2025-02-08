@@ -1,4 +1,4 @@
-from .core import FitnessShaper, ParameterReshaper
+from .core import FitnessShaper
 from .networks import NetworkMapper
 from .problems import ProblemMapper
 from .strategies import (
@@ -92,7 +92,6 @@ __all__ = [
     "EvoState",
     "EvoParams",
     "FitnessShaper",
-    "ParameterReshaper",
     "ESLog",
     "NetworkMapper",
     "ProblemMapper",

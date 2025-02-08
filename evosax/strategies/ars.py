@@ -33,7 +33,6 @@ class ARS(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.1,
         opt_name: str = "adam",
@@ -44,15 +43,12 @@ class ARS(Strategy):
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Augmented Random Search (Mania et al., 2018)
         Reference: https://arxiv.org/pdf/1803.07055.pdf
         """
-        super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
         assert not self.popsize & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
         # "b" elite perturbation directions for the update

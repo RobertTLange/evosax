@@ -78,19 +78,15 @@ class CR_FM_NES(Strategy):
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
         pholder_params: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Cost-Reduced Fast-Moving Natural ES (Nomura & Ono, 2022)
         Reference: https://arxiv.org/abs/2201.11422
         """
-        super().__init__(
-            popsize, num_dims, pholder_params, mean_decay, n_devices, **fitness_kwargs
-        )
+        super().__init__(popsize, pholder_params, mean_decay, **fitness_kwargs)
         assert not self.popsize & 1, "Population size must be even"
         self.strategy_name = "CR_FM_NES"
 

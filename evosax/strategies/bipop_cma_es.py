@@ -23,12 +23,10 @@ class BIPOP_CMA_ES:
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        pholder_params: chex.ArrayTree | chex.Array,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """BIPOP-CMA-ES (Hansen, 2009).
@@ -38,13 +36,11 @@ class BIPOP_CMA_ES:
         self.strategy_name = "BIPOP_CMA_ES"
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
-            num_dims=num_dims,
             popsize=popsize,
             pholder_params=pholder_params,
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
             mean_decay=mean_decay,
-            n_devices=n_devices,
             **fitness_kwargs,
         )
         from ..restarts import BIPOP_Restarter

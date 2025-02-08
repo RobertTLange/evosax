@@ -5,8 +5,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from .core import FitnessShaper, ParameterReshaper
+from .core import FitnessShaper
 from .utils import get_best_fitness_member
+from .utils.helpers import get_ravel_fn
 
 
 @struct.dataclass
@@ -33,25 +34,18 @@ class Strategy:
     def __init__(
         self,
         popsize: int,
-        num_dims: int | None = None,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        pholder_params: chex.ArrayTree,
         mean_decay: float = 0.0,
-        n_devices: int | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Base Class for an Evolution Strategy."""
         self.popsize = popsize
 
-        # Setup optional parameter reshaper
-        self.use_param_reshaper = pholder_params is not None
-        if self.use_param_reshaper:
-            self.param_reshaper = ParameterReshaper(pholder_params, n_devices)
-            self.num_dims = self.param_reshaper.total_params
-        else:
-            self.num_dims = num_dims
-        assert self.num_dims is not None, (
-            "Provide either num_dims or pholder_params to strategy."
-        )
+        # Set total parameters depending on type of placeholder params
+        self.pholder_params = pholder_params
+        self.ravel_params, self.unravel_params = get_ravel_fn(pholder_params)
+        flat_params = self.ravel_params(pholder_params)
+        self.num_dims = flat_params.size
 
         # Mean exponential decay coefficient m' = coeff * m
         # Implements form of weight decay regularization
@@ -103,11 +97,8 @@ class Strategy:
         # Clip proposal candidates into allowed range
         x_clipped = jnp.clip(x, params.clip_min, params.clip_max)
 
-        # Reshape parameters into pytrees
-        if self.use_param_reshaper:
-            x_out = self.param_reshaper.reshape(x_clipped)
-        else:
-            x_out = x_clipped
+        # Unravel params
+        x_out = jax.vmap(self.unravel_params)(x_clipped)
         return x_out, state
 
     @partial(jax.jit, static_argnums=(0,))
@@ -123,9 +114,8 @@ class Strategy:
         if params is None:
             params = self.default_params
 
-        # Flatten params if using param reshaper for ES update
-        if self.use_param_reshaper:
-            x = self.param_reshaper.flatten(x)
+        # Ravel params
+        x = jax.vmap(self.ravel_params)(x)
 
         # Perform fitness reshaping inside of strategy tell call (if desired)
         fitness_re = self.fitness_shaper.apply(x, fitness)
@@ -170,18 +160,12 @@ class Strategy:
 
     def get_eval_params(self, state: EvoState):
         """Return reshaped parameters to evaluate."""
-        if self.use_param_reshaper:
-            x_out = self.param_reshaper.reshape_single(state.mean)
-        else:
-            x_out = state.mean
+        x_out = self.unravel_params(state.mean)
         return x_out
 
     def set_mean(
-        self, state: EvoState, replace_mean: chex.Array | chex.ArrayTree
+        self, state: EvoState, params: chex.Array | chex.ArrayTree
     ) -> EvoState:
-        if self.use_param_reshaper:
-            replace_mean = self.param_reshaper.flatten_single(replace_mean)
-        else:
-            replace_mean = jnp.asarray(replace_mean)
+        replace_mean = self.ravel_params(params)
         state = state.replace(mean=replace_mean)
         return state
