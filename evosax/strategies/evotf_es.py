@@ -216,10 +216,10 @@ class EvoTF_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolutionary strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -258,13 +258,13 @@ class EvoTF_ES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         if not self.use_antithetic_sampling:
-            noise = jax.random.normal(rng, (self.popsize, self.num_dims))
+            noise = jax.random.normal(key, (self.popsize, self.num_dims))
         else:
-            noise_p = jax.random.normal(rng, (int(self.popsize / 2), self.num_dims))
+            noise_p = jax.random.normal(key, (int(self.popsize / 2), self.num_dims))
             noise = jnp.concatenate([noise_p, -noise_p], axis=0)
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
         return x, state
@@ -323,7 +323,7 @@ class EvoTF_ES(Strategy):
                 mask=self.la_mask,
             )
 
-        pred, att = infer_step(solution_context, fitness_context, distribution_context)
+        pred, att = infer_step(solution_context, fitness_context, distribution_context)  # TODO: att not used?
         pred_mean = state.mean + params.lrate_mean * state.sigma * pred[0, 0, idx]
         pred_sigma = state.sigma * jnp.exp(params.lrate_sigma / 2 * pred[1, 0, idx])
         pred_sigma = jnp.clip(pred_sigma, 1e-08)

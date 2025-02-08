@@ -81,11 +81,11 @@ class NoiseReuseES(Strategy):
         )
 
     def initialize_strategy(
-        self, rng: chex.PRNGKey, params: EvoParams
+        self, key: jax.Array, params: EvoParams
     ) -> chex.ArrayTree:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -101,13 +101,13 @@ class NoiseReuseES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         # NOTE: Sample each ask call - only use when trajectory is reset
         pos_perts = (
-            jax.random.normal(rng, (self.popsize // 2, self.num_dims)) * state.sigma
+            jax.random.normal(key, (self.popsize // 2, self.num_dims)) * state.sigma
         )
         neg_perts = -pos_perts
         perts = jnp.concatenate([pos_perts, neg_perts], axis=0)

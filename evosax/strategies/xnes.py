@@ -69,10 +69,10 @@ class xNES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolutionary strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -91,10 +91,10 @@ class xNES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        noise = jax.random.normal(rng, (self.popsize, self.num_dims))
+        noise = jax.random.normal(key, (self.popsize, self.num_dims))
 
         def scale_orient(n, sigma, B):
             return sigma * B.T @ n

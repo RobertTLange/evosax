@@ -49,10 +49,10 @@ class BBOBVisualizer:
         self.fn_name = fn_name
         self.fn = BBOB_fns[self.fn_name]
 
-        rng = jax.random.key(seed_id)
-        rng_q, rng_r = jax.random.split(rng)
-        self.R = get_rotation(rng_r, 2)
-        self.Q = get_rotation(rng_q, 2)
+        key = jax.random.key(seed_id)
+        key_q, key_r = jax.random.split(key)
+        self.R = get_rotation(key_r, 2)
+        self.Q = get_rotation(key_q, 2)
         self.global_minima = []
 
         # Set plot configuration
@@ -305,18 +305,18 @@ if __name__ == "__main__":
         # "Gallagher101Me",
         # "Gallagher21Hi",
     ]:
-        rng = jax.random.key(1)
+        key = jax.random.key(1)
         strategy = CMA_ES(popsize=4, num_dims=2)
         es_params = strategy.default_params.replace(init_min=-2.5, init_max=2.5)
-        es_state = strategy.initialize(rng, es_params)
+        es_state = strategy.initialize(key, es_params)
 
         problem = BBOBFitness(fn_name, 2)
 
         X, fitness = [], []
         for g in range(50):
-            rng, rng_ask, rng_eval = jax.random.split(rng, 3)
-            x, es_state = strategy.ask(rng, es_state, es_params)
-            fit = problem.rollout(rng_eval, x)
+            key, key_ask, key_eval = jax.random.split(key, 3)
+            x, es_state = strategy.ask(key, es_state, es_params)
+            fit = problem.rollout(key_eval, x)
             es_state = strategy.tell(x, fit, es_state, es_params)
             X.append(x)
             fitness.append(fit)

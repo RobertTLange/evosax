@@ -9,11 +9,8 @@ def test_strategy_ask(strategy_name):
     x = jnp.zeros((num_dims,))
 
     # Loop over all strategies and test ask API
-    rng = jax.random.key(0)
-    if strategy_name == "ESMC":
-        popsize = 21
-    else:
-        popsize = 20
+    key = jax.random.key(0)
+    popsize = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
         strategy = Strategies[strategy_name](
             npop=1, subpopsize=popsize, pholder_params=x
@@ -21,8 +18,8 @@ def test_strategy_ask(strategy_name):
     else:
         strategy = Strategies[strategy_name](popsize=popsize, pholder_params=x)
     params = strategy.default_params
-    state = strategy.initialize(rng, params)
-    x, state = strategy.ask(rng, state, params)
+    state = strategy.initialize(key, params)
+    x, state = strategy.ask(key, state, params)
     assert x.shape[0] == popsize
     assert x.shape[1] == 2
     return
@@ -33,11 +30,8 @@ def test_strategy_ask_tell(strategy_name):
     x = jnp.zeros((num_dims,))
 
     # Loop over all strategies and test ask API
-    rng = jax.random.key(0)
-    if strategy_name == "ESMC":
-        popsize = 21
-    else:
-        popsize = 20
+    key = jax.random.key(0)
+    popsize = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
         strategy = Strategies[strategy_name](
             npop=1, subpopsize=popsize, pholder_params=x
@@ -45,9 +39,9 @@ def test_strategy_ask_tell(strategy_name):
     else:
         strategy = Strategies[strategy_name](popsize=popsize, pholder_params=x)
     params = strategy.default_params
-    state = strategy.initialize(rng, params)
-    x, state = strategy.ask(rng, state, params)
+    state = strategy.initialize(key, params)
+    x, state = strategy.ask(key, state, params)
     evaluator = BBOBFitness("sphere", num_dims)
-    fitness = evaluator.rollout(rng, x)
+    fitness = evaluator.rollout(key, x)
     state = strategy.tell(x, fitness, state, params)
     return

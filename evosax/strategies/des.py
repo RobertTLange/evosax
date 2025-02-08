@@ -60,12 +60,12 @@ class DES(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(temperature=self.temperature, sigma_init=self.sigma_init)
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Get DES discovered recombination weights.
         weights = get_des_weights(self.popsize, params.temperature)
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -79,10 +79,10 @@ class DES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
-        z = jax.random.normal(rng, (self.popsize, self.num_dims))  # ~ N(0, I)
+        z = jax.random.normal(key, (self.popsize, self.num_dims))  # ~ N(0, I)
         x = state.mean + z * state.sigma.reshape(1, self.num_dims)  # ~ N(m, σ^2 I)
         return x, state
 

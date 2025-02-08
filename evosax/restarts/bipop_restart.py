@@ -53,14 +53,14 @@ class BIPOP_Restarter(RestartWrapper):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: WrapperParams | None = None
+        self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
 
-        strategy_state = self.base_strategy.initialize(rng, params.strategy_params)
+        strategy_state = self.base_strategy.initialize(key, params.strategy_params)
         restart_state = RestartState(
             restart_counter=0,
             restart_next=False,
@@ -74,7 +74,7 @@ class BIPOP_Restarter(RestartWrapper):
 
     def ask(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         state: WrapperState,
         params: WrapperParams | None = None,
     ) -> tuple[chex.Array, chex.ArrayTree]:
@@ -85,21 +85,23 @@ class BIPOP_Restarter(RestartWrapper):
         # TODO: Cannot jit! Re-definition of strategy with different popsizes.
         # Is there a clever way to mask active members/popsize?
         # Only compile when base strategy is being updated with new popsize.
-        rng_ask, rng_restart = jax.random.split(rng)
+        key_restart, key_ask = jax.random.split(key)
         if state.restart_state.restart_next:
-            state = self.restart(rng_restart, state, params)
+            state = self.restart(key_restart, state, params)
         x, strategy_state = self.base_strategy.ask(
-            rng_ask, state.strategy_state, params.strategy_params
+            key_ask, state.strategy_state, params.strategy_params
         )
         return x, state.replace(strategy_state=strategy_state)
 
     def restart(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         state: chex.ArrayTree,
         params: chex.ArrayTree,
     ) -> chex.ArrayTree:
         """Reinstantiate a new strategy with interlaced population sizes."""
+        key_uniform, key_init = jax.random.split(key)
+
         # Track number of evals depending on active population
         large_eval_budget = jax.lax.select(
             state.restart_state.small_pop_active,
@@ -120,7 +122,7 @@ class BIPOP_Restarter(RestartWrapper):
             state.restart_state.restart_large_counter + 1
         )
         small_popsize = jax.lax.floor(
-            self.default_popsize * pop_mult ** (jax.random.uniform(rng) ** 2)
+            self.default_popsize * pop_mult ** (jax.random.uniform(key_uniform) ** 2)
         ).astype(int)
         large_popsize = self.default_popsize * pop_mult
 
@@ -134,7 +136,7 @@ class BIPOP_Restarter(RestartWrapper):
             **self.strategy_kwargs,
         )
 
-        strategy_state = self.base_strategy.initialize(rng, params.strategy_params)
+        strategy_state = self.base_strategy.initialize(key_init, params.strategy_params)
         strategy_state = strategy_state.replace(
             mean=jax.lax.select(
                 params.restart_params.copy_mean,

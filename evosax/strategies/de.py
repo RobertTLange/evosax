@@ -46,13 +46,13 @@ class DE(Strategy):
     def params_strategy(self) -> EvoParams:
         return EvoParams()
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the differential evolution strategy.
         Initialize all population members by randomly sampling
         positions in search-space (defined in `params`).
         """
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.popsize, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
@@ -60,13 +60,13 @@ class DE(Strategy):
         state = EvoState(
             mean=initialization.mean(axis=0),
             archive=initialization,
-            fitness_archive=jnp.zeros(self.popsize) + 20e10,
+            fitness_archive=jnp.zeros(self.popsize) + 20e10,  # TODO: what is 20e10?
             best_member=initialization.mean(axis=0),
         )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next.
         For each population member x:
@@ -78,10 +78,10 @@ class DE(Strategy):
             - Else y_i = x_i
         Return new potential position y.
         """
-        rng_members = jax.random.split(rng, self.popsize)
+        keys = jax.random.split(key, self.popsize)
         member_ids = jnp.arange(self.popsize)
         x = jax.vmap(single_member_ask, in_axes=(0, 0, None, None, None, None))(
-            rng_members,
+            keys,
             member_ids,
             self.num_dims,
             state.archive,
@@ -115,7 +115,7 @@ class DE(Strategy):
 
 
 def single_member_ask(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     member_id: int,
     num_dims: int,
     archive: chex.Array,
@@ -126,12 +126,12 @@ def single_member_ask(
     x = archive[member_id]
 
     # Sample a, b and c parameter vectors from rest of population
-    rng, rng_vectors, rng_R = jax.random.split(rng, 3)
+    key, key_row_ids, key_R = jax.random.split(key, 3)
     # A bit of an awkward hack - sample one additional member to avoid
     # using same vector as x - check condition and select extra if needed
     # Also always sample 6 members - for case where we want two diff vectors
     row_ids = jax.random.choice(
-        rng_vectors, jnp.arange(archive.shape[0]), (6,), replace=False
+        key_row_ids, jnp.arange(archive.shape[0]), (6,), replace=False
     )
     a = jax.lax.select(
         row_ids[0] == member_id, archive[row_ids[5]], archive[row_ids[0]]
@@ -153,9 +153,9 @@ def single_member_ask(
     a = jax.lax.select(params.mutate_best_vector, best_member, a)
 
     # Sample random dimension that will be alter for sure
-    R = jax.random.randint(rng_R, (1,), minval=0, maxval=num_dims)
+    R = jax.random.randint(key_R, (1,), minval=0, maxval=num_dims)
 
-    rng_dims = jax.random.split(rng, num_dims)
+    keys = jax.random.split(key, num_dims)
     dim_ids = jnp.arange(num_dims)
     y = jax.vmap(
         single_dimension_ask,
@@ -174,7 +174,7 @@ def single_member_ask(
             None,
         ),
     )(
-        rng_dims,
+        keys,
         dim_ids,
         x,
         a,
@@ -191,7 +191,7 @@ def single_member_ask(
 
 
 def single_dimension_ask(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     dim_id: int,
     x: chex.Array,
     a: chex.Array,
@@ -205,7 +205,7 @@ def single_dimension_ask(
     use_second_diff: bool,
 ) -> chex.Array:
     """Perform `ask` step for single dimension."""
-    r_i = jax.random.uniform(rng, (1,))
+    r_i = jax.random.uniform(key, (1,))
     mutate_bool = jnp.logical_or(r_i < cr, dim_id == R)
     y_i = (
         mutate_bool * a[dim_id]

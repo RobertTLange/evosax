@@ -79,10 +79,10 @@ class OpenES(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -96,18 +96,18 @@ class OpenES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         if self.use_antithetic_sampling:
             z_plus = jax.random.normal(
-                rng,
+                key,
                 (int(self.popsize / 2), self.num_dims),
             )
             z = jnp.concatenate([z_plus, -1.0 * z_plus])
         else:
-            z = jax.random.normal(rng, (self.popsize, self.num_dims))
+            z = jax.random.normal(key, (self.popsize, self.num_dims))
         x = state.mean + state.sigma * z
         return x, state
 

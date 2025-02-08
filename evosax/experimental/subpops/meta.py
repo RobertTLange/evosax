@@ -61,13 +61,13 @@ class MetaStrategy(BatchStrategy):
     @partial(jax.jit, static_argnums=(0,))
     def ask_meta(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         meta_state: chex.ArrayTree,
         meta_params: chex.ArrayTree,
         inner_params: chex.ArrayTree,
     ) -> tuple[chex.Array, chex.ArrayTree]:
         """`ask` for meta-parameters of different subpopulations."""
-        meta_x, meta_state = self.meta_strategy.ask(rng, meta_state, meta_params)
+        meta_x, meta_state = self.meta_strategy.ask(key, meta_state, meta_params)
         meta_x = meta_x.reshape(-1, self.num_meta_dims)
         re_inner_params = flax.serialization.to_state_dict(inner_params)
         for i, k in enumerate(self.meta_params):
@@ -79,10 +79,10 @@ class MetaStrategy(BatchStrategy):
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize_meta(
-        self, rng: chex.PRNGKey, meta_params: chex.ArrayTree
+        self, key: jax.Array, meta_params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """`initialize` the meta-evolution strategy."""
-        return self.meta_strategy.initialize(rng, meta_params)
+        return self.meta_strategy.initialize(key, meta_params)
 
     @partial(jax.jit, static_argnums=(0,))
     def tell_meta(

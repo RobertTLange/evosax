@@ -48,10 +48,10 @@ class PSO(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.popsize, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
@@ -68,7 +68,7 @@ class PSO(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next.
         1. Update v_i(t+1) velocities base on:
@@ -77,13 +77,13 @@ class PSO(Strategy):
           - Social: c_2 * r_2 * (p_(gb)(t) - x_i(t))
         2. Update "particle" positions: x_i(t+1) = x_i(t) + v_i(t+1)
         """
-        rng_members = jax.random.split(rng, self.popsize)
+        keys = jax.random.split(key, self.popsize)
         member_ids = jnp.arange(self.popsize)
         vel = jax.vmap(
             single_member_velocity,
             in_axes=(0, 0, None, None, None, None, None, None, None),
         )(
-            rng_members,
+            keys,
             member_ids,
             state.archive,
             state.velocity,
@@ -125,7 +125,7 @@ class PSO(Strategy):
 
 
 def single_member_velocity(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     member_id: int,
     archive: chex.Array,
     velocity: chex.Array,
@@ -137,8 +137,8 @@ def single_member_velocity(
 ):
     """Update v_i(t+1) velocities based on: Inertia, Cognitive, Social."""
     # Sampling one shared r1, r2 across dims of one member seems more robust!
-    # r1, r2 = jax.random.uniform(rng, (2, archive.shape[1]))
-    r1, r2 = jax.random.uniform(rng, (2,))
+    # r1, r2 = jax.random.uniform(key, (2, archive.shape[1]))
+    r1, r2 = jax.random.uniform(key, (2,))
     global_best_id = jnp.argmin(best_fitness)
     global_best = best_archive[global_best_id]
     vel_new = (

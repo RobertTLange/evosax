@@ -89,10 +89,10 @@ class LES(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(net_params=self.les_net_params, sigma_init=self.sigma_init)
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         init_mean = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -109,10 +109,10 @@ class LES(Strategy):
         )
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        noise = jax.random.normal(rng, (self.popsize, self.num_dims))
+        noise = jax.random.normal(key, (self.popsize, self.num_dims))
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
         x = jnp.clip(x, params.clip_min, params.clip_max)
         return x, state

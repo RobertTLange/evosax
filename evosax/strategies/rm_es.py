@@ -97,12 +97,12 @@ class RmES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights = get_elite_weights(self.elite_popsize)
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -122,11 +122,11 @@ class RmES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
-            rng,
+            key,
             state.mean,
             state.sigma,
             state.P,
@@ -260,7 +260,7 @@ def update_sigma(sigma: float, s_rank_rate: float, d_sigma: float) -> float:
 
 
 def sample(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     mean: chex.Array,
     sigma: float,
     P: chex.Array,
@@ -270,8 +270,9 @@ def sample(
     gen_counter: int,
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
-    z = jax.random.normal(rng, (n_dim, pop_size))  # ~ N(0, I)
-    r = jax.random.normal(rng, (n_dim, P.shape[1]))
+    key_z, key_r = jax.random.split(key, 2)
+    z = jax.random.normal(key_z, (n_dim, pop_size))  # ~ N(0, I)
+    r = jax.random.normal(key_r, (n_dim, P.shape[1]))
 
     for j in range(P.shape[1]):
         update_bool = gen_counter > j

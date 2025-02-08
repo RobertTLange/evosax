@@ -62,19 +62,19 @@ class IPOP_CMA_ES:
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: WrapperParams | None = None
+        self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
-        return self.wrapped_strategy.initialize(rng, params)
+        return self.wrapped_strategy.initialize(key, params)
 
     def ask(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         state: WrapperState,
         params: WrapperParams | None = None,
     ) -> tuple[chex.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
-        x, state = self.wrapped_strategy.ask(rng, state, params)
+        x, state = self.wrapped_strategy.ask(key, state, params)
         return x, state
 
     @partial(jax.jit, static_argnums=(0,))

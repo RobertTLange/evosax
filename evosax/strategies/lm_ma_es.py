@@ -95,7 +95,7 @@ class LM_MA_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.popsize, self.elite_popsize, self.num_dims, self.max_dims_sq
@@ -108,7 +108,7 @@ class LM_MA_ES(Strategy):
 
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -126,11 +126,11 @@ class LM_MA_ES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
-            rng,
+            key,
             state.mean,
             state.sigma,
             state.M,
@@ -249,7 +249,7 @@ def update_sigma(
 
 
 def sample(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     mean: chex.Array,
     sigma: float,
     M: chex.Array,
@@ -259,7 +259,7 @@ def sample(
     gen_counter: int,
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
-    z = jax.random.normal(rng, (n_dim, pop_size))  # ~ N(0, I)
+    z = jax.random.normal(key, (n_dim, pop_size))  # ~ N(0, I)
     for j in range(M.shape[1]):
         update_bool = gen_counter > j
         new_z = (1 - c_d[j]) * z + (c_d[j] * M[:, j])[:, jnp.newaxis] * (

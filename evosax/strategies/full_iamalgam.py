@@ -89,11 +89,11 @@ class Full_iAMaLGaM(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -110,13 +110,13 @@ class Full_iAMaLGaM(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        rng_sample, rng_ams = jax.random.split(rng)
-        x = sample(rng_sample, state.mean, state.C, state.sigma, self.popsize)
+        key_sample, key_ams = jax.random.split(key)
+        x = sample(key_sample, state.mean, state.C, state.sigma, self.popsize)
         x_ams = anticipated_mean_shift(
-            rng_ams,
+            key_ams,
             x,
             self.ams_popsize,
             params.delta_ams,
@@ -175,7 +175,7 @@ class Full_iAMaLGaM(Strategy):
 
 
 def sample(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     mean: chex.Array,
     C: chex.Array,
     sigma: float,
@@ -184,13 +184,13 @@ def sample(
     """Jittable Gaussian Sample Helper."""
     S = C + sigma**2 * jnp.eye(C.shape[0])
     candidates = jax.random.multivariate_normal(
-        rng, mean, S, (popsize,)
+        key, mean, S, (popsize,)
     )  # ~ N(m, S) - shape: (popsize, num_dims)
     return candidates
 
 
 def anticipated_mean_shift(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     x: chex.Array,
     ams_popsize: int,
     delta_ams: float,
@@ -199,7 +199,7 @@ def anticipated_mean_shift(
 ) -> chex.Array:
     """AMS - move part of pop further into dir of anticipated improvement."""
     indices = jnp.arange(x.shape[0])
-    sample_idx = jax.random.choice(rng, indices, (ams_popsize,), replace=False)
+    sample_idx = jax.random.choice(key, indices, (ams_popsize,), replace=False)
     x_ams_new = x[sample_idx] + c_mult * delta_ams * mean_shift
     x_ams = x.at[sample_idx].set(x_ams_new)
     return x_ams
@@ -216,7 +216,7 @@ def standard_deviation_ratio(
     x_avg_imp = jnp.sum(improvements[:, jnp.newaxis] * members_elite, axis=0) / jnp.sum(
         improvements
     )
-    # Expensive! Can we somehow reuse this in sampling step?
+    # Expensive! Can we somehow reuse this in sampling step? TODO
     L = jax.scipy.linalg.cholesky(C)
     conditioned_diff = jnp.linalg.inv(L) @ (x_avg_imp - mean)
     sdr = jnp.max(jnp.abs(conditioned_diff))

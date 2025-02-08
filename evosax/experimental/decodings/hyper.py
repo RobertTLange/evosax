@@ -13,7 +13,7 @@ class HyperDecoder(Decoder):
     def __init__(
         self,
         placeholder_params: chex.ArrayTree | chex.Array,
-        rng: chex.PRNGKey = jax.random.key(0),
+        key: jax.Array = jax.random.key(0),
         hypernet_config: dict = {
             "num_latent_units": 3,  # Latent units per module kernel/bias
             "num_hidden_units": 2,  # Hidden dimensionality of a_i^j embedding
@@ -31,7 +31,7 @@ class HyperDecoder(Decoder):
             **hypernet_config, raw_network_shapes=network_shapes
         )
 
-        net_params = self.hyper_network.init(rng)
+        net_params = self.hyper_network.init(key)
 
         self.ravel_params, self.unravel_params = get_ravel_fn(net_params)
         flat_params = self.ravel_params(net_params)

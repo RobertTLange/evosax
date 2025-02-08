@@ -44,10 +44,10 @@ class PBT(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.popsize, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
@@ -61,7 +61,7 @@ class PBT(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next.
         Perform explore-exploit step.
@@ -69,13 +69,13 @@ class PBT(Strategy):
         2) If not exploit: Copy hyperparams from id and explore/perturb around.
         3) Return new hyperparameters and copy_id (same if exploit)
         """
-        rng_members = jax.random.split(rng, self.popsize)
+        keys = jax.random.split(key, self.popsize)
         member_ids = jnp.arange(self.popsize)
         exploit_bool, copy_id, hyperparams = jax.vmap(
             single_member_exploit, in_axes=(0, None, None, None)
         )(member_ids, state.archive, state.fitness, params)
         hyperparams = jax.vmap(single_member_explore, in_axes=(0, 0, 0, None))(
-            rng_members, exploit_bool, hyperparams, params
+            keys, exploit_bool, hyperparams, params
         )
         return hyperparams, state.replace(copy_id=copy_id)
 
@@ -111,13 +111,13 @@ def single_member_exploit(
 
 
 def single_member_explore(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     exploit_bool: int,
     hyperparams: chex.Array,
     params: EvoParams,
 ) -> chex.Array:
     """Perform multiplicative noise exploration."""
-    explore_noise = jax.random.normal(rng, hyperparams.shape) * params.noise_scale
+    explore_noise = jax.random.normal(key, hyperparams.shape) * params.noise_scale
     hyperparams_explore = jax.lax.select(
         exploit_bool, hyperparams + explore_noise, hyperparams
     )

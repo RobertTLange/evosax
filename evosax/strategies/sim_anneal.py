@@ -11,7 +11,7 @@ class EvoState:
     mean: chex.Array
     sigma: float
     temp: float
-    replace_rng: float
+    acceptance: float
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     gen_counter: int = 0
@@ -62,11 +62,11 @@ class SimAnneal(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
-        rng_init, rng_rep = jax.random.split(rng)
+        key_init, key_acceptance = jax.random.split(key)
         initialization = jax.random.uniform(
-            rng_init,
+            key_init,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -75,23 +75,23 @@ class SimAnneal(Strategy):
             mean=initialization,
             sigma=params.sigma_init,
             temp=params.temp_init,
-            replace_rng=jax.random.uniform(rng_rep, ()),
+            acceptance=jax.random.uniform(key_acceptance),
             best_member=initialization,
         )
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
-        rng_noise, rng_rep = jax.random.split(rng)
+        key_noise, key_acceptance = jax.random.split(key)
         # Sampling of N(0, 1) noise
         z = jax.random.normal(
-            rng_noise,
+            key_noise,
             (self.popsize, self.num_dims),
         )
         x = state.mean + state.sigma * z
-        return x, state.replace(replace_rng=jax.random.uniform(rng_rep, ()))
+        return x, state.replace(acceptance=jax.random.uniform(key_acceptance))
 
     def tell_strategy(
         self,
@@ -106,11 +106,11 @@ class SimAnneal(Strategy):
         improve_diff = state.best_fitness - gen_fitness
         improved = improve_diff > 0
 
-        # Calculate temperature replacement constant (replace by best in gen)
+        # Calculate temperature acceptance constant (replace by best in gen)
         metropolis = jnp.exp(improve_diff / (state.temp * params.boltzmann_const))
 
         # Replace mean either if improvement or random metropolis acceptance
-        rand_replace = jnp.logical_or(improved, state.replace_rng > metropolis)
+        rand_replace = jnp.logical_or(improved, state.acceptance > metropolis)
         # Note: We replace by best member in generation (not completely random)
         mean = jax.lax.select(rand_replace, gen_member, state.mean)
 
@@ -126,4 +126,4 @@ class SimAnneal(Strategy):
             state.temp * params.temp_decay,
             state.temp,
         )
-        return state.replace(mean=mean, sigma=sigma, temp=temp)
+        return state.replace(mean=mean, sigma=sigma, temp=temp)  # TODO: best member is not updated?

@@ -96,10 +96,10 @@ class ASEBO(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -120,7 +120,7 @@ class ASEBO(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
@@ -153,7 +153,7 @@ class ASEBO(Strategy):
             + ((1 - state.alpha) / int(self.popsize / 2)) * UUT
         )
         chol = jnp.linalg.cholesky(cov)
-        noise = jax.random.normal(rng, (self.num_dims, int(self.popsize / 2)))
+        noise = jax.random.normal(key, (self.num_dims, int(self.popsize / 2)))
         z_plus = jnp.swapaxes(chol @ noise, 0, 1)
         z_plus /= jnp.linalg.norm(z_plus, axis=-1)[:, jnp.newaxis]
         z = jnp.concatenate([z_plus, -1.0 * z_plus])

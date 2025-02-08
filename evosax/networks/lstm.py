@@ -26,7 +26,7 @@ class LSTM(nn.Module):
         self,
         x: chex.Array,
         carry: chex.ArrayTree,
-        rng: chex.PRNGKey | None = None,
+        key: jax.Array | None = None,
     ) -> tuple[tuple[chex.ArrayTree, chex.ArrayTree], chex.Array]:
         lstm_state, x = nn.LSTMCell(
             bias_init=default_bias_init(),
@@ -36,11 +36,11 @@ class LSTM(nn.Module):
             x = identity_out(x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "tanh":
             x = tanh_out(x, self.num_output_units, self.kernel_init_type)
-        # Categorical and gaussian output heads require rng for sampling
+        # Categorical and gaussian output heads require random key for sampling
         elif self.output_activation == "categorical":
-            x = categorical_out(rng, x, self.num_output_units, self.kernel_init_type)
+            x = categorical_out(key, x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "gaussian":
-            x = gaussian_out(rng, x, self.num_output_units, self.kernel_init_type)
+            x = gaussian_out(key, x, self.num_output_units, self.kernel_init_type)
         return lstm_state, x
 
     def initialize_carry(self) -> tuple[chex.ArrayTree, chex.ArrayTree]:

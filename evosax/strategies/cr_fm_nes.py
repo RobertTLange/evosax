@@ -138,11 +138,11 @@ class CR_FM_NES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolutionary strategy."""
-        rng_init, rng_v = jax.random.split(rng)
+        key_init, key_v = jax.random.split(key)
         initialization = jax.random.uniform(
-            rng_init,
+            key_init,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -151,7 +151,7 @@ class CR_FM_NES(Strategy):
         state = EvoState(
             mean=initialization,
             sigma=params.sigma_init,
-            v=jax.random.normal(rng_v, shape=(self.num_dims, 1))
+            v=jax.random.normal(key_v, shape=(self.num_dims, 1))
             / jnp.sqrt(self.num_dims),
             D=jnp.ones([self.num_dims, 1]),
             p_sigma=jnp.zeros((self.num_dims, 1)),
@@ -166,11 +166,11 @@ class CR_FM_NES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         z_plus = jax.random.normal(
-            rng,
+            key,
             (int(self.popsize / 2), self.num_dims),
         )
         z = jnp.concatenate([z_plus, -1.0 * z_plus])

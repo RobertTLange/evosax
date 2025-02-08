@@ -78,7 +78,7 @@ class CNN(nn.Module):
     model_name: str = "CNN"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey | None = None) -> chex.Array:
+    def __call__(self, x: chex.Array, key: jax.Array | None = None) -> chex.Array:
         # Add batch dimension if only processing single 3d array
         if len(x.shape) < 4:
             x = jnp.expand_dims(x, 0)
@@ -127,11 +127,11 @@ class CNN(nn.Module):
             x = identity_out(x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "tanh":
             x = tanh_out(x, self.num_output_units, self.kernel_init_type)
-        # Categorical and gaussian output heads require rng for sampling
+        # Categorical and gaussian output heads require random key for sampling
         elif self.output_activation == "categorical":
-            x = categorical_out(rng, x, self.num_output_units, self.kernel_init_type)
+            x = categorical_out(key, x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "gaussian":
-            x = gaussian_out(rng, x, self.num_output_units, self.kernel_init_type)
+            x = gaussian_out(key, x, self.num_output_units, self.kernel_init_type)
         # Squeeze away extra dimension - e.g. single action output for RL
         if not batch_case:
             return x.squeeze()
@@ -159,7 +159,7 @@ class All_CNN_C(nn.Module):
     model_name: str = "All_CNN_C"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey | None = None) -> chex.Array:
+    def __call__(self, x: chex.Array, key: jax.Array | None = None) -> chex.Array:
         # Add batch dimension if only processing single 3d array
         if len(x.shape) < 4:
             x = jnp.expand_dims(x, 0)
@@ -205,9 +205,9 @@ class All_CNN_C(nn.Module):
 
         if self.output_activation == "tanh":
             x = nn.tanh(x)
-        # Categorical head requires rng for sampling
+        # Categorical head requires random key for sampling
         elif self.output_activation == "categorical":
-            x = jax.random.categorical(rng, x)
+            x = jax.random.categorical(key, x)
         # No gaussian option implemented so far - need second 1x1 conv + pool
         # Squeeze away extra dimension - e.g. single action output for RL
         if not batch_case:

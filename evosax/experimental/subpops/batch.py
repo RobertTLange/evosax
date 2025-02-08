@@ -72,23 +72,23 @@ class BatchStrategy:
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize_vmap(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
+        self, key: jax.Array, params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Auto-vectorized `initialize` for the batch evolution strategy."""
-        batch_rng = jax.random.split(rng, self.num_subpops_per_device)
-        state = jax.vmap(self.strategy.initialize, in_axes=(0, 0))(batch_rng, params)
+        keys = jax.random.split(key, self.num_subpops_per_device)
+        state = jax.vmap(self.strategy.initialize, in_axes=(0, 0))(keys, params)
         return state
 
     def initialize_pmap(
-        self, rng: chex.PRNGKey, params: chex.ArrayTree
+        self, key: jax.Array, params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Device parallel `initialize` for the batch evolution strategy."""
-        # Tile/reshape both rng and params!
-        keys_pmap = jnp.tile(rng, (self.n_devices, 1))
+        # Tile/reshape both key and params!
+        keys = jnp.tile(key, (self.n_devices, 1))
         params_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), params
         )
-        state_pmap = jax.pmap(self.initialize_vmap)(keys_pmap, params_pmap)
+        state_pmap = jax.pmap(self.initialize_vmap)(keys, params_pmap)
         # Reshape from (# device, #subpops_per_device, ...) to (#subpops, ...)
         state = jax.tree.map(
             lambda x: jnp.reshape(x, (self.num_subpops, *x.shape[2:])),
@@ -98,20 +98,20 @@ class BatchStrategy:
 
     @partial(jax.jit, static_argnums=(0,))
     def ask(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+        self, key: jax.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> tuple[chex.Array, chex.ArrayTree]:
         """`ask` for new parameter candidates."""
-        x, state = self.ask_map(rng, state, params)
+        x, state = self.ask_map(key, state, params)
         return x, state
 
     @partial(jax.jit, static_argnums=(0,))
     def ask_vmap(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+        self, key: jax.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> tuple[chex.Array, chex.ArrayTree]:
         """Auto-vectorized `ask` for new parameter candidates."""
-        batch_rng = jax.random.split(rng, self.num_subpops_per_device)
+        keys = jax.random.split(key, self.num_subpops_per_device)
         batch_x, state = jax.vmap(self.strategy.ask, in_axes=(0, 0, 0))(
-            batch_rng, state, params
+            keys, state, params
         )
         # Flatten subpopulation proposals back into flat vector
         # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)
@@ -119,10 +119,10 @@ class BatchStrategy:
         return x_re, state
 
     def ask_pmap(
-        self, rng: chex.PRNGKey, state: chex.ArrayTree, params: chex.ArrayTree
+        self, key: jax.Array, state: chex.ArrayTree, params: chex.ArrayTree
     ) -> tuple[chex.Array, chex.ArrayTree]:
         """Device parallel `ask` for new parameter candidates."""
-        keys_pmap = jnp.tile(rng, (self.n_devices, 1))
+        keys = jnp.tile(key, (self.n_devices, 1))
         params_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), params
         )
@@ -130,7 +130,7 @@ class BatchStrategy:
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), state
         )
         batch_x, state_pmap = jax.pmap(self.ask_vmap)(
-            keys_pmap, state_pmap, params_pmap
+            keys, state_pmap, params_pmap
         )
         # Flatten subpopulation proposals back into flat vector
         # batch_x -> Shape: (subpops, popsize_per_subpop, num_dims)

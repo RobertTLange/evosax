@@ -45,10 +45,10 @@ class GLD(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams()
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -60,12 +60,12 @@ class GLD(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
         # Sampling of N(0, 1) noise
         z = jax.random.normal(
-            rng,
+            key,
             (self.popsize, self.num_dims),
         )
         # Exponentially decaying sigma scale

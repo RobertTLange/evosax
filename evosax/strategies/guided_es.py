@@ -88,17 +88,17 @@ class GuidedES(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(opt_params=self.optimizer.default_params)
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
-        rng_init, rng_sub = jax.random.split(rng)
+        key_init, key_sub = jax.random.split(key)
         initialization = jax.random.uniform(
-            rng_init,
+            key_init,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
         )
 
-        grad_subspace = jax.random.normal(rng_sub, (self.subspace_dims, self.num_dims))
+        grad_subspace = jax.random.normal(key_sub, (self.subspace_dims, self.num_dims))
 
         state = EvoState(
             mean=initialization,
@@ -110,12 +110,12 @@ class GuidedES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         a = state.sigma * jnp.sqrt(params.alpha / self.num_dims)
         c = state.sigma * jnp.sqrt((1.0 - params.alpha) / self.subspace_dims)
-        key_full, key_sub = jax.random.split(rng, 2)
+        key_full, key_sub = jax.random.split(key, 2)
         eps_full = jax.random.normal(
             key_full, shape=(self.num_dims, int(self.popsize / 2))
         )

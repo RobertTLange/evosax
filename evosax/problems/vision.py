@@ -25,20 +25,20 @@ class VisionFitness:
         self.rollout_pop = jax.vmap(self.rollout_ffw, in_axes=(None, 0))
         self.rollout = jax.jit(self.rollout_vmap)
 
-    def rollout_vmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
+    def rollout_vmap(self, key: jax.Array, network_params: chex.ArrayTree):
         """Vectorize rollout. Reshape output correctly."""
-        loss, acc = self.rollout_pop(rng_input, network_params)
+        loss, acc = self.rollout_pop(key, network_params)
         loss_re = loss.reshape(-1, 1)
         acc_re = acc.reshape(-1, 1)
         return loss_re, acc_re
 
     def rollout_ffw(
-        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
+        self, key: jax.Array, network_params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Evaluate a network on a supervised learning task."""
-        rng_net, rng_sample = jax.random.split(rng_input)
-        X, y = self.dataloader.sample(rng_sample)
-        y_pred = self.network(network_params, X, rng_net)
+        key_sample, key_network = jax.random.split(key)
+        X, y = self.dataloader.sample(key_sample)
+        y_pred = self.network(network_params, X, key_network)
         loss, acc = loss_and_acc(y_pred, y, self.num_classes)
         # Return negative loss to maximize!
         return -1 * loss, acc
@@ -73,7 +73,7 @@ class BatchLoader:
         self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key: chex.PRNGKey) -> tuple[chex.Array, chex.Array]:
+    def sample(self, key: jax.Array) -> tuple[chex.Array, chex.Array]:
         """Sample a single batch of X, y data."""
         sample_idx = jax.random.choice(
             key,

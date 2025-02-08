@@ -10,7 +10,7 @@ class RandomDecoder(Decoder):
         self,
         num_encoding_dims: int,
         placeholder_params: chex.ArrayTree | chex.Array,
-        rng: chex.PRNGKey = jax.random.key(0),
+        key: jax.Array = jax.random.key(0),
         rademacher: bool = False,
     ):
         """Random Projection Decoder (Gaussian/Rademacher random matrix)."""
@@ -24,11 +24,11 @@ class RandomDecoder(Decoder):
         # Sample a random matrix - Gaussian or Rademacher (+1/-1)
         if not self.rademacher:
             self.project_matrix = jax.random.normal(
-                rng, (self.num_encoding_dims, total_params)
+                key, (self.num_encoding_dims, total_params)
             )
         else:
             self.project_matrix = jax.random.rademacher(
-                rng, (self.num_encoding_dims, total_params)
+                key, (self.num_encoding_dims, total_params)
             )
         print(f"RandomDecoder: Encoding parameters to optimize - {num_encoding_dims}")
 

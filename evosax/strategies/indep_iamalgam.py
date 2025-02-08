@@ -94,11 +94,11 @@ class Indep_iAMaLGaM(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -115,13 +115,13 @@ class Indep_iAMaLGaM(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        rng_sample, rng_ams = jax.random.split(rng)
-        x = sample(rng_sample, state.mean, state.C, state.sigma, self.popsize)
+        key_sample, key_ams = jax.random.split(key)
+        x = sample(key_sample, state.mean, state.C, state.sigma, self.popsize)
         x_ams = anticipated_mean_shift(
-            rng_ams,
+            key_ams,
             x,
             self.ams_popsize,
             params.delta_ams,
@@ -180,7 +180,7 @@ class Indep_iAMaLGaM(Strategy):
 
 
 def sample(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     mean: chex.Array,
     C: chex.Array,
     sigma: float,
@@ -188,7 +188,7 @@ def sample(
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
     sigmas = jnp.sqrt(C) + sigma
-    z = jax.random.normal(rng, (mean.shape[0], popsize))  # ~ N(0, I)
+    z = jax.random.normal(key, (mean.shape[0], popsize))  # ~ N(0, I)
     y = jnp.diag(sigmas).dot(z)  # ~ N(0, C)
     y = jnp.swapaxes(y, 1, 0)
     x = mean + y  # ~ N(m, σ^2 C)

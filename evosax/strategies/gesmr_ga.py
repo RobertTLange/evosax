@@ -8,7 +8,7 @@ from ..strategy import Strategy
 
 @struct.dataclass
 class EvoState:
-    rng: chex.PRNGKey
+    key: jax.Array
     mean: chex.Array
     archive: chex.Array
     fitness: chex.Array
@@ -57,17 +57,17 @@ class GESMR_GA(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key_state: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the differential evolution strategy."""
-        rng, rng_init = jax.random.split(rng)
+        key_init, key_state = jax.random.split(key_state)
         initialization = jax.random.uniform(
-            rng_init,
+            key_init,
             (self.elite_popsize, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
         )
         state = EvoState(
-            rng=rng,
+            key=key_state,
             mean=initialization[0],
             archive=initialization,
             fitness=jnp.zeros(self.elite_popsize) + jnp.finfo(jnp.float32).max,
@@ -77,19 +77,19 @@ class GESMR_GA(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
-        rng, rng_idx, rng_eps_x, rng_eps_s = jax.random.split(rng, 4)
+        key_eps_x, key_eps_s, key_idx = jax.random.split(key, 3)
         # Sample noise for mutation of x and sigma
-        eps_x = jax.random.normal(rng_eps_x, (self.popsize, self.num_dims))
+        eps_x = jax.random.normal(key_eps_x, (self.popsize, self.num_dims))
         eps_s = jax.random.uniform(
-            rng_eps_s, (self.num_sigma_groups,), minval=-1, maxval=1
+            key_eps_s, (self.num_sigma_groups,), minval=-1, maxval=1
         )
 
         # Sample members to evaluate from parent archive
         idx = jax.random.choice(
-            rng_idx, jnp.arange(self.elite_popsize), (self.popsize - 1,)
+            key_idx, jnp.arange(self.elite_popsize), (self.popsize - 1,)
         )
         x = jnp.concatenate([state.archive[0][None, :], state.archive[idx]])
 
@@ -138,9 +138,9 @@ class GESMR_GA(Strategy):
         sigma_elite = state.sigma[idx_select]
 
         # Resample sigmas with replacement
-        rng, rng_sigma = jax.random.split(state.rng)
+        key, key_sigma = jax.random.split(state.key)
         idx_s = jax.random.choice(
-            rng_sigma,
+            key_sigma,
             jnp.arange(self.sigma_popsize),
             (self.num_sigma_groups - 1,),
         )
@@ -150,7 +150,7 @@ class GESMR_GA(Strategy):
         improved = fitness[0] < state.best_fitness
         best_mean = jax.lax.select(improved, archive[0], state.best_member)
         return state.replace(
-            rng=rng,
+            key=key,
             fitness=fitness[idx],
             archive=archive,
             sigma=sigma,

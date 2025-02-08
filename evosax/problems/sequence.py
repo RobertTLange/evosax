@@ -46,22 +46,22 @@ class SequenceFitness:
         self.rollout_pop = jax.vmap(self.rollout_rnn, in_axes=(None, 0))
         self.rollout = jax.jit(self.rollout_vmap)
 
-    def rollout_vmap(self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree):
+    def rollout_vmap(self, key: jax.Array, network_params: chex.ArrayTree):
         """Vectorize rollout. Reshape output correctly."""
-        loss, perf = self.rollout_pop(rng_input, network_params)
+        loss, perf = self.rollout_pop(key, network_params)
         loss_re = loss.reshape(-1, 1)
         perf_re = perf.reshape(-1, 1)
         return loss_re, perf_re
 
     def rollout_rnn(
-        self, rng_input: chex.PRNGKey, network_params: chex.ArrayTree
+        self, key: jax.Array, network_params: chex.ArrayTree
     ) -> tuple[float, float]:
         """Evaluate a network on a supervised learning task."""
-        rng, rng_sample = jax.random.split(rng_input)
-        X, y = self.dataloader.sample(rng_sample)
+        key_sample, key_rollout = jax.random.split(key)
+        X, y = self.dataloader.sample(key_sample)
         # Map over sequence batch dimension
         y_pred = jax.vmap(self.rollout_single, in_axes=(None, None, 0))(
-            rng, network_params, X
+            key_rollout, network_params, X
         )
         loss, perf = self.loss_fn(y_pred, y)
         # Return negative loss to maximize!
@@ -69,7 +69,7 @@ class SequenceFitness:
 
     def rollout_single(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         network_params: chex.ArrayTree,
         X_single: chex.ArrayTree,
     ):
@@ -77,22 +77,23 @@ class SequenceFitness:
         # Reset the network
         hidden = self.carry_init()
 
-        def rnn_step(state_input, tmp):
+        def rnn_step(carry, _):
             """lax.scan compatible step transition in jax env."""
-            network_params, hidden, rng, t = state_input
-            rng, rng_net = jax.random.split(rng)
+            network_params, hidden, key, t = carry
+            key, key_network = jax.random.split(key)
             hidden, pred = self.network(
                 network_params,
                 X_single[t],
                 hidden,
-                rng_net,
+                key_network,
             )
-            carry = [network_params, hidden, rng, t + 1]
-            return carry, pred
+            return (network_params, hidden, key, t + 1), pred
 
         # Scan over image length (784)/sequence
         _, scan_out = jax.lax.scan(
-            rnn_step, [network_params, hidden, rng, 0], (), self.num_rnn_steps
+            rnn_step,
+            (network_params, hidden, key, 0),
+            length=self.num_rnn_steps,
         )
         y_pred = scan_out[-1]
         return y_pred
@@ -136,7 +137,7 @@ class BatchLoader:
         self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key: chex.PRNGKey) -> tuple[chex.Array, chex.Array]:
+    def sample(self, key: jax.Array) -> tuple[chex.Array, chex.Array]:
         """Sample a single batch of X, y data."""
         sample_idx = jax.random.choice(
             key,
@@ -181,19 +182,20 @@ def get_adding_data(T: int = 150, test: bool = False):
     """Sample a mask, [0, 1] samples and sum of targets for len T.
     Reference:  Martens & Sutskever. ICML, 2011.
     """
-    rng = jax.random.key(0)
     bs = 100000 if test else 10000
+    key = jax.random.key(0)
+    keys = jax.random.split(key, bs)
 
-    def get_single_addition(rng, T):
-        rng_numb, rng_mask = jax.random.split(rng)
-        numbers = jax.random.uniform(rng_numb, (T,), minval=0, maxval=1)
-        mask_ids = jax.random.choice(rng_mask, jnp.arange(T), (2,), replace=False)
+    def get_single_addition(key, T):
+        key_uniform, key_choice = jax.random.split(key)
+        numbers = jax.random.uniform(key_uniform, (T,), minval=0, maxval=1)
+        mask_ids = jax.random.choice(key_choice, jnp.arange(T), (2,), replace=False)
         mask = jnp.zeros(T).at[mask_ids].set(1)
         target = jnp.sum(mask * numbers)
         return jnp.stack([numbers, mask], axis=1), target
 
     batch_seq_gen = jax.vmap(get_single_addition, in_axes=(0, None))
-    data, target = batch_seq_gen(jax.random.split(rng, bs), T)
+    data, target = batch_seq_gen(keys, T)
     return data, target
 
 
@@ -212,9 +214,9 @@ def get_array_data(
 
         # Permute the sequence of the pixels if desired.
         if permute_seq:  # bs, T - fix permutation by seed
-            rng = jax.random.key(0)
+            key = jax.random.key(0)
             idx = jnp.arange(784)
-            idx_perm = jax.random.permutation(rng, idx)
+            idx_perm = jax.random.permutation(key, idx)
             data = data.at[:].set(data[:, idx_perm])
     elif task_name == "Addition":
         data, target = get_adding_data(seq_length, test)

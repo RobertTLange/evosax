@@ -14,15 +14,15 @@ import jax
 from evosax import CMA_ES
 
 # Instantiate the search strategy
-rng = jax.random.key(0)
+key = jax.random.key(0)
 strategy = CMA_ES(popsize=20, num_dims=2, elite_ratio=0.5)
 es_params = strategy.default_params
-state = strategy.initialize(rng, es_params)
+state = strategy.initialize(key, es_params)
 
 # Run ask-eval-tell loop - NOTE: By default minimization!
 for t in range(num_generations):
-    rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    x, state = strategy.ask(rng_gen, state, es_params)
+    key, key_ask, key_eval = jax.random.split(key, 3)
+    x, state = strategy.ask(key_ask, state, es_params)
     fitness = ...  # Your population evaluation fct 
     state = strategy.tell(x, fitness, state, es_params)
 
@@ -108,7 +108,7 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 
 - **Vectorization/Parallelization of `ask`/`tell` Calls**: Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap`. This enables vectorized/parallel rollouts of different evolution strategies.
 
-```Python
+```python
 from evosax.strategies.ars import ARS, EvoParams
 # E.g. vectorize over different initial perturbation stds
 strategy = ARS(popsize=100, num_dims=20)
@@ -125,38 +125,38 @@ batch_tell = jax.vmap(strategy.tell, in_axes=(0, 0, 0, map_dict))
 
 - **Scan Through Evolution Rollouts**: You can also `lax.scan` through entire `init`, `ask`, `eval`, `tell` loops for fast compilation of ES loops:
 
-```Python
-@partial(jax.jit, static_argnums=(1,))
-def run_es_loop(rng, num_steps):
-    """Run evolution ask-eval-tell loop."""
-    es_params = strategy.default_params
-    state = strategy.initialize(rng, es_params)
+```python
+key, subkey = jax.random.split(key)
+params = strategy.default_params
+state = strategy.initialize(subkey, params)
 
-    def es_step(state_input, tmp):
-        """Helper es step to lax.scan through."""
-        rng, state = state_input
-        rng, rng_iter = jax.random.split(rng)
-        x, state = strategy.ask(rng_iter, state, es_params)
-        fitness = ...
-        state = strategy.tell(y, fitness, state, es_params)
-        return [rng, state], fitness[jnp.argmin(fitness)]
+def step_fn(carry, _):
+    state, key = carry
+    key, subkey = jax.random.split(key)
+    x, state = strategy.ask(subkey, state, params)
+    fitness = ...
+    state = strategy.tell(x, fitness, state, params)
+    return (state, key), fitness
 
-    _, scan_out = jax.lax.scan(es_step,
-                               [rng, state],
-                               [jnp.zeros(num_steps)])
-    return jnp.min(scan_out)
+_, fitness = jax.lax.scan(
+    step_fn,
+    (state, key),
+    length=num_steps,
+)
 ```
 
 - **Flexible Fitness Shaping**: By default `evosax` assumes that the fitness objective is to be minimized. If you would like to maximize instead, perform rank centering, z-scoring or add weight regularization you can use the `FitnessShaper`: 
 
-```Python
+```python
 from evosax import FitnessShaper
 
-# Instantiate jittable fitness shaper (e.g. for Open ES)
-fit_shaper = FitnessShaper(centered_rank=True,
-                           z_score=False,
-                           weight_decay=0.01,
-                           maximize=True)
+# Instantiate jit-able fitness shaper (e.g. for Open ES)
+fit_shaper = FitnessShaper(
+    centered_rank=True,
+    z_score=False,
+    weight_decay=0.01,
+    maximize=True,
+)
 
 # Shape the evaluated fitness scores
 fit_shaped = fit_shaper.apply(x, fitness) 
@@ -165,7 +165,7 @@ fit_shaped = fit_shaper.apply(x, fitness)
   <summary>Additonal Work-In-Progress</summary>
     **Strategy Restart Wrappers**: *Work-in-progress*. You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change. Note that all strategies can also be executed without explicitly providing `es_params`. In this case the default parameters will be used.
 
-    ```Python
+    ```python
     from evosax import CMA_ES
     from evosax.restarts import BIPOP_Restarter
 
@@ -178,22 +178,24 @@ fit_shaped = fit_shaper.apply(x, fitness)
     # Pass strategy-specific kwargs separately (e.g. elite_ration or opt_name)
     strategy = CMA_ES(num_dims, popsize, elite_ratio)
     re_strategy = BIPOP_Restarter(
-                    strategy,
-                    stop_criteria=[std_criterion],
-                    strategy_kwargs={"elite_ratio": elite_ratio}
-                )
-    state = re_strategy.initialize(rng)
+        strategy,
+        stop_criteria=[std_criterion],
+        strategy_kwargs={"elite_ratio": elite_ratio},
+    )
+
+    key, subkey = jax.random.split(key)
+    state = re_strategy.initialize(subkey)
 
     # ask/tell loop - restarts are automatically handled 
-    rng, rng_gen, rng_eval = jax.random.split(rng, 3)
-    x, state = re_strategy.ask(rng_gen, state)
+    key, key_ask, key_eval = jax.random.split(key, 3)
+    x, state = re_strategy.ask(key_ask, state)
     fitness = ...  # Your population evaluation fct 
     state = re_strategy.tell(x, fitness, state)
     ```
 
     - **Batch Strategy Rollouts**: *Work-in-progress*. We are currently also working on different ways of incorporating multiple subpopulations with different communication protocols.
 
-    ```Python
+    ```python
     from evosax.experimental.subpops import BatchStrategy
 
     # Instantiates 5 CMA-ES subpops of 20 members
@@ -206,16 +208,16 @@ fit_shaped = fit_shaper.apply(x, fitness)
             communication="best_subpop",
         )
 
-    state = strategy.initialize(rng)
+    state = strategy.initialize(key)
     # Ask for evaluation candidates of different subpopulation ES
-    x, state = strategy.ask(rng_iter, state)
+    x, state = strategy.ask(key_ask, state)
     fitness = ...
     state = strategy.tell(x, fitness, state)
     ```
 
     - **Indirect Encodings**: *Work-in-progress*. ES can struggle with high-dimensional search spaces (e.g. due to harder estimation of covariances). One potential way to alleviate this challenge, is to use indirect parameter encodings in a lower dimensional space. So far we provide JAX-compatible encodings with random projections (Gaussian/Rademacher) and Hypernetworks for MLPs. They act as drop-in replacements for the `ParameterReshaper`:
 
-    ```Python
+    ```python
     from evosax.experimental.decodings import RandomDecoder, HyperDecoder
 
     # For arbitrary network architectures / search spaces

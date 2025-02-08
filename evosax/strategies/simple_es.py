@@ -55,13 +55,13 @@ class SimpleES(Strategy):
         # Only parents have positive weight - equal weighting!
         return EvoParams(sigma_init=self.sigma_init)
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights = jnp.zeros(self.popsize)
         weights = weights.at[: self.elite_popsize].set(1 / self.elite_popsize)
 
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -75,10 +75,10 @@ class SimpleES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
-        z = jax.random.normal(rng, (self.popsize, self.num_dims))  # ~ N(0, I)
+        z = jax.random.normal(key, (self.popsize, self.num_dims))  # ~ N(0, I)
         x = state.mean + state.sigma * z  # ~ N(m, σ^2 I)
         return x, state
 

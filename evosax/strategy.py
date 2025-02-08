@@ -64,7 +64,7 @@ class Strategy:
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         params: EvoParams | None = None,
         init_mean: chex.Array | chex.ArrayTree | None = None,
     ) -> EvoState:
@@ -74,7 +74,7 @@ class Strategy:
             params = self.default_params
 
         # Initialize strategy based on strategy-specific initialize method
-        state = self.initialize_strategy(rng, params)
+        state = self.initialize_strategy(key, params)
 
         if init_mean is not None:
             state = self.set_mean(state, init_mean)
@@ -83,7 +83,7 @@ class Strategy:
     @partial(jax.jit, static_argnums=(0,))
     def ask(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         state: EvoState,
         params: EvoParams | None = None,
     ) -> tuple[chex.Array | chex.ArrayTree, EvoState]:
@@ -93,7 +93,7 @@ class Strategy:
             params = self.default_params
 
         # Generate proposal based on strategy-specific ask method
-        x, state = self.ask_strategy(rng, state, params)
+        x, state = self.ask_strategy(key, state, params)
         # Clip proposal candidates into allowed range
         x_clipped = jnp.clip(x, params.clip_min, params.clip_max)
 
@@ -138,12 +138,12 @@ class Strategy:
             gen_counter=state.gen_counter + 1,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """Search-specific `initialize` method. Returns initial state."""
         raise NotImplementedError
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """Search-specific `ask` request. Returns proposals & updated state."""
         raise NotImplementedError

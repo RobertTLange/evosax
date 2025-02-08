@@ -1,4 +1,5 @@
 import chex
+import jax
 from flax import linen as nn
 
 from .shared import (
@@ -23,7 +24,7 @@ class MLP(nn.Module):
     model_name: str = "MLP"
 
     @nn.compact
-    def __call__(self, x: chex.Array, rng: chex.PRNGKey | None = None) -> chex.Array:
+    def __call__(self, x: chex.Array, key: jax.Array | None = None) -> chex.Array:
         # Flatten a single 3d image into a plain flat vector
         if len(x.shape) <= 3:
             x = x.reshape(-1)
@@ -51,8 +52,8 @@ class MLP(nn.Module):
             return identity_out(x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "tanh":
             return tanh_out(x, self.num_output_units, self.kernel_init_type)
-        # Categorical and gaussian output heads require rng for sampling
+        # Categorical and gaussian output heads require random key for sampling
         elif self.output_activation == "categorical":
-            return categorical_out(rng, x, self.num_output_units, self.kernel_init_type)
+            return categorical_out(key, x, self.num_output_units, self.kernel_init_type)
         elif self.output_activation == "gaussian":
-            return gaussian_out(rng, x, self.num_output_units, self.kernel_init_type)
+            return gaussian_out(key, x, self.num_output_units, self.kernel_init_type)

@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from chex import Array, ArrayTree, PRNGKey
+from chex import Array, ArrayTree
 from flax.struct import dataclass
 
 from evosax.strategies.cma_es import (
@@ -65,14 +65,14 @@ class SV_CMA_ES(CMA_ES):
         self.strategy_name = "SV_CMA_ES"
         self.kernel = kernel()
 
-    def initialize_strategy(self, rng: PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.subpopsize, self.elite_popsize, self.num_dims, self.max_dims_sq
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.npop, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
@@ -93,11 +93,11 @@ class SV_CMA_ES(CMA_ES):
         return state
 
     def ask_strategy(
-        self, rng: PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> [Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         Cs, Bs, Ds = jax.vmap(full_eigen_decomp)(state.C, state.B, state.D)
-        keys = jax.random.split(rng, num=self.npop)
+        keys = jax.random.split(key, num=self.npop)
         x = jax.vmap(sample, (0, 0, 0, 0, 0, None, None))(
             keys,
             state.mean,

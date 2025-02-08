@@ -8,33 +8,33 @@ def test_simple_restart():
     num_dims = 2
     x = jnp.zeros((num_dims,))
 
-    rng = jax.random.key(0)
+    key = jax.random.key(0)
     strategy = CMA_ES(popsize=4, pholder_params=x)
     re_strategy = Simple_Restarter(strategy)
     re_es_params = re_strategy.default_params
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(rng, re_es_params)
+    state = re_strategy.initialize(key, re_es_params)
 
     # Run 1st ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == False
 
     # Run 2nd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([0.0, 0.0, 0.0, 0.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == True
 
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     assert (state.strategy_state.mean == jnp.zeros(2)).all()
 
 
 def test_ipop_restart():
-    rng = jax.random.key(0)
+    key = jax.random.key(0)
     num_dims = 2
     x = jnp.zeros((num_dims,))
     strategy = OpenES(popsize=4, pholder_params=x)
@@ -43,21 +43,21 @@ def test_ipop_restart():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(rng, re_es_params)
+    state = re_strategy.initialize(key, re_es_params)
     # Run 1st ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == False
     assert state.restart_state.active_popsize == 4
     # Run 2nd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([0.0, 0.0, 0.0, 0.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == True
 
     # Run 3rd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     assert (state.strategy_state.mean == jnp.zeros(2)).all()
     assert state.restart_state.active_popsize == 8
 
@@ -68,7 +68,7 @@ def test_ipop_restart():
 
 
 def test_bipop_restart():
-    rng = jax.random.key(0)
+    key = jax.random.key(0)
     num_dims = 2
     x = jnp.zeros((num_dims,))
     strategy = OpenES(popsize=4, pholder_params=x)
@@ -77,22 +77,22 @@ def test_bipop_restart():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(rng, re_es_params)
+    state = re_strategy.initialize(key, re_es_params)
     # Run 1st ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == False
     assert state.restart_state.active_popsize == 4
 
     # Run 2nd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([0.0, 0.0, 0.0, 0.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == True
 
     # Run 3rd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     assert (state.strategy_state.mean == jnp.zeros(2)).all()
     assert state.restart_state.active_popsize == 8
 
@@ -102,18 +102,18 @@ def test_bipop_restart():
     assert state.restart_state.active_popsize == 8
 
     # Run 4th ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == True
 
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     assert (state.strategy_state.mean == jnp.zeros(2)).all()
     assert state.restart_state.active_popsize <= 8
 
 
 def test_ipop_cma_es():
-    rng = jax.random.key(0)
+    key = jax.random.key(0)
     num_dims = 2
     x = jnp.zeros((num_dims,))
     re_strategy = IPOP_CMA_ES(popsize=4, pholder_params=x)
@@ -121,20 +121,20 @@ def test_ipop_cma_es():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(rng, re_es_params)
+    state = re_strategy.initialize(key, re_es_params)
     # Run 1st ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == False
     assert state.restart_state.active_popsize == 4
     # Run 2nd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([0.0, 0.0, 0.0, 0.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == True
     # Run 3rd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     # assert (state.strategy_state.mean == jnp.zeros(2)).all()
     assert state.restart_state.active_popsize == 8
 
@@ -145,7 +145,7 @@ def test_ipop_cma_es():
 
 
 def test_bipop_cma_es():
-    rng = jax.random.key(0)
+    key = jax.random.key(0)
     num_dims = 2
     x = jnp.zeros((num_dims,))
     re_strategy = BIPOP_CMA_ES(popsize=4, pholder_params=x)
@@ -153,22 +153,22 @@ def test_bipop_cma_es():
     re_es_params = re_es_params.replace(
         restart_params=re_es_params.restart_params.replace(min_num_gens=2)
     )
-    state = re_strategy.initialize(rng, re_es_params)
+    state = re_strategy.initialize(key, re_es_params)
     # Run 1st ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([1.0, 2.0, 3.0, 4.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == False
     assert state.restart_state.active_popsize == 4
 
     # Run 2nd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([0.0, 0.0, 0.0, 0.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == True
 
     # Run 3rd ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     # assert (state.strategy_state.mean == jnp.zeros(2)).all()
     assert state.restart_state.active_popsize == 8
 
@@ -178,11 +178,11 @@ def test_bipop_cma_es():
     assert state.restart_state.active_popsize == 8
 
     # Run 4th ask-tell-generation
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     fitness = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     state = re_strategy.tell(x, fitness, state, re_es_params)
     assert state.restart_state.restart_next == True
 
-    x, state = re_strategy.ask(rng, state, re_es_params)
+    x, state = re_strategy.ask(key, state, re_es_params)
     # assert (state.strategy_state.mean == jnp.zeros(2)).all()
     assert state.restart_state.active_popsize <= 8

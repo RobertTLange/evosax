@@ -20,7 +20,7 @@ from ..strategy import Strategy
 
 @struct.dataclass
 class EvoState:
-    rng: chex.PRNGKey
+    key: jax.Array
     mean: chex.Array
     archive_age: chex.Array  # Parents: 'Age' counter
     archive_x: chex.Array  # Parents: Solution vectors
@@ -97,10 +97,10 @@ class LGA(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(net_params=self.lga_net_params, sigma_init=self.sigma_init)
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         init_x = jax.random.uniform(
-            rng,
+            key,
             (self.elite_popsize, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
@@ -108,7 +108,7 @@ class LGA(Strategy):
         init_sigma = jnp.ones((self.elite_popsize, 1)) * params.sigma_init
 
         return EvoState(
-            rng=rng,
+            key=key,
             mean=init_x[0],
             archive_x=init_x,
             archive_f=jnp.zeros(self.elite_popsize) + 5000000.0,
@@ -119,10 +119,11 @@ class LGA(Strategy):
         )
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key_epsilon: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
-        rng, rng_idx = jax.random.split(rng)
+        key_idx, key_epsilon = jax.random.split(key_epsilon)
+
         elite_ids = jnp.arange(self.elite_popsize)
 
         # Sample candidates with replacement given distribution
@@ -133,7 +134,7 @@ class LGA(Strategy):
         )
         F_E = jnp.concatenate([F_E, age_features.reshape(-1, 1)], axis=1)
         p = self.sampling_layer.apply(params.net_params["sampling"], F_E)
-        idx = jax.random.choice(rng_idx, elite_ids, (self.popsize,), p=p)
+        idx = jax.random.choice(key_idx, elite_ids, (self.popsize,), p=p)
 
         # Select children with sampled indices
         X_C = state.archive_x[idx]
@@ -147,7 +148,7 @@ class LGA(Strategy):
         )
 
         # Perform Gaussian scaled mutation
-        epsilon = jax.random.normal(rng, (self.popsize, self.num_dims))
+        epsilon = jax.random.normal(key_epsilon, (self.popsize, self.num_dims))
         x = X_C + sigma_C * epsilon
         return x, state.replace(sigma_C=sigma_C)
 
@@ -164,11 +165,11 @@ class LGA(Strategy):
         fit_re = self.fitness_features.apply(x_all, fit_all, state.best_fitness)
         idx = jnp.argsort(fit_all)[: self.elite_popsize]
 
-        rng, rng_next = jax.random.split(state.rng)
+        key, key_selection = jax.random.split(state.key)
         # Perform selection - either learned or hard truncation based
         F_X, F_E = fit_re[: self.popsize], fit_re[self.popsize :]
         select_bool = self.selection_layer.apply(
-            params.net_params["selection"], rng, F_X, F_E
+            params.net_params["selection"], key_selection, F_X, F_E
         )
         keep_parent = (select_bool.sum(axis=1) == 0)[:, None]
         next_x = select_bool @ x + keep_parent * state.archive_x
@@ -182,7 +183,7 @@ class LGA(Strategy):
         improved = fit_all[idx][0] < state.best_fitness
         best_mean = jax.lax.select(improved, x_all[idx][0], state.best_member)
         return state.replace(
-            rng=rng_next,
+            key=key,
             mean=best_mean,
             archive_x=next_x,
             archive_f=next_f,

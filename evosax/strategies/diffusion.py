@@ -83,11 +83,13 @@ class DiffusionEvolution(Strategy):
             init_scale=self.init_scale,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
+        key_init, key_latent = jax.random.split(key)
+
         initialization = (
             jax.random.normal(
-                rng,
+                key_init,
                 (self.popsize, self.num_dims),
             )
             * params.init_scale
@@ -97,7 +99,7 @@ class DiffusionEvolution(Strategy):
         # Generate projection matrix if num_latent_dims provided
         if self.num_latent_dims is not None:
             latent_projection = jax.random.normal(
-                rng, (self.num_dims, self.num_latent_dims)
+                key_latent, (self.num_dims, self.num_latent_dims)
             ) / (self.num_dims**0.5)
         else:
             latent_projection = jnp.eye(self.num_dims)
@@ -115,7 +117,7 @@ class DiffusionEvolution(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
         alpha_t = state.alphas[state.gen_counter - 1]
@@ -125,7 +127,7 @@ class DiffusionEvolution(Strategy):
             state.gen_counter == 0,
             state.archive,
             ddim_step(
-                rng,
+                key,
                 state.archive,
                 state.x0_est,
                 alpha_t,
@@ -290,7 +292,7 @@ alpha_schedule_dict = {
 }
 
 
-def ddim_step(rng, xt, x0, alpha_t, alpha_tp, noise_scale):
+def ddim_step(key, xt, x0, alpha_t, alpha_tp, noise_scale):
     """One step of the DDIM algorithm."""
     sigma = ddpm_sigma(alpha_t, alpha_tp) * noise_scale
     # print("Sigma", sigma, alpha_t, alpha_tp, noise_scale)
@@ -298,7 +300,7 @@ def ddim_step(rng, xt, x0, alpha_t, alpha_tp, noise_scale):
     x_next = (
         (alpha_tp**0.5) * x0
         + ((1 - alpha_tp - sigma**2) ** 0.5) * eps
-        + sigma * jax.random.normal(rng, x0.shape)
+        + sigma * jax.random.normal(key, x0.shape)
     )
     return x_next
 

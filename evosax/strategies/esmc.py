@@ -78,10 +78,10 @@ class ESMC(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -95,12 +95,12 @@ class ESMC(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
-            rng,
+            key,
             (int(self.popsize / 2), self.num_dims),
         )
         z = jnp.concatenate([jnp.zeros((1, self.num_dims)), z_plus, -1.0 * z_plus])

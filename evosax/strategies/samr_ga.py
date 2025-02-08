@@ -53,10 +53,10 @@ class SAMR_GA(Strategy):
         """Return default parameters of evolution strategy."""
         return EvoParams(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.elite_popsize, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
@@ -71,19 +71,22 @@ class SAMR_GA(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next."""
-        rng, rng_idx, rng_eps_x, rng_eps_s = jax.random.split(rng, 4)
-        eps_x = jax.random.normal(rng_eps_x, (self.popsize, self.num_dims))
-        eps_s = jax.random.uniform(rng_eps_s, (self.popsize,), minval=-1, maxval=1)
+        key_idx, key_eps_x, key_eps_s = jax.random.split(key, 3)
+
         idx = jax.random.choice(
-            rng_idx, jnp.arange(self.elite_popsize), (self.popsize - 1,)
+            key_idx, jnp.arange(self.elite_popsize), (self.popsize - 1,)
         )
-        x = jnp.concatenate([state.archive[0][None, :], state.archive[idx]])
+        eps_x = jax.random.normal(key_eps_x, (self.popsize, self.num_dims))
+        eps_s = jax.random.uniform(key_eps_s, (self.popsize,), minval=-1, maxval=1)
+
         sigma_0 = jnp.array([jnp.maximum(params.sigma_best_limit, state.sigma[0])])
         sigma = jnp.concatenate([sigma_0, state.sigma[idx]])
         sigma_gen = sigma * params.sigma_meta**eps_s
+
+        x = jnp.concatenate([state.archive[0][None, :], state.archive[idx]])
         x += sigma_gen[:, None] * eps_x
         return x, state.replace(archive=x, sigma=sigma_gen)
 

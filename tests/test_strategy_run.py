@@ -11,33 +11,30 @@ num_iters = 25
 
 def test_strategy_run(strategy_name):
     # Loop over all strategies and test ask API
-    rng = jax.random.key(0)
-    Strat = Strategies[strategy_name]
+    key = jax.random.key(0)
+    Strategy = Strategies[strategy_name]
 
     num_dims = 2
     x = jnp.zeros((num_dims,))
 
     # PBT also returns copy ID integer - treat separately
-    if strategy_name == "ESMC":
-        popsize = 21
-    else:
-        popsize = 20
+    popsize = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
-        strategy = Strat(npop=1, subpopsize=popsize, pholder_params=x)
+        strategy = Strategy(npop=1, subpopsize=popsize, pholder_params=x)
     else:
-        strategy = Strat(popsize=popsize, pholder_params=x)
+        strategy = Strategy(popsize=popsize, pholder_params=x)
     evaluator = BBOBFitness("sphere", 2)
     fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
     params = strategy.default_params
-    state = strategy.initialize(rng, params)
+    state = strategy.initialize(key, params)
 
     fitness_log = []
     for t in range(num_iters):
-        rng, rng_eval, rng_iter = jax.random.split(rng, 3)
-        x, state = strategy.ask(rng_iter, state, params)
-        fitness = batch_eval(rng, x)
+        key, key_ask, key_eval = jax.random.split(key, 3)
+        x, state = strategy.ask(key_ask, state, params)
+        fitness = batch_eval(key_eval, x)
         fitness_shaped = fitness_shaper.apply(x, fitness)
         state = strategy.tell(x, fitness_shaped, state, params)
         best_id = jnp.argmin(fitness)
@@ -47,43 +44,40 @@ def test_strategy_run(strategy_name):
 
 def test_strategy_scan(strategy_name):
     # Loop over all strategies and test ask API
-    rng = jax.random.key(0)
-    Strat = Strategies[strategy_name]
+    key = jax.random.key(0)
+    Strategy = Strategies[strategy_name]
 
     num_dims = 2
     x = jnp.zeros((num_dims,))
 
     # PBT also returns copy ID integer - treat separately
-    if strategy_name == "ESMC":
-        popsize = 21
-    else:
-        popsize = 20
+    popsize = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
-        strategy = Strat(npop=1, subpopsize=popsize, pholder_params=x)
+        strategy = Strategy(npop=1, subpopsize=popsize, pholder_params=x)
     elif strategy_name in ["BIPOP_CMA_ES", "IPOP_CMA_ES"]:
         return
     else:
-        strategy = Strat(popsize=popsize, pholder_params=x)
+        strategy = Strategy(popsize=popsize, pholder_params=x)
     evaluator = BBOBFitness("sphere", 2)
     fitness_shaper = FitnessShaper()
 
     batch_eval = evaluator.rollout
     es_params = strategy.default_params
 
-    state = strategy.initialize(rng, es_params)
+    state = strategy.initialize(key, es_params)
 
     def step(carry, _):
         """Helper function to lax.scan."""
-        rng, state = carry
-        rng, rng_eval, rng_iter = jax.random.split(rng, 3)
-        x, state = strategy.ask(rng_iter, state, es_params)
-        fitness = batch_eval(rng_eval, x)
+        key, state = carry
+        key, key_ask, key_eval = jax.random.split(key, 3)
+        x, state = strategy.ask(key_ask, state, es_params)
+        fitness = batch_eval(key_eval, x)
         fitness_shaped = fitness_shaper.apply(x, fitness)
         state = strategy.tell(x, fitness_shaped, state, es_params)
-        return (rng, state), jnp.min(fitness)
+        return (key, state), jnp.min(fitness)
 
     _, best_fitness = jax.lax.scan(
         step,
-        init=(rng, state),
+        init=(key, state),
         length=num_iters,
     )

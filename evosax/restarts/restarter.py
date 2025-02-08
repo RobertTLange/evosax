@@ -62,21 +62,21 @@ class RestartWrapper:
 
     @partial(jax.jit, static_argnums=(0,))
     def initialize(
-        self, rng: chex.PRNGKey, params: WrapperParams | None = None
+        self, key: jax.Array, params: WrapperParams | None = None
     ) -> WrapperState:
         """`initialize` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
 
-        strategy_state = self.base_strategy.initialize(rng, params.strategy_params)
+        strategy_state = self.base_strategy.initialize(key, params.strategy_params)
         restart_state = RestartState(restart_counter=0, restart_next=False)
         return WrapperState(strategy_state, restart_state)
 
     # @partial(jax.jit, static_argnums=(0,))
     def ask(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         state: WrapperState,
         params: WrapperParams | None = None,
     ) -> tuple[chex.Array, WrapperState]:
@@ -85,8 +85,8 @@ class RestartWrapper:
         if params is None:
             params = self.default_params
 
-        rng_ask, rng_restart = jax.random.split(rng)
-        restart_state = self.restart(rng_restart, state, params)
+        key_restart, key_ask = jax.random.split(key)
+        restart_state = self.restart(key_restart, state, params)
         # Simple tree map - jittable if state dimensions are static
         # Otherwise restart wrapper has to overwrite `ask`
         new_state = jax.tree.map(
@@ -100,7 +100,7 @@ class RestartWrapper:
             best_member=state.strategy_state.best_member,
         )
         x, strategy_state = self.base_strategy.ask(
-            rng_ask, strategy_state, params.strategy_params
+            key_ask, strategy_state, params.strategy_params
         )
         return x, new_state.replace(strategy_state=strategy_state)
 
@@ -142,13 +142,13 @@ class RestartWrapper:
 
     def restart(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         state: WrapperState,
         params: WrapperParams,
     ) -> WrapperState:
         """Restart state for next generations."""
         # Copy over important parts of state from previous strategy
-        new_strategy_state = self.restart_strategy(rng, state, params)
+        new_strategy_state = self.restart_strategy(key, state, params)
         new_restart_state = state.restart_state.replace(
             restart_counter=state.restart_state.restart_counter + 1,
             restart_next=False,
@@ -157,7 +157,7 @@ class RestartWrapper:
 
     def restart_strategy(
         self,
-        rng: chex.PRNGKey,
+        key: jax.Array,
         state: WrapperState,
         params: WrapperParams,
     ) -> WrapperState:

@@ -64,10 +64,10 @@ class SimpleGA(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the differential evolution strategy."""
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.elite_popsize, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
@@ -82,7 +82,7 @@ class SimpleGA(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
@@ -91,18 +91,21 @@ class SimpleGA(Strategy):
             if random number > co-rate
           - Additionally add noise on top of all elite parameters
         """
-        rng, rng_eps, rng_idx_a, rng_idx_b = jax.random.split(rng, 4)
-        rng_mate = jax.random.split(rng, self.popsize)
+        key, key_eps, key_idx_a, key_idx_b = jax.random.split(key, 4)
+        key_mate = jax.random.split(key, self.popsize)
+
         epsilon = (
-            jax.random.normal(rng_eps, (self.popsize, self.num_dims)) * state.sigma
+            jax.random.normal(key_eps, (self.popsize, self.num_dims)) * state.sigma
         )
+
         elite_ids = jnp.arange(self.elite_popsize)
-        idx_a = jax.random.choice(rng_idx_a, elite_ids, (self.popsize,))
-        idx_b = jax.random.choice(rng_idx_b, elite_ids, (self.popsize,))
+        idx_a = jax.random.choice(key_idx_a, elite_ids, (self.popsize,))
+        idx_b = jax.random.choice(key_idx_b, elite_ids, (self.popsize,))
         members_a = state.archive[idx_a]
         members_b = state.archive[idx_b]
+
         x = jax.vmap(single_mate, in_axes=(0, 0, 0, None))(
-            rng_mate, members_a, members_b, params.cross_over_rate
+            key_mate, members_a, members_b, params.cross_over_rate
         )
         x += epsilon
         return x, state
@@ -135,9 +138,9 @@ class SimpleGA(Strategy):
 
 
 def single_mate(
-    rng: chex.PRNGKey, a: chex.Array, b: chex.Array, cross_over_rate: float
+    key: jax.Array, a: chex.Array, b: chex.Array, cross_over_rate: float
 ) -> chex.Array:
     """Only cross-over dims for x% of all dims."""
-    idx = jax.random.uniform(rng, (a.shape[0],)) > cross_over_rate
+    idx = jax.random.uniform(key, (a.shape[0],)) > cross_over_rate
     cross_over_candidate = a * (1 - idx) + b * idx
     return cross_over_candidate

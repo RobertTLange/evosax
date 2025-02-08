@@ -50,114 +50,104 @@ class GymnaxFitness:
         self.rollout_repeats = jax.vmap(self.single_rollout, in_axes=(0, None))
         self.rollout_pop = jax.vmap(self.rollout_repeats, in_axes=(None, 0))
 
-    def rollout(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
+    def rollout(self, key: jax.Array, policy_params: chex.ArrayTree):
         """Placeholder fn call for rolling out a population for multi-evals."""
-        rng_pop = jax.random.split(rng_input, self.num_rollouts)
-        scores, masks = jax.jit(self.rollout_pop)(rng_pop, policy_params)
+        keys = jax.random.split(key, self.num_rollouts)
+        scores, masks = jax.jit(self.rollout_pop)(keys, policy_params)
         # Update total step counter using only transitions before termination
         self.total_env_steps += masks.sum()
         return scores
 
-    def rollout_ffw(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
+    def rollout_ffw(self, key: jax.Array, policy_params: chex.ArrayTree):
         """Rollout an episode with lax.scan."""
-        # Reset the environment
-        rng_reset, rng_episode = jax.random.split(rng_input)
-        obs, state = self.env.reset(rng_reset, self.env_params)
+        key_reset, key_step = jax.random.split(key)
 
-        def policy_step(state_input, tmp):
-            """lax.scan compatible step transition in jax env."""
-            obs, state, policy_params, rng, cum_reward, valid_mask = state_input
-            rng, rng_step, rng_net = jax.random.split(rng, 3)
-            action = self.network(policy_params, obs, rng=rng_net)
+        obs, state = self.env.reset(key_reset, self.env_params)
+
+        def policy_step(carry, _):
+            obs, state, policy_params, key, cum_reward, valid_mask = carry
+
+            key, key_action, key_step = jax.random.split(key, 3)
+            action = self.network(policy_params, obs, key=key_action)
             next_o, next_s, reward, done, _ = self.env.step(
-                rng_step, state, action, self.env_params
+                key_step, state, action, self.env_params
             )
+
             new_cum_reward = cum_reward + reward * valid_mask
             new_valid_mask = valid_mask * (1 - done)
-            carry = [
+            carry = (
                 next_o.squeeze(),
                 next_s,
                 policy_params,
-                rng,
+                key,
                 new_cum_reward,
                 new_valid_mask,
-            ]
-            y = [new_valid_mask]
-            return carry, y
+            )
+            return carry, (new_valid_mask,)
 
         # Scan over episode step loop
         carry_out, scan_out = jax.lax.scan(
             policy_step,
-            [
+            (
                 obs,
                 state,
                 policy_params,
-                rng_episode,
+                key_step,
                 jnp.array([0.0]),
                 jnp.array([1.0]),
-            ],
-            (),
-            self.num_env_steps,
+            ),
+            length=self.num_env_steps,
         )
+
         # Return the sum of rewards accumulated by agent in episode rollout
         ep_mask = scan_out
         cum_return = carry_out[-2].squeeze()
         return cum_return, jnp.array(ep_mask)
 
-    def rollout_rnn(self, rng_input: chex.PRNGKey, policy_params: chex.ArrayTree):
+    def rollout_rnn(self, key: jax.Array, policy_params: chex.ArrayTree):
         """Rollout a jitted episode with lax.scan."""
-        # Reset the environment
-        rng, rng_reset = jax.random.split(rng_input)
-        obs, state = self.env.reset(rng_reset, self.env_params)
+        key_reset, key_step = jax.random.split(key)
+
+        obs, state = self.env.reset(key_reset, self.env_params)
         hidden = self.carry_init()
 
-        def policy_step(state_input, tmp):
-            """lax.scan compatible step transition in jax env."""
-            (
-                obs,
-                state,
-                policy_params,
-                rng,
-                hidden,
-                cum_reward,
-                valid_mask,
-            ) = state_input
-            rng, rng_step, rng_net = jax.random.split(rng, 3)
-            hidden, action = self.network(policy_params, obs, hidden, rng_net)
+        def policy_step(carry, _):
+            obs, state, policy_params, key, hidden, cum_reward, valid_mask = carry
+
+            key, key_action, key_step = jax.random.split(key, 3)
+            hidden, action = self.network(policy_params, obs, hidden, key=key_action)
             next_o, next_s, reward, done, _ = self.env.step(
-                rng_step, state, action, self.env_params
+                key_step, state, action, self.env_params
             )
+
             new_cum_reward = cum_reward + reward * valid_mask
             new_valid_mask = valid_mask * (1 - done)
-            carry, y = (
-                [
-                    next_o.squeeze(),
-                    next_s,
-                    policy_params,
-                    rng,
-                    hidden,
-                    new_cum_reward,
-                    new_valid_mask,
-                ],
-                [new_valid_mask],
+            carry = (
+                next_o.squeeze(),
+                next_s,
+                policy_params,
+                key,
+                hidden,
+                new_cum_reward,
+                new_valid_mask,
             )
-            return carry, y
+            return carry, (new_valid_mask,)
 
         # Scan over episode step loop
         carry_out, scan_out = jax.lax.scan(
             policy_step,
-            [
+            (
                 obs,
                 state,
                 policy_params,
-                rng,
+                key_step,
                 hidden,
                 jnp.array([0.0]),
                 jnp.array([1.0]),
-            ],
-            (),
-            self.num_env_steps,
+            ),
+            length=self.num_env_steps,
         )
+
         # Return masked sum of rewards accumulated by agent in episode
         ep_mask = scan_out
         cum_return = carry_out[-2].squeeze()

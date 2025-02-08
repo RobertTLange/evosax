@@ -143,7 +143,7 @@ class SelectionAttention(nn.Module):
 
     @nn.compact
     def __call__(
-        self, rng: chex.PRNGKey, F_X: chex.Array, F_E: chex.Array
+        self, key: jax.Array, F_X: chex.Array, F_E: chex.Array
     ) -> chex.Array:
         # Perform cross-attention between kids and parents
         A = MultiHeadCrossAttention(self.num_att_heads, self.att_hidden_dims)(F_X, F_E)
@@ -155,7 +155,7 @@ class SelectionAttention(nn.Module):
         # Selection matrix w. parent (elite_popsize, popsize + 1)
         S_p = jnp.concatenate([S, jnp.ones((S.shape[0], 1))], axis=1)
         # Sample kid id to replace or parent id to keep
-        idx = jax.random.categorical(rng, S_p, axis=1)
+        idx = jax.random.categorical(key, S_p, axis=1)
         S_M = jnp.zeros(S_p.shape).at[jnp.arange(S.shape[0]), idx].set(1)
         # Return mask w/o final column corresponding to parent
         return S_M[:, : F_X.shape[0]]

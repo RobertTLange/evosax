@@ -77,11 +77,11 @@ class SV_OpenES(OpenES):
         )
 
     def initialize_strategy(
-        self, rng: jax.random.key, params: EvoParams
+        self, key: jax.Array, params: EvoParams
     ) -> EvoState:
         """`initialize` the evolution strategy."""
         x_init = jax.random.uniform(
-            rng,
+            key,
             (self.npop, self.num_dims),
             minval=params.init_min,
             maxval=params.init_max,
@@ -98,18 +98,18 @@ class SV_OpenES(OpenES):
         return state
 
     def ask_strategy(
-        self, rng: jax.random.key, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> [Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         if self.use_antithetic_sampling:
             z_plus = jax.random.normal(
-                rng,
+                key,
                 (self.npop, int(self.subpopsize / 2), self.num_dims),
             )
             z = jnp.concatenate([z_plus, -1.0 * z_plus], axis=1)
         else:
-            z = jax.random.normal(rng, (self.npop, self.subpopsize, self.num_dims))
+            z = jax.random.normal(key, (self.npop, self.subpopsize, self.num_dims))
 
         x = state.mean[:, None] + state.sigma[:, None] * z
         x = x.reshape(self.popsize, self.num_dims)

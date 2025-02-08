@@ -58,7 +58,7 @@ def tanh_out(
 
 
 def categorical_out(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     x: chex.Array,
     num_output_units: int,
     init_type: str = "lecun_normal",
@@ -69,12 +69,12 @@ def categorical_out(
         kernel_init=kernel_init_fn[init_type](),
         bias_init=default_bias_init(),
     )(x)
-    x_out = jax.random.categorical(rng, x)
+    x_out = jax.random.categorical(key, x)
     return x_out
 
 
 def gaussian_out(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     x: chex.Array,
     num_output_units: int,
     init_type: str = "lecun_normal",
@@ -91,5 +91,5 @@ def gaussian_out(
         bias_init=default_bias_init(),
     )(x)
     x_std = jnp.exp(0.5 * x_log_var)
-    noise = x_std * jax.random.normal(rng, (num_output_units,))
+    noise = x_std * jax.random.normal(key, (num_output_units,))
     return x_mean + noise

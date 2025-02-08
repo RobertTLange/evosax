@@ -124,7 +124,7 @@ class Sep_CMA_ES(Strategy):
         )
         return params
 
-    def initialize_strategy(self, rng: chex.PRNGKey, params: EvoParams) -> EvoState:
+    def initialize_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`initialize` the evolution strategy."""
         # Population weightings - store in state
         weights, weights_truncated = get_cma_elite_weights(
@@ -132,7 +132,7 @@ class Sep_CMA_ES(Strategy):
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
-            rng,
+            key,
             (self.num_dims,),
             minval=params.init_min,
             maxval=params.init_max,
@@ -152,11 +152,11 @@ class Sep_CMA_ES(Strategy):
         return state
 
     def ask_strategy(
-        self, rng: chex.PRNGKey, state: EvoState, params: EvoParams
+        self, key: jax.Array, state: EvoState, params: EvoParams
     ) -> tuple[chex.Array, EvoState]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
-            rng,
+            key,
             state.mean,
             state.sigma_scale,
             state.D,
@@ -318,7 +318,7 @@ def update_sigma(
 
 
 def sample(
-    rng: chex.PRNGKey,
+    key: jax.Array,
     mean: chex.Array,
     sigma_scale: float,
     D: chex.Array,
@@ -326,7 +326,7 @@ def sample(
     pop_size: int,
 ) -> chex.Array:
     """Jittable Gaussian Sample Helper."""
-    z = jax.random.normal(rng, (n_dim, pop_size))  # ~ N(0, I)
+    z = jax.random.normal(key, (n_dim, pop_size))  # ~ N(0, I)
     y = jnp.diag(D).dot(
         z
     )  # ~ N(0, C)  TODO: check if this is correct (discrepency between C and D
