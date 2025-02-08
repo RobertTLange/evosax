@@ -1,19 +1,19 @@
-from .bbob import BBOBFitness
-from .control_gym import GymnaxFitness
-from .sequence import SequenceFitness
-from .vision import VisionFitness
+from .bbob import BBOBProblem
+from .gymnax import GymnaxProblem
+from .sequence import SequenceProblem
+from .vision import VisionProblem
 
 ProblemMapper = {
-    "Gymnax": GymnaxFitness,
-    "Vision": VisionFitness,
-    "BBOB": BBOBFitness,
-    "Sequence": SequenceFitness,
+    "Gymnax": GymnaxProblem,
+    "Vision": VisionProblem,
+    "BBOB": BBOBProblem,
+    "Sequence": SequenceProblem,
 }
 
 __all__ = [
-    "GymnaxFitness",
-    "VisionFitness",
-    "BBOBFitness",
-    "SequenceFitness",
+    "GymnaxProblem",
+    "VisionProblem",
+    "BBOBProblem",
+    "SequenceProblem",
     "ProblemMapper",
 ]

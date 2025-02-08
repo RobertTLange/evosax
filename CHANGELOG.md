@@ -25,7 +25,7 @@ fn_name = "Sphere"
 num_dims = 2
 popsize = 64
 rng = jax.random.PRNGKey(0)
-evaluator = BBOBFitness(fn_name, num_dims=num_dims, n_devices=num_devices)
+problem = BBOBFitness(fn_name, num_dims=num_dims, n_devices=num_devices)
 
 strategy = SNES(
     popsize=popsize,
@@ -48,7 +48,7 @@ x, es_state = jax.pmap(strategy.ask, axis_name="device")(ask_rng, es_state, es_p
 
 print("Population shape:", x.shape)  # (num_devices, popsize/num_devices, num_dims)
 
-fitness = evaluator.rollout(rng_e, x)
+fitness = problem.rollout(rng_e, x)
 print("Fitness shape:", fitness.shape)  # (num_devices, popsize/num_devices)
 
 es_state = jax.pmap(strategy.tell, axis_name="device")(x, fitness, es_state, es_params)

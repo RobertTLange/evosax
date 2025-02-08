@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 
 
-class GymnaxFitness:
+class GymnaxProblem:
     def __init__(
         self,
         env_name: str = "CartPole-v1",
@@ -50,7 +50,7 @@ class GymnaxFitness:
         self.rollout_repeats = jax.vmap(self.single_rollout, in_axes=(0, None))
         self.rollout_pop = jax.vmap(self.rollout_repeats, in_axes=(None, 0))
 
-    def rollout(self, key: jax.Array, policy_params: chex.ArrayTree):
+    def eval(self, key: jax.Array, policy_params: chex.ArrayTree):
         """Placeholder fn call for rolling out a population for multi-evals."""
         keys = jax.random.split(key, self.num_rollouts)
         scores, masks = jax.jit(self.rollout_pop)(keys, policy_params)

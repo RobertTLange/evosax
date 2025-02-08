@@ -52,9 +52,7 @@ class BIPOP_Restarter(RestartWrapper):
         return RestartParams()
 
     @partial(jax.jit, static_argnames=("self",))
-    def init(
-        self, key: jax.Array, params: WrapperParams | None = None
-    ) -> WrapperState:
+    def init(self, key: jax.Array, params: WrapperParams | None = None) -> WrapperState:
         """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -124,12 +122,15 @@ class BIPOP_Restarter(RestartWrapper):
             state.restart_state.restart_large_counter + 1
         )
         small_population_size = jax.lax.floor(
-            self.default_population_size * pop_mult ** (jax.random.uniform(key_uniform) ** 2)
+            self.default_population_size
+            * pop_mult ** (jax.random.uniform(key_uniform) ** 2)
         ).astype(int)
         large_population_size = self.default_population_size * pop_mult
 
         # Reinstantiate new strategy - based on name of previous strategy
-        active_population_size = jax.lax.select(small_pop_active, small_population_size, large_population_size)
+        active_population_size = jax.lax.select(
+            small_pop_active, small_population_size, large_population_size
+        )
 
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](

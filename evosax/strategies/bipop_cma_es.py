@@ -62,9 +62,7 @@ class BIPOP_CMA_ES:
         return re_params.replace(restart_params=RestartParams())
 
     @partial(jax.jit, static_argnames=("self",))
-    def init(
-        self, key: jax.Array, params: WrapperParams | None = None
-    ) -> WrapperState:
+    def init(self, key: jax.Array, params: WrapperParams | None = None) -> WrapperState:
         """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:

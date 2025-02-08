@@ -61,14 +61,19 @@ class SV_CMA_ES(CMA_ES):
             mean_decay,
             **fitness_kwargs,
         )
-        self.elite_population_size = max(1, int(self.subpopulation_size * self.elite_ratio))
+        self.elite_population_size = max(
+            1, int(self.subpopulation_size * self.elite_ratio)
+        )
         self.strategy_name = "SV_CMA_ES"
         self.kernel = kernel()
 
     def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
         """`init` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.subpopulation_size, self.elite_population_size, self.num_dims, self.max_dims_sq
+            self.subpopulation_size,
+            self.elite_population_size,
+            self.num_dims,
+            self.max_dims_sq,
         )
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(

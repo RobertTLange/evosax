@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from evosax.utils.visualizer_2d import BBOBVisualizer
 
 
-class BBOBFitness:
+class BBOBProblem:
     """Blackbox Optimization Benchmarking class.
 
     Link: https://numbbo.github.io/gforge/downloads/download16.00/bbobdocfunctions.pdf
@@ -44,7 +44,7 @@ class BBOBFitness:
         )
 
     @partial(jax.jit, static_argnames=("self",))
-    def rollout(
+    def eval(
         self,
         key: jax.Array,
         eval_params: jax.Array,

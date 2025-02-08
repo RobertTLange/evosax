@@ -258,7 +258,7 @@ if __name__ == "__main__":
     import jax
 
     from evosax import CMA_ES
-    from evosax.problems import BBOBFitness
+    from evosax.problems import BBOBProblem
 
     # from jax.config import config
     # config.update("jax_enable_x64", True)
@@ -310,13 +310,13 @@ if __name__ == "__main__":
         es_params = strategy.default_params.replace(init_min=-2.5, init_max=2.5)
         es_state = strategy.init(key, es_params)
 
-        problem = BBOBFitness(fn_name, 2)
+        problem = BBOBProblem(fn_name, 2)
 
         X, fitness = [], []
         for g in range(50):
             key, key_ask, key_eval = jax.random.split(key, 3)
             x, es_state = strategy.ask(key, es_state, es_params)
-            fit = problem.rollout(key_eval, x)
+            fit = problem.eval(key_eval, x)
             es_state = strategy.tell(x, fit, es_state, es_params)
             X.append(x)
             fitness.append(fit)

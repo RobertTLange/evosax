@@ -107,7 +107,9 @@ class SV_OpenES(OpenES):
             )
             z = jnp.concatenate([z_plus, -1.0 * z_plus], axis=1)
         else:
-            z = jax.random.normal(key, (self.npop, self.subpopulation_size, self.num_dims))
+            z = jax.random.normal(
+                key, (self.npop, self.subpopulation_size, self.num_dims)
+            )
 
         x = state.mean[:, None] + state.sigma[:, None] * z
         x = x.reshape(self.population_size, self.num_dims)

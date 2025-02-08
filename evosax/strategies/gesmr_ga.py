@@ -50,7 +50,9 @@ class GESMR_GA(Strategy):
             jnp.ceil(self.population_size / self.num_sigma_groups)
         )
         self.sigma_ratio = sigma_ratio
-        self.sigma_population_size = max(1, int(self.num_sigma_groups * self.sigma_ratio))
+        self.sigma_population_size = max(
+            1, int(self.num_sigma_groups * self.sigma_ratio)
+        )
         self.strategy_name = "GESMR_GA"
         # Set core kwargs es_params
         self.sigma_init = sigma_init

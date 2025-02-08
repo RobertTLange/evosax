@@ -47,9 +47,7 @@ class IPOP_Restarter(RestartWrapper):
         return RestartParams()
 
     @partial(jax.jit, static_argnames=("self",))
-    def init(
-        self, key: jax.Array, params: WrapperParams | None = None
-    ) -> WrapperState:
+    def init(self, key: jax.Array, params: WrapperParams | None = None) -> WrapperState:
         """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:

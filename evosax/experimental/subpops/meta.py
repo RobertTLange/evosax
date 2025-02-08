@@ -78,9 +78,7 @@ class MetaStrategy(BatchStrategy):
         )
 
     @partial(jax.jit, static_argnames=("self",))
-    def init_meta(
-        self, key: jax.Array, meta_params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def init_meta(self, key: jax.Array, meta_params: chex.ArrayTree) -> chex.ArrayTree:
         """`init` the meta-evolution strategy."""
         return self.meta_strategy.init(key, meta_params)
 

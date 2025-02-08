@@ -5,7 +5,7 @@ import jax
 import jax.numpy as jnp
 
 
-class SequenceFitness:
+class SequenceProblem:
     def __init__(
         self,
         task_name: str = "SeqMNIST",

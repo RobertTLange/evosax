@@ -2,16 +2,16 @@ import jax
 import jax.numpy as jnp
 from evosax import ARS, CMA_ES, NetworkMapper
 from evosax.problems import (
-    BBOBFitness,
-    GymnaxFitness,
-    VisionFitness,
+    BBOBProblem,
+    GymnaxProblem,
+    VisionProblem,
 )
 
 
-def test_classic_rollout(classic_name: str):
+def test_bbob_eval(classic_name: str):
     key = jax.random.key(0)
-    evaluator = BBOBFitness(classic_name, num_dims=2)
-    x = evaluator.sample_x(key)
+    problem = BBOBProblem(classic_name, num_dims=2)
+    x = problem.sample_x(key)
     strategy = CMA_ES(population_size=20, pholder_params=x, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.init(key, params)
@@ -19,34 +19,34 @@ def test_classic_rollout(classic_name: str):
     # Run the ask-eval-tell loop
     key_ask, key_eval = jax.random.split(key)
     x, state = strategy.ask(key_ask, state, params)
-    fitness = evaluator.rollout(key_eval, x)
+    fitness = problem.eval(key_eval, x)
     assert fitness.shape == (20,)
 
 
-def test_env_ffw_rollout(env_name: str):
+def test_env_ffw_eval(env_name: str):
     key = jax.random.key(0)
-    evaluator = GymnaxFitness(env_name, num_env_steps=100, num_rollouts=10)
+    problem = GymnaxProblem(env_name, num_env_steps=100, num_rollouts=10)
     network = NetworkMapper["MLP"](
         num_hidden_units=64,
         num_hidden_layers=2,
-        num_output_units=evaluator.action_shape,
+        num_output_units=problem.action_shape,
         hidden_activation="relu",
         output_activation="categorical",
     )
-    pholder = jnp.zeros((1, evaluator.input_shape[0]))
+    pholder = jnp.zeros((1, problem.input_shape[0]))
     net_params = network.init(
         key,
         x=pholder,
         key=key,
     )
-    evaluator.set_apply_fn(network.apply)
+    problem.set_apply_fn(network.apply)
 
     strategy = ARS(population_size=20, pholder_params=net_params, elite_ratio=0.5)
     state = strategy.init(key)
     # Run the ask-eval-tell loop
     key_ask, key_eval = jax.random.split(key)
     x, state = strategy.ask(key_ask, state)
-    fitness = evaluator.rollout(key_eval, x)
+    fitness = problem.eval(key_eval, x)
 
     # Assert shape (#popmembers, #rollouts)
     assert fitness.shape == (20, 10)
@@ -54,7 +54,7 @@ def test_env_ffw_rollout(env_name: str):
 
 def test_vision_fitness():
     key = jax.random.key(0)
-    evaluator = VisionFitness("MNIST", 4, test=True)
+    problem = VisionProblem("MNIST", 4, test=True)
     network = NetworkMapper["CNN"](
         depth_1=1,
         depth_2=1,
@@ -75,7 +75,7 @@ def test_vision_fitness():
         key=key,
     )
 
-    evaluator.set_apply_fn(network.apply)
+    problem.set_apply_fn(network.apply)
 
     strategy = ARS(population_size=4, pholder_params=net_params, elite_ratio=0.5)
     state = strategy.init(key)
@@ -83,6 +83,6 @@ def test_vision_fitness():
     # Run the ask-eval-tell loop
     key_ask, key_eval = jax.random.split(key)
     x, state = strategy.ask(key_ask, state)
-    loss, acc = evaluator.rollout(key_eval, x)
+    loss, acc = problem.eval(key_eval, x)
     assert loss.shape == (4, 1)
     assert acc.shape == (4, 1)

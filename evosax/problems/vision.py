@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 
 
-class VisionFitness:
+class VisionProblem:
     def __init__(
         self,
         task_name: str = "MNIST",
@@ -22,17 +22,17 @@ class VisionFitness:
     def set_apply_fn(self, network):
         """Set the network forward function."""
         self.network = network
-        self.rollout_pop = jax.vmap(self.rollout_ffw, in_axes=(None, 0))
-        self.rollout = jax.jit(self.rollout_vmap)
+        self.eval_pop = jax.vmap(self.eval_ffw, in_axes=(None, 0))
+        self.eval = jax.jit(self.eval_vmap)
 
-    def rollout_vmap(self, key: jax.Array, network_params: chex.ArrayTree):
-        """Vectorize rollout. Reshape output correctly."""
-        loss, acc = self.rollout_pop(key, network_params)
+    def eval_vmap(self, key: jax.Array, network_params: chex.ArrayTree):
+        """Vectorize evaluation. Reshape output correctly."""
+        loss, acc = self.eval_pop(key, network_params)
         loss_re = loss.reshape(-1, 1)
         acc_re = acc.reshape(-1, 1)
         return loss_re, acc_re
 
-    def rollout_ffw(
+    def eval_ffw(
         self, key: jax.Array, network_params: chex.ArrayTree
     ) -> chex.ArrayTree:
         """Evaluate a network on a supervised learning task."""
@@ -94,7 +94,7 @@ def get_mnist_loaders(test: bool = False):
     except ModuleNotFoundError as err:
         raise ModuleNotFoundError(
             f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `VisionFitness` module."
+            "to use the `VisionProblem` module."
         )
 
     transform = transforms.Compose(
@@ -120,7 +120,7 @@ def get_fashion_loaders(test: bool = False):
     except ModuleNotFoundError as err:
         raise ModuleNotFoundError(
             f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `VisionFitness` module."
+            "to use the `VisionProblem` module."
         )
 
     transform = transforms.Compose(
@@ -150,7 +150,7 @@ def get_cifar_loaders(test: bool = False):
     except ModuleNotFoundError as err:
         raise ModuleNotFoundError(
             f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `VisionFitness` module."
+            "to use the `VisionProblem` module."
         )
 
     transform = transforms.Compose(
@@ -185,7 +185,7 @@ def get_svhn_loaders(test: bool = False):
     except ModuleNotFoundError as err:
         raise ModuleNotFoundError(
             f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `VisionFitness` module."
+            "to use the `VisionProblem` module."
         )
 
     transform = [

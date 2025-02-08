@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from evosax import Strategies
-from evosax.problems import BBOBFitness
+from evosax.problems import BBOBProblem
 
 
 def test_strategy_ask(strategy_name):
@@ -45,7 +45,7 @@ def test_strategy_ask_tell(strategy_name):
     params = strategy.default_params
     state = strategy.init(key, params)
     x, state = strategy.ask(key, state, params)
-    evaluator = BBOBFitness("sphere", num_dims)
-    fitness = evaluator.rollout(key, x)
+    problem = BBOBProblem("sphere", num_dims)
+    fitness = problem.eval(key, x)
     state = strategy.tell(x, fitness, state, params)
     return
