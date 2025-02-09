@@ -1,9 +1,7 @@
-import chex
 import jax
 from flax import struct
 
-from .restarter import RestartWrapper
-from .termination import spread_criterion
+from .restarter import RestartWrapper, WrapperParams, WrapperState, spread_criterion
 
 
 @struct.dataclass
@@ -30,9 +28,9 @@ class Simple_Restarter(RestartWrapper):
     def restart_strategy(
         self,
         key: jax.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: WrapperState,
+        params: WrapperParams,
+    ) -> WrapperState:
         """Simple restart by state initialization."""
         new_state = self.base_strategy.init(key, params.strategy_params)
         new_state = new_state.replace(

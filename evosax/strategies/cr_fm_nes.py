@@ -1,26 +1,26 @@
 import math
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
+    mean: jax.Array
     sigma: float
-    v: chex.Array
-    D: chex.Array
-    p_sigma: chex.Array
-    p_c: chex.Array
-    w_rank_hat: chex.Array
-    w_rank: chex.Array
-    z: chex.Array
-    y: chex.Array
-    best_member: chex.Array
+    v: jax.Array
+    D: jax.Array
+    p_sigma: jax.Array
+    p_c: jax.Array
+    w_rank_hat: jax.Array
+    w_rank: jax.Array
+    z: jax.Array
+    y: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -46,7 +46,7 @@ class Params:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_recombination_weights(population_size: int) -> tuple[chex.Array, chex.Array]:
+def get_recombination_weights(population_size: int) -> tuple[jax.Array, jax.Array]:
     """Get recombination weights for different ranks."""
 
     def get_weight(i):
@@ -70,7 +70,7 @@ def get_h_inv(dim: int) -> float:
     return h_inv
 
 
-def w_dist_hat(alpha_dist: float, z: chex.Array) -> chex.Array:
+def w_dist_hat(alpha_dist: float, z: jax.Array) -> jax.Array:
     return jnp.exp(alpha_dist * jnp.linalg.norm(z))
 
 
@@ -78,7 +78,7 @@ class CR_FM_NES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
@@ -174,7 +174,7 @@ class CR_FM_NES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         z_plus = jax.random.normal(
             key,
@@ -194,8 +194,8 @@ class CR_FM_NES(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

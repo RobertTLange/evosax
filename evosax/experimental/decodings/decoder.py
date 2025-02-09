@@ -1,18 +1,20 @@
-import chex
+import jax
+
+from ...types import Population, Solution
 
 
 class Decoder:
     def __init__(
         self,
         num_encoding_dims: int,
-        solution: chex.ArrayTree | chex.Array,
+        solution: Solution,
     ):
         self.num_encoding_dims = num_encoding_dims
         self.total_params = num_encoding_dims
         self.solution = solution
 
-    def reshape(self, x: chex.Array) -> chex.ArrayTree:
+    def reshape(self, solutions: Population) -> jax.Array:
         raise NotImplementedError
 
-    def reshape_single(self, x: chex.Array) -> chex.ArrayTree:
+    def reshape_single(self, solution: Solution) -> jax.Array:
         raise NotImplementedError

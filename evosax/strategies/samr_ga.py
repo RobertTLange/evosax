@@ -1,18 +1,18 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    archive: chex.Array
-    fitness: chex.Array
-    sigma: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    archive: jax.Array
+    fitness: Fitness
+    sigma: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -32,7 +32,7 @@ class SAMR_GA(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 0.0,
         sigma_init: float = 0.07,
         sigma_meta: float = 2.0,
@@ -74,7 +74,7 @@ class SAMR_GA(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         key_idx, key_eps_x, key_eps_s = jax.random.split(key, 3)
 
@@ -96,8 +96,8 @@ class SAMR_GA(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

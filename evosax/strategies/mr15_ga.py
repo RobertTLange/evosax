@@ -1,19 +1,19 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 from .simple_ga import single_mate
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    archive: chex.Array
-    fitness: chex.Array
-    sigma: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    archive: jax.Array
+    fitness: Fitness
+    sigma: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -33,7 +33,7 @@ class MR15_GA(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 0.0,
         sigma_ratio: float = 0.15,
         sigma_init: float = 0.1,
@@ -77,7 +77,7 @@ class MR15_GA(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
           - Sample two current elite members (a & b)
@@ -107,8 +107,8 @@ class MR15_GA(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

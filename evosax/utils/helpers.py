@@ -1,10 +1,11 @@
-import chex
 import jax
 import jax.numpy as jnp
 from jax import flatten_util
 
+from ..types import Fitness, Population, Solution
 
-def get_ravel_fn(solution: chex.ArrayTree):
+
+def get_ravel_fn(solution: Solution):
     def ravel_solution(solution):
         flat, _ = flatten_util.ravel_pytree(solution)
         return flat
@@ -15,8 +16,8 @@ def get_ravel_fn(solution: chex.ArrayTree):
 
 
 def get_best_fitness_member(
-    x: chex.Array, fitness: chex.Array, state, maximize: bool = False
-) -> tuple[chex.Array, float]:
+    x: Population, fitness: Fitness, state, maximize: bool = False
+) -> tuple[jax.Array, float]:
     """Check if fitness improved & replace in ES state."""
     fitness_min = jax.lax.select(maximize, -1 * fitness, fitness)
     max_and_later = maximize and state.generation_counter > 0

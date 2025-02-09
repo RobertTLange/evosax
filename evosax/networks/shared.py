@@ -1,4 +1,3 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
@@ -34,8 +33,8 @@ def default_bias_init(scale=0.05):
 
 
 def identity_out(
-    x: chex.Array, num_output_units: int, init_type: str = "lecun_normal"
-) -> chex.Array:
+    x: jax.Array, num_output_units: int, init_type: str = "lecun_normal"
+) -> jax.Array:
     """Simple affine layer."""
     x_out = nn.Dense(
         features=num_output_units,
@@ -46,8 +45,8 @@ def identity_out(
 
 
 def tanh_out(
-    x: chex.Array, num_output_units: int, init_type: str = "lecun_normal"
-) -> chex.Array:
+    x: jax.Array, num_output_units: int, init_type: str = "lecun_normal"
+) -> jax.Array:
     """Simple affine layer & tanh rectification."""
     x = nn.Dense(
         features=num_output_units,
@@ -59,10 +58,10 @@ def tanh_out(
 
 def categorical_out(
     key: jax.Array,
-    x: chex.Array,
+    x: jax.Array,
     num_output_units: int,
     init_type: str = "lecun_normal",
-) -> chex.Array:
+) -> jax.Array:
     """Simple affine layer & categorical sample from logits."""
     x = nn.Dense(
         features=num_output_units,
@@ -75,10 +74,10 @@ def categorical_out(
 
 def gaussian_out(
     key: jax.Array,
-    x: chex.Array,
+    x: jax.Array,
     num_output_units: int,
     init_type: str = "lecun_normal",
-) -> chex.Array:
+) -> jax.Array:
     """Simple affine layers for mean and log var + gaussian sample."""
     x_mean = nn.Dense(
         features=num_output_units,

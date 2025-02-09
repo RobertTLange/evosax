@@ -2,7 +2,6 @@ import functools
 import sys
 from typing import Any
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
@@ -21,7 +20,7 @@ else:
     import pickle
 
 
-def load_pkl_object(filename: Any, pkg_load: bool = False) -> chex.ArrayTree:
+def load_pkl_object(filename: Any, pkg_load: bool = False) -> Any:
     """Reload pickle objects from path."""
     if not pkg_load:
         with open(filename, "rb") as input:
@@ -31,7 +30,7 @@ def load_pkl_object(filename: Any, pkg_load: bool = False) -> chex.ArrayTree:
     return obj
 
 
-def tanh_timestamp(x: chex.Array) -> chex.Array:
+def tanh_timestamp(x: jax.Array) -> jax.Array:
     """Timestamp embedding with evo-adapted timescales. (Metz et al., 2022)"""
 
     def single_frequency(timescale):
@@ -45,15 +44,15 @@ def tanh_timestamp(x: chex.Array) -> chex.Array:
 
 
 class EvolutionPath:
-    def __init__(self, num_dims: int, timescales: chex.Array):
+    def __init__(self, num_dims: int, timescales: jax.Array):
         self.num_dims = num_dims
         self.timescales = timescales
 
-    def init(self) -> chex.Array:
+    def init(self) -> jax.Array:
         """Initialize evolution path arrays."""
         return jnp.zeros((self.num_dims, self.timescales.shape[0]))
 
-    def update(self, paths: chex.Array, diff: chex.Array) -> chex.Array:
+    def update(self, paths: jax.Array, diff: jax.Array) -> jax.Array:
         """Batch update evolution paths for multiple dims & timescales."""
 
         def update_path(lrate, path, diff):
@@ -84,9 +83,7 @@ class FitnessFeatures:
         self.maximize = maximize
 
     @functools.partial(jax.jit, static_argnames=("self",))
-    def apply(
-        self, x: chex.Array, fitness: chex.Array, best_fitness: float
-    ) -> chex.Array:
+    def apply(self, x: jax.Array, fitness: jax.Array, best_fitness: float) -> jax.Array:
         """Compute and concatenate different fitness transformations."""
         fitness = jax.lax.select(self.maximize, -1 * fitness, fitness)
         fit_out = ((fitness < best_fitness) * 1.0).reshape(-1, 1)
@@ -109,7 +106,7 @@ class FitnessFeatures:
         return fit_out
 
 
-def norm_diff_best(fitness: chex.Array, best_fitness: float) -> chex.Array:
+def norm_diff_best(fitness: jax.Array, best_fitness: float) -> jax.Array:
     """Normalizes difference from best previous fitness score."""
     fitness = jnp.clip(fitness, -1e10, 1e10)
     diff_best = fitness - best_fitness
@@ -126,7 +123,7 @@ class AttentionWeights(nn.Module):
     att_hidden_dims: int = 8
 
     @nn.compact
-    def __call__(self, X: chex.Array) -> chex.Array:
+    def __call__(self, X: jax.Array) -> jax.Array:
         keys = nn.Dense(self.att_hidden_dims)(X)
         queries = nn.Dense(self.att_hidden_dims)(X)
         values = nn.Dense(1)(X)
@@ -143,9 +140,9 @@ class EvoPathMLP(nn.Module):
     @nn.compact
     def __call__(
         self,
-        path_c: chex.Array,
-        path_sigma: chex.Array,
-        time_embed: chex.Array,
+        path_c: jax.Array,
+        path_sigma: jax.Array,
+        time_embed: jax.Array,
     ):
         timestamps = jnp.repeat(
             jnp.expand_dims(time_embed, axis=0), repeats=path_c.shape[0], axis=0

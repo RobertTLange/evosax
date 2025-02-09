@@ -1,10 +1,15 @@
 from functools import partial
 
-import chex
 import jax
 from flax import struct
 
-from ..restarts.restarter import WrapperParams, WrapperState
+from ..restarts.restarter import (
+    WrapperParams,
+    WrapperState,
+    cma_criterion,
+    spread_criterion,
+)
+from ..types import Fitness, Population, Solution
 from .cma_es import CMA_ES
 
 
@@ -23,7 +28,7 @@ class BIPOP_CMA_ES:
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array,
+        solution: Solution,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -44,7 +49,6 @@ class BIPOP_CMA_ES:
             **fitness_kwargs,
         )
         from ..restarts import BIPOP_Restarter
-        from ..restarts.termination import cma_criterion, spread_criterion
 
         self.wrapped_strategy = BIPOP_Restarter(
             self.strategy,
@@ -74,7 +78,7 @@ class BIPOP_CMA_ES:
         key: jax.Array,
         state: WrapperState,
         params: WrapperParams | None = None,
-    ) -> tuple[chex.Array, WrapperState]:
+    ) -> tuple[jax.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -85,8 +89,8 @@ class BIPOP_CMA_ES:
     @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: WrapperState,
         params: WrapperParams | None = None,
     ) -> WrapperState:

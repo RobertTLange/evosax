@@ -1,22 +1,22 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    p_sigma: chex.Array
-    mean: chex.Array
+    p_sigma: jax.Array
+    mean: jax.Array
     sigma: float
-    P: chex.Array
-    t_gap: chex.Array
+    P: jax.Array
+    t_gap: jax.Array
     s_rank_rate: float
-    fitness_archive: chex.Array
-    weights: chex.Array
-    best_member: chex.Array
+    fitness_archive: jax.Array
+    weights: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -40,7 +40,7 @@ class Params:
     clip_max: float = jnp.finfo(jnp.float32).max
 
 
-def get_elite_weights(elite_population_size: int) -> tuple[chex.Array, chex.Array]:
+def get_elite_weights(elite_population_size: int) -> tuple[jax.Array, jax.Array]:
     """Utility helper to create truncated elite weights for mean update."""
     weights = jnp.array(
         [
@@ -61,7 +61,7 @@ class RmES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
         sigma_init: float = 1.0,
@@ -125,7 +125,7 @@ class RmES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             key,
@@ -141,8 +141,8 @@ class RmES(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -192,24 +192,24 @@ class RmES(Strategy):
 
 
 def update_mean(
-    mean: chex.Array,
-    sorted_solutions: chex.Array,
+    mean: jax.Array,
+    sorted_solutions: jax.Array,
     c_m: float,
-    weights: chex.Array,
-) -> chex.Array:
+    weights: jax.Array,
+) -> jax.Array:
     """Update mean of strategy."""
     mean = (1 - c_m) * mean + c_m * jnp.sum(sorted_solutions[:, 1:].T * weights, axis=1)
     return mean
 
 
 def update_p_sigma(
-    mean_old: chex.Array,
-    mean: chex.Array,
+    mean_old: jax.Array,
+    mean: jax.Array,
     sigma: float,
-    p_sigma: chex.Array,
+    p_sigma: jax.Array,
     c_sigma: float,
     mu_eff: float,
-) -> chex.Array:
+) -> jax.Array:
     """Update evolution path for covariance matrix."""
     p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
         c_sigma * (2 - c_sigma) * mu_eff
@@ -218,12 +218,12 @@ def update_p_sigma(
 
 
 def update_P_matrix(
-    P: chex.Array,
-    p_sigma: chex.Array,
-    t_gap: chex.Array,
+    P: jax.Array,
+    p_sigma: jax.Array,
+    t_gap: jax.Array,
     t_uncorr: int,
     generation_counter: int,
-) -> tuple[chex.Array, chex.Array]:
+) -> tuple[jax.Array, jax.Array]:
     """Update the P matrix storing m evolution paths."""
     memory_size = P.shape[1]
     # Use evo paths in separated generations - keep them uncorrelated!
@@ -265,14 +265,14 @@ def update_sigma(sigma: float, s_rank_rate: float, d_sigma: float) -> float:
 
 def sample(
     key: jax.Array,
-    mean: chex.Array,
+    mean: jax.Array,
     sigma: float,
-    P: chex.Array,
+    P: jax.Array,
     n_dim: int,
     pop_size: int,
-    c_cov: chex.Array,
+    c_cov: jax.Array,
     generation_counter: int,
-) -> chex.Array:
+) -> jax.Array:
     """Jittable Gaussian Sample Helper."""
     key_z, key_r = jax.random.split(key, 2)
     z = jax.random.normal(key_z, (n_dim, pop_size))  # ~ N(0, I)
@@ -291,11 +291,11 @@ def sample(
 
 
 def rank_success_rule(
-    fitness: chex.Array,
-    fitness_archive: chex.Array,
+    fitness: Fitness,
+    fitness_archive: Fitness,
     s_rank_rate: float,
     q_star: float,
-    weights: chex.Array,
+    weights: jax.Array,
     c_s: float,
 ) -> float:
     """Compute rank-based success rule (cumulative rank rate)."""

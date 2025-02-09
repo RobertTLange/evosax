@@ -1,8 +1,9 @@
 from functools import partial
 
-import chex
 import jax
 import jax.numpy as jnp
+
+from ...types import Fitness, Population
 
 
 class Protocol:
@@ -30,15 +31,15 @@ class Protocol:
 
     @partial(jax.jit, static_argnames=("self",))
     def independent(
-        self, batch_x: chex.Array, batch_fitness: chex.Array
-    ) -> tuple[chex.Array, chex.ArrayTree]:
+        self, batch_x: Population, batch_fitness: Fitness
+    ) -> tuple[Population, Fitness]:
         """Simply return non-altered candidates & fitness."""
         return batch_x, batch_fitness
 
     @partial(jax.jit, static_argnames=("self",))
     def best_subpop(
-        self, batch_x: chex.Array, batch_fitness: chex.Array
-    ) -> tuple[chex.Array, chex.ArrayTree]:
+        self, batch_x: Population, batch_fitness: Fitness
+    ) -> tuple[Population, Fitness]:
         """Find the subpop with the globally best candidate and set all subpops
         to the same as the subpop containing the globally best. Tie currently goes
         to whichever candidate comes first

@@ -1,10 +1,10 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..core import exp_decay
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 from .full_iamalgam import (
     adaptive_variance_scaling,
     anticipated_mean_shift,
@@ -14,13 +14,13 @@ from .full_iamalgam import (
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    mean_shift: chex.Array
-    C: chex.Array
+    mean: jax.Array
+    mean_shift: jax.Array
+    C: jax.Array
     nis_counter: int
     c_mult: float
     sigma: float
-    best_member: chex.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -48,7 +48,7 @@ class Indep_iAMaLGaM(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 0.35,
         sigma_init: float = 0.0,
         sigma_decay: float = 0.99,
@@ -125,7 +125,7 @@ class Indep_iAMaLGaM(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         key_sample, key_ams = jax.random.split(key)
         x = sample(key_sample, state.mean, state.C, state.sigma, self.population_size)
@@ -141,8 +141,8 @@ class Indep_iAMaLGaM(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -190,11 +190,11 @@ class Indep_iAMaLGaM(Strategy):
 
 def sample(
     key: jax.Array,
-    mean: chex.Array,
-    C: chex.Array,
+    mean: jax.Array,
+    C: jax.Array,
     sigma: float,
     population_size: int,
-) -> chex.Array:
+) -> jax.Array:
     """Jittable Gaussian Sample Helper."""
     sigmas = jnp.sqrt(C) + sigma
     z = jax.random.normal(key, (mean.shape[0], population_size))  # ~ N(0, I)
@@ -205,10 +205,10 @@ def sample(
 
 
 def standard_deviation_ratio(
-    improvements: chex.Array,
-    members_elite: chex.Array,
-    mean: chex.Array,
-    C: chex.Array,
+    improvements: jax.Array,
+    members_elite: jax.Array,
+    mean: jax.Array,
+    C: jax.Array,
 ) -> float:
     """SDR - relate dist. of improvements to mean in param space."""
     # Compute avg. member for candidates that improve fitness -> SDR
@@ -221,11 +221,11 @@ def standard_deviation_ratio(
 
 
 def update_cov_amalgam(
-    members_elite: chex.Array,
-    C: chex.Array,
-    mean: chex.Array,
+    members_elite: jax.Array,
+    C: jax.Array,
+    mean: jax.Array,
     eta_sigma: float,
-) -> chex.Array:
+) -> jax.Array:
     """Iterative update of mean and mean shift based on elite and history."""
     S_bar = members_elite - mean
     # Univariate update to standard deviations

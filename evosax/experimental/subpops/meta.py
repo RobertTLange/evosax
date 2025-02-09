@@ -1,11 +1,11 @@
 from functools import partial
 
-import chex
 import flax
 import jax
 import jax.numpy as jnp
 
-from ... import Strategies
+from ... import Params, State, Strategies
+from ...types import Fitness, Solution
 from .batch import BatchStrategy
 
 
@@ -43,7 +43,7 @@ class MetaStrategy(BatchStrategy):
         )
 
     @property
-    def default_params_meta(self) -> chex.ArrayTree:
+    def default_params_meta(self) -> Params:
         """Return default parameters of meta-evolution strategy."""
         base_params = flax.serialization.to_state_dict(
             self.meta_strategy.default_params
@@ -62,10 +62,10 @@ class MetaStrategy(BatchStrategy):
     def ask_meta(
         self,
         key: jax.Array,
-        meta_state: chex.ArrayTree,
-        meta_params: chex.ArrayTree,
-        inner_params: chex.ArrayTree,
-    ) -> tuple[chex.Array, chex.ArrayTree]:
+        meta_state: State,
+        meta_params: Params,
+        inner_params: Params,
+    ) -> tuple[Solution, State]:
         """`ask` for meta-parameters of different subpopulations."""
         meta_x, meta_state = self.meta_strategy.ask(key, meta_state, meta_params)
         meta_x = meta_x.reshape(-1, self.num_meta_dims)
@@ -78,18 +78,18 @@ class MetaStrategy(BatchStrategy):
         )
 
     @partial(jax.jit, static_argnames=("self",))
-    def init_meta(self, key: jax.Array, meta_params: chex.ArrayTree) -> chex.ArrayTree:
+    def init_meta(self, key: jax.Array, meta_params: Params) -> State:
         """`init` the meta-evolution strategy."""
         return self.meta_strategy.init(key, meta_params)
 
     @partial(jax.jit, static_argnames=("self",))
     def tell_meta(
         self,
-        inner_params: chex.ArrayTree,
-        fitness: chex.Array,
-        meta_state: chex.ArrayTree,
-        meta_params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        inner_params: Solution,
+        fitness: Fitness,
+        meta_state: State,
+        meta_params: Params,
+    ) -> State:
         """`tell` performance data for meta-strategy state update."""
         # TODO: Default - mean subpop fitness -> more flexible (min/max/median)
         batch_fitness = fitness.reshape(self.num_subpops, self.subpopulation_size)

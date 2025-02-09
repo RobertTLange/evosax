@@ -1,6 +1,5 @@
 import functools
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
@@ -10,14 +9,14 @@ from evosax.strategies.snes import get_snes_weights
 
 
 class TraceConstructor:
-    def __init__(self, num_dims: int, timescales: chex.Array):
+    def __init__(self, num_dims: int, timescales: jax.Array):
         self.num_dims = num_dims
         self.timescales = timescales
 
-    def init(self) -> chex.Array:
+    def init(self) -> jax.Array:
         return jnp.zeros((self.num_dims, self.timescales.shape[0]))
 
-    def update(self, paths: chex.Array, diff: chex.Array) -> chex.Array:
+    def update(self, paths: jax.Array, diff: jax.Array) -> jax.Array:
         def update_path(lrate, path, diff):
             return (1 - lrate) * path + lrate * diff
 
@@ -28,12 +27,12 @@ class TraceConstructor:
 
 @struct.dataclass
 class DistributionFeaturesState:
-    old_mean: chex.Array
-    old_sigma: chex.Array
-    momentum_mean: chex.Array
-    momentum_sigma: chex.Array
-    evopath_mean: chex.Array
-    evopath_sigma: chex.Array
+    old_mean: jax.Array
+    old_sigma: jax.Array
+    momentum_mean: jax.Array
+    momentum_sigma: jax.Array
+    evopath_mean: jax.Array
+    evopath_sigma: jax.Array
 
 
 class DistributionFeaturizer:
@@ -92,12 +91,12 @@ class DistributionFeaturizer:
     @functools.partial(jax.jit, static_argnames=("self",))
     def featurize(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
-        mean: chex.Array,
-        sigma: chex.Array,
+        x: jax.Array,
+        fitness: jax.Array,
+        mean: jax.Array,
+        sigma: jax.Array,
         state: DistributionFeaturesState,
-    ) -> chex.Array:
+    ) -> jax.Array:
         ranks = fitness.argsort()
         weights = get_snes_weights(fitness.shape[0])
         noise = (x - mean) / sigma

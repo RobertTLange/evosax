@@ -1,22 +1,22 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    sigma: chex.Array
-    archive: chex.Array
-    x0_est: chex.Array
-    alphas: chex.Array
-    alphas_past: chex.Array
-    latent_projection: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    sigma: jax.Array
+    archive: jax.Array
+    x0_est: jax.Array
+    alphas: jax.Array
+    alphas_past: jax.Array
+    latent_projection: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -39,7 +39,7 @@ class DiffusionEvolution(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         num_generations: int = 100,
         fitness_mapping: str = "energy",
         alpha_schedule: str = "cosine",
@@ -118,7 +118,7 @@ class DiffusionEvolution(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         alpha_t = state.alphas[state.generation_counter - 1]
         alpha_pt = state.alphas_past[state.generation_counter - 1]
@@ -140,8 +140,8 @@ class DiffusionEvolution(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -175,8 +175,8 @@ class DiffusionEvolution(Strategy):
 
 
 def map_fitness2identity(
-    fitness: chex.Array, temp: float, power: float, l2_factor: float
-) -> chex.Array:
+    fitness: Fitness, temp: float, power: float, l2_factor: float
+) -> jax.Array:
     """Map fitness to density."""
     l2_norm = jnp.linalg.norm(fitness) ** 2
     identity_out = fitness * jnp.exp(-1.0 * l2_norm * l2_factor)
@@ -184,8 +184,8 @@ def map_fitness2identity(
 
 
 def map_fitness2energy(
-    fitness: chex.Array, temp: float, power: float, l2_factor: float
-) -> chex.Array:
+    fitness: Fitness, temp: float, power: float, l2_factor: float
+) -> jax.Array:
     """Map fitness to energy."""
     power_temp = -fitness / temp
     power_temp = power_temp - power_temp.max() + 5
@@ -194,8 +194,8 @@ def map_fitness2energy(
 
 
 def map_fitness2power(
-    fitness: chex.Array, temp: float, power: float, l2_factor: float
-) -> chex.Array:
+    fitness: Fitness, temp: float, power: float, l2_factor: float
+) -> jax.Array:
     """Map fitness to power."""
     return jnp.power(fitness / temp, power)
 
@@ -208,11 +208,11 @@ fitness_mapping_dict = {
 
 
 def estimate_x0(
-    x: chex.Array,
-    x_latent: chex.Array,
-    fitness: chex.Array,
-    alpha: chex.Array,
-) -> chex.Array:
+    x: Population,
+    x_latent: jax.Array,
+    fitness: Fitness,
+    alpha: jax.Array,
+) -> jax.Array:
     """Estimate the initial point."""
     # Uniform density over pop. - normalization => cancels out
     p_x_t = jnp.ones(x.shape[0]) / x.shape[0]

@@ -1,17 +1,17 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    sigma: chex.Array
-    weights: chex.Array  # Weights for population members
-    best_member: chex.Array
+    mean: jax.Array
+    sigma: jax.Array
+    weights: jax.Array  # Weights for population members
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -31,7 +31,7 @@ class SimpleES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -80,7 +80,7 @@ class SimpleES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         z = jax.random.normal(key, (self.population_size, self.num_dims))  # ~ N(0, I)
         x = state.mean + state.sigma * z  # ~ N(m, σ^2 I)
@@ -88,8 +88,8 @@ class SimpleES(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -104,11 +104,11 @@ class SimpleES(Strategy):
 
 
 def update_mean(
-    sorted_solutions: chex.Array,
-    mean: chex.Array,
+    sorted_solutions: jax.Array,
+    mean: jax.Array,
     c_m: float,
-    weights: chex.Array,
-) -> tuple[chex.Array, chex.Array]:
+    weights: jax.Array,
+) -> tuple[jax.Array, jax.Array]:
     """Update mean of strategy."""
     x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
     y_k = x_k - mean
@@ -118,8 +118,8 @@ def update_mean(
 
 
 def update_sigma(
-    y_k: chex.Array, sigma: chex.Array, c_sigma: float, weights: chex.Array
-) -> chex.Array:
+    y_k: jax.Array, sigma: jax.Array, c_sigma: float, weights: jax.Array
+) -> jax.Array:
     """Update stepsize sigma."""
     sigma_est = jnp.sqrt(jnp.sum((y_k.T**2 * weights), axis=1))
     sigma_new = (1 - c_sigma) * sigma + c_sigma * sigma_est

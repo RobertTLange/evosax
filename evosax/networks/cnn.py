@@ -1,4 +1,3 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
@@ -14,13 +13,13 @@ from .shared import (
 
 
 def conv_relu_block(
-    x: chex.Array,
+    x: jax.Array,
     features: int,
     kernel_size: tuple[int, int],
     strides: tuple[int, int],
     padding: str = "SAME",
     kernel_init_type: str = "lecun_normal",
-) -> chex.Array:
+) -> jax.Array:
     """Convolution layer + ReLU activation."""
     x = nn.Conv(
         features=features,
@@ -36,13 +35,13 @@ def conv_relu_block(
 
 
 def conv_relu_pool_block(
-    x: chex.Array,
+    x: jax.Array,
     features: int,
     kernel_size: tuple[int, int],
     strides: tuple[int, int],
     padding: str = "SAME",
     kernel_init_type: str = "lecun_normal",
-) -> chex.Array:
+) -> jax.Array:
     """Convolution layer + ReLU activation + Avg. Pooling."""
     x = nn.Conv(
         features=features,
@@ -78,7 +77,7 @@ class CNN(nn.Module):
     model_name: str = "CNN"
 
     @nn.compact
-    def __call__(self, x: chex.Array, key: jax.Array | None = None) -> chex.Array:
+    def __call__(self, x: jax.Array, key: jax.Array | None = None) -> jax.Array:
         # Add batch dimension if only processing single 3d array
         if len(x.shape) < 4:
             x = jnp.expand_dims(x, 0)
@@ -159,7 +158,7 @@ class All_CNN_C(nn.Module):
     model_name: str = "All_CNN_C"
 
     @nn.compact
-    def __call__(self, x: chex.Array, key: jax.Array | None = None) -> chex.Array:
+    def __call__(self, x: jax.Array, key: jax.Array | None = None) -> jax.Array:
         # Add batch dimension if only processing single 3d array
         if len(x.shape) < 4:
             x = jnp.expand_dims(x, 0)

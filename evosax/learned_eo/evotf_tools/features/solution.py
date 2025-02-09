@@ -1,6 +1,5 @@
 import functools
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
@@ -12,7 +11,7 @@ from evosax.utils.helpers import get_best_fitness_member
 @struct.dataclass
 class SolutionFeaturesState:
     best_fitness: float
-    best_member: chex.Array
+    best_member: jax.Array
     generation_counter: int
 
 
@@ -64,12 +63,12 @@ class SolutionFeaturizer:
     @functools.partial(jax.jit, static_argnames=("self",))
     def featurize(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
-        mean: chex.Array,
-        sigma: chex.Array,
+        x: jax.Array,
+        fitness: jax.Array,
+        mean: jax.Array,
+        sigma: jax.Array,
         state: SolutionFeaturesState,
-    ) -> chex.Array:
+    ) -> jax.Array:
         diff_mean = x - mean
         sol_out = jnp.expand_dims(x, axis=-1)
 

@@ -1,18 +1,18 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 from .des import get_des_weights
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    sigma: chex.Array
-    weights: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    sigma: jax.Array
+    weights: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -44,7 +44,7 @@ class SNES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         sigma_init: float = 1.0,
         temperature: float = 0.0,  # good values tend to be between 12 and 20
         mean_decay: float = 0.0,
@@ -96,7 +96,7 @@ class SNES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(key, (self.population_size, self.num_dims))
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
@@ -104,8 +104,8 @@ class SNES(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

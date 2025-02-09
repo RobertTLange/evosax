@@ -1,9 +1,9 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax.core import unfreeze
 from flax.traverse_util import flatten_dict
 
+from ...types import Solution
 from ...utils.helpers import get_ravel_fn
 from .decoder import Decoder
 from .hyper_networks import HyperNetworkMLP
@@ -12,7 +12,7 @@ from .hyper_networks import HyperNetworkMLP
 class HyperDecoder(Decoder):
     def __init__(
         self,
-        solution: chex.ArrayTree | chex.Array,
+        solution: Solution,
         key: jax.Array = jax.random.key(0),
         hypernet_config: dict = {
             "num_latent_units": 3,  # Latent units per module kernel/bias
@@ -41,26 +41,26 @@ class HyperDecoder(Decoder):
             solution,
         )
 
-    def reshape(self, x: chex.Array) -> chex.ArrayTree:
+    def reshape(self, solutions: Solution) -> Solution:
         """Perform reshaping for hypernetwork case."""
         # 0. Reshape genome into params for hypernetwork
-        x_params = jax.vmap(self.unravel_solution)(x)
+        x_params = jax.vmap(self.unravel_solution)(solutions)
         # 1. Project parameters to raw dimensionality using hypernetwork
         hyper_x = jax.jit(jax.vmap(self.hyper_network.apply))(x_params)
         return hyper_x
 
-    def reshape_single(self, x: chex.Array) -> chex.ArrayTree:
+    def reshape_single(self, solution: Solution) -> Solution:
         """Reshape a single flat vector using hypernetwork."""
         # 0. Reshape genome into params for hypernetwork
-        x_params = self.unravel_solution(x)
+        x_params = self.unravel_solution(solution)
         # 1. Project parameters to raw dimensionality using hypernetwork
         hyper_x = jax.jit(self.hyper_network.apply)(x_params)
         return hyper_x
 
-    def flatten(self, x: chex.ArrayTree) -> chex.Array:
+    def flatten(self, solutions: Solution) -> jax.Array:
         """Reshaping pytree parameters into flat array."""
-        return jax.vmap(self.ravel_solution)(x)
+        return jax.vmap(self.ravel_solution)(solutions)
 
-    def flatten_single(self, x: chex.ArrayTree) -> chex.Array:
+    def flatten_single(self, solution: Solution) -> jax.Array:
         """Reshaping pytree parameters into flat array."""
-        return self.ravel_solution(x)
+        return self.ravel_solution(solution)

@@ -1,20 +1,20 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..core import GradientOptimizer, OptParams, OptState, exp_decay
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
+    mean: jax.Array
     sigma: float
-    pert_accum: chex.Array  # History of accum. noise perturb in partial unroll
+    pert_accum: jax.Array  # History of accum. noise perturb in partial unroll
     inner_step_counter: int  # Keep track of unner unroll steps for noise reset
     opt_state: OptState
-    best_member: chex.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -37,7 +37,7 @@ class PersistentES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
@@ -81,7 +81,7 @@ class PersistentES(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def init_strategy(self, key: jax.Array, params: Params) -> chex.ArrayTree:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -101,7 +101,7 @@ class PersistentES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[Population, State]:
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         pos_perts = (
@@ -117,8 +117,8 @@ class PersistentES(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

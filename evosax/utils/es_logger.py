@@ -1,17 +1,17 @@
 import pickle
 from functools import partial
 
-import chex
 import jax
 import jax.numpy as jnp
 
+from ..types import ArrayTree, Fitness, Population, Solution
 from .helpers import get_ravel_fn
 
 
 class ESLog:
     def __init__(
         self,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         num_generations: int = 200,
         top_k: int = 5,
         maximize: bool = False,
@@ -26,7 +26,7 @@ class ESLog:
         self.maximize = maximize
 
     @partial(jax.jit, static_argnames=("self",))
-    def init(self) -> chex.ArrayTree:
+    def init(self) -> ArrayTree:
         """Initialize the logger storage."""
         log = {
             "top_fitness": jnp.zeros(self.top_k)
@@ -58,9 +58,7 @@ class ESLog:
         return log
 
     @partial(jax.jit, static_argnames=("self",))
-    def update(
-        self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
-    ) -> chex.ArrayTree:
+    def update(self, log: ArrayTree, x: Population, fitness: Fitness) -> ArrayTree:
         """Update the logging storage with newest data."""
         # Check if there are solutions better than current archive
         vals = jnp.hstack([log["top_fitness"], fitness])
@@ -102,7 +100,7 @@ class ESLog:
         log["generation_counter"] += 1
         return log
 
-    def save(self, log: chex.ArrayTree, filename: str):
+    def save(self, log: ArrayTree, filename: str):
         """Save different parts of logger in .pkl file."""
         with open(filename, "wb") as handle:
             pickle.dump(log, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -115,7 +113,7 @@ class ESLog:
 
     def plot(
         self,
-        log,
+        log: ArrayTree,
         title,
         ylims=None,
         fig=None,

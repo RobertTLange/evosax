@@ -1,4 +1,3 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
@@ -11,8 +10,8 @@ from flax import struct
 
 
 def exp_decay(
-    param: chex.Array, param_decay: chex.Array, param_limit: chex.Array
-) -> chex.Array:
+    param: jax.Array, param_decay: jax.Array, param_limit: jax.Array
+) -> jax.Array:
     """Exponentially decay parameter & clip by minimal value."""
     param = param * param_decay
     param = jnp.maximum(param, param_limit)
@@ -22,10 +21,10 @@ def exp_decay(
 @struct.dataclass
 class OptState:
     lrate: float
-    m: chex.Array
-    v: chex.Array | None = None
-    n: chex.Array | None = None
-    last_grads: chex.Array | None = None
+    m: jax.Array
+    v: jax.Array | None = None
+    n: jax.Array | None = None
+    last_grads: jax.Array | None = None
     generation_counter: int = 0
 
 
@@ -58,11 +57,11 @@ class Optimizer:
 
     def step(
         self,
-        mean: chex.Array,
-        grads: chex.Array,
+        mean: jax.Array,
+        grads: jax.Array,
         state: OptState,
         params: OptParams,
-    ) -> [chex.Array, OptState]:
+    ) -> [jax.Array, OptState]:
         """Perform a gradient-based update step."""
         return self.step_opt(mean, grads, state, params)
 
@@ -82,11 +81,11 @@ class Optimizer:
 
     def step_opt(
         self,
-        mean: chex.Array,
-        grads: chex.Array,
+        mean: jax.Array,
+        grads: jax.Array,
         state: OptState,
         params: OptParams,
-    ) -> tuple[chex.Array, OptState]:
+    ) -> tuple[jax.Array, OptState]:
         """Optimizer-specific step to update parameter estimates."""
         raise NotImplementedError
 
@@ -110,11 +109,11 @@ class SGD(Optimizer):
 
     def step_opt(
         self,
-        mean: chex.Array,
-        grads: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> tuple[chex.Array, OptState]:
+        mean: jax.Array,
+        grads: jax.Array,
+        state: OptState,
+        params: OptParams,
+    ) -> tuple[jax.Array, OptState]:
         """Perform a simple SGD + Momentum step."""
         m = grads + params.momentum * state.m
         mean_new = mean - state.lrate * state.m
@@ -150,11 +149,11 @@ class Adam(Optimizer):
 
     def step_opt(
         self,
-        mean: chex.Array,
-        grads: chex.Array,
+        mean: jax.Array,
+        grads: jax.Array,
         state: OptState,
         params: OptParams,
-    ) -> tuple[chex.Array, OptState]:
+    ) -> tuple[jax.Array, OptState]:
         """Perform a simple Adam GD step."""
         m = (1 - params.beta_1) * grads + params.beta_1 * state.m
         v = (1 - params.beta_2) * (grads**2) + params.beta_2 * state.v
@@ -193,11 +192,11 @@ class RMSProp(Optimizer):
 
     def step_opt(
         self,
-        mean: chex.Array,
-        grads: chex.Array,
+        mean: jax.Array,
+        grads: jax.Array,
         state: OptState,
         params: OptParams,
-    ) -> tuple[chex.Array, OptState]:
+    ) -> tuple[jax.Array, OptState]:
         """Perform a simple RMSprop GD step."""
         v = (1 - params.beta_1) * (grads**2) + params.beta_1 * state.v
         m = params.momentum * state.m + grads / (jnp.sqrt(v) + params.eps)
@@ -232,11 +231,11 @@ class ClipUp(Optimizer):
 
     def step_opt(
         self,
-        mean: chex.Array,
-        grads: chex.Array,
+        mean: jax.Array,
+        grads: jax.Array,
         state: OptState,
         params: OptParams,
-    ) -> tuple[chex.Array, OptState]:
+    ) -> tuple[jax.Array, OptState]:
         """Perform a ClipUp step. mom = 0.9, lrate = vmax/2, vmax = small"""
         # Normalize length of gradients - vmax & alpha control max step magnitude
         grad_magnitude = jnp.sqrt(jnp.sum(grads * grads))
@@ -244,7 +243,7 @@ class ClipUp(Optimizer):
         step = gradient * state.lrate
         velocity = params.momentum * state.m + step
 
-        def clip(velocity: chex.Array, max_speed: float):
+        def clip(velocity: jax.Array, max_speed: float):
             """Rescale clipped velocities."""
             vel_magnitude = jnp.sqrt(jnp.sum(velocity * velocity))
             ratio_scale = vel_magnitude > max_speed
@@ -288,11 +287,11 @@ class Adan(Optimizer):
 
     def step_opt(
         self,
-        mean: chex.Array,
-        grads: chex.Array,
+        mean: jax.Array,
+        grads: jax.Array,
         state: OptState,
         params: OptParams,
-    ) -> tuple[chex.Array, OptState]:
+    ) -> tuple[jax.Array, OptState]:
         """Perform a simple Adan GD step."""
         m = (1 - params.beta_1) * grads + params.beta_1 * state.m
         grad_diff = grads - state.last_grads

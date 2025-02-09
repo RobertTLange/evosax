@@ -1,11 +1,10 @@
 from functools import partial
 
-import chex
 import jax
 from flax import struct
 
-from .restarter import RestartWrapper, WrapperParams, WrapperState
-from .termination import spread_criterion
+from ..strategy import State
+from .restarter import RestartWrapper, WrapperParams, WrapperState, spread_criterion
 
 
 @struct.dataclass
@@ -75,7 +74,7 @@ class BIPOP_Restarter(RestartWrapper):
         key: jax.Array,
         state: WrapperState,
         params: WrapperParams | None = None,
-    ) -> tuple[chex.Array, chex.ArrayTree]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -94,9 +93,9 @@ class BIPOP_Restarter(RestartWrapper):
     def restart(
         self,
         key: jax.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        state: WrapperState,
+        params: WrapperParams,
+    ) -> WrapperState:
         """Reinstantiate a new strategy with interlaced population sizes."""
         key_uniform, key_init = jax.random.split(key)
 

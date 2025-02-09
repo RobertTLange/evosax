@@ -1,19 +1,19 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..core import exp_decay
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    archive: chex.Array
-    fitness: chex.Array
-    sigma: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    archive: jax.Array
+    fitness: Fitness
+    sigma: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -34,7 +34,7 @@ class SimpleGA(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 0.5,
         sigma_init: float = 0.1,
         sigma_decay: float = 1.0,
@@ -85,7 +85,7 @@ class SimpleGA(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
           - Sample two current elite members (a & b)
@@ -115,8 +115,8 @@ class SimpleGA(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -141,8 +141,8 @@ class SimpleGA(Strategy):
 
 
 def single_mate(
-    key: jax.Array, a: chex.Array, b: chex.Array, cross_over_rate: float
-) -> chex.Array:
+    key: jax.Array, a: jax.Array, b: jax.Array, cross_over_rate: float
+) -> jax.Array:
     """Only cross-over dims for x% of all dims."""
     idx = jax.random.uniform(key, (a.shape[0],)) > cross_over_rate
     cross_over_candidate = a * (1 - idx) + b * idx

@@ -1,17 +1,17 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    archive: chex.Array
-    fitness: chex.Array
-    copy_id: chex.Array
-    best_member: chex.Array
+    archive: jax.Array
+    fitness: Fitness
+    copy_id: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -30,7 +30,7 @@ class PBT(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         **fitness_kwargs: bool | int | float,
     ):
         """Synchronous Population-Based Training (Jaderberg et al., 2017)
@@ -62,7 +62,7 @@ class PBT(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next.
         Perform explore-exploit step.
         1) Check exploit criterion (e.g. in top 20% of performer).
@@ -81,8 +81,8 @@ class PBT(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -98,10 +98,10 @@ class PBT(Strategy):
 
 def single_member_exploit(
     member_id: int,
-    archive: chex.Array,
-    fitness: chex.Array,
+    archive: jax.Array,
+    fitness: Fitness,
     params: Params,
-) -> tuple[bool, int, chex.Array]:
+) -> tuple[bool, int, jax.Array]:
     """Get the top and bottom performers."""
     best_id = jnp.argmax(fitness)
     exploit_bool = member_id != best_id  # Copy if worker not best
@@ -113,9 +113,9 @@ def single_member_exploit(
 def single_member_explore(
     key: jax.Array,
     exploit_bool: int,
-    hyperparams: chex.Array,
+    hyperparams: jax.Array,
     params: Params,
-) -> chex.Array:
+) -> jax.Array:
     """Perform multiplicative noise exploration."""
     explore_noise = jax.random.normal(key, hyperparams.shape) * params.noise_scale
     hyperparams_explore = jax.lax.select(

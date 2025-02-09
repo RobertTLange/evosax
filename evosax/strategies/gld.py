@@ -1,16 +1,16 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -30,7 +30,7 @@ class GLD(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
@@ -61,7 +61,7 @@ class GLD(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         # Sampling of N(0, 1) noise
         z = jax.random.normal(
@@ -79,8 +79,8 @@ class GLD(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

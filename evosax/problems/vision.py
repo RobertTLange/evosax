@@ -1,6 +1,7 @@
-import chex
 import jax
 import jax.numpy as jnp
+
+from ..types import ArrayTree
 
 
 class VisionProblem:
@@ -25,16 +26,14 @@ class VisionProblem:
         self.eval_pop = jax.vmap(self.eval_ffw, in_axes=(None, 0))
         self.eval = jax.jit(self.eval_vmap)
 
-    def eval_vmap(self, key: jax.Array, network_params: chex.ArrayTree):
+    def eval_vmap(self, key: jax.Array, network_params: ArrayTree):
         """Vectorize evaluation. Reshape output correctly."""
         loss, acc = self.eval_pop(key, network_params)
         loss_re = loss.reshape(-1, 1)
         acc_re = acc.reshape(-1, 1)
         return loss_re, acc_re
 
-    def eval_ffw(
-        self, key: jax.Array, network_params: chex.ArrayTree
-    ) -> chex.ArrayTree:
+    def eval_ffw(self, key: jax.Array, network_params: ArrayTree) -> ArrayTree:
         """Evaluate a network on a supervised learning task."""
         key_sample, key_network = jax.random.split(key)
         X, y = self.dataloader.sample(key_sample)
@@ -50,8 +49,8 @@ class VisionProblem:
 
 
 def loss_and_acc(
-    y_pred: chex.Array, y_true: chex.Array, num_classes: int
-) -> tuple[chex.Array, chex.Array]:
+    y_pred: jax.Array, y_true: jax.Array, num_classes: int
+) -> tuple[jax.Array, jax.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
     labels = jax.nn.one_hot(y_true, num_classes)
@@ -63,8 +62,8 @@ def loss_and_acc(
 class BatchLoader:
     def __init__(
         self,
-        X: chex.Array,
-        y: chex.Array,
+        X: jax.Array,
+        y: jax.Array,
         batch_size: int,
     ):
         self.X = X
@@ -73,7 +72,7 @@ class BatchLoader:
         self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key: jax.Array) -> tuple[chex.Array, chex.Array]:
+    def sample(self, key: jax.Array) -> tuple[jax.Array, jax.Array]:
         """Sample a single batch of X, y data."""
         sample_idx = jax.random.choice(
             key,

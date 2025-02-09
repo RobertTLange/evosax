@@ -1,6 +1,6 @@
-import chex
 import jax
 
+from ...types import Solution
 from ...utils.helpers import get_ravel_fn
 from .decoder import Decoder
 
@@ -9,7 +9,7 @@ class RandomDecoder(Decoder):
     def __init__(
         self,
         num_encoding_dims: int,
-        solution: chex.ArrayTree | chex.Array,
+        solution: Solution,
         key: jax.Array = jax.random.key(0),
         rademacher: bool = False,
     ):
@@ -32,19 +32,19 @@ class RandomDecoder(Decoder):
             )
         print(f"RandomDecoder: Encoding parameters to optimize - {num_encoding_dims}")
 
-    def reshape(self, x: chex.Array) -> chex.ArrayTree:
+    def reshape(self, solutions: Solution) -> Solution:
         """Perform reshaping for random projection case."""
         # 1. Project parameters to raw dimensionality using pre-sampled matrix
         project_x = (
-            x @ self.project_matrix
+            solutions @ self.project_matrix
         )  # (population_size, num_enc_dim) x (num_enc_dim, num_dims)
         # 2. Reshape
         x_reshaped = jax.vmap(self.unravel_solution)(project_x)
         return x_reshaped
 
-    def reshape_single(self, x: chex.Array) -> chex.ArrayTree:
+    def reshape_single(self, solution: Solution) -> Solution:
         """Reshape a single flat vector using random projection matrix."""
-        x_re = x.reshape(1, self.num_encoding_dims)
+        x_re = solution.reshape(1, self.num_encoding_dims)
         # 1. Project parameters to raw dimensionality using pre-sampled matrix
         project_x = (x_re @ self.project_matrix).squeeze()
         # 2. Reshape

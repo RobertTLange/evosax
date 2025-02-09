@@ -1,17 +1,17 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    archive: chex.Array
-    fitness_archive: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    archive: jax.Array
+    fitness_archive: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -32,7 +32,7 @@ class DE(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         **fitness_kwargs: bool | int | float,
     ):
         """Differential Evolution (Storn & Price, 1997)
@@ -68,7 +68,7 @@ class DE(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next.
         For each population member x:
         - Pick 3 unique members (a, b, c) from rest of pop. at random.
@@ -93,9 +93,9 @@ class DE(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
-        state: chex.ArrayTree,
+        x: Solution,
+        fitness: Fitness,
+        state: State,
         params: Params,
     ) -> State:
         """`tell` update to ES state.
@@ -119,10 +119,10 @@ def single_member_ask(
     key: jax.Array,
     member_id: int,
     num_dims: int,
-    archive: chex.Array,
-    best_member: chex.Array,
+    archive: jax.Array,
+    best_member: jax.Array,
     params: Params,
-) -> chex.Array:
+) -> jax.Array:
     """Perform `ask` steps for single member."""
     x = archive[member_id]
 
@@ -194,17 +194,17 @@ def single_member_ask(
 def single_dimension_ask(
     key: jax.Array,
     dim_id: int,
-    x: chex.Array,
-    a: chex.Array,
-    b: chex.Array,
-    c: chex.Array,
-    d: chex.Array,
-    e: chex.Array,
+    x: jax.Array,
+    a: jax.Array,
+    b: jax.Array,
+    c: jax.Array,
+    d: jax.Array,
+    e: jax.Array,
     R: int,
     cr: float,
     diff_w: float,
     use_second_diff: bool,
-) -> chex.Array:
+) -> jax.Array:
     """Perform `ask` step for single dimension."""
     r_i = jax.random.uniform(key, (1,))
     mutate_bool = jnp.logical_or(r_i < cr, dim_id == R)

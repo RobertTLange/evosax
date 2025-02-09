@@ -1,22 +1,22 @@
 from functools import partial
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..core import GradientOptimizer, OptParams, OptState, exp_decay
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
+    mean: jax.Array
     sigma: float
     opt_state: OptState
-    grad_subspace: chex.Array
-    best_member: chex.Array
+    grad_subspace: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -39,7 +39,7 @@ class GuidedES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         subspace_dims: int = 1,  # k param in example notebook
         opt_name: str = "sgd",
         lrate_init: float = 0.05,
@@ -111,7 +111,7 @@ class GuidedES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         a = state.sigma * jnp.sqrt(params.alpha / self.num_dims)
         c = state.sigma * jnp.sqrt((1.0 - params.alpha) / self.subspace_dims)
@@ -133,11 +133,11 @@ class GuidedES(Strategy):
     @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params | None = None,
-        gradient: chex.Array | None = None,
+        gradient: jax.Array | None = None,
     ) -> State:
         """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided

@@ -11,7 +11,7 @@ from evosax.problems import (
 def test_bbob_eval(classic_name: str):
     key = jax.random.key(0)
     problem = BBOBProblem(classic_name, num_dims=2)
-    x = problem.sample_x(key)
+    x = problem.sample_solution(key)
     strategy = CMA_ES(population_size=20, solution=x, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.init(key, params)

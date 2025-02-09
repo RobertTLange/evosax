@@ -1,6 +1,6 @@
 from functools import partial
 
-import chex
+import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
@@ -42,8 +42,8 @@ class CompressionPerceiver(nn.Module):
 
     @nn.compact
     def __call__(
-        self, x: chex.Array, train: bool = False
-    ) -> tuple[chex.Array, list[chex.Array]]:
+        self, x: jax.Array, train: bool = False
+    ) -> tuple[jax.Array, list[jax.Array]]:
         x = x.transpose(1, 0, 2, 3)
         out, att = self.lift_cross(name="CompressionPerceiver")(
             x,
@@ -91,8 +91,8 @@ class SolutionPerceiver(nn.Module):
 
     @nn.compact
     def __call__(
-        self, x: chex.Array, train: bool = False
-    ) -> tuple[chex.Array, list[chex.Array]]:
+        self, x: jax.Array, train: bool = False
+    ) -> tuple[jax.Array, list[jax.Array]]:
         x = x.transpose(3, 0, 1, 2, 4)
         out, att = self.lift_cross(name="SolutionPerceiver")(
             x,
@@ -135,8 +135,8 @@ class DistributionAttention(nn.Module):
 
     @nn.compact
     def __call__(
-        self, x: chex.Array, train: bool = True
-    ) -> tuple[chex.Array, list[chex.Array]]:
+        self, x: jax.Array, train: bool = True
+    ) -> tuple[jax.Array, list[jax.Array]]:
         x = x.transpose(1, 0, 2, 3)
         out, att = self.lift_att(name="DistributionAttention")(x, None, False, train)
         out = out.transpose(1, 0, 2, 3)
@@ -170,7 +170,7 @@ class DistributionUpdateNetwork(nn.Module):
         ]
 
     @nn.compact
-    def __call__(self, x: chex.Array, train: bool = False) -> chex.Array:
+    def __call__(self, x: jax.Array, train: bool = False) -> jax.Array:
         out = x
         for l in self.output_net:
             out = (

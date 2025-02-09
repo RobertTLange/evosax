@@ -1,4 +1,3 @@
-import chex
 import jax
 from flax import linen as nn
 
@@ -24,7 +23,7 @@ class MLP(nn.Module):
     model_name: str = "MLP"
 
     @nn.compact
-    def __call__(self, x: chex.Array, key: jax.Array | None = None) -> chex.Array:
+    def __call__(self, x: jax.Array, key: jax.Array | None = None) -> jax.Array:
         # Flatten a single 3d image into a plain flat vector
         if len(x.shape) <= 3:
             x = x.reshape(-1)

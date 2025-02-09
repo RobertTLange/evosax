@@ -7,6 +7,8 @@ import jax.numpy as jnp
 
 from evosax.utils.visualizer_2d import BBOBVisualizer
 
+from ..types import Fitness, Solution
+
 
 class BBOBProblem:
     """Blackbox Optimization Benchmarking class.
@@ -49,14 +51,14 @@ class BBOBProblem:
         key: jax.Array,
         eval_params: jax.Array,
         noise_std: float = 0.0,
-    ) -> jax.Array:
+    ) -> Fitness:
         """Batch evaluate the proposal points."""
         # vmap over population batch dimension
         fn_value, fn_pen = jax.vmap(self.fn)(eval_params)
         eval_noise = jax.random.normal(key, shape=fn_value.shape) * noise_std
         return fn_value + eval_noise
 
-    def sample_x(self, key: jax.Array) -> jax.Array:
+    def sample_solution(self, key: jax.Array) -> Solution:
         return jax.random.uniform(
             key,
             shape=(self.max_num_dims,),

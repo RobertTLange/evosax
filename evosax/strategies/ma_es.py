@@ -1,20 +1,20 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 from .cma_es import get_cma_elite_weights
 
 
 @struct.dataclass
 class State:
-    p_sigma: chex.Array
-    M: chex.Array
-    mean: chex.Array
+    p_sigma: jax.Array
+    M: jax.Array
+    mean: jax.Array
     sigma: float
-    weights_truncated: chex.Array
-    best_member: chex.Array
+    weights_truncated: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -39,7 +39,7 @@ class MA_ES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -122,7 +122,7 @@ class MA_ES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             key,
@@ -136,8 +136,8 @@ class MA_ES(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -180,12 +180,12 @@ class MA_ES(Strategy):
 
 
 def update_mean(
-    mean: chex.Array,
+    mean: jax.Array,
     sigma: float,
-    sorted_solutions: chex.Array,
+    sorted_solutions: jax.Array,
     c_m: float,
-    weights_truncated: chex.Array,
-) -> tuple[chex.Array, chex.Array]:
+    weights_truncated: jax.Array,
+) -> tuple[jax.Array, jax.Array]:
     """Update mean of strategy."""
     z_k = sorted_solutions[:, 1:] - mean  # ~ N(0, σ^2 C)
     y_k = z_k / sigma  # ~ N(0, C)
@@ -195,12 +195,12 @@ def update_mean(
 
 
 def update_p_sigma(
-    z_k: chex.Array,
-    p_sigma: chex.Array,
+    z_k: jax.Array,
+    p_sigma: jax.Array,
     c_sigma: float,
     mu_eff: float,
-    weights_truncated: chex.Array,
-) -> tuple[chex.Array, float]:
+    weights_truncated: jax.Array,
+) -> tuple[jax.Array, float]:
     """Update evolution path for covariance matrix."""
     z_w = jnp.sum(z_k.T * weights_truncated, axis=1)
     p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
@@ -211,13 +211,13 @@ def update_p_sigma(
 
 
 def update_M_matrix(
-    M: chex.Array,
-    p_sigma: chex.Array,
-    z_k: chex.Array,
+    M: jax.Array,
+    p_sigma: jax.Array,
+    z_k: jax.Array,
     c_1: float,
     c_mu: float,
-    weights_truncated: chex.Array,
-) -> chex.Array:
+    weights_truncated: jax.Array,
+) -> jax.Array:
     """Update the M matrix."""
     rank_one = jnp.outer(p_sigma, p_sigma)
     rank_mu = jnp.sum(
@@ -246,12 +246,12 @@ def update_sigma(
 
 def sample(
     key: jax.Array,
-    mean: chex.Array,
+    mean: jax.Array,
     sigma: float,
-    M: chex.Array,
+    M: jax.Array,
     n_dim: int,
     pop_size: int,
-) -> chex.Array:
+) -> jax.Array:
     """Jittable Gaussian Sample Helper."""
     z = jax.random.normal(key, (n_dim, pop_size))  # ~ N(0, I)
     y = M.dot(z)  # ~ N(0, C)

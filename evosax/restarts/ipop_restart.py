@@ -1,11 +1,9 @@
 from functools import partial
 
-import chex
 import jax
 from flax import struct
 
-from .restarter import RestartWrapper, WrapperParams, WrapperState
-from .termination import spread_criterion
+from .restarter import RestartWrapper, WrapperParams, WrapperState, spread_criterion
 
 
 @struct.dataclass
@@ -66,7 +64,7 @@ class IPOP_Restarter(RestartWrapper):
         key: jax.Array,
         state: WrapperState,
         params: WrapperParams | None = None,
-    ) -> tuple[chex.Array, WrapperState]:
+    ) -> tuple[jax.Array, WrapperState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:

@@ -1,6 +1,5 @@
 import pkgutil
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
@@ -14,22 +13,23 @@ from ..learned_eo.les_tools import (
     tanh_timestamp,
 )
 from ..strategy import Strategy
+from ..types import ArrayTree, Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    sigma: chex.Array
-    path_c: chex.Array
-    path_sigma: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    sigma: jax.Array
+    path_c: jax.Array
+    path_sigma: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
 
 @struct.dataclass
 class Params:
-    net_params: chex.ArrayTree
+    net_params: ArrayTree
     sigma_init: float = 0.1
     init_min: float = -5.0
     init_max: float = 5.0
@@ -47,8 +47,8 @@ class LES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
-        net_params: chex.ArrayTree | None = None,
+        solution: Solution,
+        net_params: ArrayTree | None = None,
         net_ckpt_path: str | None = None,
         sigma_init: float = 0.1,
         mean_decay: float = 0.0,
@@ -110,7 +110,7 @@ class LES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(key, (self.population_size, self.num_dims))
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
@@ -119,8 +119,8 @@ class LES(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

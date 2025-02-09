@@ -1,19 +1,20 @@
 import jax
 import jax.numpy as jnp
-from chex import Array, ArrayTree
 from flax import struct
 
 from evosax.core import OptState, exp_decay
 from evosax.strategies.open_es import OpenES, Params
 from evosax.utils.kernel import RBF, Kernel
 
+from ..types import Fitness, Population, Solution
+
 
 @struct.dataclass
 class State:
-    mean: Array
-    sigma: Array
+    mean: jax.Array
+    sigma: jax.Array
     opt_state: OptState
-    best_member: Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
     bandwidth: float = 1.0
@@ -25,8 +26,8 @@ class SV_OpenES(OpenES):
         self,
         npop: int,
         subpopulation_size: int,
+        solution: Solution,
         kernel: type[Kernel] = RBF,
-        solution: ArrayTree | Array | None = None,
         use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -97,7 +98,7 @@ class SV_OpenES(OpenES):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> [Array, State]:
+    ) -> tuple[Population, State]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         if self.use_antithetic_sampling:
@@ -118,8 +119,8 @@ class SV_OpenES(OpenES):
 
     def tell_strategy(
         self,
-        x: Array,
-        fitness: Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -154,7 +155,9 @@ class SV_OpenES(OpenES):
         return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
 
 
-def svgd_kern(x: Array, scores: Array, kernel: Kernel, bandwidth: float) -> Array:
+def svgd_kern(
+    x: jax.Array, scores: jax.Array, kernel: Kernel, bandwidth: float
+) -> jax.Array:
     """SVGD repulsive force."""
     phi = lambda xi: jnp.mean(
         jax.vmap(lambda xj, scorej: jax.grad(kernel)(xj, xi, bandwidth))(x, scores),
@@ -163,7 +166,9 @@ def svgd_kern(x: Array, scores: Array, kernel: Kernel, bandwidth: float) -> Arra
     return jax.vmap(phi)(x)
 
 
-def svgd_grad(x: Array, scores: Array, kernel: Kernel, bandwidth: float) -> Array:
+def svgd_grad(
+    x: jax.Array, scores: jax.Array, kernel: Kernel, bandwidth: float
+) -> jax.Array:
     """SVGD driving force."""
     phi = lambda xi: jnp.mean(
         jax.vmap(lambda xj, scorej: kernel(xj, xi, bandwidth) * scorej)(x, scores),

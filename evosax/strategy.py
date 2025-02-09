@@ -1,20 +1,20 @@
 from functools import partial
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from .core import FitnessShaper
+from .types import Fitness, Population, Solution
 from .utils import get_best_fitness_member
 from .utils.helpers import get_ravel_fn
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
+    mean: jax.Array
     sigma: float
-    best_member: chex.Array
+    best_member: jax.Array
     best_fitness: float
     generation_counter: int
 
@@ -34,7 +34,7 @@ class Strategy:
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree,
+        solution: Solution,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
@@ -65,7 +65,7 @@ class Strategy:
         self,
         key: jax.Array,
         params: Params | None = None,
-        init_mean: chex.Array | chex.ArrayTree | None = None,
+        init_solution: Solution | None = None,
     ) -> State:
         """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
@@ -75,8 +75,9 @@ class Strategy:
         # Initialize strategy based on strategy-specific initialize method
         state = self.init_strategy(key, params)
 
-        if init_mean is not None:
-            state = self.set_mean(state, init_mean)
+        if init_solution is not None:
+            state = self.set_mean(state, init_solution)
+
         return state
 
     @partial(jax.jit, static_argnames=("self",))
@@ -85,7 +86,7 @@ class Strategy:
         key: jax.Array,
         state: State,
         params: Params | None = None,
-    ) -> tuple[chex.Array | chex.ArrayTree, State]:
+    ) -> tuple[Population, State]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -103,11 +104,11 @@ class Strategy:
     @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
-        x: chex.Array | chex.ArrayTree,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params | None = None,
-    ) -> chex.ArrayTree:
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -143,14 +144,14 @@ class Strategy:
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """Search-specific `ask` request. Returns proposals & updated state."""
         raise NotImplementedError
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -162,7 +163,7 @@ class Strategy:
         x_out = self.unravel_solution(state.mean)
         return x_out
 
-    def set_mean(self, state: State, params: chex.Array | chex.ArrayTree) -> State:
-        replace_mean = self.ravel_solution(params)
-        state = state.replace(mean=replace_mean)
+    def set_mean(self, state: State, solution: Solution) -> State:
+        mean = self.ravel_solution(solution)
+        state = state.replace(mean=mean)
         return state

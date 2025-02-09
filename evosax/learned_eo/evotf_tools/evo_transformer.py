@@ -1,6 +1,6 @@
 from functools import partial
 
-import chex
+import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
@@ -104,9 +104,9 @@ class EvoTransformer(nn.Module):
     @nn.compact
     def __call__(
         self,
-        solution_features: chex.Array,
-        fitness_features: chex.Array,
-        dist_features: chex.Array,
+        solution_features: jax.Array,
+        fitness_features: jax.Array,
+        dist_features: jax.Array,
         mask=None,
         add_positional_encoding=True,
         train=False,

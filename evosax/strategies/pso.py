@@ -1,20 +1,20 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    archive: chex.Array
-    fitness: chex.Array
-    velocity: chex.Array
-    best_archive: chex.Array
-    best_archive_fitness: chex.Array
-    best_member: chex.Array
+    mean: jax.Array
+    archive: jax.Array
+    fitness: Fitness
+    velocity: jax.Array
+    best_archive: jax.Array
+    best_archive_fitness: Fitness
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -34,7 +34,7 @@ class PSO(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         **fitness_kwargs: bool | int | float,
     ):
         """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
@@ -70,7 +70,7 @@ class PSO(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new proposed candidates to evaluate next.
         1. Update v_i(t+1) velocities base on:
           - Inertia: w * v_i(t)
@@ -100,8 +100,8 @@ class PSO(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -128,10 +128,10 @@ class PSO(Strategy):
 def single_member_velocity(
     key: jax.Array,
     member_id: int,
-    archive: chex.Array,
-    velocity: chex.Array,
-    best_archive: chex.Array,
-    best_fitness: chex.Array,
+    archive: jax.Array,
+    velocity: jax.Array,
+    best_archive: jax.Array,
+    best_fitness: Fitness,
     inertia_coeff: float,
     cognitive_coeff: float,
     social_coeff: float,

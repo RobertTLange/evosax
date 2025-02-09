@@ -1,4 +1,3 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
@@ -6,7 +5,7 @@ from flax import linen as nn
 from ..core.fitness import range_norm_trafo, z_score_trafo
 
 
-def tanh_age(x: chex.Array, generation_counter: float) -> chex.Array:
+def tanh_age(x: jax.Array, generation_counter: float) -> jax.Array:
     """Return normalized tanh age."""
     return jnp.tanh(x / jnp.float32(generation_counter) - 1.0)
 
@@ -16,7 +15,7 @@ class MultiHeadSelfAttention(nn.Module):
     num_features: int = 16
 
     @nn.compact
-    def __call__(self, x: chex.Array) -> chex.Array:
+    def __call__(self, x: jax.Array) -> jax.Array:
         """Applies multi-head dot product self-attention on the input data.
 
         Args:
@@ -49,7 +48,7 @@ class MultiHeadCrossAttention(nn.Module):
     num_features: int = 16
 
     @nn.compact
-    def __call__(self, x: chex.Array, y: chex.Array) -> chex.Array:
+    def __call__(self, x: jax.Array, y: jax.Array) -> jax.Array:
         """Applies multi-head dot product self-attention on the input data.
 
         Args:
@@ -79,8 +78,8 @@ class MultiHeadCrossAttention(nn.Module):
 
 
 def multi_head_embedding(
-    x: chex.Array, num_heads: int, head_dim: int, label: str
-) -> chex.Array:
+    x: jax.Array, num_heads: int, head_dim: int, label: str
+) -> jax.Array:
     """Simple dense general embedding layer."""
     return nn.linear.DenseGeneral(
         features=(num_heads, head_dim),
@@ -89,7 +88,7 @@ def multi_head_embedding(
     )(x)
 
 
-def mix_head_outputs(x: chex.Array, num_features: int, label: str) -> chex.Array:
+def mix_head_outputs(x: jax.Array, num_features: int, label: str) -> jax.Array:
     """Simple dense mixing of heads layer."""
     return nn.linear.DenseGeneral(
         features=num_features,
@@ -99,7 +98,7 @@ def mix_head_outputs(x: chex.Array, num_features: int, label: str) -> chex.Array
     )(x)
 
 
-def scaled_dot_product(q: chex.Array, k: chex.Array, v: chex.Array) -> chex.Array:
+def scaled_dot_product(q: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
     """Computes dot-product attention given multi-headed query, key, and value.
 
     Args:
@@ -130,7 +129,7 @@ class SamplingAttention(nn.Module):
     att_hidden_dims: int
 
     @nn.compact
-    def __call__(self, F_E: chex.Array) -> chex.Array:
+    def __call__(self, F_E: jax.Array) -> jax.Array:
         # Perform cross-attention between kids and parents
         S = MultiHeadSelfAttention(self.num_att_heads, self.att_hidden_dims)(F_E)
         logits = nn.Dense(1)(S)
@@ -142,7 +141,7 @@ class SelectionAttention(nn.Module):
     att_hidden_dims: int
 
     @nn.compact
-    def __call__(self, key: jax.Array, F_X: chex.Array, F_E: chex.Array) -> chex.Array:
+    def __call__(self, key: jax.Array, F_X: jax.Array, F_E: jax.Array) -> jax.Array:
         # Perform cross-attention between kids and parents
         A = MultiHeadCrossAttention(self.num_att_heads, self.att_hidden_dims)(F_X, F_E)
         # Construct raw selection matrix with row-wise logits
@@ -164,7 +163,7 @@ class MutationAttention(nn.Module):
     att_hidden_dims: int
 
     @nn.compact
-    def __call__(self, sigma: chex.Array, F: chex.Array) -> chex.Array:
+    def __call__(self, sigma: jax.Array, F: jax.Array) -> jax.Array:
         z_feat = z_score_trafo(sigma)
         norm_feat = range_norm_trafo(sigma)
         conc_inputs = jnp.concatenate([F, z_feat, norm_feat], axis=1)

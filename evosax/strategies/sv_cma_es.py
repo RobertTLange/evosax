@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from chex import Array, ArrayTree
 from flax.struct import dataclass
 
 from evosax.strategies.cma_es import (
@@ -13,22 +12,24 @@ from evosax.strategies.cma_es import (
     update_p_sigma,
     update_sigma,
 )
-from evosax.utils.eigen_decomp import full_eigen_decomp
-from evosax.utils.kernel import RBF, Kernel
+
+from ..types import Fitness, Population, Solution
+from ..utils.eigen_decomp import full_eigen_decomp
+from ..utils.kernel import RBF, Kernel
 
 
 @dataclass
 class State:
-    p_sigma: Array
-    p_c: Array
-    C: Array
-    D: Array | None
-    B: Array | None
-    mean: Array
-    sigma: Array
-    weights: Array
-    weights_truncated: Array
-    best_member: Array
+    p_sigma: jax.Array
+    p_c: jax.Array
+    C: jax.Array
+    D: jax.Array | None
+    B: jax.Array | None
+    mean: jax.Array
+    sigma: jax.Array
+    weights: jax.Array
+    weights_truncated: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
     bandwidth: float = 1.0
@@ -40,8 +41,8 @@ class SV_CMA_ES(CMA_ES):
         self,
         npop: int,
         subpopulation_size: int,
+        solution: Solution,
         kernel: type[Kernel] = RBF,
-        solution: ArrayTree | Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -99,7 +100,7 @@ class SV_CMA_ES(CMA_ES):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> [Array, State]:
+    ) -> tuple[Population, State]:
         """`ask` for new parameter candidates to evaluate next."""
         Cs, Bs, Ds = jax.vmap(full_eigen_decomp)(state.C, state.B, state.D)
         keys = jax.random.split(key, num=self.npop)
@@ -120,8 +121,8 @@ class SV_CMA_ES(CMA_ES):
 
     def tell_strategy(
         self,
-        x: Array,
-        fitness: Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
@@ -205,12 +206,12 @@ class SV_CMA_ES(CMA_ES):
 
 
 def cmaes_grad(
-    x: Array,
-    fitness: Array,
-    mean: Array,
+    x: Population,
+    fitness: Fitness,
+    mean: Solution,
     sigma: float,
-    weights_truncated: Array,
-) -> [Array, Array]:
+    weights_truncated: jax.Array,
+) -> tuple[jax.Array, jax.Array]:
     """Approximate gradient using samples from a search distribution."""
     # get sorted solutions
     concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])

@@ -1,4 +1,3 @@
-import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -6,10 +5,10 @@ from flax import linen as nn
 
 
 def scaled_dot_product(
-    q: chex.Array,
-    k: chex.Array,
-    mask: chex.Array | None = None,
-) -> chex.Array:
+    q: jax.Array,
+    k: jax.Array,
+    mask: jax.Array | None = None,
+) -> jax.Array:
     d_k = q.shape[-1]
     attn_logits = jnp.matmul(q, jnp.swapaxes(k, -2, -1))
     attn_logits = attn_logits / jnp.sqrt(d_k)
@@ -19,7 +18,7 @@ def scaled_dot_product(
     return attention
 
 
-def expand_mask(mask: chex.Array) -> chex.Array:
+def expand_mask(mask: jax.Array) -> jax.Array:
     assert mask.ndim >= 2
     if mask.ndim == 3:
         mask = jnp.expand_dims(mask, axis=1)
@@ -51,7 +50,7 @@ class MLP(nn.Module):
             nn.Dropout(self.dropout_prob),
         ]
 
-    def __call__(self, x: chex.Array, train: bool = True) -> chex.Array:
+    def __call__(self, x: jax.Array, train: bool = True) -> jax.Array:
         for l in self.linear:
             x = l(x) if not isinstance(l, nn.Dropout) else l(x, deterministic=not train)
         return x
@@ -73,6 +72,6 @@ class PositionalEncoding(nn.Module):
         pe = pe[None]
         self.pe = jax.device_put(pe)
 
-    def __call__(self, x: chex.Array) -> chex.Array:
+    def __call__(self, x: jax.Array) -> jax.Array:
         x = x + self.pe[:, : x.shape[1]]
         return x

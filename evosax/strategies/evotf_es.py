@@ -1,6 +1,5 @@
 import pkgutil
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
@@ -13,16 +12,17 @@ from ..learned_eo.evotf_tools import (
 )
 from ..learned_eo.les_tools import load_pkl_object
 from ..strategy import Strategy
+from ..types import ArrayTree, Fitness, Population, Solution
 
 
 @struct.dataclass
 class DistributionFeaturesState:
-    old_mean: chex.Array
-    old_sigma: chex.Array
-    momentum_mean: chex.Array
-    momentum_sigma: chex.Array
-    evopath_mean: chex.Array
-    evopath_sigma: chex.Array
+    old_mean: jax.Array
+    old_sigma: jax.Array
+    momentum_mean: jax.Array
+    momentum_sigma: jax.Array
+    evopath_mean: jax.Array
+    evopath_sigma: jax.Array
 
 
 @struct.dataclass
@@ -33,28 +33,28 @@ class FitnessFeaturesState:
 @struct.dataclass
 class SolutionFeaturesState:
     best_fitness: float
-    best_member: chex.Array
+    best_member: jax.Array
     generation_counter: int
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
-    sigma: chex.Array
+    mean: jax.Array
+    sigma: jax.Array
     sf_state: SolutionFeaturesState
     ff_state: FitnessFeaturesState
     df_state: DistributionFeaturesState
-    solution_context: chex.Array
-    fitness_context: chex.Array
-    distribution_context: chex.Array
-    best_member: chex.Array
+    solution_context: jax.Array
+    fitness_context: jax.Array
+    distribution_context: jax.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
 
 @struct.dataclass
 class Params:
-    net_params: chex.ArrayTree
+    net_params: ArrayTree
     lrate_mean: float = 1.0
     lrate_sigma: float = 1.0
     sigma_init: float = 1.0
@@ -68,7 +68,7 @@ class EvoTF_ES(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         sigma_init: float = 1.0,
         max_context_len: int = 100,
         model_config: dict = dict(
@@ -108,7 +108,7 @@ class EvoTF_ES(Strategy):
             use_oai_grad=True,
         ),
         use_antithetic_sampling: bool = False,
-        net_params: chex.ArrayTree | None = None,
+        net_params: ArrayTree | None = None,
         net_ckpt_path: str | None = None,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
@@ -259,7 +259,7 @@ class EvoTF_ES(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         if not self.use_antithetic_sampling:
             noise = jax.random.normal(key, (self.population_size, self.num_dims))
@@ -273,8 +273,8 @@ class EvoTF_ES(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

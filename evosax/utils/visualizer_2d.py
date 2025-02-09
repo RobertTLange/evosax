@@ -1,12 +1,13 @@
 """Fitness landscape visualizer and evaluation animator."""
 
-import chex
 import jax
 import jax.numpy as jnp
 import matplotlib.animation as animation
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
+
+from ..types import Fitness
 
 # cmap = cm.colors.LinearSegmentedColormap.from_list(
 #     "Custom", [(0, "#2f9599"), (0.45, "#eee"), (1, "#8800ff")], N=256
@@ -22,8 +23,8 @@ class BBOBVisualizer:
 
     def __init__(
         self,
-        X: chex.Array,
-        fitness: chex.Array,
+        X: jax.Array,
+        fitness: Fitness,
         fn_name: str = "Rastrigin",
         title: str = "",
         use_3d: bool = False,

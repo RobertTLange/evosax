@@ -1,18 +1,18 @@
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..core import GradientOptimizer, OptParams, OptState, exp_decay
 from ..strategy import Strategy
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
-    mean: chex.Array
+    mean: jax.Array
     sigma: float
     opt_state: OptState
-    best_member: chex.Array
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
@@ -33,7 +33,7 @@ class ARS(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 0.1,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -103,7 +103,7 @@ class ARS(Strategy):
 
     def ask_strategy(
         self, key: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
@@ -116,8 +116,8 @@ class ARS(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

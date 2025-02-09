@@ -1,6 +1,5 @@
 import pkgutil
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
@@ -16,25 +15,26 @@ from ..learned_eo.lga_tools import (
     tanh_age,
 )
 from ..strategy import Strategy
+from ..types import ArrayTree, Fitness, Population, Solution
 
 
 @struct.dataclass
 class State:
     key: jax.Array
-    mean: chex.Array
-    archive_age: chex.Array  # Parents: 'Age' counter
-    archive_x: chex.Array  # Parents: Solution vectors
-    archive_f: chex.Array  # Parents: Fitness scores
-    archive_sigma: chex.Array  # Parents: Mutation strengths
-    sigma_C: chex.Array  # Children: Mutation strengths
-    best_member: chex.Array
+    mean: jax.Array
+    archive_age: jax.Array  # Parents: 'Age' counter
+    archive_x: jax.Array  # Parents: Solution vectors
+    archive_f: jax.Array  # Parents: Fitness scores
+    archive_sigma: jax.Array  # Parents: Mutation strengths
+    sigma_C: jax.Array  # Children: Mutation strengths
+    best_member: jax.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
     generation_counter: int = 0
 
 
 @struct.dataclass
 class Params:
-    net_params: chex.ArrayTree
+    net_params: ArrayTree
     cross_over_rate: float = 0.0
     sigma_init: float = 1.0
     init_min: float = -5.0
@@ -53,9 +53,9 @@ class LGA(Strategy):
     def __init__(
         self,
         population_size: int,
-        solution: chex.ArrayTree | chex.Array | None = None,
+        solution: Solution,
         elite_ratio: float = 1.0,
-        net_params: chex.ArrayTree | None = None,
+        net_params: ArrayTree | None = None,
         net_ckpt_path: str | None = None,
         sigma_init: float = 1.0,
         **fitness_kwargs: bool | int | float,
@@ -122,7 +122,7 @@ class LGA(Strategy):
 
     def ask_strategy(
         self, key_epsilon: jax.Array, state: State, params: Params
-    ) -> tuple[chex.Array, State]:
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         key_idx, key_epsilon = jax.random.split(key_epsilon)
 
@@ -156,8 +156,8 @@ class LGA(Strategy):
 
     def tell_strategy(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
+        x: Population,
+        fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:

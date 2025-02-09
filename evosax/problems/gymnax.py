@@ -1,6 +1,7 @@
-import chex
 import jax
 import jax.numpy as jnp
+
+from ..types import ArrayTree
 
 
 class GymnaxProblem:
@@ -50,7 +51,7 @@ class GymnaxProblem:
         self.rollout_repeats = jax.vmap(self.single_rollout, in_axes=(0, None))
         self.rollout_pop = jax.vmap(self.rollout_repeats, in_axes=(None, 0))
 
-    def eval(self, key: jax.Array, policy_params: chex.ArrayTree):
+    def eval(self, key: jax.Array, policy_params: ArrayTree):
         """Evaluate a population of policies."""
         keys = jax.random.split(key, self.num_rollouts)
         scores, masks = jax.jit(self.rollout_pop)(keys, policy_params)
@@ -58,7 +59,7 @@ class GymnaxProblem:
         self.total_env_steps += masks.sum()
         return scores
 
-    def rollout_ffw(self, key: jax.Array, policy_params: chex.ArrayTree):
+    def rollout_ffw(self, key: jax.Array, policy_params: ArrayTree):
         """Rollout an episode with lax.scan."""
         key_reset, key_step = jax.random.split(key)
 
@@ -104,7 +105,7 @@ class GymnaxProblem:
         cum_return = carry_out[-2].squeeze()
         return cum_return, jnp.array(ep_mask)
 
-    def rollout_rnn(self, key: jax.Array, policy_params: chex.ArrayTree):
+    def rollout_rnn(self, key: jax.Array, policy_params: ArrayTree):
         """Rollout a jitted episode with lax.scan."""
         key_reset, key_step = jax.random.split(key)
 

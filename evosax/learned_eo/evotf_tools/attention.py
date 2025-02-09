@@ -1,4 +1,4 @@
-import chex
+import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
@@ -30,10 +30,10 @@ class MultiheadAttention(nn.Module):
 
     def __call__(
         self,
-        x: chex.Array,
-        mask: chex.Array | None = None,
+        x: jax.Array,
+        mask: jax.Array | None = None,
         train: bool = True,
-    ) -> tuple[chex.Array, chex.Array]:
+    ) -> tuple[jax.Array, jax.Array]:
         batch_size, seq_length, embed_dim = x.shape
         if mask is not None:
             mask = expand_mask(mask)
@@ -76,10 +76,10 @@ class AttentionBlock(nn.Module):
 
     def __call__(
         self,
-        x: chex.Array,
-        mask: chex.Array | None = None,
+        x: jax.Array,
+        mask: jax.Array | None = None,
         train: bool = True,
-    ) -> tuple[chex.Array, chex.Array]:
+    ) -> tuple[jax.Array, jax.Array]:
         attn_out, attn = self.attn(self.ln_1(x), mask, train)
         x = x + attn_out
         x = x + self.mlp(self.ln_2(x), train)
@@ -112,11 +112,11 @@ class AttentionEncoder(nn.Module):
 
     def __call__(
         self,
-        x: chex.Array,
-        mask: chex.Array | None = None,
+        x: jax.Array,
+        mask: jax.Array | None = None,
         add_positional_encoding: bool = True,
         train=True,
-    ) -> tuple[chex.Array, list[chex.Array]]:
+    ) -> tuple[jax.Array, list[jax.Array]]:
         x = self.input_layer(x)
         if add_positional_encoding:
             x = self.positional_encoding(x)

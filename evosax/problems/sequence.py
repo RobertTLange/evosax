@@ -1,8 +1,9 @@
 from functools import partial
 
-import chex
 import jax
 import jax.numpy as jnp
+
+from ..types import ArrayTree
 
 
 class SequenceProblem:
@@ -46,7 +47,7 @@ class SequenceProblem:
         self.rollout_pop = jax.vmap(self.rollout_rnn, in_axes=(None, 0))
         self.rollout = jax.jit(self.rollout_vmap)
 
-    def rollout_vmap(self, key: jax.Array, network_params: chex.ArrayTree):
+    def rollout_vmap(self, key: jax.Array, network_params: ArrayTree):
         """Vectorize rollout. Reshape output correctly."""
         loss, perf = self.rollout_pop(key, network_params)
         loss_re = loss.reshape(-1, 1)
@@ -54,7 +55,7 @@ class SequenceProblem:
         return loss_re, perf_re
 
     def rollout_rnn(
-        self, key: jax.Array, network_params: chex.ArrayTree
+        self, key: jax.Array, network_params: ArrayTree
     ) -> tuple[float, float]:
         """Evaluate a network on a supervised learning task."""
         key_sample, key_rollout = jax.random.split(key)
@@ -70,8 +71,8 @@ class SequenceProblem:
     def rollout_single(
         self,
         key: jax.Array,
-        network_params: chex.ArrayTree,
-        X_single: chex.ArrayTree,
+        network_params: ArrayTree,
+        X_single: ArrayTree,
     ):
         """Rollout RNN on a single sequence."""
         # Reset the network
@@ -105,8 +106,8 @@ class SequenceProblem:
 
 
 def loss_and_acc(
-    y_pred: chex.Array, y_true: chex.Array, num_classes: int
-) -> tuple[chex.Array, chex.Array]:
+    y_pred: jax.Array, y_true: jax.Array, num_classes: int
+) -> tuple[jax.Array, jax.Array]:
     """Compute cross-entropy loss and accuracy."""
     acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
     labels = jax.nn.one_hot(y_true, num_classes)
@@ -115,9 +116,7 @@ def loss_and_acc(
     return loss, acc
 
 
-def loss_and_mae(
-    y_pred: chex.Array, y_true: chex.Array
-) -> tuple[chex.Array, chex.Array]:
+def loss_and_mae(y_pred: jax.Array, y_true: jax.Array) -> tuple[jax.Array, jax.Array]:
     """Compute mean squared error loss and mean absolute error."""
     loss = jnp.mean((y_pred.squeeze() - y_true) ** 2)
     mae = jnp.mean(jnp.abs(y_pred.squeeze() - y_true))
@@ -127,8 +126,8 @@ def loss_and_mae(
 class BatchLoader:
     def __init__(
         self,
-        X: chex.Array,
-        y: chex.Array,
+        X: jax.Array,
+        y: jax.Array,
         batch_size: int,
     ):
         self.X = X
@@ -137,7 +136,7 @@ class BatchLoader:
         self.num_train_samples = X.shape[0]
         self.batch_size = batch_size
 
-    def sample(self, key: jax.Array) -> tuple[chex.Array, chex.Array]:
+    def sample(self, key: jax.Array) -> tuple[jax.Array, jax.Array]:
         """Sample a single batch of X, y data."""
         sample_idx = jax.random.choice(
             key,

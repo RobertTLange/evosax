@@ -1,6 +1,5 @@
 import functools
 
-import chex
 import jax
 import jax.numpy as jnp
 from flax import struct
@@ -66,8 +65,8 @@ class FitnessFeaturizer:
 
     @functools.partial(jax.jit, static_argnames=("self",))
     def featurize(
-        self, x: chex.Array, fitness: chex.Array, state: FitnessFeaturesState
-    ) -> tuple[chex.Array, FitnessFeaturesState]:
+        self, x: jax.Array, fitness: jax.Array, state: FitnessFeaturesState
+    ) -> tuple[jax.Array, FitnessFeaturesState]:
         fitness = jax.lax.select(self.maximize, -1 * fitness, fitness)
         fit_out = centered_rank_trafo(fitness).reshape(-1, 1)
 
@@ -134,8 +133,8 @@ class FitnessFeaturizer:
 
 
 def update_best_fitness(
-    fitness: chex.Array, best_fitness: float, maximize: bool = False
-) -> chex.Array:
+    fitness: jax.Array, best_fitness: float, maximize: bool = False
+) -> jax.Array:
     fitness_min = jax.lax.select(maximize, -1 * fitness, fitness)
     best_fit_min = jax.lax.select(maximize, -1 * best_fitness, best_fitness)
     best_in_gen = jnp.argmin(fitness_min)
@@ -146,7 +145,7 @@ def update_best_fitness(
     return best_fitness
 
 
-def get_norm_diff_best(fitness: chex.Array, best_fitness: float) -> chex.Array:
+def get_norm_diff_best(fitness: jax.Array, best_fitness: float) -> jax.Array:
     fitness = jnp.clip(fitness, -1e10, 1e10)
     diff_best = fitness - best_fitness
     return jnp.clip(

@@ -1,8 +1,9 @@
 from functools import partial
 
-import chex
 import jax
 import jax.numpy as jnp
+
+from ..types import Fitness, Population, Solution
 
 
 class FitnessShaper:
@@ -32,7 +33,7 @@ class FitnessShaper:
         assert num_options_on < 2, "Only use one fitness shaping transformation."
 
     @partial(jax.jit, static_argnames=("self",))
-    def apply(self, x: chex.Array, fitness: chex.Array) -> chex.Array:
+    def apply(self, population: Population, fitness: Fitness) -> Fitness:
         """Max objective trafo, rank shaping, z scoring & add weight decay."""
         if self.maximize:
             fitness = -1 * fitness
@@ -40,7 +41,7 @@ class FitnessShaper:
         # Apply wdecay before normalization - makes easier to tune
         # "Reduce" fitness based on L2 norm of parameters
         if self.w_decay > 0.0:
-            l2_fit_red = self.w_decay * compute_l2_norm(x)
+            l2_fit_red = self.w_decay * compute_l2_norm(population)
             fitness += l2_fit_red
 
         if self.centered_rank:
@@ -55,33 +56,33 @@ class FitnessShaper:
         return fitness
 
 
-def z_score_trafo(arr: chex.Array) -> chex.Array:
+def z_score_trafo(arr: jax.Array) -> jax.Array:
     """Make fitness 'Gaussian' by substracting mean and dividing by std."""
     return (arr - jnp.nanmean(arr)) / (jnp.nanstd(arr) + 1e-10)
 
 
-def compute_ranks(fitness: chex.Array) -> chex.Array:
+def compute_ranks(fitness: Fitness) -> jax.Array:
     """Return fitness ranks in [0, len(fitness))."""
     ranks = jnp.zeros(len(fitness))
     ranks = ranks.at[fitness.argsort()].set(jnp.arange(len(fitness)))
     return ranks
 
 
-def centered_rank_trafo(fitness: chex.Array) -> chex.Array:
+def centered_rank_trafo(fitness: Fitness) -> jax.Array:
     """Return ~ -0.5 to 0.5 centered ranks (best to worst - min!)."""
     y = compute_ranks(fitness)
     y /= fitness.size - 1
     return y - 0.5
 
 
-def compute_l2_norm(x: chex.Array) -> chex.Array:
-    """Compute L2-norm of x_i. Assumes x to have shape (population_size, num_dims)."""
-    return jnp.nanmean(x * x, axis=1)
+def compute_l2_norm(solution: Solution) -> jax.Array:
+    """Compute L2-norm of x_i. Assumes x to have shape (..., num_dims)."""
+    return jnp.nanmean(solution * solution, axis=-1)
 
 
 def range_norm_trafo(
-    arr: chex.Array, min_val: float = -1.0, max_val: float = 1.0
-) -> chex.Array:
+    arr: jax.Array, min_val: float = -1.0, max_val: float = 1.0
+) -> jax.Array:
     """Map scores into a min/max range."""
     arr = jnp.clip(arr, -1e10, 1e10)
     normalized_arr = (max_val - min_val) * (arr - jnp.nanmin(arr)) / (

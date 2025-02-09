@@ -1,11 +1,11 @@
 from functools import partial
 
-import chex
 import flax
 import jax
 import jax.numpy as jnp
 
-from ... import Strategies
+from ... import Params, State, Strategies
+from ...types import Fitness, Population
 from .protocol import Protocol
 
 
@@ -61,7 +61,7 @@ class BatchStrategy:
             self.population_size_per_device = self.population_size
 
     @property
-    def default_params(self) -> chex.ArrayTree:
+    def default_params(self) -> Params:
         """Return default parameters of evolution strategy."""
         base_params = flax.serialization.to_state_dict(self.strategy.default_params)
         # Repeat the default parameters for each subpopulation
@@ -73,13 +73,13 @@ class BatchStrategy:
         )
 
     @partial(jax.jit, static_argnames=("self",))
-    def init_vmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
+    def init_vmap(self, key: jax.Array, params: Params) -> State:
         """Auto-vectorized `init` for the batch evolution strategy."""
         keys = jax.random.split(key, self.num_subpops_per_device)
         state = jax.vmap(self.strategy.init, in_axes=(0, 0))(keys, params)
         return state
 
-    def init_pmap(self, key: jax.Array, params: chex.ArrayTree) -> chex.ArrayTree:
+    def init_pmap(self, key: jax.Array, params: Params) -> State:
         """Device parallel `init` for the batch evolution strategy."""
         # Tile/reshape both key and params!
         keys = jnp.tile(key, (self.n_devices, 1))
@@ -96,16 +96,16 @@ class BatchStrategy:
 
     @partial(jax.jit, static_argnames=("self",))
     def ask(
-        self, key: jax.Array, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> tuple[chex.Array, chex.ArrayTree]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates."""
         x, state = self.ask_map(key, state, params)
         return x, state
 
     @partial(jax.jit, static_argnames=("self",))
     def ask_vmap(
-        self, key: jax.Array, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> tuple[chex.Array, chex.ArrayTree]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[jax.Array, State]:
         """Auto-vectorized `ask` for new parameter candidates."""
         keys = jax.random.split(key, self.num_subpops_per_device)
         batch_x, state = jax.vmap(self.strategy.ask, in_axes=(0, 0, 0))(
@@ -117,8 +117,8 @@ class BatchStrategy:
         return x_re, state
 
     def ask_pmap(
-        self, key: jax.Array, state: chex.ArrayTree, params: chex.ArrayTree
-    ) -> tuple[chex.Array, chex.ArrayTree]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[jax.Array, State]:
         """Device parallel `ask` for new parameter candidates."""
         keys = jnp.tile(key, (self.n_devices, 1))
         params_pmap = jax.tree.map(
@@ -140,11 +140,11 @@ class BatchStrategy:
     @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
-        x: chex.Array,
-        fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        x: Population,
+        fitness: Fitness,
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Reshape flat fitness/search vector into subpopulation array then tell
         # batch_fitness -> Shape: (subpops, population_size_per_subpop)
@@ -163,11 +163,11 @@ class BatchStrategy:
     @partial(jax.jit, static_argnames=("self",))
     def tell_vmap(
         self,
-        batch_x: chex.Array,
-        batch_fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        batch_x: Population,
+        batch_fitness: Fitness,
+        state: State,
+        params: Params,
+    ) -> State:
         """Auto-vectorized `tell` performance data for strategy state update."""
         state = jax.vmap(self.strategy.tell, in_axes=(0, 0, 0, 0))(
             batch_x, batch_fitness, state, params
@@ -176,11 +176,11 @@ class BatchStrategy:
 
     def tell_pmap(
         self,
-        batch_x: chex.Array,
-        batch_fitness: chex.Array,
-        state: chex.ArrayTree,
-        params: chex.ArrayTree,
-    ) -> chex.ArrayTree:
+        batch_x: Population,
+        batch_fitness: Fitness,
+        state: State,
+        params: Params,
+    ) -> State:
         """Device parallel `tell` performance data for strategy state update."""
         params_pmap = jax.tree.map(
             lambda x: jnp.stack(jnp.split(x, self.n_devices)), params

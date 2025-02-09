@@ -1,12 +1,12 @@
-import chex
+import jax
 import jax.numpy as jnp
 
 
 def full_eigen_decomp(
-    C: chex.Array,
-    B: chex.Array,
-    D: chex.Array,
-) -> tuple[chex.Array, chex.Array, chex.Array]:
+    C: jax.Array,
+    B: jax.Array,
+    D: jax.Array,
+) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Perform eigendecomposition of covariance matrix."""
     if B is not None and D is not None:
         return C, B, D
@@ -31,7 +31,7 @@ def full_eigen_decomp(
     return C, B, D
 
 
-def diag_eigen_decomp(C: chex.Array, D: chex.Array) -> chex.Array:
+def diag_eigen_decomp(C: jax.Array, D: jax.Array) -> jax.Array:
     """Perform simplified decomposition of diagonal covariance matrix."""
     if D is not None:
         return D
