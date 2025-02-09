@@ -8,7 +8,7 @@ from .cma_es import get_cma_elite_weights
 
 
 @struct.dataclass
-class EvoState:
+class State:
     p_sigma: chex.Array
     M: chex.Array
     mean: chex.Array
@@ -20,7 +20,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     mu_eff: float
     c_1: float
     c_mu: float
@@ -39,7 +39,7 @@ class MA_ES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -48,7 +48,7 @@ class MA_ES(Strategy):
         """MA-ES (Bayer & Sendhoff, 2017)
         Reference: https://www.honda-ri.de/pubs/pdf/3376.pdf
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
@@ -56,14 +56,14 @@ class MA_ES(Strategy):
         )
         self.strategy_name = "MA_ES"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
 
         # Robustness for int32 - squaring in hyperparameter calculations
         self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         _, _, mu_eff, c_1, c_mu = get_cma_elite_weights(
             self.population_size,
@@ -84,7 +84,7 @@ class MA_ES(Strategy):
             1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
         )
 
-        params = EvoParams(
+        params = Params(
             mu_eff=mu_eff,
             c_1=c_1,
             c_mu=c_mu,
@@ -95,7 +95,7 @@ class MA_ES(Strategy):
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.population_size,
@@ -110,7 +110,7 @@ class MA_ES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             p_sigma=jnp.zeros(self.num_dims),
             sigma=params.sigma_init,
             mean=initialization,
@@ -121,8 +121,8 @@ class MA_ES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             key,
@@ -138,9 +138,9 @@ class MA_ES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])

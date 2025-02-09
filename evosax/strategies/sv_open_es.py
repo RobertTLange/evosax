@@ -4,12 +4,12 @@ from chex import Array, ArrayTree
 from flax import struct
 
 from evosax.core import OptState, exp_decay
-from evosax.strategies.open_es import EvoParams, OpenES
+from evosax.strategies.open_es import OpenES, Params
 from evosax.utils.kernel import RBF, Kernel
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: Array
     sigma: Array
     opt_state: OptState
@@ -26,7 +26,7 @@ class SV_OpenES(OpenES):
         npop: int,
         subpopulation_size: int,
         kernel: type[Kernel] = RBF,
-        pholder_params: ArrayTree | Array | None = None,
+        solution: ArrayTree | Array | None = None,
         use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -43,7 +43,7 @@ class SV_OpenES(OpenES):
         """
         super().__init__(
             npop * subpopulation_size,
-            pholder_params,
+            solution,
             use_antithetic_sampling,
             opt_name,
             lrate_init,
@@ -62,21 +62,21 @@ class SV_OpenES(OpenES):
         self.kernel = kernel()
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         opt_params = self.optimizer.default_params.replace(
             lrate_init=self.lrate_init,
             lrate_decay=self.lrate_decay,
             lrate_limit=self.lrate_limit,
         )
-        return EvoParams(
+        return Params(
             opt_params=opt_params,
             sigma_init=self.sigma_init,
             sigma_decay=self.sigma_decay,
             sigma_limit=self.sigma_limit,
         )
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         x_init = jax.random.uniform(
             key,
@@ -84,20 +84,20 @@ class SV_OpenES(OpenES):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=x_init,
             sigma=jnp.ones((self.npop, self.num_dims)) * params.sigma_init,
             opt_state=jax.vmap(lambda _: self.optimizer.init(params.opt_params))(
                 jnp.arange(self.npop)
             ),
-            best_member=x_init[0],  # pholder best
+            best_member=x_init[0],
         )
 
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> [Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> [Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         if self.use_antithetic_sampling:
@@ -120,9 +120,9 @@ class SV_OpenES(OpenES):
         self,
         x: Array,
         fitness: Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         x = x.reshape(self.npop, self.subpopulation_size, self.num_dims)
         fitness = fitness.reshape(self.npop, self.subpopulation_size)

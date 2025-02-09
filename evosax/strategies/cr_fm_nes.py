@@ -9,7 +9,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: float
     v: chex.Array
@@ -26,7 +26,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     mu_eff: float
     c_s: float
     c_c: float
@@ -78,7 +78,7 @@ class CR_FM_NES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
@@ -86,15 +86,15 @@ class CR_FM_NES(Strategy):
         """Cost-Reduced Fast-Moving Natural ES (Nomura & Ono, 2022)
         Reference: https://arxiv.org/abs/2201.11422
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         assert not self.population_size & 1, "Population size must be even"
         self.strategy_name = "CR_FM_NES"
 
-        # Set core kwargs es_params (sigma)
+        # Set core kwargs params (sigma)
         self.sigma_init = sigma_init
 
     @property
-    def default_params(self) -> EvoParams:
+    def default_params(self) -> Params:
         """Return default parameters of evolutionary strategy."""
         w_rank_hat, w_rank = get_recombination_weights(self.population_size)
         mueff = 1 / (
@@ -129,7 +129,7 @@ class CR_FM_NES(Strategy):
             (jnp.minimum(0.02 * self.population_size, 3 * jnp.log(self.num_dims)) + 5)
             / (0.23 * self.num_dims + 25)
         )
-        params = EvoParams(
+        params = Params(
             lrate_move_sigma=lrate_move_sigma,
             lrate_stag_sigma=lrate_stag_sigma,
             lrate_conv_sigma=lrate_conv_sigma,
@@ -145,7 +145,7 @@ class CR_FM_NES(Strategy):
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolutionary strategy."""
         key_init, key_v = jax.random.split(key)
         initialization = jax.random.uniform(
@@ -155,7 +155,7 @@ class CR_FM_NES(Strategy):
             maxval=params.init_max,
         )
         w_rank_hat, w_rank = get_recombination_weights(self.population_size)
-        state = EvoState(
+        state = State(
             mean=initialization,
             sigma=params.sigma_init,
             v=jax.random.normal(key_v, shape=(self.num_dims, 1))
@@ -173,8 +173,8 @@ class CR_FM_NES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         z_plus = jax.random.normal(
             key,
@@ -196,9 +196,9 @@ class CR_FM_NES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         ranks = fitness.argsort()
         z = state.z[:, ranks]

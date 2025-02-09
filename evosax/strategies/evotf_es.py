@@ -38,7 +38,7 @@ class SolutionFeaturesState:
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: chex.Array
     sf_state: SolutionFeaturesState
@@ -53,7 +53,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     net_params: chex.ArrayTree
     lrate_mean: float = 1.0
     lrate_sigma: float = 1.0
@@ -68,7 +68,7 @@ class EvoTF_ES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 1.0,
         max_context_len: int = 100,
         model_config: dict = dict(
@@ -113,7 +113,7 @@ class EvoTF_ES(Strategy):
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         self.strategy_name = "EvoTransformer"
         self.max_context_len = max_context_len
         self.model_config = model_config
@@ -198,7 +198,7 @@ class EvoTF_ES(Strategy):
             x.size for x in jax.tree.leaves(self.default_net_params)
         )
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
         self.use_antithetic_sampling = use_antithetic_sampling
         if self.use_antithetic_sampling:
@@ -208,15 +208,15 @@ class EvoTF_ES(Strategy):
         self.strategy_name = "EvoTF_ES"
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolutionary strategy."""
-        params = EvoParams(
+        params = Params(
             sigma_init=self.sigma_init,
             net_params=self.default_net_params,
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolutionary strategy."""
         initialization = jax.random.uniform(
             key,
@@ -243,7 +243,7 @@ class EvoTF_ES(Strategy):
             self.num_dims,
             self.df.num_features,
         )
-        state = EvoState(
+        state = State(
             mean=initialization,
             sigma=params.sigma_init * jnp.ones(self.num_dims),
             sf_state=self.sf.init(),
@@ -258,8 +258,8 @@ class EvoTF_ES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         if not self.use_antithetic_sampling:
             noise = jax.random.normal(key, (self.population_size, self.num_dims))
@@ -275,9 +275,9 @@ class EvoTF_ES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Get features from population info
         sfeatures, sf_state = self.sf.featurize(

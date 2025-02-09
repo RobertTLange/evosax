@@ -7,7 +7,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     archive: chex.Array
     fitness: chex.Array
@@ -18,7 +18,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     sigma_init: float = 0.07
     sigma_meta: float = 2.0
     sigma_best_limit: float = 0.0001
@@ -32,30 +32,30 @@ class SAMR_GA(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.0,
         sigma_init: float = 0.07,
         sigma_meta: float = 2.0,
         **fitness_kwargs: bool | int | float,
     ):
         """Self-Adaptation Mutation Rate (SAMR) GA."""
-        super().__init__(population_size, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, solution, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
             1, int(self.population_size * self.elite_ratio)
         )
         self.strategy_name = "SAMR_GA"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
         self.sigma_meta = sigma_meta
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
+        return Params(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -63,7 +63,7 @@ class SAMR_GA(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization.mean(axis=0),
             archive=initialization,
             fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
@@ -73,8 +73,8 @@ class SAMR_GA(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         key_idx, key_eps_x, key_eps_s = jax.random.split(key, 3)
 
@@ -98,9 +98,9 @@ class SAMR_GA(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state."""
         idx = jnp.argsort(fitness)[: self.elite_population_size]
         fitness = fitness[idx]

@@ -7,7 +7,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     archive: chex.Array
     fitness: chex.Array
@@ -20,7 +20,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     inertia_coeff: float = 0.75  # w momentum of velocity
     cognitive_coeff: float = 1.5  # c_1 cognitive "force" multiplier
     social_coeff: float = 2.0  # c_2 social "force" multiplier
@@ -34,21 +34,21 @@ class PSO(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         **fitness_kwargs: bool | int | float,
     ):
         """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
         Reference: https://ieeexplore.ieee.org/document/488968
         """
-        super().__init__(population_size, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, solution, **fitness_kwargs)
         self.strategy_name = "PSO"
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams()
+        return Params()
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -56,7 +56,7 @@ class PSO(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization.mean(axis=0),
             archive=initialization,
             fitness=jnp.zeros(self.population_size) + jnp.finfo(jnp.float32).max,
@@ -69,8 +69,8 @@ class PSO(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next.
         1. Update v_i(t+1) velocities base on:
           - Inertia: w * v_i(t)
@@ -102,9 +102,9 @@ class PSO(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """

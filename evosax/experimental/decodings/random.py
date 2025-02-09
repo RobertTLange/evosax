@@ -9,16 +9,16 @@ class RandomDecoder(Decoder):
     def __init__(
         self,
         num_encoding_dims: int,
-        placeholder_params: chex.ArrayTree | chex.Array,
+        solution: chex.ArrayTree | chex.Array,
         key: jax.Array = jax.random.key(0),
         rademacher: bool = False,
     ):
         """Random Projection Decoder (Gaussian/Rademacher random matrix)."""
-        super().__init__(num_encoding_dims, placeholder_params)
+        super().__init__(num_encoding_dims, solution)
         self.rademacher = rademacher
 
-        self.ravel_params, self.unravel_params = get_ravel_fn(placeholder_params)
-        flat_params = self.ravel_params(placeholder_params)
+        self.ravel_solution, self.unravel_solution = get_ravel_fn(solution)
+        flat_params = self.ravel_solution(solution)
         total_params = flat_params.size
 
         # Sample a random matrix - Gaussian or Rademacher (+1/-1)
@@ -39,7 +39,7 @@ class RandomDecoder(Decoder):
             x @ self.project_matrix
         )  # (population_size, num_enc_dim) x (num_enc_dim, num_dims)
         # 2. Reshape
-        x_reshaped = jax.vmap(self.unravel_params)(project_x)
+        x_reshaped = jax.vmap(self.unravel_solution)(project_x)
         return x_reshaped
 
     def reshape_single(self, x: chex.Array) -> chex.ArrayTree:
@@ -48,5 +48,5 @@ class RandomDecoder(Decoder):
         # 1. Project parameters to raw dimensionality using pre-sampled matrix
         project_x = (x_re @ self.project_matrix).squeeze()
         # 2. Reshape
-        x_reshaped = self.unravel_params(project_x)
+        x_reshaped = self.unravel_solution(project_x)
         return x_reshaped

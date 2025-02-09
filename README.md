@@ -16,15 +16,15 @@ from evosax import CMA_ES
 # Instantiate the search strategy
 key = jax.random.key(0)
 strategy = CMA_ES(population_size=20, num_dims=2, elite_ratio=0.5)
-es_params = strategy.default_params
-state = strategy.init(key, es_params)
+params = strategy.default_params
+state = strategy.init(key, params)
 
 # Run ask-eval-tell loop - NOTE: By default minimization!
 for t in range(num_generations):
     key, key_ask, key_eval = jax.random.split(key, 3)
-    x, state = strategy.ask(key_ask, state, es_params)
+    x, state = strategy.ask(key_ask, state, params)
     fitness = ...  # Your population evaluation fct 
-    state = strategy.tell(x, fitness, state, es_params)
+    state = strategy.tell(x, fitness, state, params)
 
 # Get best overall population member & its fitness
 state.best_member, state.best_fitness
@@ -109,13 +109,13 @@ In order to use JAX on your accelerators, you can find more details in the [JAX 
 - **Vectorization/Parallelization of `ask`/`tell` Calls**: Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap`. This enables vectorized/parallel rollouts of different evolution strategies.
 
 ```python
-from evosax.strategies.ars import ARS, EvoParams
+from evosax.strategies.ars import ARS, Params
 # E.g. vectorize over different initial perturbation stds
 strategy = ARS(population_size=100, num_dims=20)
-es_params = EvoParams(sigma_init=jnp.array([0.1, 0.01, 0.001]), sigma_decay=0.999, ...)
+params = Params(sigma_init=jnp.array([0.1, 0.01, 0.001]), sigma_decay=0.999, ...)
 
 # Specify how to map over ES hyperparameters 
-map_dict = EvoParams(sigma_init=0, sigma_decay=None, ...)
+map_dict = Params(sigma_init=0, sigma_decay=None, ...)
 
 # Vmap-composed batch init, ask and tell functions 
 batch_init = jax.vmap(strategy.init, in_axes=(None, map_dict))
@@ -163,7 +163,7 @@ fit_shaped = fit_shaper.apply(x, fitness)
 ```
 <details>
   <summary>Additonal Work-In-Progress</summary>
-    **Strategy Restart Wrappers**: *Work-in-progress*. You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change. Note that all strategies can also be executed without explicitly providing `es_params`. In this case the default parameters will be used.
+    **Strategy Restart Wrappers**: *Work-in-progress*. You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change. Note that all strategies can also be executed without explicitly providing `params`. In this case the default parameters will be used.
 
     ```python
     from evosax import CMA_ES

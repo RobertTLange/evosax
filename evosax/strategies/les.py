@@ -17,7 +17,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: chex.Array
     path_c: chex.Array
@@ -28,7 +28,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     net_params: chex.ArrayTree
     sigma_init: float = 0.1
     init_min: float = -5.0
@@ -47,7 +47,7 @@ class LES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         net_params: chex.ArrayTree | None = None,
         net_ckpt_path: str | None = None,
         sigma_init: float = 0.1,
@@ -56,7 +56,7 @@ class LES(Strategy):
     ):
         super().__init__(
             population_size,
-            pholder_params,
+            solution,
             mean_decay,
             **fitness_kwargs,
         )
@@ -85,11 +85,11 @@ class LES(Strategy):
             print(f"Loaded pretrained LES model from ckpt: {ckpt_fname}")
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(net_params=self.les_net_params, sigma_init=self.sigma_init)
+        return Params(net_params=self.les_net_params, sigma_init=self.sigma_init)
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         init_mean = jax.random.uniform(
             key,
@@ -100,7 +100,7 @@ class LES(Strategy):
         init_sigma = params.sigma_init * jnp.ones(self.num_dims)
         init_path_c = self.evopath.init()
         init_path_sigma = self.evopath.init()
-        return EvoState(
+        return State(
             mean=init_mean,
             sigma=init_sigma,
             path_c=init_path_c,
@@ -109,8 +109,8 @@ class LES(Strategy):
         )
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         noise = jax.random.normal(key, (self.population_size, self.num_dims))
         x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
@@ -121,9 +121,9 @@ class LES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         fit_re = self.fitness_features.apply(x, fitness, state.best_fitness)
         time_embed = tanh_timestamp(state.generation_counter)

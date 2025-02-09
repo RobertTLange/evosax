@@ -11,15 +11,14 @@ from .helpers import get_ravel_fn
 class ESLog:
     def __init__(
         self,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         num_generations: int = 200,
         top_k: int = 5,
         maximize: bool = False,
     ):
         """Simple jittable logging tool for ES rollouts."""
-        # Set total parameters depending on type of placeholder params
-        self.ravel_params, self.unravel_params = get_ravel_fn(pholder_params)
-        flat_params = self.ravel_params(pholder_params)
+        self.ravel_solution, self.unravel_solution = get_ravel_fn(solution)
+        flat_params = self.ravel_solution(solution)
         self.num_dims = flat_params.size
 
         self.num_generations = num_generations
@@ -65,7 +64,7 @@ class ESLog:
         """Update the logging storage with newest data."""
         # Check if there are solutions better than current archive
         vals = jnp.hstack([log["top_fitness"], fitness])
-        x = jax.vmap(self.ravel_params)(x)
+        x = jax.vmap(self.ravel_solution)(x)
         params = jnp.vstack([log["top_params"], x])
         top_idx = self.maximize * ((-1) * vals).argsort() + (
             (1 - self.maximize) * vals.argsort()

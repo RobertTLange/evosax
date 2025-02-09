@@ -11,7 +11,7 @@ from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: float
     opt_state: OptState
@@ -22,7 +22,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     opt_params: OptParams
     sigma_init: float = 0.03
     sigma_decay: float = 1.0
@@ -39,7 +39,7 @@ class GuidedES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         subspace_dims: int = 1,  # k param in example notebook
         opt_name: str = "sgd",
         lrate_init: float = 0.05,
@@ -57,7 +57,7 @@ class GuidedES(Strategy):
         """
         super().__init__(
             population_size,
-            pholder_params,
+            solution,
             mean_decay,
             **fitness_kwargs,
         )
@@ -75,7 +75,7 @@ class GuidedES(Strategy):
             )
         self.strategy_name = "GuidedES"
 
-        # Set core kwargs es_params (lrate/sigma schedules)
+        # Set core kwargs params (lrate/sigma schedules)
         self.lrate_init = lrate_init
         self.lrate_decay = lrate_decay
         self.lrate_limit = lrate_limit
@@ -84,11 +84,11 @@ class GuidedES(Strategy):
         self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(opt_params=self.optimizer.default_params)
+        return Params(opt_params=self.optimizer.default_params)
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         key_init, key_sub = jax.random.split(key)
         initialization = jax.random.uniform(
@@ -100,7 +100,7 @@ class GuidedES(Strategy):
 
         grad_subspace = jax.random.normal(key_sub, (self.subspace_dims, self.num_dims))
 
-        state = EvoState(
+        state = State(
             mean=initialization,
             sigma=params.sigma_init,
             opt_state=self.optimizer.init(params.opt_params),
@@ -110,8 +110,8 @@ class GuidedES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         a = state.sigma * jnp.sqrt(params.alpha / self.num_dims)
         c = state.sigma * jnp.sqrt((1.0 - params.alpha) / self.subspace_dims)
@@ -135,17 +135,17 @@ class GuidedES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams | None = None,
+        state: State,
+        params: Params | None = None,
         gradient: chex.Array | None = None,
-    ) -> EvoState:
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
 
         # Ravel params
-        x = jax.vmap(self.ravel_params)(x)
+        x = jax.vmap(self.ravel_solution)(x)
 
         # Perform fitness reshaping inside of strategy tell call (if desired)
         fitness_re = self.fitness_shaper.apply(x, fitness)

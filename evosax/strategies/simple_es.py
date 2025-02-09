@@ -7,7 +7,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: chex.Array
     weights: chex.Array  # Weights for population members
@@ -17,7 +17,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     c_sigma: float = 0.1  # Learning rate for population std
     c_m: float = 1.0  # Learning rate for population mean
     sigma_init: float = 1.0  # Standard deviation
@@ -31,7 +31,7 @@ class SimpleES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -41,23 +41,23 @@ class SimpleES(Strategy):
         Reference: https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
             1, int(self.population_size * self.elite_ratio)
         )
         self.strategy_name = "SimpleES"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         # Only parents have positive weight - equal weighting!
-        return EvoParams(sigma_init=self.sigma_init)
+        return Params(sigma_init=self.sigma_init)
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         weights = jnp.zeros(self.population_size)
         weights = weights.at[: self.elite_population_size].set(
@@ -70,7 +70,7 @@ class SimpleES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization,
             sigma=jnp.repeat(params.sigma_init, self.num_dims),
             weights=weights,
@@ -79,8 +79,8 @@ class SimpleES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         z = jax.random.normal(key, (self.population_size, self.num_dims))  # ~ N(0, I)
         x = state.mean + state.sigma * z  # ~ N(m, σ^2 I)
@@ -90,9 +90,9 @@ class SimpleES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])

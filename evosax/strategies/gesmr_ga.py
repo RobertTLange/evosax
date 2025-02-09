@@ -7,7 +7,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     key: jax.Array
     mean: chex.Array
     archive: chex.Array
@@ -19,7 +19,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     sigma_init: float = 0.07
     sigma_meta: float = 2.0
     init_min: float = 0.0
@@ -32,7 +32,7 @@ class GESMR_GA(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_ratio: float = 0.5,
         sigma_init: float = 0.07,
@@ -40,7 +40,7 @@ class GESMR_GA(Strategy):
         **fitness_kwargs: bool | int | float,
     ):
         """Group Elite Selection of Mutation Rates (GESMR) GA."""
-        super().__init__(population_size, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, solution, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
             1, int(self.population_size * self.elite_ratio)
@@ -54,16 +54,16 @@ class GESMR_GA(Strategy):
             1, int(self.num_sigma_groups * self.sigma_ratio)
         )
         self.strategy_name = "GESMR_GA"
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
         self.sigma_meta = sigma_meta
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
+        return Params(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
 
-    def init_strategy(self, key_state: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key_state: jax.Array, params: Params) -> State:
         """`init` the differential evolution strategy."""
         key_init, key_state = jax.random.split(key_state)
         initialization = jax.random.uniform(
@@ -72,7 +72,7 @@ class GESMR_GA(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             key=key_state,
             mean=initialization[0],
             archive=initialization,
@@ -83,8 +83,8 @@ class GESMR_GA(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         key_eps_x, key_eps_s, key_idx = jax.random.split(key, 3)
         # Sample noise for mutation of x and sigma
@@ -117,9 +117,9 @@ class GESMR_GA(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state."""
         # Select best x members
         idx = jnp.argsort(fitness)[: self.elite_population_size]

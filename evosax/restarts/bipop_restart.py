@@ -135,7 +135,7 @@ class BIPOP_Restarter(RestartWrapper):
         # Reinstantiate new ES with new population size
         self.base_strategy = Strategies[self.base_strategy.strategy_name](
             population_size=int(active_population_size),
-            pholder_params=self.base_strategy.pholder_params,
+            solution=self.base_strategy.solution,
             **self.strategy_kwargs,
         )
 

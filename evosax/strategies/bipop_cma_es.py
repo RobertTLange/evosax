@@ -23,7 +23,7 @@ class BIPOP_CMA_ES:
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array,
+        solution: chex.ArrayTree | chex.Array,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -37,7 +37,7 @@ class BIPOP_CMA_ES:
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
             population_size=population_size,
-            pholder_params=pholder_params,
+            solution=solution,
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
             mean_decay=mean_decay,
@@ -58,8 +58,8 @@ class BIPOP_CMA_ES:
     @property
     def default_params(self) -> WrapperParams:
         """Return default parameters of evolution strategy."""
-        re_params = self.wrapped_strategy.default_params
-        return re_params.replace(restart_params=RestartParams())
+        restart_params = self.wrapped_strategy.default_params
+        return restart_params.replace(restart_params=RestartParams())
 
     @partial(jax.jit, static_argnames=("self",))
     def init(self, key: jax.Array, params: WrapperParams | None = None) -> WrapperState:

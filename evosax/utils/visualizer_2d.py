@@ -307,17 +307,17 @@ if __name__ == "__main__":
     ]:
         key = jax.random.key(1)
         strategy = CMA_ES(population_size=4, num_dims=2)
-        es_params = strategy.default_params.replace(init_min=-2.5, init_max=2.5)
-        es_state = strategy.init(key, es_params)
+        params = strategy.default_params.replace(init_min=-2.5, init_max=2.5)
+        state = strategy.init(key, params)
 
         problem = BBOBProblem(fn_name, 2)
 
         X, fitness = [], []
         for g in range(50):
             key, key_ask, key_eval = jax.random.split(key, 3)
-            x, es_state = strategy.ask(key, es_state, es_params)
+            x, state = strategy.ask(key, state, params)
             fit = problem.eval(key_eval, x)
-            es_state = strategy.tell(x, fit, es_state, es_params)
+            state = strategy.tell(x, fit, state, params)
             X.append(x)
             fitness.append(fit)
 

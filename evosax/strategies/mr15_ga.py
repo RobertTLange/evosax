@@ -8,7 +8,7 @@ from .simple_ga import single_mate
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     archive: chex.Array
     fitness: chex.Array
@@ -19,7 +19,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     cross_over_rate: float = 0.0
     sigma_init: float = 0.07
     sigma_ratio: float = 0.15
@@ -33,7 +33,7 @@ class MR15_GA(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.0,
         sigma_ratio: float = 0.15,
         sigma_init: float = 0.1,
@@ -42,23 +42,23 @@ class MR15_GA(Strategy):
         """1/5 MR Genetic Algorithm (Rechenberg, 1987)
         Reference: https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
         """
-        super().__init__(population_size, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, solution, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
             1, int(self.population_size * self.elite_ratio)
         )
         self.strategy_name = "MR15_GA"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_ratio = sigma_ratio  # no. mutation that have to improve
         self.sigma_init = sigma_init
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(sigma_init=self.sigma_init, sigma_ratio=self.sigma_ratio)
+        return Params(sigma_init=self.sigma_init, sigma_ratio=self.sigma_ratio)
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -66,7 +66,7 @@ class MR15_GA(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization.mean(axis=0),
             archive=initialization,
             fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
@@ -76,8 +76,8 @@ class MR15_GA(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
           - Sample two current elite members (a & b)
@@ -109,9 +109,9 @@ class MR15_GA(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """

@@ -19,7 +19,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     key: jax.Array
     mean: chex.Array
     archive_age: chex.Array  # Parents: 'Age' counter
@@ -33,7 +33,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     net_params: chex.ArrayTree
     cross_over_rate: float = 0.0
     sigma_init: float = 1.0
@@ -53,7 +53,7 @@ class LGA(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 1.0,
         net_params: chex.ArrayTree | None = None,
         net_ckpt_path: str | None = None,
@@ -62,7 +62,7 @@ class LGA(Strategy):
     ):
         super().__init__(
             population_size,
-            pholder_params,
+            solution,
             **fitness_kwargs,
         )
         self.strategy_name = "LGA"
@@ -95,11 +95,11 @@ class LGA(Strategy):
             print(f"Loaded pretrained LGA model from ckpt: {ckpt_fname}")
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(net_params=self.lga_net_params, sigma_init=self.sigma_init)
+        return Params(net_params=self.lga_net_params, sigma_init=self.sigma_init)
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         init_x = jax.random.uniform(
             key,
@@ -109,7 +109,7 @@ class LGA(Strategy):
         )
         init_sigma = jnp.ones((self.elite_population_size, 1)) * params.sigma_init
 
-        return EvoState(
+        return State(
             key=key,
             mean=init_x[0],
             archive_x=init_x,
@@ -121,8 +121,8 @@ class LGA(Strategy):
         )
 
     def ask_strategy(
-        self, key_epsilon: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key_epsilon: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         key_idx, key_epsilon = jax.random.split(key_epsilon)
 
@@ -158,9 +158,9 @@ class LGA(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         fit_all = jnp.concatenate([fitness, state.archive_f])
         x_all = jnp.concatenate([x, state.archive_x])

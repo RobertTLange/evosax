@@ -11,7 +11,7 @@ from .utils.helpers import get_ravel_fn
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: float
     best_member: chex.Array
@@ -20,7 +20,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     sigma_init: float = 0.03
     sigma_decay: float = 0.999
     sigma_limit: float = 0.01
@@ -34,17 +34,16 @@ class Strategy:
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree,
+        solution: chex.ArrayTree,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
         """Base Class for an Evolution Strategy."""
         self.population_size = population_size
+        self.solution = solution
 
-        # Set total parameters depending on type of placeholder params
-        self.pholder_params = pholder_params
-        self.ravel_params, self.unravel_params = get_ravel_fn(pholder_params)
-        flat_params = self.ravel_params(pholder_params)
+        self.ravel_solution, self.unravel_solution = get_ravel_fn(solution)
+        flat_params = self.ravel_solution(solution)
         self.num_dims = flat_params.size
 
         # Mean exponential decay coefficient m' = coeff * m
@@ -56,7 +55,7 @@ class Strategy:
         self.fitness_shaper = FitnessShaper(**fitness_kwargs)
 
     @property
-    def default_params(self) -> EvoParams:
+    def default_params(self) -> Params:
         """Return default parameters of evolution strategy."""
         params = self.params_strategy
         return params
@@ -65,9 +64,9 @@ class Strategy:
     def init(
         self,
         key: jax.Array,
-        params: EvoParams | None = None,
+        params: Params | None = None,
         init_mean: chex.Array | chex.ArrayTree | None = None,
-    ) -> EvoState:
+    ) -> State:
         """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -84,9 +83,9 @@ class Strategy:
     def ask(
         self,
         key: jax.Array,
-        state: EvoState,
-        params: EvoParams | None = None,
-    ) -> tuple[chex.Array | chex.ArrayTree, EvoState]:
+        state: State,
+        params: Params | None = None,
+    ) -> tuple[chex.Array | chex.ArrayTree, State]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -98,7 +97,7 @@ class Strategy:
         x_clipped = jnp.clip(x, params.clip_min, params.clip_max)
 
         # Unravel params
-        x_out = jax.vmap(self.unravel_params)(x_clipped)
+        x_out = jax.vmap(self.unravel_solution)(x_clipped)
         return x_out, state
 
     @partial(jax.jit, static_argnames=("self",))
@@ -106,8 +105,8 @@ class Strategy:
         self,
         x: chex.Array | chex.ArrayTree,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams | None = None,
+        state: State,
+        params: Params | None = None,
     ) -> chex.ArrayTree:
         """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided
@@ -115,7 +114,7 @@ class Strategy:
             params = self.default_params
 
         # Ravel params
-        x = jax.vmap(self.ravel_params)(x)
+        x = jax.vmap(self.ravel_solution)(x)
 
         # Perform fitness reshaping inside of strategy tell call (if desired)
         fitness_re = self.fitness_shaper.apply(x, fitness)
@@ -138,13 +137,13 @@ class Strategy:
             generation_counter=state.generation_counter + 1,
         )
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """Strategy-specific `init` method. Returns initial state."""
         raise NotImplementedError
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """Search-specific `ask` request. Returns proposals & updated state."""
         raise NotImplementedError
 
@@ -152,20 +151,18 @@ class Strategy:
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """Search-specific `tell` update. Returns updated state."""
         raise NotImplementedError
 
-    def get_eval_params(self, state: EvoState):
+    def get_eval_params(self, state: State):
         """Return reshaped parameters to evaluate."""
-        x_out = self.unravel_params(state.mean)
+        x_out = self.unravel_solution(state.mean)
         return x_out
 
-    def set_mean(
-        self, state: EvoState, params: chex.Array | chex.ArrayTree
-    ) -> EvoState:
-        replace_mean = self.ravel_params(params)
+    def set_mean(self, state: State, params: chex.Array | chex.ArrayTree) -> State:
+        replace_mean = self.ravel_solution(params)
         state = state.replace(mean=replace_mean)
         return state

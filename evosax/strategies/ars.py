@@ -8,7 +8,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: float
     opt_state: OptState
@@ -18,7 +18,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     opt_params: OptParams
     sigma_init: float = 0.03
     sigma_decay: float = 0.999
@@ -33,7 +33,7 @@ class ARS(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.1,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
@@ -48,7 +48,7 @@ class ARS(Strategy):
         """Augmented Random Search (Mania et al., 2018)
         Reference: https://arxiv.org/pdf/1803.07055.pdf
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         assert not self.population_size & 1, "Population size must be even"
         # ARS performs antithetic sampling & allows you to select
         # "b" elite perturbation directions for the update
@@ -61,7 +61,7 @@ class ARS(Strategy):
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "ARS"
 
-        # Set core kwargs es_params (lrate/sigma schedules)
+        # Set core kwargs params (lrate/sigma schedules)
         self.lrate_init = lrate_init
         self.lrate_decay = lrate_decay
         self.lrate_limit = lrate_limit
@@ -70,21 +70,21 @@ class ARS(Strategy):
         self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         opt_params = self.optimizer.default_params.replace(
             lrate_init=self.lrate_init,
             lrate_decay=self.lrate_decay,
             lrate_limit=self.lrate_limit,
         )
-        return EvoParams(
+        return Params(
             opt_params=opt_params,
             sigma_init=self.sigma_init,
             sigma_decay=self.sigma_decay,
             sigma_limit=self.sigma_limit,
         )
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """Initialize the evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -93,7 +93,7 @@ class ARS(Strategy):
             maxval=params.init_max,
         )
 
-        state = EvoState(
+        state = State(
             mean=initialization,
             sigma=params.sigma_init,
             opt_state=self.optimizer.init(params.opt_params),
@@ -102,8 +102,8 @@ class ARS(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         # Antithetic sampling of noise
         z_plus = jax.random.normal(
@@ -118,9 +118,9 @@ class ARS(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
         noise = (x - state.mean) / state.sigma

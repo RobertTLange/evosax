@@ -8,7 +8,7 @@ from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     best_member: chex.Array
     best_fitness: float = jnp.finfo(jnp.float32).max
@@ -16,7 +16,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     radius_max: float = 0.2
     radius_min: float = 0.001
     radius_decay: float = 5
@@ -30,22 +30,22 @@ class GLD(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
         """Gradientless Descent (Golovin et al., 2019)
         Reference: https://arxiv.org/pdf/1911.06317.pdf
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         self.strategy_name = "GLD"
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams()
+        return Params()
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -53,15 +53,15 @@ class GLD(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization,
             best_member=initialization,
         )
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         # Sampling of N(0, 1) noise
         z = jax.random.normal(
@@ -81,9 +81,9 @@ class GLD(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state."""
         best_member, best_fitness = get_best_fitness_member(x, fitness, state, False)
         return state.replace(mean=best_member)

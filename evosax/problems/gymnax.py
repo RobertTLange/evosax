@@ -51,7 +51,7 @@ class GymnaxProblem:
         self.rollout_pop = jax.vmap(self.rollout_repeats, in_axes=(None, 0))
 
     def eval(self, key: jax.Array, policy_params: chex.ArrayTree):
-        """Placeholder fn call for rolling out a population for multi-evals."""
+        """Evaluate a population of policies."""
         keys = jax.random.split(key, self.num_rollouts)
         scores, masks = jax.jit(self.rollout_pop)(keys, policy_params)
         # Update total step counter using only transitions before termination

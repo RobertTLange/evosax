@@ -12,13 +12,13 @@ def test_mlp_forward():
         hidden_activation="relu",
         output_activation="identity",
     )
-    pholder = jnp.zeros((4,))
+    solution = jnp.zeros((4,))
     params = network.init(
         key,
-        x=pholder,
+        x=solution,
         key=key,
     )
-    out = jax.jit(network.apply)(params, pholder, key)
+    out = jax.jit(network.apply)(params, solution, key)
     assert out.shape == (1,)
 
 
@@ -29,15 +29,15 @@ def test_mlp_forward():
 #         num_output_units=1,
 #         output_activation="identity",
 #     )
-#     pholder = jnp.zeros((4,))
+#     solution = jnp.zeros((4,))
 #     carry_init = network.init_carry()
 #     params = network.init(
 #         key,
-#         x=pholder,
+#         x=solution,
 #         carry=carry_init,
 #         key=key,
 #     )
-#     _, out = jax.jit(network.apply)(params, pholder, carry_init, key)
+#     _, out = jax.jit(network.apply)(params, solution, carry_init, key)
 #     assert out.shape == (1,)
 
 
@@ -56,13 +56,13 @@ def test_cnn_forward():
         num_hidden_units=16,
         num_output_units=10,
     )
-    pholder = jnp.zeros((1, 28, 28, 1))
+    solution = jnp.zeros((1, 28, 28, 1))
     params = network.init(
         key,
-        x=pholder,
+        x=solution,
         key=key,
     )
-    out = jax.jit(network.apply)(params, pholder, key)
+    out = jax.jit(network.apply)(params, solution, key)
     assert out.shape == (1, 10)
 
 
@@ -80,11 +80,11 @@ def test_all_cnn_forward():
         final_window=(28, 28),
         num_output_units=10,
     )
-    pholder = jnp.zeros((1, 28, 28, 1))
+    solution = jnp.zeros((1, 28, 28, 1))
     params = network.init(
         key,
-        x=pholder,
+        x=solution,
         key=key,
     )
-    out = jax.jit(network.apply)(params, pholder, key)
+    out = jax.jit(network.apply)(params, solution, key)
     assert out.shape == (1, 10)

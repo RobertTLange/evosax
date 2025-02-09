@@ -12,46 +12,37 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
     def __init__(
         self,
         evosax_strategy: Strategy,
-        param_size: int,
-        pop_size: int,
-        es_config: dict = {},
-        es_params: dict = {},
-        opt_params: dict = {},
-        seed: int = 42,
+        params: dict = {},
+        seed: int = 0,
     ):
-        self.es = evosax_strategy(
-            population_size=pop_size, num_dims=param_size, **es_config, **opt_params
-        )
-        self.es_params = self.es.default_params.replace(**es_params)
-        self.pop_size = pop_size
-        self.param_size = param_size
-        self.rand_key = jax.random.key(seed=seed)
-        self.rand_key, init_key = jax.random.split(self.rand_key)
-        self.es_state = self.es.init(init_key, self.es_params)
+        self.es = evosax_strategy
+        self.params = self.es.default_params.replace(**params)
+
+        self.key = jax.random.key(seed)
+        self.key, key_init = jax.random.split(self.key)
+        self.state = self.es.init(key_init, self.params)
 
     def ask(self) -> chex.Array:
         """Ask strategy for next set of solution candidates to evaluate."""
-        self.rand_key, ask_key = jax.random.split(self.rand_key)
-        self.params, self.es_state = self.es.ask(ask_key, self.es_state, self.es_params)
-        return self.params
+        self.key, key_ask = jax.random.split(self.key)
+        self.population, self.state = self.es.ask(key_ask, self.state, self.params)
+        return self.population
 
     def tell(self, fitness: chex.Array) -> None:
         """Tell strategy about most recent fitness evaluations."""
-        self.es_state = self.es.tell(
-            self.params, fitness, self.es_state, self.es_params
-        )
+        self.state = self.es.tell(self.population, fitness, self.state, self.params)
 
     @property
-    def best_params(self) -> chex.Array:
+    def best_solution(self) -> chex.Array:
         """Return set of mean/best parameters."""
-        return jnp.array(self.es_state.mean, copy=True)
+        return self.state.mean
 
-    @best_params.setter
-    def best_params(self, params: chex.Array) -> None:
+    @best_solution.setter
+    def best_solution(self, best_solution: chex.Array) -> None:
         """Update the best parameters stored internally."""
-        self.es_state = self.es_state.replace(mean=jnp.array(params, copy=True))
+        self.state = self.state.replace(mean=jnp.array(best_solution))
 
     @property
     def solution(self):
         """Get evaluation parameters for current ES state."""
-        return self.es.get_eval_params(self.es_state)
+        return self.es.get_eval_params(self.state)

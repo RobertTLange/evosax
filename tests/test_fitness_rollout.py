@@ -12,7 +12,7 @@ def test_bbob_eval(classic_name: str):
     key = jax.random.key(0)
     problem = BBOBProblem(classic_name, num_dims=2)
     x = problem.sample_x(key)
-    strategy = CMA_ES(population_size=20, pholder_params=x, elite_ratio=0.5)
+    strategy = CMA_ES(population_size=20, solution=x, elite_ratio=0.5)
     params = strategy.default_params
     state = strategy.init(key, params)
 
@@ -33,15 +33,15 @@ def test_env_ffw_eval(env_name: str):
         hidden_activation="relu",
         output_activation="categorical",
     )
-    pholder = jnp.zeros((1, problem.input_shape[0]))
+    solution = jnp.zeros((1, problem.input_shape[0]))
     net_params = network.init(
         key,
-        x=pholder,
+        x=solution,
         key=key,
     )
     problem.set_apply_fn(network.apply)
 
-    strategy = ARS(population_size=20, pholder_params=net_params, elite_ratio=0.5)
+    strategy = ARS(population_size=20, solution=net_params, elite_ratio=0.5)
     state = strategy.init(key)
     # Run the ask-eval-tell loop
     key_ask, key_eval = jax.random.split(key)
@@ -68,16 +68,16 @@ def test_vision_fitness():
         num_output_units=10,
     )
     # Channel last configuration for conv!
-    pholder = jnp.zeros((1, 28, 28, 1))
+    solution = jnp.zeros((1, 28, 28, 1))
     net_params = network.init(
         key,
-        x=pholder,
+        x=solution,
         key=key,
     )
 
     problem.set_apply_fn(network.apply)
 
-    strategy = ARS(population_size=4, pholder_params=net_params, elite_ratio=0.5)
+    strategy = ARS(population_size=4, solution=net_params, elite_ratio=0.5)
     state = strategy.init(key)
 
     # Run the ask-eval-tell loop

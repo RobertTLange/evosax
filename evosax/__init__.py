@@ -42,7 +42,7 @@ from .strategies import (
     SV_OpenES,
     xNES,
 )
-from .strategy import EvoParams, EvoState, Strategy
+from .strategy import Params, State, Strategy
 from .utils import ESLog
 
 Strategies = {
@@ -89,8 +89,8 @@ Strategies = {
 
 __all__ = [
     "Strategies",
-    "EvoState",
-    "EvoParams",
+    "State",
+    "Params",
     "FitnessShaper",
     "ESLog",
     "NetworkMapper",

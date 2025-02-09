@@ -8,7 +8,7 @@ from .cma_es import get_cma_elite_weights
 
 
 @struct.dataclass
-class EvoState:
+class State:
     p_sigma: chex.Array
     M: chex.Array
     mean: chex.Array
@@ -22,7 +22,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     mu_eff: float
     c_1: float
     c_mu: float
@@ -42,7 +42,7 @@ class LM_MA_ES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
         sigma_init: float = 1.0,
@@ -52,7 +52,7 @@ class LM_MA_ES(Strategy):
         """Limited Memory MA-ES (Loshchilov et al., 2017)
         Reference: https://arxiv.org/pdf/1705.06693.pdf
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
@@ -61,14 +61,14 @@ class LM_MA_ES(Strategy):
         self.memory_size = memory_size
         self.strategy_name = "LM_MA_ES"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
 
         # Robustness for int32 - squaring in hyperparameter calculations
         self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         _, weights_truncated, mu_eff, c_1, c_mu = get_cma_elite_weights(
             self.population_size,
@@ -88,7 +88,7 @@ class LM_MA_ES(Strategy):
             1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
         )
         mu_w = 1 / jnp.sum(weights_truncated**2)
-        params = EvoParams(
+        params = Params(
             mu_eff=mu_eff,
             c_1=c_1,
             c_mu=c_mu,
@@ -100,7 +100,7 @@ class LM_MA_ES(Strategy):
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         _, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.population_size,
@@ -124,7 +124,7 @@ class LM_MA_ES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             p_sigma=jnp.zeros(self.num_dims),
             sigma=params.sigma_init,
             mean=initialization,
@@ -137,8 +137,8 @@ class LM_MA_ES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             key,
@@ -158,7 +158,7 @@ class LM_MA_ES(Strategy):
         fitness: chex.Array,
         state: chex.ArrayTree,
         params: chex.ArrayTree,
-    ) -> EvoState:
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])

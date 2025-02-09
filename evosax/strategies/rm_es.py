@@ -7,7 +7,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     p_sigma: chex.Array
     mean: chex.Array
     sigma: float
@@ -22,7 +22,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     c_cov: float
     c_c: float
     c_sigma: float
@@ -61,7 +61,7 @@ class RmES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         memory_size: int = 10,
         sigma_init: float = 1.0,
@@ -71,7 +71,7 @@ class RmES(Strategy):
         """Rank-m ES (Li & Zhang, 2017)
         Reference: https://ieeexplore.ieee.org/document/8080257
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
@@ -80,17 +80,17 @@ class RmES(Strategy):
         self.memory_size = memory_size  # number of ranks
         self.strategy_name = "RmES"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         weights = get_elite_weights(self.elite_population_size)
         mu_eff = 1 / jnp.sum(weights**2)
         c_cov = 1 / (3 * jnp.sqrt(self.num_dims) + 5)
         c_c = 2 / (self.num_dims + 7)
-        params = EvoParams(
+        params = Params(
             c_cov=c_cov,
             c_c=c_c,
             c_sigma=jnp.minimum(2 / (self.num_dims + 7), 0.05),
@@ -99,7 +99,7 @@ class RmES(Strategy):
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         weights = get_elite_weights(self.elite_population_size)
         # Initialize evolution paths & covariance matrix
@@ -109,7 +109,7 @@ class RmES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             p_sigma=jnp.zeros(self.num_dims),
             sigma=params.sigma_init,
             mean=initialization,
@@ -124,8 +124,8 @@ class RmES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             key,
@@ -143,9 +143,9 @@ class RmES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])

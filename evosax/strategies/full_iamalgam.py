@@ -8,7 +8,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     mean_shift: chex.Array
     C: chex.Array
@@ -21,7 +21,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     eta_sigma: float
     eta_shift: float
     eta_avs_inc: float = 1.0 / 0.9
@@ -43,7 +43,7 @@ class Full_iAMaLGaM(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.35,
         sigma_init: float = 0.0,
         sigma_decay: float = 0.99,
@@ -54,7 +54,7 @@ class Full_iAMaLGaM(Strategy):
         """(Iterative) AMaLGaM (Bosman et al., 2013) - Full Covariance
         Reference: https://tinyurl.com/y9fcccx2
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         assert 0 <= elite_ratio <= 1
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
@@ -69,13 +69,13 @@ class Full_iAMaLGaM(Strategy):
         self.ams_population_size = int(alpha_ams * (self.population_size - 1))
         self.strategy_name = "Full_iAMaLGaM"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
         self.sigma_decay = sigma_decay
         self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         a_0_sigma, a_1_sigma, a_2_sigma = -1.1, 1.2, 1.6
         a_0_shift, a_1_shift, a_2_shift = -1.2, 0.31, 0.5
@@ -90,7 +90,7 @@ class Full_iAMaLGaM(Strategy):
             / (self.num_dims**a_2_shift)
         )
 
-        return EvoParams(
+        return Params(
             eta_sigma=eta_sigma,
             eta_shift=eta_shift,
             sigma_init=self.sigma_init,
@@ -98,7 +98,7 @@ class Full_iAMaLGaM(Strategy):
             sigma_limit=self.sigma_limit,
         )
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         # Initialize evolution paths & covariance matrix
         initialization = jax.random.uniform(
@@ -107,7 +107,7 @@ class Full_iAMaLGaM(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization,
             mean_shift=jnp.zeros(self.num_dims),
             C=jnp.eye(self.num_dims),
@@ -119,8 +119,8 @@ class Full_iAMaLGaM(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         key_sample, key_ams = jax.random.split(key)
         x = sample(key_sample, state.mean, state.C, state.sigma, self.population_size)
@@ -138,9 +138,9 @@ class Full_iAMaLGaM(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite
         idx = jnp.argsort(fitness)[0 : self.elite_population_size]

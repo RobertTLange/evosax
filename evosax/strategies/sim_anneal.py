@@ -7,7 +7,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: float
     temp: float
@@ -18,7 +18,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     temp_init: float = 1.0
     temp_limit: float = 0.1
     temp_decay: float = 0.999
@@ -36,7 +36,7 @@ class SimAnneal(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         sigma_init: float = 0.03,
         sigma_decay: float = 1.0,
         sigma_limit: float = 0.01,
@@ -45,24 +45,24 @@ class SimAnneal(Strategy):
         """Simulated Annealing (Rasdi Rere et al., 2015)
         Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
         """
-        super().__init__(population_size, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, solution, **fitness_kwargs)
         self.strategy_name = "SimAnneal"
 
-        # Set core kwargs es_params (lrate/sigma schedules)
+        # Set core kwargs params (lrate/sigma schedules)
         self.sigma_init = sigma_init
         self.sigma_decay = sigma_decay
         self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(
+        return Params(
             sigma_init=self.sigma_init,
             sigma_decay=self.sigma_decay,
             sigma_limit=self.sigma_limit,
         )
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         key_init, key_acceptance = jax.random.split(key)
         initialization = jax.random.uniform(
@@ -71,7 +71,7 @@ class SimAnneal(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization,
             sigma=params.sigma_init,
             temp=params.temp_init,
@@ -81,8 +81,8 @@ class SimAnneal(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         key_noise, key_acceptance = jax.random.split(key)
         # Sampling of N(0, 1) noise
@@ -97,9 +97,9 @@ class SimAnneal(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state."""
         best_in_gen = jnp.argmin(fitness)
         gen_fitness, gen_member = fitness[best_in_gen], x[best_in_gen]

@@ -8,7 +8,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: chex.Array
     weights: chex.Array  # Weights for population members
@@ -18,7 +18,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     temperature: float = 12.5  # Temperature for softmax weights
     lrate_sigma: float = 0.1  # Learning rate for population std
     lrate_mean: float = 1.0  # Learning rate for population mean
@@ -43,24 +43,24 @@ class DES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         temperature: float = 12.5,
         sigma_init: float = 0.1,
         mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
         """Discovered Evolution Strategy (Lange et al., 2023)"""
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         self.strategy_name = "DES"
         self.temperature = temperature
         self.sigma_init = sigma_init
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(temperature=self.temperature, sigma_init=self.sigma_init)
+        return Params(temperature=self.temperature, sigma_init=self.sigma_init)
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         # Get DES discovered recombination weights.
         weights = get_des_weights(self.population_size, params.temperature)
@@ -70,7 +70,7 @@ class DES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization,
             sigma=params.sigma_init * jnp.ones(self.num_dims),
             weights=weights,
@@ -79,8 +79,8 @@ class DES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         z = jax.random.normal(key, (self.population_size, self.num_dims))  # ~ N(0, I)
         x = state.mean + z * state.sigma.reshape(1, self.num_dims)  # ~ N(m, σ^2 I)
@@ -90,9 +90,9 @@ class DES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state."""
         weights = state.weights
         x = x[fitness.argsort()]

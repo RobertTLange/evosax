@@ -8,7 +8,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     archive: chex.Array
     fitness: chex.Array
@@ -19,7 +19,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     cross_over_rate: float = 0.0
     sigma_init: float = 0.07
     sigma_decay: float = 1.0
@@ -34,7 +34,7 @@ class SimpleGA(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 0.1,
         sigma_decay: float = 1.0,
@@ -45,28 +45,28 @@ class SimpleGA(Strategy):
         Reference: https://arxiv.org/abs/1712.06567
         Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
         """
-        super().__init__(population_size, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, solution, **fitness_kwargs)
         self.elite_ratio = elite_ratio
         self.elite_population_size = max(
             1, int(self.population_size * self.elite_ratio)
         )
         self.strategy_name = "SimpleGA"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
         self.sigma_decay = sigma_decay
         self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(
+        return Params(
             sigma_init=self.sigma_init,
             sigma_decay=self.sigma_decay,
             sigma_limit=self.sigma_limit,
         )
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the differential evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -74,7 +74,7 @@ class SimpleGA(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization.mean(axis=0),
             archive=initialization,
             fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
@@ -84,8 +84,8 @@ class SimpleGA(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next.
         1. For each member of elite:
           - Sample two current elite members (a & b)
@@ -117,9 +117,9 @@ class SimpleGA(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state.
         If fitness of y <= fitness of x -> replace in population.
         """

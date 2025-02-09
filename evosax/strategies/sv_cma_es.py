@@ -5,7 +5,7 @@ from flax.struct import dataclass
 
 from evosax.strategies.cma_es import (
     CMA_ES,
-    EvoParams,
+    Params,
     get_cma_elite_weights,
     sample,
     update_covariance,
@@ -18,7 +18,7 @@ from evosax.utils.kernel import RBF, Kernel
 
 
 @dataclass
-class EvoState:
+class State:
     p_sigma: Array
     p_c: Array
     C: Array
@@ -41,7 +41,7 @@ class SV_CMA_ES(CMA_ES):
         npop: int,
         subpopulation_size: int,
         kernel: type[Kernel] = RBF,
-        pholder_params: ArrayTree | Array | None = None,
+        solution: ArrayTree | Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -55,7 +55,7 @@ class SV_CMA_ES(CMA_ES):
         population_size = int(npop * subpopulation_size)
         super().__init__(
             population_size,
-            pholder_params,
+            solution,
             elite_ratio,
             sigma_init,
             mean_decay,
@@ -67,7 +67,7 @@ class SV_CMA_ES(CMA_ES):
         self.strategy_name = "SV_CMA_ES"
         self.kernel = kernel()
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         weights, weights_truncated, _, _, _ = get_cma_elite_weights(
             self.subpopulation_size,
@@ -83,7 +83,7 @@ class SV_CMA_ES(CMA_ES):
             maxval=params.init_max,
         )
 
-        state = EvoState(
+        state = State(
             p_sigma=jnp.zeros((self.npop, self.num_dims)),
             p_c=jnp.zeros((self.npop, self.num_dims)),
             sigma=jnp.ones(self.npop) * params.sigma_init,
@@ -98,8 +98,8 @@ class SV_CMA_ES(CMA_ES):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> [Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> [Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         Cs, Bs, Ds = jax.vmap(full_eigen_decomp)(state.C, state.B, state.D)
         keys = jax.random.split(key, num=self.npop)
@@ -122,9 +122,9 @@ class SV_CMA_ES(CMA_ES):
         self,
         x: Array,
         fitness: Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         x = x.reshape(self.npop, self.subpopulation_size, self.num_dims)
         fitness = fitness.reshape(self.npop, self.subpopulation_size)

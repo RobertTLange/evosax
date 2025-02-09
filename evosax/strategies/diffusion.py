@@ -8,7 +8,7 @@ from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: chex.Array
     archive: chex.Array
@@ -22,7 +22,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     sigma_init: float = 1.0
     init_scale: float = 1.0
     fitness_map_temp: float = 1.0
@@ -39,7 +39,7 @@ class DiffusionEvolution(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         num_generations: int = 100,
         fitness_mapping: str = "energy",
         alpha_schedule: str = "cosine",
@@ -52,7 +52,7 @@ class DiffusionEvolution(Strategy):
         """Diffusion Evolution (Zhang et al., 2024)
         Reference: https://arxiv.org/pdf/2410.02543
         """
-        super().__init__(population_size, pholder_params, **fitness_kwargs)
+        super().__init__(population_size, solution, **fitness_kwargs)
         self.strategy_name = "DiffusionEvolution"
         self.sigma_init = sigma_init
         self.scale_factor = scale_factor
@@ -75,15 +75,15 @@ class DiffusionEvolution(Strategy):
             self.fitness_map = fitness_mapping_dict[fitness_mapping]
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
-        return EvoParams(
+        return Params(
             sigma_init=self.sigma_init,
             scale_factor=self.scale_factor,
             init_scale=self.init_scale,
         )
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         key_init, key_latent = jax.random.split(key)
 
@@ -104,7 +104,7 @@ class DiffusionEvolution(Strategy):
         else:
             latent_projection = jnp.eye(self.num_dims)
 
-        state = EvoState(
+        state = State(
             mean=initialization.mean(axis=0),
             sigma=params.sigma_init,
             x0_est=initialization,
@@ -117,8 +117,8 @@ class DiffusionEvolution(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         alpha_t = state.alphas[state.generation_counter - 1]
         alpha_pt = state.alphas_past[state.generation_counter - 1]
@@ -142,9 +142,9 @@ class DiffusionEvolution(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state."""
         # map fitness to density (integrates to 1)
         # note -> by default reference implementation maximizes!

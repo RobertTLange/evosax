@@ -8,7 +8,7 @@ from ..strategy import Strategy
 
 
 @struct.dataclass
-class EvoState:
+class State:
     mean: chex.Array
     sigma: float
     pert_accum: chex.Array  # History of accum. noise perturb in partial unroll
@@ -20,7 +20,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     opt_params: OptParams
     T: int = 100  # Total inner problem length
     K: int = 10  # Truncation length for partial unrolls
@@ -37,7 +37,7 @@ class PersistentES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
@@ -52,13 +52,13 @@ class PersistentES(Strategy):
         Reference: http://proceedings.mlr.press/v139/vicol21a.html
         Inspired by: http://proceedings.mlr.press/v139/vicol21a/vicol21a-supp.pdf
         """
-        super().__init__(population_size, pholder_params, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
         assert not self.population_size & 1, "Population size must be even"
         assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.strategy_name = "PersistentES"
 
-        # Set core kwargs es_params (lrate/sigma schedules)
+        # Set core kwargs params (lrate/sigma schedules)
         self.lrate_init = lrate_init
         self.lrate_decay = lrate_decay
         self.lrate_limit = lrate_limit
@@ -67,21 +67,21 @@ class PersistentES(Strategy):
         self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         opt_params = self.optimizer.default_params.replace(
             lrate_init=self.lrate_init,
             lrate_decay=self.lrate_decay,
             lrate_limit=self.lrate_limit,
         )
-        return EvoParams(
+        return Params(
             opt_params=opt_params,
             sigma_init=self.sigma_init,
             sigma_decay=self.sigma_decay,
             sigma_limit=self.sigma_limit,
         )
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> chex.ArrayTree:
+    def init_strategy(self, key: jax.Array, params: Params) -> chex.ArrayTree:
         """`init` the evolution strategy."""
         initialization = jax.random.uniform(
             key,
@@ -89,7 +89,7 @@ class PersistentES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             mean=initialization,
             pert_accum=jnp.zeros((self.population_size, self.num_dims)),
             opt_state=self.optimizer.init(params.opt_params),
@@ -100,8 +100,8 @@ class PersistentES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new proposed candidates to evaluate next."""
         # Generate antithetic perturbations
         pos_perts = (
@@ -119,9 +119,9 @@ class PersistentES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` update to ES state."""
         theta_grad = jnp.mean(
             state.pert_accum * fitness.reshape(-1, 1) / (state.sigma**2),

@@ -18,11 +18,9 @@ def test_strategy_run(strategy_name):
     # PBT also returns copy ID integer - treat separately
     population_size = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
-        strategy = Strategy(
-            npop=1, subpopulation_size=population_size, pholder_params=x
-        )
+        strategy = Strategy(npop=1, subpopulation_size=population_size, solution=x)
     else:
-        strategy = Strategy(population_size=population_size, pholder_params=x)
+        strategy = Strategy(population_size=population_size, solution=x)
     problem = BBOBProblem("sphere", 2)
     fitness_shaper = FitnessShaper()
 
@@ -52,27 +50,25 @@ def test_strategy_scan(strategy_name):
     # PBT also returns copy ID integer - treat separately
     population_size = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
-        strategy = Strategy(
-            npop=1, subpopulation_size=population_size, pholder_params=x
-        )
+        strategy = Strategy(npop=1, subpopulation_size=population_size, solution=x)
     elif strategy_name in ["BIPOP_CMA_ES", "IPOP_CMA_ES"]:
         return
     else:
-        strategy = Strategy(population_size=population_size, pholder_params=x)
+        strategy = Strategy(population_size=population_size, solution=x)
     problem = BBOBProblem("sphere", 2)
     fitness_shaper = FitnessShaper()
 
-    es_params = strategy.default_params
-    state = strategy.init(key, es_params)
+    params = strategy.default_params
+    state = strategy.init(key, params)
 
     def step(carry, _):
         """Helper function to lax.scan."""
         key, state = carry
         key, key_ask, key_eval = jax.random.split(key, 3)
-        x, state = strategy.ask(key_ask, state, es_params)
+        x, state = strategy.ask(key_ask, state, params)
         fitness = problem.eval(key_eval, x)
         fitness_shaped = fitness_shaper.apply(x, fitness)
-        state = strategy.tell(x, fitness_shaped, state, es_params)
+        state = strategy.tell(x, fitness_shaped, state, params)
         return (key, state), jnp.min(fitness)
 
     _, best_fitness = jax.lax.scan(

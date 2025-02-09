@@ -8,7 +8,7 @@ from ..utils.eigen_decomp import diag_eigen_decomp
 
 
 @struct.dataclass
-class EvoState:
+class State:
     p_sigma: chex.Array
     p_c: chex.Array
     C: chex.Array
@@ -24,7 +24,7 @@ class EvoState:
 
 
 @struct.dataclass
-class EvoParams:
+class Params:
     mu_eff: float
     c_1: float
     c_mu: float
@@ -62,7 +62,7 @@ class Sep_CMA_ES(Strategy):
     def __init__(
         self,
         population_size: int,
-        pholder_params: chex.ArrayTree | chex.Array | None = None,
+        solution: chex.ArrayTree | chex.Array | None = None,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
         mean_decay: float = 0.0,
@@ -74,7 +74,7 @@ class Sep_CMA_ES(Strategy):
         """
         super().__init__(
             population_size,
-            pholder_params,
+            solution,
             mean_decay,
             **fitness_kwargs,
         )
@@ -85,14 +85,14 @@ class Sep_CMA_ES(Strategy):
         )
         self.strategy_name = "Sep_CMA_ES"
 
-        # Set core kwargs es_params
+        # Set core kwargs params
         self.sigma_init = sigma_init
 
         # Robustness for int32 - squaring in hyperparameter calculations
         self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
 
     @property
-    def params_strategy(self) -> EvoParams:
+    def params_strategy(self) -> Params:
         """Return default parameters of evolution strategy."""
         # Temporarily create elite weights for rest of parameters
         weights, _ = get_cma_elite_weights(
@@ -119,7 +119,7 @@ class Sep_CMA_ES(Strategy):
         chi_n = jnp.sqrt(self.num_dims) * (
             1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
         )
-        params = EvoParams(
+        params = Params(
             mu_eff=mu_eff,
             c_1=c_1,
             c_mu=c_mu,
@@ -131,7 +131,7 @@ class Sep_CMA_ES(Strategy):
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: EvoParams) -> EvoState:
+    def init_strategy(self, key: jax.Array, params: Params) -> State:
         """`init` the evolution strategy."""
         # Population weightings - store in state
         weights, weights_truncated = get_cma_elite_weights(
@@ -144,7 +144,7 @@ class Sep_CMA_ES(Strategy):
             minval=params.init_min,
             maxval=params.init_max,
         )
-        state = EvoState(
+        state = State(
             p_sigma=jnp.zeros(self.num_dims),
             p_c=jnp.zeros(self.num_dims),
             sigma_scale=params.sigma_init,
@@ -159,8 +159,8 @@ class Sep_CMA_ES(Strategy):
         return state
 
     def ask_strategy(
-        self, key: jax.Array, state: EvoState, params: EvoParams
-    ) -> tuple[chex.Array, EvoState]:
+        self, key: jax.Array, state: State, params: Params
+    ) -> tuple[chex.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         x = sample(
             key,
@@ -176,9 +176,9 @@ class Sep_CMA_ES(Strategy):
         self,
         x: chex.Array,
         fitness: chex.Array,
-        state: EvoState,
-        params: EvoParams,
-    ) -> EvoState:
+        state: State,
+        params: Params,
+    ) -> State:
         """`tell` performance data for strategy state update."""
         # Sort new results, extract elite, store best performer
         concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])

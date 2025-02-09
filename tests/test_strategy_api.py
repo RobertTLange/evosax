@@ -13,11 +13,11 @@ def test_strategy_ask(strategy_name):
     population_size = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
         strategy = Strategies[strategy_name](
-            npop=1, subpopulation_size=population_size, pholder_params=x
+            npop=1, subpopulation_size=population_size, solution=x
         )
     else:
         strategy = Strategies[strategy_name](
-            population_size=population_size, pholder_params=x
+            population_size=population_size, solution=x
         )
     params = strategy.default_params
     state = strategy.init(key, params)
@@ -36,11 +36,11 @@ def test_strategy_ask_tell(strategy_name):
     population_size = 21 if strategy_name == "ESMC" else 20
     if strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
         strategy = Strategies[strategy_name](
-            npop=1, subpopulation_size=population_size, pholder_params=x
+            npop=1, subpopulation_size=population_size, solution=x
         )
     else:
         strategy = Strategies[strategy_name](
-            population_size=population_size, pholder_params=x
+            population_size=population_size, solution=x
         )
     params = strategy.default_params
     state = strategy.init(key, params)
