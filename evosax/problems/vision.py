@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 
-from ..types import ArrayTree
+from ..types import PyTree
 
 
 class VisionProblem:
@@ -26,14 +26,14 @@ class VisionProblem:
         self.eval_pop = jax.vmap(self.eval_ffw, in_axes=(None, 0))
         self.eval = jax.jit(self.eval_vmap)
 
-    def eval_vmap(self, key: jax.Array, network_params: ArrayTree):
+    def eval_vmap(self, key: jax.Array, network_params: PyTree):
         """Vectorize evaluation. Reshape output correctly."""
         loss, acc = self.eval_pop(key, network_params)
         loss_re = loss.reshape(-1, 1)
         acc_re = acc.reshape(-1, 1)
         return loss_re, acc_re
 
-    def eval_ffw(self, key: jax.Array, network_params: ArrayTree) -> ArrayTree:
+    def eval_ffw(self, key: jax.Array, network_params: PyTree) -> PyTree:
         """Evaluate a network on a supervised learning task."""
         key_sample, key_network = jax.random.split(key)
         X, y = self.dataloader.sample(key_sample)

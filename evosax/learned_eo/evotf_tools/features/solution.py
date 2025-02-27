@@ -5,13 +5,13 @@ import jax.numpy as jnp
 from flax import struct
 
 from evosax.core.fitness import range_norm_trafo
-from evosax.utils.helpers import get_best_fitness_member
+from evosax.strategy import update_best_solution_and_fitness
 
 
 @struct.dataclass
 class SolutionFeaturesState:
     best_fitness: float
-    best_member: jax.Array
+    best_solution: jax.Array
     generation_counter: int
 
 
@@ -43,9 +43,9 @@ class SolutionFeaturizer:
                 f"Solution Features / Batch shape: {self.num_features} / {self.example_batch_shape}"
             )
             print("[BASE] Diff mean -> (x - mu)")
-            print(f"[{self.norm_diff_mean}] Norm difference mean -> (x - mu)/ sigma")
+            print(f"[{self.norm_diff_mean}] Norm difference mean -> (x - mu)/ std")
             print(
-                f"[{self.norm_diff_mean_sq}] Norm difference to mean squared -> [(x - mu)/ sigma]^2"
+                f"[{self.norm_diff_mean_sq}] Norm difference to mean squared -> [(x - mu)/ std]^2"
             )
             print(f"[{self.diff_best}] Difference to best -> (x - x_best)")
             print(
@@ -55,46 +55,52 @@ class SolutionFeaturizer:
     @functools.partial(jax.jit, static_argnames=("self",))
     def init(self):
         return SolutionFeaturesState(
-            best_fitness=jnp.finfo(jnp.float32).max,
-            best_member=jnp.zeros((self.num_dims,)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
             generation_counter=0,
         )
 
     @functools.partial(jax.jit, static_argnames=("self",))
     def featurize(
         self,
-        x: jax.Array,
+        population: jax.Array,
         fitness: jax.Array,
         mean: jax.Array,
-        sigma: jax.Array,
+        std: jax.Array,
         state: SolutionFeaturesState,
     ) -> jax.Array:
-        diff_mean = x - mean
-        sol_out = jnp.expand_dims(x, axis=-1)
+        diff_mean = population - mean
+        sol_out = jnp.expand_dims(population, axis=-1)
 
         if self.norm_diff_mean:
-            norm_diff_mean = jnp.expand_dims(diff_mean / sigma, axis=-1)
+            norm_diff_mean = jnp.expand_dims(diff_mean / std, axis=-1)
             sol_out = jnp.concatenate([sol_out, norm_diff_mean], axis=-1)
 
         if self.norm_diff_mean_sq:
-            norm_diff_mean_sq = jnp.expand_dims(jnp.square(diff_mean / sigma), axis=-1)
+            norm_diff_mean_sq = jnp.expand_dims(jnp.square(diff_mean / std), axis=-1)
             sol_out = jnp.concatenate([sol_out, norm_diff_mean_sq], axis=-1)
 
-        best_member, best_fitness = get_best_fitness_member(
-            x, fitness, state, self.maximize
-        )
+        if self.maximize:
+            best_solution, best_fitness = update_best_solution_and_fitness(
+                population, -fitness, state.best_solution, -state.best_fitness
+            )
+            best_fitness = -best_fitness
+        else:
+            best_solution, best_fitness = update_best_solution_and_fitness(
+                population, fitness, state.best_solution, state.best_fitness
+            )
         if self.diff_best:
-            diff_best = jnp.expand_dims(x - best_member, axis=-1)
+            diff_best = jnp.expand_dims(population - best_solution, axis=-1)
             sol_out = jnp.concatenate([sol_out, diff_best], axis=-1)
 
         if self.norm_diff_best:
             dist_best_norm = jax.vmap(
                 range_norm_trafo, in_axes=(1, None, None), out_axes=1
-            )(x - best_member, -0.5, 0.5)
+            )(population - best_solution, -0.5, 0.5)
             dist_best_norm = jnp.expand_dims(dist_best_norm, axis=-1)
             sol_out = jnp.concatenate([sol_out, dist_best_norm], axis=-1)
         return sol_out, state.replace(
-            best_member=best_member,
+            best_solution=best_solution,
             best_fitness=best_fitness,
             generation_counter=state.generation_counter + 1,
         )

@@ -1,145 +1,132 @@
+"""Augmented Random Search (Mania et al., 2018).
+
+Reference: https://arxiv.org/abs/1803.07055
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..core import GradientOptimizer, OptParams, OptState, exp_decay
-from ..strategy import Strategy
+from ..core import GradientOptimizer, OptParams, OptState
+from ..strategy import Params, State, Strategy, metrics_fn, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: float
+    std: float
     opt_state: OptState
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    z: jax.Array
 
 
 @struct.dataclass
-class Params:
+class Params(Params):
+    std_init: float
+    std_decay: float
+    std_limit: float
     opt_params: OptParams
-    sigma_init: float = 0.03
-    sigma_decay: float = 0.999
-    sigma_limit: float = 0.01
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class ARS(Strategy):
+    """Augmented Random Search (ARS)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        elite_ratio: float = 0.1,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
-        sigma_init: float = 0.03,
-        sigma_decay: float = 1.0,
-        sigma_limit: float = 0.01,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Augmented Random Search (Mania et al., 2018)
-        Reference: https://arxiv.org/pdf/1803.07055.pdf
-        """
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
-        assert not self.population_size & 1, "Population size must be even"
-        # ARS performs antithetic sampling & allows you to select
-        # "b" elite perturbation directions for the update
-        assert 0 <= elite_ratio <= 1
-        self.elite_ratio = elite_ratio
-        self.elite_population_size = max(
-            1, int(self.population_size / 2 * self.elite_ratio)
-        )
-        assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
-        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
+        """Initialize ARS."""
+        assert population_size % 2 == 0, "Population size must be even."
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "ARS"
 
-        # Set core kwargs params (lrate/sigma schedules)
+        self.elite_ratio = 0.5
+
+        # Optimizer
+        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.lrate_init = lrate_init
         self.lrate_decay = lrate_decay
         self.lrate_limit = lrate_limit
-        self.sigma_init = sigma_init
-        self.sigma_decay = sigma_decay
-        self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
+    def _default_params(self) -> Params:
         opt_params = self.optimizer.default_params.replace(
             lrate_init=self.lrate_init,
             lrate_decay=self.lrate_decay,
             lrate_limit=self.lrate_limit,
         )
         return Params(
+            std_init=1.0,
+            std_decay=1.0,
+            std_limit=0.0,
             opt_params=opt_params,
-            sigma_init=self.sigma_init,
-            sigma_decay=self.sigma_decay,
-            sigma_limit=self.sigma_limit,
         )
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """Initialize the evolution strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
-
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization,
-            sigma=params.sigma_init,
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init,
             opt_state=self.optimizer.init(params.opt_params),
-            best_member=initialization,
+            z=jnp.zeros((self.population_size, self.num_dims)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        # Antithetic sampling of noise
-        z_plus = jax.random.normal(
-            key,
-            (int(self.population_size / 2), self.num_dims),
-        )
-        z = jnp.concatenate([z_plus, -1.0 * z_plus])
-        x = state.mean + state.sigma * z
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        # Antithetic sampling
+        z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
+        z = jnp.concatenate([z_plus, -z_plus])
+        population = state.mean + state.std * z
+        return population, state.replace(z=z)
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        # Reconstruct noise from last mean/std estimates
-        noise = (x - state.mean) / state.sigma
-        noise_1 = noise[: int(self.population_size / 2)]
-        fit_1 = fitness[: int(self.population_size / 2)]
-        fit_2 = fitness[int(self.population_size / 2) :]
-        elite_idx = jnp.minimum(fit_1, fit_2).argsort()[: self.elite_population_size]
+        # Get elites
+        fitness_plus = fitness[: self.population_size // 2]
+        fitness_minus = fitness[self.population_size // 2 :]
+        elite_idx = jnp.argsort(jnp.minimum(fitness_plus, fitness_minus))[
+            : self.num_elites
+        ]
 
-        fitness_elite = jnp.concatenate([fit_1[elite_idx], fit_2[elite_idx]])
-        # Add small constant to ensure non-zero division stability
-        sigma_fitness = jnp.std(fitness_elite) + 1e-05
-        fit_diff = fit_1[elite_idx] - fit_2[elite_idx]
-        fit_diff_noise = jnp.dot(noise_1[elite_idx].T, fit_diff)
-        theta_grad = 1.0 / (self.elite_population_size * sigma_fitness) * fit_diff_noise
+        # Compute elite fitness std
+        fitness_elite = jnp.concatenate(
+            [fitness_plus[elite_idx], fitness_minus[elite_idx]]
+        )
+        fitness_std = jnp.clip(jnp.std(fitness_elite), min=1e-8)
 
-        # Grad update using optimizer instance - decay lrate if desired
+        # Compute gradient
+        z = state.z[: self.population_size // 2]
+        delta = fitness_plus[elite_idx] - fitness_minus[elite_idx]
+        grad = jnp.dot(z[elite_idx].T, delta) / (self.num_elites * fitness_std)
+
+        # Grad update using optimizer
         mean, opt_state = self.optimizer.step(
-            state.mean, theta_grad, state.opt_state, params.opt_params
+            state.mean, grad, state.opt_state, params.opt_params
         )
         opt_state = self.optimizer.update(opt_state, params.opt_params)
-        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
-        return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
+
+        # Update state
+        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+        return state.replace(mean=mean, std=std, opt_state=opt_state)

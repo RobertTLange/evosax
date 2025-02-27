@@ -1,23 +1,39 @@
+"""Restart Wrappers for Evolution Strategies.
+
+This module provides base classes and utilities for implementing restart mechanisms
+in evolutionary strategies. Restarts are a common technique to escape local optima
+and improve exploration in evolutionary algorithms.
+
+The module includes:
+- Base wrapper classes for implementing restart mechanisms
+- Common restart criteria (e.g., fitness spread, CMA-ES specific conditions)
+- Utility functions for state management during restarts
+
+Restart wrappers can be applied to any evolution strategy to enhance their
+global optimization capabilities by periodically reinitializing the search
+when certain conditions are met.
+"""
+
 from functools import partial
 
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..types import ArrayTree, Fitness, Population
-from ..utils.eigen_decomp import full_eigen_decomp
+from ..strategies.cma_es import eigen_decomposition
+from ..types import Fitness, Population, PyTree
 
 
 @struct.dataclass
 class WrapperState:
-    strategy_state: ArrayTree
-    restart_state: ArrayTree
+    strategy_state: PyTree
+    restart_state: PyTree
 
 
 @struct.dataclass
 class WrapperParams:
-    strategy_params: ArrayTree
-    restart_params: ArrayTree
+    strategy_params: PyTree
+    restart_params: PyTree
 
 
 @struct.dataclass
@@ -32,8 +48,10 @@ class RestartParams:
 
 
 class RestartWrapper:
+    """Base Class for a Restart Strategy."""
+
     def __init__(self, base_strategy, stop_criteria=[]):
-        """Base Class for a Restart Strategy."""
+        """Initialize the restart wrapper."""
         self.base_strategy = base_strategy
         self.stop_criteria = stop_criteria
 
@@ -191,7 +209,7 @@ def cma_criterion(fitness: Fitness, state: WrapperState, params: WrapperParams) 
     cma_term = 0
     dC = jnp.diag(state.strategy_state.C)
     # Note: Criterion requires full covariance matrix for decomposition!
-    C, B, D = full_eigen_decomp(
+    C, B, D = eigen_decomposition(
         state.strategy_state.C,
         state.strategy_state.B,
         state.strategy_state.D,

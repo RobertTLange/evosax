@@ -1,5 +1,10 @@
-from functools import partial
+"""BIPOP-CMA-ES (Hansen, 2009).
 
+Reference: https://hal.inria.fr/inria-00382093/document
+Inspired by: https://tinyurl.com/44y3ryhf
+"""
+
+from functools import partial
 import jax
 from flax import struct
 
@@ -31,13 +36,8 @@ class BIPOP_CMA_ES:
         solution: Solution,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
-        mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
-        """BIPOP-CMA-ES (Hansen, 2009).
-        Reference: https://hal.inria.fr/inria-00382093/document
-        Inspired by: https://tinyurl.com/44y3ryhf
-        """
         self.strategy_name = "BIPOP_CMA_ES"
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
@@ -45,7 +45,6 @@ class BIPOP_CMA_ES:
             solution=solution,
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
-            mean_decay=mean_decay,
             **fitness_kwargs,
         )
         from ..restarts import BIPOP_Restarter
@@ -55,7 +54,6 @@ class BIPOP_CMA_ES:
             stop_criteria=[spread_criterion, cma_criterion],
             strategy_kwargs={
                 "elite_ratio": elite_ratio,
-                "mean_decay": mean_decay,
             },
         )
 
@@ -67,7 +65,6 @@ class BIPOP_CMA_ES:
 
     @partial(jax.jit, static_argnames=("self",))
     def init(self, key: jax.Array, params: WrapperParams | None = None) -> WrapperState:
-        """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
@@ -79,7 +76,6 @@ class BIPOP_CMA_ES:
         state: WrapperState,
         params: WrapperParams | None = None,
     ) -> tuple[jax.Array, WrapperState]:
-        """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params
@@ -94,7 +90,6 @@ class BIPOP_CMA_ES:
         state: WrapperState,
         params: WrapperParams | None = None,
     ) -> WrapperState:
-        """`tell` performance data for strategy state update."""
         # Use default hyperparameters if no other settings provided
         if params is None:
             params = self.default_params

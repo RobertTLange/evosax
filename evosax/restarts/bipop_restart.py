@@ -1,3 +1,9 @@
+"""Bi-Population Restarts (Hansen, 2009) - Interlaced population sizes.
+
+Reference: https://hal.inria.fr/inria-00382093/document
+Inspired by: https://github.com/CyberAgentAILab/cmaes/blob/main/examples/bipop_cma.py
+"""
+
 from functools import partial
 
 import jax
@@ -33,10 +39,6 @@ class BIPOP_Restarter(RestartWrapper):
         stop_criteria=[spread_criterion],
         strategy_kwargs: dict = {},
     ):
-        """Bi-Population Restarts (Hansen, 2009) - Interlaced population sizes.
-        Reference: https://hal.inria.fr/inria-00382093/document
-        Inspired by: https://tinyurl.com/44y3ryhf
-        """
         super().__init__(base_strategy, stop_criteria)
         self.default_population_size = self.base_strategy.population_size
         self.strategy_kwargs = strategy_kwargs

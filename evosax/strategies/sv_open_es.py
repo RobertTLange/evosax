@@ -1,177 +1,157 @@
+"""Stein Variational OpenAI-ES (Liu et al., 2017).
+
+Reference: https://arxiv.org/abs/1704.02399
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from evosax.core import OptState, exp_decay
-from evosax.strategies.open_es import OpenES, Params
-from evosax.utils.kernel import RBF, Kernel
+from ..strategy import metrics_fn
+from evosax.core import exp_decay
+from evosax.strategies.open_es import OpenES, Params, State
 
 from ..types import Fitness, Population, Solution
+from ..utils.kernel import kernel_rbf
 
 
 @struct.dataclass
-class State:
-    mean: jax.Array
-    sigma: jax.Array
-    opt_state: OptState
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
-    bandwidth: float = 1.0
-    alpha: float = 1.0
+class Params(Params):
+    kernel_std: float
+    alpha: float
 
 
 class SV_OpenES(OpenES):
+    """Stein Variational OpenAI-ES (SV-OpenAI-ES)."""
+
     def __init__(
         self,
-        npop: int,
-        subpopulation_size: int,
+        population_size: int,
+        num_populations: int,
         solution: Solution,
-        kernel: type[Kernel] = RBF,
+        kernel: Callable = kernel_rbf,
         use_antithetic_sampling: bool = True,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
-        sigma_init: float = 0.03,
-        sigma_decay: float = 1.0,
-        sigma_limit: float = 0.01,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Stein Variational OpenAI-ES (Liu et al., 2017)
-        Reference: https://arxiv.org/abs/1704.02399
-        """
+        """Initialize SV-OpenAI-ES."""
+        assert population_size % num_populations == 0, (
+            "population_size must be divisible by num_populations."
+        )
         super().__init__(
-            npop * subpopulation_size,
-            solution,
-            use_antithetic_sampling,
-            opt_name,
-            lrate_init,
-            lrate_decay,
-            lrate_limit,
-            sigma_init,
-            sigma_decay,
-            sigma_limit,
-            mean_decay,
+            population_size=population_size,
+            solution=solution,
+            use_antithetic_sampling=use_antithetic_sampling,
+            opt_name=opt_name,
+            lrate_init=lrate_init,
+            lrate_decay=lrate_decay,
+            lrate_limit=lrate_limit,
+            metrics_fn=metrics_fn,
             **fitness_kwargs,
         )
-        assert not subpopulation_size & 1, "Sub-population size size must be even"
-        self.strategy_name = "SV_OpenAI_ES"
-        self.npop = npop
-        self.subpopulation_size = subpopulation_size
-        self.kernel = kernel()
+        self.strategy_name = "SV_OpenES"
+
+        self.num_populations = num_populations
+        self.total_population_size = num_populations * population_size
+
+        self.kernel = kernel
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        opt_params = self.optimizer.default_params.replace(
-            lrate_init=self.lrate_init,
-            lrate_decay=self.lrate_decay,
-            lrate_limit=self.lrate_limit,
-        )
+    def _default_params(self) -> Params:
+        params = super()._default_params
         return Params(
-            opt_params=opt_params,
-            sigma_init=self.sigma_init,
-            sigma_decay=self.sigma_decay,
-            sigma_limit=self.sigma_limit,
+            std_init=params.std_init,
+            std_decay=params.std_decay,
+            std_limit=params.std_limit,
+            opt_params=params.opt_params,
+            kernel_std=1.0,
+            alpha=1.0,
         )
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        x_init = jax.random.uniform(
-            key,
-            (self.npop, self.num_dims),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
-        state = State(
-            mean=x_init,
-            sigma=jnp.ones((self.npop, self.num_dims)) * params.sigma_init,
-            opt_state=jax.vmap(lambda _: self.optimizer.init(params.opt_params))(
-                jnp.arange(self.npop)
-            ),
-            best_member=x_init[0],
-        )
-
+    def _init(self, key: jax.Array, params: Params) -> State:
+        keys = jax.random.split(key, num=self.num_populations)
+        state = jax.vmap(super()._init, in_axes=(0, None))(keys, params)
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[Population, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        # Antithetic sampling of noise
-        if self.use_antithetic_sampling:
-            z_plus = jax.random.normal(
-                key,
-                (self.npop, int(self.subpopulation_size / 2), self.num_dims),
-            )
-            z = jnp.concatenate([z_plus, -1.0 * z_plus], axis=1)
-        else:
-            z = jax.random.normal(
-                key, (self.npop, self.subpopulation_size, self.num_dims)
-            )
-
-        x = state.mean[:, None] + state.sigma[:, None] * z
-        x = x.reshape(self.population_size, self.num_dims)
-
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        keys = jax.random.split(key, num=self.num_populations)
+        population, state = jax.vmap(super()._ask, in_axes=(0, 0, None))(
+            keys, state, params
+        )
+        population = population.reshape(self.total_population_size, self.num_dims)
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        x = x.reshape(self.npop, self.subpopulation_size, self.num_dims)
-        fitness = fitness.reshape(self.npop, self.subpopulation_size)
-
-        # Compute MC gradients from fitness scores
-        noise = (state.mean[:, None] - x) / state.sigma[:, None]
-        scores = jnp.einsum("ijk,ij->ik", noise, fitness) / (
-            self.subpopulation_size * state.sigma
+        population = population.reshape(
+            self.num_populations, self.population_size, self.num_dims
         )
+        fitness = fitness.reshape(self.num_populations, self.population_size)
+
+        # OpenAI-ES gradient
+        grad = jax.vmap(jnp.dot)(
+            fitness, (state.mean[:, None] - population) / state.std[:, None, None]
+        ) / (self.population_size * state.std[:, None])
 
         # Compute SVGD steps
-        svgd_scores = svgd_grad(state.mean, scores, self.kernel, state.bandwidth)
-        svgd_kerns = svgd_kern(state.mean, scores, self.kernel, state.bandwidth)
-        gradients = -(
-            svgd_scores + svgd_kerns * state.alpha
-        )  # flip the grads for minimization
+        svgd_grad = svgd_grad_fn(state.mean, grad, self.kernel, params)
+        svgd_grad_kernel = svgd_grad_kernel_fn(state.mean, grad, self.kernel, params)
+        grad = -(svgd_grad + params.alpha * svgd_grad_kernel)
 
         # Grad update using optimizer instance - decay lrate if desired
         mean, opt_state = jax.vmap(self.optimizer.step, (0, 0, 0, None))(
-            state.mean, gradients, state.opt_state, params.opt_params
+            state.mean, grad, state.opt_state, params.opt_params
         )
         opt_state = jax.vmap(self.optimizer.update, (0, None))(
             opt_state, params.opt_params
         )
-        sigma = jax.vmap(exp_decay, (0, None, None))(
-            state.sigma, params.sigma_decay, params.sigma_limit
+
+        std = jax.vmap(exp_decay, (0, None, None))(
+            state.std, params.std_decay, params.std_limit
+        )
+        return state.replace(mean=mean, std=std, opt_state=opt_state)
+
+
+def svgd_grad_fn(
+    x: jax.Array, grad: jax.Array, kernel: Callable, params: Params
+) -> jax.Array:
+    """SVGD driving force."""
+
+    def phi(xi):
+        return jnp.mean(
+            jax.vmap(lambda xj, gradj: kernel(xj, xi, params) * gradj)(x, grad),
+            axis=0,
         )
 
-        return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
-
-
-def svgd_kern(
-    x: jax.Array, scores: jax.Array, kernel: Kernel, bandwidth: float
-) -> jax.Array:
-    """SVGD repulsive force."""
-    phi = lambda xi: jnp.mean(
-        jax.vmap(lambda xj, scorej: jax.grad(kernel)(xj, xi, bandwidth))(x, scores),
-        axis=0,
-    )
     return jax.vmap(phi)(x)
 
 
-def svgd_grad(
-    x: jax.Array, scores: jax.Array, kernel: Kernel, bandwidth: float
+def svgd_grad_kernel_fn(
+    x: jax.Array, grad: jax.Array, kernel: Callable, params: Params
 ) -> jax.Array:
-    """SVGD driving force."""
-    phi = lambda xi: jnp.mean(
-        jax.vmap(lambda xj, scorej: kernel(xj, xi, bandwidth) * scorej)(x, scores),
-        axis=0,
-    )
+    """SVGD repulsive force."""
+
+    def phi(xi):
+        return jnp.mean(
+            jax.vmap(lambda xj, gradj: jax.grad(kernel)(xj, xi, params))(x, grad),
+            axis=0,
+        )
+
     return jax.vmap(phi)(x)

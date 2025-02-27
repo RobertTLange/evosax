@@ -8,12 +8,12 @@ from .des import DES
 from .diffusion import DiffusionEvolution
 from .esmc import ESMC
 from .evotf_es import EvoTF_ES
-from .full_iamalgam import Full_iAMaLGaM
 from .gesmr_ga import GESMR_GA
 from .gld import GLD
 from .guided_es import GuidedES
 from .hill_climber import HillClimber
-from .indep_iamalgam import Indep_iAMaLGaM
+from .iamalgam_full import iAMaLGaM_Full
+from .iamalgam_indep import iAMaLGaM_Indep
 from .ipop_cma_es import IPOP_CMA_ES
 from .les import LES
 from .lga import LGA
@@ -22,12 +22,11 @@ from .ma_es import MA_ES
 from .mr15_ga import MR15_GA
 from .noise_reuse_es import NoiseReuseES
 from .open_es import OpenES
-from .pbt import PBT
-from .persistent_es import PersistentES
+from .pes import PES
 from .pgpe import PGPE
 from .pso import PSO
-from .random import RandomSearch
-from .rm_es import RmES
+from .random_search import RandomSearch
+from .rm_es import Rm_ES
 from .samr_ga import SAMR_GA
 from .sep_cma_es import Sep_CMA_ES
 from .sim_anneal import SimAnneal
@@ -46,17 +45,16 @@ __all__ = [
     "PSO",
     "OpenES",
     "PGPE",
-    "PBT",
-    "PersistentES",
+    "PES",
     "ARS",
     "Sep_CMA_ES",
     "BIPOP_CMA_ES",
     "IPOP_CMA_ES",
-    "Full_iAMaLGaM",
-    "Indep_iAMaLGaM",
+    "iAMaLGaM_Full",
+    "iAMaLGaM_Indep",
     "MA_ES",
     "LM_MA_ES",
-    "RmES",
+    "Rm_ES",
     "GLD",
     "SimAnneal",
     "SNES",

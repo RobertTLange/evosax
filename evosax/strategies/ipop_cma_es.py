@@ -1,3 +1,8 @@
+"""IPOP-CMA-ES (Auer & Hansen, 2005).
+
+Reference: https://ieeexplore.ieee.org/document/1554902
+"""
+
 from functools import partial
 
 import jax
@@ -25,18 +30,17 @@ class RestartParams:
 
 
 class IPOP_CMA_ES:
+    """IPOP-CMA-ES."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
-        mean_decay: float = 0.0,
         **fitness_kwargs: bool | int | float,
     ):
-        """IPOP-CMA-ES (Auer & Hansen, 2005).
-        Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
-        """
+        """Initialize IPOP-CMA-ES."""
         self.strategy_name = "IPOP_CMA_ES"
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
@@ -44,7 +48,6 @@ class IPOP_CMA_ES:
             solution=solution,
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
-            mean_decay=mean_decay,
             **fitness_kwargs,
         )
         from ..restarts import IPOP_Restarter
@@ -54,7 +57,6 @@ class IPOP_CMA_ES:
             stop_criteria=[spread_criterion, cma_criterion],
             strategy_kwargs={
                 "elite_ratio": elite_ratio,
-                "mean_decay": mean_decay,
             },
         )
 
@@ -66,7 +68,6 @@ class IPOP_CMA_ES:
 
     @partial(jax.jit, static_argnames=("self",))
     def init(self, key: jax.Array, params: WrapperParams | None = None) -> WrapperState:
-        """`init` the evolution strategy."""
         return self.wrapped_strategy.init(key, params)
 
     def ask(
@@ -75,7 +76,6 @@ class IPOP_CMA_ES:
         state: WrapperState,
         params: WrapperParams | None = None,
     ) -> tuple[jax.Array, WrapperState]:
-        """`ask` for new parameter candidates to evaluate next."""
         x, state = self.wrapped_strategy.ask(key, state, params)
         return x, state
 
@@ -87,5 +87,4 @@ class IPOP_CMA_ES:
         state: WrapperState,
         params: WrapperParams | None = None,
     ) -> WrapperState:
-        """`tell` performance data for strategy state update."""
         return self.wrapped_strategy.tell(x, fitness, state, params)

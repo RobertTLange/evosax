@@ -1,126 +1,104 @@
+"""Simple Evolution Strategy (Rechenberg, 1973).
+
+Reference: https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506
+Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: jax.Array
+    std: jax.Array
     weights: jax.Array  # Weights for population members
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
 
 
 @struct.dataclass
-class Params:
-    c_sigma: float = 0.1  # Learning rate for population std
-    c_m: float = 1.0  # Learning rate for population mean
-    sigma_init: float = 1.0  # Standard deviation
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    std_init: float  # Standard deviation
+    c_mean: float  # Learning rate for population mean
+    c_std: float  # Learning rate for population std
 
 
 class SimpleES(Strategy):
+    """Simple Evolution Strategy (Simple ES)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        elite_ratio: float = 0.5,
-        sigma_init: float = 1.0,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Simple Gaussian Evolution Strategy (Rechenberg, 1975)
-        Reference: https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
-        """
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
-        self.elite_ratio = elite_ratio
-        self.elite_population_size = max(
-            1, int(self.population_size * self.elite_ratio)
-        )
+        """Initialize Simple ES."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "SimpleES"
 
-        # Set core kwargs params
-        self.sigma_init = sigma_init
+        self.elite_ratio = 0.5
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        # Only parents have positive weight - equal weighting!
-        return Params(sigma_init=self.sigma_init)
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        weights = jnp.zeros(self.population_size)
-        weights = weights.at[: self.elite_population_size].set(
-            1 / self.elite_population_size
+    def _default_params(self) -> Params:
+        return Params(
+            std_init=1.0,
+            c_mean=1.0,
+            c_std=0.1,
         )
 
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
+        weights = get_weights(self.population_size, self.elite_ratio)
+
         state = State(
-            mean=initialization,
-            sigma=jnp.repeat(params.sigma_init, self.num_dims),
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init * jnp.ones(self.num_dims),
             weights=weights,
-            best_member=initialization,
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next."""
-        z = jax.random.normal(key, (self.population_size, self.num_dims))  # ~ N(0, I)
-        x = state.mean + state.sigma * z  # ~ N(m, σ^2 I)
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size, self.num_dims))
+        population = state.mean + state.std * z
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state."""
-        # Sort new results, extract elite, store best performer
-        concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
-        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
-        # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        mean, y_k = update_mean(sorted_solutions, state.mean, params.c_m, state.weights)
-        sigma = update_sigma(y_k, state.sigma, params.c_sigma, state.weights)
-        return state.replace(mean=mean, sigma=sigma)
+        idx_sorted = jnp.argsort(fitness)
+        y = population[idx_sorted] - state.mean
+
+        # Update mean
+        mean_update = jnp.dot(state.weights, y)
+        mean = state.mean + params.c_mean * mean_update
+
+        # Update std
+        std_update = jnp.sqrt(jnp.dot(state.weights, y**2))
+        std = (1 - params.c_std) * state.std + params.c_std * std_update
+
+        return state.replace(mean=mean, std=std)
 
 
-def update_mean(
-    sorted_solutions: jax.Array,
-    mean: jax.Array,
-    c_m: float,
-    weights: jax.Array,
-) -> tuple[jax.Array, jax.Array]:
-    """Update mean of strategy."""
-    x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
-    y_k = x_k - mean
-    y_w = jnp.sum(y_k.T * weights, axis=1)
-    mean_new = mean + c_m * y_w
-    return mean_new, y_k
-
-
-def update_sigma(
-    y_k: jax.Array, sigma: jax.Array, c_sigma: float, weights: jax.Array
-) -> jax.Array:
-    """Update stepsize sigma."""
-    sigma_est = jnp.sqrt(jnp.sum((y_k.T**2 * weights), axis=1))
-    sigma_new = (1 - c_sigma) * sigma + c_sigma * sigma_est
-    return sigma_new
+def get_weights(population_size: int, elite_ratio: float):
+    """Get weights for fitness shaping."""
+    num_elites = jnp.asarray(elite_ratio * population_size, dtype=jnp.int32)
+    mask = jnp.arange(population_size) < num_elites
+    return mask * jnp.ones((population_size,)) / num_elites

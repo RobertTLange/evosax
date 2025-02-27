@@ -1,7 +1,7 @@
-"""OpenAI Evolution Strategy (Salimans et al. 2017).
+"""Persistent Evolution Strategy (Vicol et al., 2021).
 
-Reference: https://arxiv.org/abs/1703.03864
-Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+Reference: https://arxiv.org/abs/2112.13835
+Inspired by: https://github.com/google-research/google-research/tree/master/persistent_es
 """
 
 from collections.abc import Callable
@@ -18,8 +18,10 @@ from ..types import Fitness, Population, Solution
 @struct.dataclass
 class State(State):
     mean: jax.Array
-    std: jax.Array
+    std: float
     opt_state: OptState
+    pert_accum: jax.Array  # History of accum. noise perturb in partial unroll
+    inner_step_counter: int  # Keep track of unner unroll steps for noise reset
 
 
 @struct.dataclass
@@ -28,30 +30,28 @@ class Params(Params):
     std_decay: float
     std_limit: float
     opt_params: OptParams
+    T: int  # Total inner problem length
+    K: int  # Truncation length for partial unrolls
 
 
-class OpenES(Strategy):
-    """OpenAI Evolution Strategy (OpenAI-ES)."""
+class PES(Strategy):
+    """Persistent Evolution Strategy (PES)."""
 
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        use_antithetic_sampling: bool = True,
-        opt_name: str = "sgd",
+        opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Initialize OpenAI-ES."""
+        """Initialize PES."""
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
-        self.strategy_name = "OpenES"
-
-        # Antithetic sampling
-        self.use_antithetic_sampling = use_antithetic_sampling
+        self.strategy_name = "PES"
 
         # Optimizer
         self.optimizer = GradientOptimizer[opt_name](self.num_dims)
@@ -71,6 +71,8 @@ class OpenES(Strategy):
             std_decay=1.0,
             std_limit=0.0,
             opt_params=opt_params,
+            T=100,
+            K=10,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
@@ -78,6 +80,8 @@ class OpenES(Strategy):
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
             opt_state=self.optimizer.init(params.opt_params),
+            pert_accum=jnp.zeros((self.population_size, self.num_dims)),
+            inner_step_counter=0,
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -85,18 +89,19 @@ class OpenES(Strategy):
         return state
 
     def _ask(
-        self,
-        key: jax.Array,
-        state: State,
-        params: Params,
+        self, key: jax.Array, state: State, params: Params
     ) -> tuple[Population, State]:
-        if self.use_antithetic_sampling:
-            z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
-            z = jnp.concatenate([z_plus, -z_plus])
-        else:
-            z = jax.random.normal(key, (self.population_size, self.num_dims))
-        population = state.mean + state.std * z
-        return population, state
+        # Antithetic sampling
+        pert_pos = state.std * jax.random.normal(
+            key, (self.population_size // 2, self.num_dims)
+        )
+        pert = jnp.concatenate([pert_pos, -pert_pos])
+
+        # Add the perturbations from this unroll to the perturbation accumulators
+        pert_accum = state.pert_accum + pert
+
+        population = state.mean + pert
+        return population, state.replace(pert_accum=pert_accum)
 
     def _tell(
         self,
@@ -107,16 +112,26 @@ class OpenES(Strategy):
         params: Params,
     ) -> State:
         # Compute gradient
-        grad = jnp.dot(fitness, (population - state.mean) / state.std) / (
-            self.population_size * state.std
-        )
+        grad = jnp.dot(fitness, state.pert_accum) / state.std**2 / self.population_size
 
         # Grad update using optimizer
         mean, opt_state = self.optimizer.step(
             state.mean, grad, state.opt_state, params.opt_params
         )
         opt_state = self.optimizer.update(opt_state, params.opt_params)
+        inner_step_counter = state.inner_step_counter + params.K
+
+        # Reset perturbation accumulator if done with inner problem
+        reset = inner_step_counter >= params.T
+        inner_step_counter = jnp.where(reset, 0, inner_step_counter)
+        pert_accum = jnp.where(reset, 0, state.pert_accum)
 
         # Update state
         std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
-        return state.replace(mean=mean, std=std, opt_state=opt_state)
+        return state.replace(
+            mean=mean,
+            std=std,
+            opt_state=opt_state,
+            pert_accum=pert_accum,
+            inner_step_counter=inner_step_counter,
+        )

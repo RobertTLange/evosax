@@ -1,78 +1,94 @@
 import jax
 import jax.numpy as jnp
 from evosax import Strategies
-from evosax.core import FitnessShaper
 from evosax.problems import BBOBProblem
 
-num_iters = 25
+num_generations = 64
+population_size = 16
 
 
 def test_strategy_run(strategy_name):
-    # Loop over all strategies and test ask API
+    """Instantiate strategy and test API."""
     key = jax.random.key(0)
     Strategy = Strategies[strategy_name]
 
-    num_dims = 2
-    x = jnp.zeros((num_dims,))
+    num_dims = 8
+    problem = BBOBProblem("sphere", num_dims)
 
-    # PBT also returns copy ID integer - treat separately
-    population_size = 21 if strategy_name == "ESMC" else 20
-    if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
-        strategy = Strategy(npop=1, subpopulation_size=population_size, solution=x)
+    key, subkey = jax.random.split(key)
+    solution = problem.sample_solution(subkey)
+
+    population_size = 17 if strategy_name == "ESMC" else 16
+
+    if strategy_name in ["RandomSearch"]:
+        es = Strategy(
+            population_size=population_size,
+            solution=solution,
+            sampling_fn=problem.sample_solution,
+        )
+    elif strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
+        es = Strategy(
+            population_size=population_size, num_populations=2, solution=solution,
+        )
     else:
-        strategy = Strategy(population_size=population_size, solution=x)
-    problem = BBOBProblem("sphere", 2)
-    fitness_shaper = FitnessShaper()
+        es = Strategy(population_size=population_size, solution=solution)
 
-    params = strategy.default_params
-    state = strategy.init(key, params)
+    params = es.default_params
+
+    key, subkey = jax.random.split(key)
+    state = es.init(subkey, params)
 
     fitness_log = []
-    for t in range(num_iters):
-        key, key_ask, key_eval = jax.random.split(key, 3)
-        x, state = strategy.ask(key_ask, state, params)
-        fitness = problem.eval(key_eval, x)
-        fitness_shaped = fitness_shaper.apply(x, fitness)
-        state = strategy.tell(x, fitness_shaped, state, params)
-        best_id = jnp.argmin(fitness)
-        fitness_log.append(fitness[best_id])
-    # assert fitness[0] >= fitness[-1]
+    for _ in range(num_generations):
+        key, key_ask, key_eval, key_tell = jax.random.split(key, 4)
+        population, state = es.ask(key_ask, state, params)
+        fitness = problem.eval(key_eval, population)
+        state, metrics = es.tell(key_tell, population, fitness, state, params)
+        best_fitness = jnp.min(fitness)
+        fitness_log.append(best_fitness)
 
 
 def test_strategy_scan(strategy_name):
-    # Loop over all strategies and test ask API
+    """Instantiate strategy and test API using scan."""
     key = jax.random.key(0)
     Strategy = Strategies[strategy_name]
 
-    num_dims = 2
-    x = jnp.zeros((num_dims,))
+    num_dims = 8
+    problem = BBOBProblem("sphere", num_dims)
 
-    # PBT also returns copy ID integer - treat separately
-    population_size = 21 if strategy_name == "ESMC" else 20
-    if strategy_name in ["SV_CMA_ES", "SV_OpenAI_ES", "SV_OpenES"]:
-        strategy = Strategy(npop=1, subpopulation_size=population_size, solution=x)
-    elif strategy_name in ["BIPOP_CMA_ES", "IPOP_CMA_ES"]:
-        return
+    key, subkey = jax.random.split(key)
+    solution = problem.sample_solution(subkey)
+
+    population_size = 17 if strategy_name == "ESMC" else 16
+
+    if strategy_name in ["RandomSearch"]:
+        es = Strategy(
+            population_size=population_size,
+            solution=solution,
+            sampling_fn=problem.sample_solution,
+        )
+    elif strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
+        es = Strategy(
+            population_size=population_size, num_populations=2, solution=solution,
+        )
     else:
-        strategy = Strategy(population_size=population_size, solution=x)
-    problem = BBOBProblem("sphere", 2)
-    fitness_shaper = FitnessShaper()
+        es = Strategy(population_size=population_size, solution=solution)
 
-    params = strategy.default_params
-    state = strategy.init(key, params)
+    params = es.default_params
+
+    key, subkey = jax.random.split(key)
+    state = es.init(subkey, params)
 
     def step(carry, _):
-        """Helper function to lax.scan."""
         key, state = carry
-        key, key_ask, key_eval = jax.random.split(key, 3)
-        x, state = strategy.ask(key_ask, state, params)
-        fitness = problem.eval(key_eval, x)
-        fitness_shaped = fitness_shaper.apply(x, fitness)
-        state = strategy.tell(x, fitness_shaped, state, params)
+        key, key_ask, key_eval, key_tell = jax.random.split(key, 4)
+        population, state = es.ask(key_ask, state, params)
+        fitness = problem.eval(key_eval, population)
+        state, metrics = es.tell(key_tell, population, fitness, state, params)
         return (key, state), jnp.min(fitness)
 
-    _, best_fitness = jax.lax.scan(
+    _, fitness_log = jax.lax.scan(
         step,
-        init=(key, state),
-        length=num_iters,
+        (key, state),
+        length=num_generations,
     )

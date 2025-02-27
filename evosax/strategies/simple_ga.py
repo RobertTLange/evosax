@@ -1,149 +1,124 @@
+"""Simple Genetic Algorithm (Such et al., 2017).
+
+Reference: https://arxiv.org/abs/1712.06567
+Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..core import exp_decay
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
-    mean: jax.Array
-    archive: jax.Array
+class State(State):
+    population: Population
     fitness: Fitness
-    sigma: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    std: jax.Array
 
 
 @struct.dataclass
-class Params:
-    cross_over_rate: float = 0.0
-    sigma_init: float = 0.07
-    sigma_decay: float = 1.0
-    sigma_limit: float = 0.01
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    crossover_rate: float
+    std_init: float
+    std_decay: float
+    std_limit: float
 
 
 class SimpleGA(Strategy):
+    """Simple Genetic Algorithm (Simple GA)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        elite_ratio: float = 0.5,
-        sigma_init: float = 0.1,
-        sigma_decay: float = 1.0,
-        sigma_limit: float = 0.01,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Simple Genetic Algorithm (Such et al., 2017)
-        Reference: https://arxiv.org/abs/1712.06567
-        Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
-        """
-        super().__init__(population_size, solution, **fitness_kwargs)
-        self.elite_ratio = elite_ratio
-        self.elite_population_size = max(
-            1, int(self.population_size * self.elite_ratio)
-        )
+        """Initialize Simple GA."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "SimpleGA"
 
-        # Set core kwargs params
-        self.sigma_init = sigma_init
-        self.sigma_decay = sigma_decay
-        self.sigma_limit = sigma_limit
+        self.elite_ratio = 0.5
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
+    def _default_params(self) -> Params:
         return Params(
-            sigma_init=self.sigma_init,
-            sigma_decay=self.sigma_decay,
-            sigma_limit=self.sigma_limit,
+            crossover_rate=0.0,
+            std_init=1.0,
+            std_decay=1.0,
+            std_limit=0.0,
         )
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the differential evolution strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.elite_population_size, self.num_dims),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization.mean(axis=0),
-            archive=initialization,
-            fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
-            sigma=params.sigma_init,
-            best_member=initialization.mean(axis=0),
+            population=jnp.full((self.population_size, self.num_dims), jnp.nan),
+            fitness=jnp.full((self.population_size,), jnp.inf),
+            std=params.std_init,
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next.
-        1. For each member of elite:
-          - Sample two current elite members (a & b)
-          - Cross over all dims of a with corresponding one from b
-            if random number > co-rate
-          - Additionally add noise on top of all elite parameters
-        """
-        key, key_eps, key_idx_a, key_idx_b = jax.random.split(key, 4)
-        key_mate = jax.random.split(key, self.population_size)
-
-        epsilon = (
-            jax.random.normal(key_eps, (self.population_size, self.num_dims))
-            * state.sigma
-        )
-
-        elite_ids = jnp.arange(self.elite_population_size)
-        idx_a = jax.random.choice(key_idx_a, elite_ids, (self.population_size,))
-        idx_b = jax.random.choice(key_idx_b, elite_ids, (self.population_size,))
-        members_a = state.archive[idx_a]
-        members_b = state.archive[idx_b]
-
-        x = jax.vmap(single_mate, in_axes=(0, 0, 0, None))(
-            key_mate, members_a, members_b, params.cross_over_rate
-        )
-        x += epsilon
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        # Get elites
+        idx = jnp.argsort(state.fitness)
+        population = state.population[idx]
+        p = jnp.arange(self.population_size) < self.num_elites
+
+        key_crossover, key_mutation, key_1, key_2 = jax.random.split(key, 4)
+        key_crossover = jax.random.split(key_crossover, self.population_size)
+        key_mutation = jax.random.split(key_mutation, self.population_size)
+
+        # Crossover
+        parents_1 = jax.random.choice(key_1, population, (self.population_size,), p=p)
+        parents_2 = jax.random.choice(key_2, population, (self.population_size,), p=p)
+
+        population = jax.vmap(crossover, in_axes=(0, 0, 0, None))(
+            key_crossover, parents_1, parents_2, params.crossover_rate
+        )
+
+        # Mutation
+        population = jax.vmap(mutation, in_axes=(0, 0, None))(
+            key_mutation, population, state.std
+        )
+
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state.
-        If fitness of y <= fitness of x -> replace in population.
-        """
-        # Combine current elite and recent generation info
-        fitness = jnp.concatenate([fitness, state.fitness])
-        solution = jnp.concatenate([x, state.archive])
-        # Select top elite from total archive info
-        idx = jnp.argsort(fitness)[0 : self.elite_population_size]
-        fitness = fitness[idx]
-        archive = solution[idx]
-        # Update mutation epsilon - multiplicative decay
-        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
-        # Set mean to best member seen so far
-        improved = fitness[0] < state.best_fitness
-        best_mean = jax.lax.select(improved, archive[0], state.best_member)
+        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
         return state.replace(
-            fitness=fitness, archive=archive, sigma=sigma, mean=best_mean
+            population=population,
+            fitness=fitness,
+            std=std,
         )
 
 
-def single_mate(
-    key: jax.Array, a: jax.Array, b: jax.Array, cross_over_rate: float
-) -> jax.Array:
-    """Only cross-over dims for x% of all dims."""
-    idx = jax.random.uniform(key, (a.shape[0],)) > cross_over_rate
-    cross_over_candidate = a * (1 - idx) + b * idx
-    return cross_over_candidate
+def crossover(
+    key: jax.Array, parent_1: Solution, parent_2: Solution, crossover_rate: float
+) -> Solution:
+    """Crossover between two parents."""
+    mask = jax.random.uniform(key, parent_1.shape) < crossover_rate
+    return parent_1 * (1 - mask) + parent_2 * mask
+
+
+def mutation(key: jax.Array, solution: Solution, std: jax.Array) -> Solution:
+    """Mutation of a solution."""
+    return solution + std * jax.random.normal(key, solution.shape)

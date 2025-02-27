@@ -1,120 +1,107 @@
+"""Separable Natural Evolution Strategy (Wierstra et al., 2014).
+
+Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
-from .des import get_des_weights
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: jax.Array
+    std: jax.Array
     weights: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    z: jax.Array
 
 
 @struct.dataclass
-class Params:
-    lrate_mean: float = 1.0
-    lrate_sigma: float = 1.0
-    sigma_init: float = 1.0
-    temperature: float = 0.0
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
-
-
-def get_snes_weights(population_size: int, use_baseline: bool = True):
-    """Get recombination weights for different ranks."""
-
-    def get_weight(i):
-        return jnp.maximum(0, jnp.log(population_size / 2 + 1) - jnp.log(i))
-
-    weights = jax.vmap(get_weight)(jnp.arange(1, population_size + 1))
-    weights_norm = weights / jnp.sum(weights)
-    return (weights_norm - use_baseline * (1 / population_size))[:, None]
+class Params(Params):
+    std_init: float
+    lrate_mean: float
+    lrate_std: float
 
 
 class SNES(Strategy):
+    """Separable Natural Evolution Strategy (SNES)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        sigma_init: float = 1.0,
-        temperature: float = 0.0,  # good values tend to be between 12 and 20
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Separable Exponential Natural ES (Wierstra et al., 2014)
-        Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
-        """
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
+        """Initialize SNES."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "SNES"
 
-        # Set core kwargs params
-        self.sigma_init = sigma_init
-        self.temperature = temperature
-
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolutionary strategy."""
-        lrate_sigma = (3 + jnp.log(self.num_dims)) / (5 * jnp.sqrt(self.num_dims))
-        params = Params(
-            lrate_sigma=lrate_sigma,
-            sigma_init=self.sigma_init,
-            temperature=self.temperature,
+    def _default_params(self) -> Params:
+        lrate_std = (3 + jnp.log(self.num_dims)) / (5 * jnp.sqrt(self.num_dims))
+        return Params(
+            std_init=1.0,
+            lrate_mean=1.0,
+            lrate_std=lrate_std,
         )
-        return params
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolutionary strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
-        use_des_weights = params.temperature > 0.0
-        weights = jax.lax.select(
-            use_des_weights,
-            get_des_weights(self.population_size, params.temperature),
-            get_snes_weights(self.population_size),
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
+        weights = get_weights(self.population_size)
+
         state = State(
-            mean=initialization,
-            sigma=params.sigma_init * jnp.ones(self.num_dims),
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init * jnp.ones(self.num_dims),
             weights=weights,
-            best_member=initialization,
+            z=jnp.zeros((self.population_size, self.num_dims)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
-
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        noise = jax.random.normal(key, (self.population_size, self.num_dims))
-        x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size, self.num_dims))
+        population = state.mean + state.std * z
+        return population, state.replace(z=z)
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        s = (x - state.mean) / state.sigma
-        ranks = fitness.argsort()
-        sorted_noise = s[ranks]
-        grad_mean = (state.weights * sorted_noise).sum(axis=0)
-        grad_sigma = (state.weights * (sorted_noise**2 - 1)).sum(axis=0)
-        mean = state.mean + params.lrate_mean * state.sigma * grad_mean
-        sigma = state.sigma * jnp.exp(params.lrate_sigma / 2 * grad_sigma)
-        return state.replace(mean=mean, sigma=sigma)
+        z_sorted = state.z[fitness.argsort()]
+        weights = jnp.expand_dims(state.weights, axis=-1)
+
+        # Update mean
+        grad_mean = jnp.sum(weights * z_sorted, axis=0)
+        mean = state.mean + params.lrate_mean * state.std * grad_mean
+
+        # Update std
+        grad_std = jnp.sum(weights * (z_sorted**2 - 1), axis=0)
+        std = state.std * jnp.exp(params.lrate_std / 2 * grad_std)
+
+        return state.replace(mean=mean, std=std)
+
+
+def get_weights(population_size: int):
+    """Get weights for fitness shaping."""
+    weights = jnp.clip(
+        jnp.log(population_size / 2 + 1) - jnp.log(jnp.arange(1, population_size + 1)),
+        min=0.0,
+    )
+    weights = weights / jnp.sum(weights)
+    return weights - 1 / population_size

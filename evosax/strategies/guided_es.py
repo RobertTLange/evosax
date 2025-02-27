@@ -1,41 +1,43 @@
-from functools import partial
+"""Guided Evolution Strategy (Maheswaranathan et al., 2018).
+
+Reference: https://arxiv.org/abs/1806.10230
+Inspired by: https://github.com/brain-research/guided-evolutionary-strategies
+"""
+
+from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..core import GradientOptimizer, OptParams, OptState, exp_decay
-from ..strategy import Strategy
+from ..core import GradientOptimizer, OptParams, OptState
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
-from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: float
+    std: float
     opt_state: OptState
     grad_subspace: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    grad: jax.Array
+    z: jax.Array
 
 
 @struct.dataclass
-class Params:
+class Params(Params):
+    std_init: float
+    std_decay: float
+    std_limit: float
     opt_params: OptParams
-    sigma_init: float = 0.03
-    sigma_decay: float = 1.0
-    sigma_limit: float = 0.01
-    alpha: float = 0.5
-    beta: float = 1.0
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+    alpha: float
+    beta: float
 
 
 class GuidedES(Strategy):
+    """Guided Evolution Strategy (GuidedES)."""
+
     def __init__(
         self,
         population_size: int,
@@ -45,143 +47,117 @@ class GuidedES(Strategy):
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
-        sigma_init: float = 0.03,
-        sigma_decay: float = 1.0,
-        sigma_limit: float = 0.01,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Guided ES (Maheswaranathan et al., 2018)
-        Reference: https://arxiv.org/abs/1806.10230
-        Note that there are a couple of JAX-based adaptations:
-        """
-        super().__init__(
-            population_size,
-            solution,
-            mean_decay,
-            **fitness_kwargs,
-        )
-        assert not self.population_size & 1, "Population size must be even"
-        assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
-        assert subspace_dims <= self.num_dims, (
-            "Subspace has to be smaller than optimization dims."
-        )
-        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.subspace_dims = min(subspace_dims, self.num_dims)
-        if self.subspace_dims < subspace_dims:
-            print(
-                "Subspace has to be smaller than optimization dims. Set to"
-                f" {self.subspace_dims} instead of {subspace_dims}."
-            )
+        """Initialize GuidedES."""
+        assert population_size % 2 == 0, "Population size must be even."
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "GuidedES"
 
-        # Set core kwargs params (lrate/sigma schedules)
+        assert subspace_dims <= self.num_dims, (
+            "Subspace dims must be smaller than optimization dims."
+        )
+        self.subspace_dims = subspace_dims
+
+        # Optimizer
+        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.lrate_init = lrate_init
         self.lrate_decay = lrate_decay
         self.lrate_limit = lrate_limit
-        self.sigma_init = sigma_init
-        self.sigma_decay = sigma_decay
-        self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        return Params(opt_params=self.optimizer.default_params)
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        key_init, key_sub = jax.random.split(key)
-        initialization = jax.random.uniform(
-            key_init,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
+    def _default_params(self) -> Params:
+        opt_params = self.optimizer.default_params.replace(
+            lrate_init=self.lrate_init,
+            lrate_decay=self.lrate_decay,
+            lrate_limit=self.lrate_limit,
+        )
+        return Params(
+            std_init=1.0,
+            std_decay=1.0,
+            std_limit=0.01,
+            opt_params=opt_params,
+            alpha=0.5,
+            beta=1.0,
         )
 
-        grad_subspace = jax.random.normal(key_sub, (self.subspace_dims, self.num_dims))
-
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization,
-            sigma=params.sigma_init,
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init,
             opt_state=self.optimizer.init(params.opt_params),
-            grad_subspace=grad_subspace,
-            best_member=initialization,
+            grad=jnp.full((self.num_dims,), jnp.nan),
+            grad_subspace=jnp.zeros((self.num_dims, self.subspace_dims)),
+            z=jnp.zeros((self.population_size, self.num_dims)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        a = state.sigma * jnp.sqrt(params.alpha / self.num_dims)
-        c = state.sigma * jnp.sqrt((1.0 - params.alpha) / self.subspace_dims)
+    def _ask(
+        self,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        """Ask evolution strategy for new candidate solutions to evaluate.
+
+        Unlike traditional evolution strategies, Guided ES requires a gradient to
+        generate new solutions. Before calling this method, update the gradient in the
+        state using state.replace(grad=grad). If no gradient is provided, a zero
+        gradient will be used.
+        """
+        a = state.std * jnp.sqrt(params.alpha / self.num_dims)
+        c = state.std * jnp.sqrt((1.0 - params.alpha) / self.subspace_dims)
+
+        # FIFO grad subspace
+        grad = jnp.where(jnp.isnan(state.grad), 0.0, state.grad)
+        grad_subspace = jnp.roll(state.grad_subspace, shift=-1, axis=-1)
+        grad_subspace = grad_subspace.at[:, -1].set(grad)
+
+        # Sample noise guided by grad subspace
         key_full, key_sub = jax.random.split(key, 2)
         eps_full = jax.random.normal(
-            key_full, shape=(self.num_dims, int(self.population_size / 2))
+            key_full, shape=(self.num_dims, self.population_size // 2)
         )
         eps_subspace = jax.random.normal(
-            key_sub, shape=(self.subspace_dims, int(self.population_size / 2))
+            key_sub, shape=(self.subspace_dims, self.population_size // 2)
         )
-        Q, _ = jnp.linalg.qr(state.grad_subspace)
-        # Antithetic sampling of noise
-        z_plus = a * eps_full + c * jnp.dot(Q, eps_subspace)
-        z_plus = jnp.swapaxes(z_plus, 0, 1)
-        z = jnp.concatenate([z_plus, -1.0 * z_plus])
-        x = state.mean + z
-        return x, state
+        Q, _ = jnp.linalg.qr(grad_subspace)
 
-    @partial(jax.jit, static_argnames=("self",))
-    def tell(
+        # Antithetic sampling
+        z_plus = a * eps_full + c * jnp.dot(Q, eps_subspace)
+        z_plus = jnp.transpose(z_plus)
+        z = jnp.concatenate([z_plus, -z_plus])
+        x = state.mean + z
+        return x, state.replace(
+            grad=jnp.full((self.num_dims,), jnp.nan), grad_subspace=grad_subspace, z=z
+        )
+
+    def _tell(
         self,
-        x: Population,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
-        params: Params | None = None,
-        gradient: jax.Array | None = None,
+        params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        # Use default hyperparameters if no other settings provided
-        if params is None:
-            params = self.default_params
+        # Compute gradient
+        z_plus = state.z[: self.population_size // 2]
+        fitness_plus = fitness[: self.population_size // 2]
+        fitness_minus = fitness[self.population_size // 2 :]
 
-        # Ravel params
-        x = jax.vmap(self.ravel_solution)(x)
+        delta = fitness_plus - fitness_minus
+        grad = params.beta * jnp.dot(z_plus.T, delta) / (2 * state.std**2)
 
-        # Perform fitness reshaping inside of strategy tell call (if desired)
-        fitness_re = self.fitness_shaper.apply(x, fitness)
-
-        # Reconstruct noise from last mean/std estimates
-        noise = (x - state.mean) / state.sigma
-        noise_1 = noise[: int(self.population_size / 2)]
-        fit_1 = fitness_re[: int(self.population_size / 2)]
-        fit_2 = fitness_re[int(self.population_size / 2) :]
-        fit_diff = fit_1 - fit_2
-        fit_diff_noise = jnp.dot(noise_1.T, fit_diff)
-        theta_grad = (params.beta / self.population_size) * fit_diff_noise
-
-        # Add grad FIFO-style to subspace archive (only if provided else FD)
-        grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))
-        grad_subspace = grad_subspace.at[:-1, :].set(state.grad_subspace[1:, :])
-        if gradient is not None:
-            grad_subspace = grad_subspace.at[-1, :].set(gradient)
-        else:
-            grad_subspace = grad_subspace.at[-1, :].set(theta_grad)
-        state = state.replace(grad_subspace=grad_subspace)
-
-        # Grad update using optimizer instance - decay lrate if desired
+        # Grad update using optimizer
         mean, opt_state = self.optimizer.step(
-            state.mean, theta_grad, state.opt_state, params.opt_params
+            state.mean, grad, state.opt_state, params.opt_params
         )
         opt_state = self.optimizer.update(opt_state, params.opt_params)
 
-        # Update lrate and standard deviation based on min and decay
-        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
-        state = state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
-
-        # Check if there is a new best member & update trackers
-        best_member, best_fitness = get_best_fitness_member(x, fitness, state)
-        return state.replace(
-            best_member=best_member,
-            best_fitness=best_fitness,
-            generation_counter=state.generation_counter + 1,
-        )
+        # Update state
+        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+        return state.replace(mean=mean, std=std, opt_state=opt_state)

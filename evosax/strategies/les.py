@@ -1,4 +1,14 @@
+"""Learned Evolution Strategy (Lange et al., 2023).
+
+Reference: https://arxiv.org/abs/2211.11260
+Note: This is an independent reimplementation which does not use the same meta-trained
+checkpoint used to generate the results in the paper. It has been independently
+meta-trained and tested on a handful of Brax tasks. The results may therefore differ
+from the ones shown in the paper.
+"""
+
 import pkgutil
+from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
@@ -12,143 +22,140 @@ from ..learned_eo.les_tools import (
     load_pkl_object,
     tanh_timestamp,
 )
-from ..strategy import Strategy
-from ..types import ArrayTree, Fitness, Population, Solution
+from ..strategy import Params, State, Strategy, metrics_fn
+from ..types import Fitness, Population, PyTree, Solution
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: jax.Array
-    path_c: jax.Array
-    path_sigma: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    std: jax.Array
+    p_std: jax.Array
+    p_c: jax.Array
 
 
 @struct.dataclass
-class Params:
-    net_params: ArrayTree
-    sigma_init: float = 0.1
-    init_min: float = -5.0
-    init_max: float = 5.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    std_init: float
+    params: PyTree
 
 
 class LES(Strategy):
-    """Population-Invariant Learned Evolution Strategy (Lange et al., 2023)."""
+    """Learned Evolution Strategy (LES)."""
 
-    # NOTE: This is an independent reimplementation which does not use the same
-    # meta-trained checkpoint used to generate the results in the paper. It
-    # has been independently meta-trained & tested on a handful of Brax tasks.
-    # The results may therefore differ from the ones shown in the paper.
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        net_params: ArrayTree | None = None,
-        net_ckpt_path: str | None = None,
-        sigma_init: float = 0.1,
-        mean_decay: float = 0.0,
+        params: PyTree | None = None,
+        params_path: str | None = None,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
+        """Initialize LES."""
         super().__init__(
             population_size,
             solution,
-            mean_decay,
+            metrics_fn,
             **fitness_kwargs,
         )
         self.strategy_name = "LES"
+
+        # LES components
+        self.fitness_features = FitnessFeatures(centered_rank=True, z_score=True)
+        self.weight_layer = AttentionWeights(8)
+        self.lrate_layer = EvoPathMLP(8)
         self.evopath = EvolutionPath(
             num_dims=self.num_dims, timescales=jnp.array([0.1, 0.5, 0.9])
         )
-        self.weight_layer = AttentionWeights(8)
-        self.lrate_layer = EvoPathMLP(8)
-        self.fitness_features = FitnessFeatures(centered_rank=True, z_score=True)
-        self.sigma_init = sigma_init
 
-        # Set net params provided at instantiation
-        if net_params is not None:
-            self.les_net_params = net_params
-
-        # Load network weights from checkpoint
-        if net_ckpt_path is not None:
-            self.les_net_params = load_pkl_object(net_ckpt_path)
-            print(f"Loaded LES model from ckpt: {net_ckpt_path}")
-
-        if net_params is None and net_ckpt_path is None:
+        if params is not None:
+            # Set params provided
+            self.les_params = params
+        elif params_path is not None:
+            # Load params from checkpoint
+            self.les_params = load_pkl_object(params_path)
+        else:
+            # Load default params
             ckpt_fname = "2023_10_les_v2.pkl"
             data = pkgutil.get_data(__name__, f"ckpt/les/{ckpt_fname}")
-            self.les_net_params = load_pkl_object(data, pkg_load=True)
-            print(f"Loaded pretrained LES model from ckpt: {ckpt_fname}")
+            self.les_params = load_pkl_object(data, pkg_load=True)
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        return Params(net_params=self.les_net_params, sigma_init=self.sigma_init)
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        init_mean = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
+    def _default_params(self) -> Params:
+        return Params(
+            std_init=1.0,
+            params=self.les_params,
         )
-        init_sigma = params.sigma_init * jnp.ones(self.num_dims)
-        init_path_c = self.evopath.init()
-        init_path_sigma = self.evopath.init()
+
+    def _init(self, key: jax.Array, params: Params) -> State:
+        init_p_c = self.evopath.init()
+        init_p_std = self.evopath.init()
         return State(
-            mean=init_mean,
-            sigma=init_sigma,
-            path_c=init_path_c,
-            path_sigma=init_path_sigma,
-            best_member=init_mean,
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init * jnp.ones(self.num_dims),
+            p_c=init_p_c,
+            p_std=init_p_std,
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        noise = jax.random.normal(key, (self.population_size, self.num_dims))
-        x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
-        x = jnp.clip(x, params.clip_min, params.clip_max)
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size, self.num_dims))
+        population = state.mean + jnp.expand_dims(state.std, axis=0) * z
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        fit_re = self.fitness_features.apply(x, fitness, state.best_fitness)
+        # Fitness features
+        fitness_features = self.fitness_features.apply(
+            population, fitness, state.best_fitness
+        )
         time_embed = tanh_timestamp(state.generation_counter)
-        weights = self.weight_layer.apply(params.net_params["recomb_weights"], fit_re)
-        weight_diff = (weights * (x - state.mean)).sum(axis=0)
-        weight_noise = (weights * (x - state.mean) / state.sigma).sum(axis=0)
-        path_c = self.evopath.update(state.path_c, weight_diff)
-        path_sigma = self.evopath.update(state.path_sigma, weight_noise)
-        lrates_mean, lrates_sigma = self.lrate_layer.apply(
-            params.net_params["lrate_modulation"],
-            path_c,
-            path_sigma,
+
+        # Fitness shaping
+        weights = self.weight_layer.apply(
+            params.params["recomb_weights"], fitness_features
+        )
+        weight_diff = (weights * (population - state.mean)).sum(axis=0)
+        weight_noise = (weights * (population - state.mean) / state.std).sum(axis=0)
+
+        # Update evolution paths
+        p_c = self.evopath.update(state.p_c, weight_diff)
+        p_std = self.evopath.update(state.p_std, weight_noise)
+
+        # Learning rates
+        lrates_mean, lrates_std = self.lrate_layer.apply(
+            params.params["lrate_modulation"],
+            p_c,
+            p_std,
             time_embed,
         )
-        weighted_mean = (weights * x).sum(axis=0)
-        weighted_sigma = jnp.sqrt((weights * (x - state.mean) ** 2).sum(axis=0) + 1e-10)
-        mean_change = lrates_mean * (weighted_mean - state.mean)
-        sigma_change = lrates_sigma * (weighted_sigma - state.sigma)
-        mean = state.mean + mean_change
-        sigma = state.sigma + sigma_change
-        mean = jnp.clip(mean, params.clip_min, params.clip_max)
-        sigma = jnp.clip(sigma, 0, params.clip_max)
+
+        # Update mean and std
+        weighted_mean = jnp.sum(weights * population, axis=0)
+        weighted_std = jnp.sqrt(
+            jnp.sum(weights * (population - state.mean) ** 2, axis=0) + 1e-8
+        )
+        mean = state.mean + lrates_mean * (weighted_mean - state.mean)
+        std = state.std + lrates_std * (weighted_std - state.std)
+        std = jnp.clip(std, min=0)
+
         return state.replace(
             mean=mean,
-            sigma=sigma,
-            path_c=path_c,
-            path_sigma=path_sigma,
+            std=std,
+            p_c=p_c,
+            p_std=p_std,
         )

@@ -250,7 +250,7 @@ class State:
 - Adds Acrobot task to `GymFitness` rollout wrappers.
 - Adds modified Ant environment to Brax rollout.
 - New strategies:
-    - RmES (`RmES` following Li & Zhang, 2008).
+    - Rm_ES (`Rm_ES` following Li & Zhang, 2008).
     - Gradientless Descent (`GLD` following Golovin et al., 2020).
     - Simulated Annealing (`SimAnneal` following Rasdi Rere et al., 2015)
 - Adds simultaneous batch strategy functionalities:
@@ -276,7 +276,7 @@ class State:
     - Separable CMA-ES strategy (`Sep_CMA_ES` following Ros & Hansen, 2008).
     - BIPOP-CMA-ES (`BIPOP_CMA_ES`, following Hansen, 2009)
     - IPOP-CMA-ES (`IPOP_CMA_ES`, following Auer & Hansen, 2005)
-    - Full-iAMaLGaM (`Full_iAMaLGaM`, following Bosman et al., 2013)
+    - Full-iAMaLGaM (`iAMaLGaM_Full`, following Bosman et al., 2013)
     - MA-ES (`MA_ES`, following Bayer & Sendhoff, 2017)
     - LM-MA-ES (`LM_MA_ES`, following Loshchilov et al., 2017)
 - Restart wrappers: 

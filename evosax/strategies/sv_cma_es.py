@@ -1,226 +1,111 @@
+"""Stein Variational CMA-ES (Braun et al., 2024).
+
+Reference: https://arxiv.org/abs/2410.10390
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
-from flax.struct import dataclass
+from flax import struct
 
-from evosax.strategies.cma_es import (
-    CMA_ES,
-    Params,
-    get_cma_elite_weights,
-    sample,
-    update_covariance,
-    update_p_c,
-    update_p_sigma,
-    update_sigma,
-)
+from ..strategy import metrics_fn
+from evosax.strategies.cma_es import CMA_ES, Params, State
 
 from ..types import Fitness, Population, Solution
-from ..utils.eigen_decomp import full_eigen_decomp
-from ..utils.kernel import RBF, Kernel
+from ..utils.kernel import kernel_rbf
 
 
-@dataclass
-class State:
-    p_sigma: jax.Array
-    p_c: jax.Array
-    C: jax.Array
-    D: jax.Array | None
-    B: jax.Array | None
-    mean: jax.Array
-    sigma: jax.Array
-    weights: jax.Array
-    weights_truncated: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
-    bandwidth: float = 1.0
-    alpha: float = 1.0
+@struct.dataclass
+class Params(Params):
+    kernel_std: float
+    alpha: float
 
 
 class SV_CMA_ES(CMA_ES):
+    """Stein Variational CMA-ES (SV-CMA-ES)."""
+
     def __init__(
         self,
-        npop: int,
-        subpopulation_size: int,
+        population_size: int,
+        num_populations: int,
         solution: Solution,
-        kernel: type[Kernel] = RBF,
-        elite_ratio: float = 0.5,
-        sigma_init: float = 1.0,
-        mean_decay: float = 0.0,
+        kernel: Callable = kernel_rbf,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Stein Variational CMA-ES (Braun et al., 2024)
-        Reference: https://arxiv.org/abs/2410.10390
-        """
-        self.npop = npop
-        self.subpopulation_size = subpopulation_size
-        population_size = int(npop * subpopulation_size)
-        super().__init__(
-            population_size,
-            solution,
-            elite_ratio,
-            sigma_init,
-            mean_decay,
-            **fitness_kwargs,
+        """Initialize SV-CMA-ES."""
+        assert population_size % num_populations == 0, (
+            "population_size must be divisible by num_populations."
         )
-        self.elite_population_size = max(
-            1, int(self.subpopulation_size * self.elite_ratio)
-        )
-        self.strategy_name = "SV_CMA_ES"
-        self.kernel = kernel()
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        weights, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.subpopulation_size,
-            self.elite_population_size,
-            self.num_dims,
-            self.max_dims_sq,
-        )
-        # Initialize evolution paths & covariance matrix
-        initialization = jax.random.uniform(
-            key,
-            (self.npop, self.num_dims),
-            minval=params.init_min,
-            maxval=params.init_max,
+        self.num_populations = num_populations
+        self.total_population_size = num_populations * population_size
+
+        self.kernel = kernel
+
+    @property
+    def _default_params(self) -> Params:
+        params = super()._default_params
+        return Params(
+            std_init=params.std_init,
+            weights=params.weights,
+            mu_eff=params.mu_eff,
+            c_mean=params.c_mean,
+            c_std=params.c_std,
+            d_std=params.d_std,
+            c_c=params.c_c,
+            c_1=params.c_1,
+            c_mu=params.c_mu,
+            chi_n=params.chi_n,
+            kernel_std=1.0,
+            alpha=1.0,
         )
 
-        state = State(
-            p_sigma=jnp.zeros((self.npop, self.num_dims)),
-            p_c=jnp.zeros((self.npop, self.num_dims)),
-            sigma=jnp.ones(self.npop) * params.sigma_init,
-            mean=initialization,
-            C=jnp.tile(jnp.eye(self.num_dims), (self.npop, 1, 1)),
-            D=None,
-            B=None,
-            weights=weights,
-            weights_truncated=weights_truncated,
-            best_member=initialization[0],  # Take any random member of the means
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
+        keys = jax.random.split(key, num=self.num_populations)
+        state = jax.vmap(super()._init, in_axes=(0, None))(keys, params)
+        state = state.replace(grad=jnp.zeros((self.num_populations, self.num_dims)))
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[Population, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        Cs, Bs, Ds = jax.vmap(full_eigen_decomp)(state.C, state.B, state.D)
-        keys = jax.random.split(key, num=self.npop)
-        x = jax.vmap(sample, (0, 0, 0, 0, 0, None, None))(
-            keys,
-            state.mean,
-            state.sigma,
-            Bs,
-            Ds,
-            self.num_dims,
-            self.subpopulation_size,
-        )
-
-        # Reshape for evaluation
-        x = x.reshape(self.population_size, self.num_dims)
-
-        return x, state.replace(C=Cs, B=Bs, D=Ds)
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        keys = jax.random.split(key, num=self.num_populations)
+        population, state = jax.vmap(super()._ask, in_axes=(0, 0, None))(
+            keys, state, params
+        )
+        population = population.reshape(self.total_population_size, self.num_dims)
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        x = x.reshape(self.npop, self.subpopulation_size, self.num_dims)
-        fitness = fitness.reshape(self.npop, self.subpopulation_size)
-
-        # Compute grads
-        y_ks, y_ws = jax.vmap(cmaes_grad, (0, 0, 0, 0, None))(
-            x, fitness, state.mean, state.sigma, state.weights_truncated
+        population = population.reshape(
+            self.num_populations, self.population_size, self.num_dims
         )
+        fitness = fitness.reshape(self.num_populations, self.population_size)
 
         # Compute kernel grads
-        bandwidth = state.bandwidth
-        kernel_grads = jax.vmap(
+        grad_kernel = jax.vmap(
             lambda xi: jnp.mean(
-                jax.vmap(lambda xj: jax.grad(self.kernel)(xj, xi, bandwidth))(
-                    state.mean
-                ),
+                jax.vmap(lambda xj: jax.grad(self.kernel)(xj, xi, params))(state.mean),
                 axis=0,
             )
         )(state.mean)
+        state = state.replace(grad=params.alpha * grad_kernel)
 
-        # Update means using the kernel gradients
-        alpha = state.alpha
-        projected_steps = y_ws + alpha * kernel_grads / state.sigma[:, None]
-        means = state.mean + params.c_m * state.sigma[:, None] * projected_steps
-
-        # Search distribution updates
-        p_sigmas, C_2s, Cs, Bs, Ds = jax.vmap(
-            update_p_sigma, (0, 0, 0, 0, 0, None, None, None)
-        )(
-            state.C,
-            state.B,
-            state.D,
-            state.p_sigma,
-            projected_steps,
-            params.c_sigma,
-            params.mu_eff,
-            state.generation_counter,
+        keys = jax.random.split(key, num=self.num_populations)
+        state = jax.vmap(super()._tell, in_axes=(0, 0, 0, 0, None))(
+            keys, population, fitness, state, params
         )
-
-        p_cs, norms_p_sigma, h_sigmas = jax.vmap(
-            update_p_c, (0, 0, 0, None, 0, None, None, None, None)
-        )(
-            means,
-            p_sigmas,
-            state.p_c,
-            state.generation_counter + 1,
-            projected_steps,
-            params.c_sigma,
-            params.chi_n,
-            params.c_c,
-            params.mu_eff,
-        )
-
-        Cs = jax.vmap(update_covariance, (0, 0, 0, 0, 0, 0, None, None, None, None))(
-            means,
-            p_cs,
-            Cs,
-            y_ks,
-            h_sigmas,
-            C_2s,
-            state.weights,
-            params.c_c,
-            params.c_1,
-            params.c_mu,
-        )
-
-        sigmas = jax.vmap(update_sigma, (0, 0, None, None, None))(
-            state.sigma,
-            norms_p_sigma,
-            params.c_sigma,
-            params.d_sigma,
-            params.chi_n,
-        )
-
-        return state.replace(
-            mean=means, p_sigma=p_sigmas, C=Cs, B=Bs, D=Ds, p_c=p_cs, sigma=sigmas
-        )
-
-
-def cmaes_grad(
-    x: Population,
-    fitness: Fitness,
-    mean: Solution,
-    sigma: float,
-    weights_truncated: jax.Array,
-) -> tuple[jax.Array, jax.Array]:
-    """Approximate gradient using samples from a search distribution."""
-    # get sorted solutions
-    concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
-    sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
-    # get the scores
-    x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
-    y_k = (x_k - mean) / sigma  # ~ N(0, C)
-    grad = jnp.dot(
-        weights_truncated.T, y_k
-    )  # y_w can be seen as score estimate of CMA-ES
-
-    return y_k, grad
+        return state

@@ -1,81 +1,91 @@
+"""Gaussian Hill Climbing algorithm."""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
-from ..utils import get_best_fitness_member
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    fitness: float
+    std: jax.Array
+    generation_counter: int
 
 
 @struct.dataclass
-class Params:
-    sigma_init: float = 1.0
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    std_init: float
+    std_decay: float
+    std_limit: float
 
 
 class HillClimber(Strategy):
+    """Gaussian Hill Climbing algorithm."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Simple Gaussian Hill Climbing"""
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
+        """Initialize Gaussian Hill Climbing."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "HillClimber"
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        return Params()
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
+    def _default_params(self) -> Params:
+        return Params(
+            std_init=1.0,
+            std_decay=1.0,
+            std_limit=0.0,
         )
+
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization,
-            sigma=params.sigma_init * jnp.ones((self.num_dims,)),
-            best_member=initialization,
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            fitness=jnp.inf,
+            std=params.std_init * jnp.ones((self.num_dims,)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next."""
-        # Sampling of N(0, 1) noise
-        z = jax.random.normal(
-            key,
-            (self.population_size, self.num_dims),
-        )
-        x = state.best_member + state.sigma.reshape(1, self.num_dims) * z
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size, self.num_dims))
+        population = state.mean + jnp.expand_dims(state.std, axis=0) * z
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state."""
-        best_member, best_fitness = get_best_fitness_member(x, fitness, state, False)
-        return state.replace(mean=best_member)
+        # Get best member in current population
+        best_idx = jnp.argmin(fitness)
+        best_member, best_fitness = population[best_idx], fitness[best_idx]
+
+        # Replace if new best
+        replace = best_fitness < state.fitness
+        best_member = jnp.where(replace, best_member, state.mean)
+        best_fitness = jnp.where(replace, best_fitness, state.fitness)
+
+        # Update std
+        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+
+        return state.replace(mean=best_member, fitness=best_fitness, std=std)

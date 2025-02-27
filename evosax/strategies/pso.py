@@ -1,150 +1,119 @@
+"""Particle Swarm Optimization (Kennedy & Eberhart, 1995).
+
+Reference: https://ieeexplore.ieee.org/document/488968
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
-    mean: jax.Array
-    archive: jax.Array
+class State(State):
+    population: Population
     fitness: Fitness
+    population_best: Population
+    fitness_best: Fitness
     velocity: jax.Array
-    best_archive: jax.Array
-    best_archive_fitness: Fitness
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    generation_counter: int
 
 
 @struct.dataclass
-class Params:
-    inertia_coeff: float = 0.75  # w momentum of velocity
-    cognitive_coeff: float = 1.5  # c_1 cognitive "force" multiplier
-    social_coeff: float = 2.0  # c_2 social "force" multiplier
-    init_min: float = -0.1
-    init_max: float = 0.1
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    inertia_coeff: float  # w momentum of velocity
+    cognitive_coeff: float  # c_1 cognitive "force" multiplier
+    social_coeff: float  # c_2 social "force" multiplier
 
 
 class PSO(Strategy):
+    """Particle Swarm Optimization (PSO)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Particle Swarm Optimization (Kennedy & Eberhart, 1995)
-        Reference: https://ieeexplore.ieee.org/document/488968
-        """
-        super().__init__(population_size, solution, **fitness_kwargs)
+        """Initialize PSO."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "PSO"
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        return Params()
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.population_size, self.num_dims),
-            minval=params.init_min,
-            maxval=params.init_max,
+    def _default_params(self) -> Params:
+        return Params(
+            inertia_coeff=0.75,
+            cognitive_coeff=1.5,
+            social_coeff=2.0,
         )
+
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization.mean(axis=0),
-            archive=initialization,
-            fitness=jnp.zeros(self.population_size) + jnp.finfo(jnp.float32).max,
+            population=jnp.full((self.population_size, self.num_dims), jnp.nan),
+            fitness=jnp.full((self.population_size,), jnp.inf),
+            population_best=jnp.full((self.population_size, self.num_dims), jnp.nan),
+            fitness_best=jnp.full((self.population_size,), jnp.inf),
             velocity=jnp.zeros((self.population_size, self.num_dims)),
-            best_archive=initialization,
-            best_archive_fitness=jnp.zeros(self.population_size)
-            + jnp.finfo(jnp.float32).max,
-            best_member=initialization.mean(axis=0),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next.
-        1. Update v_i(t+1) velocities base on:
-          - Inertia: w * v_i(t)
-          - Cognitive: c_1 * r_1 * (p_(i, lb)(t) - x_i(t))
-          - Social: c_2 * r_2 * (p_(gb)(t) - x_i(t))
-        2. Update "particle" positions: x_i(t+1) = x_i(t) + v_i(t+1)
-        """
-        keys = jax.random.split(key, self.population_size)
-        member_ids = jnp.arange(self.population_size)
-        vel = jax.vmap(
-            single_member_velocity,
-            in_axes=(0, 0, None, None, None, None, None, None, None),
-        )(
-            keys,
-            member_ids,
-            state.archive,
-            state.velocity,
-            state.best_archive,
-            state.best_archive_fitness,
-            params.inertia_coeff,
-            params.cognitive_coeff,
-            params.social_coeff,
-        )
-        # Update particle positions with velocity
-        x = state.archive + vel
-        return x, state.replace(velocity=vel)
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        # Get global best
+        population_best = jnp.where(
+            jnp.isnan(state.population_best), state.population, state.population_best
+        )
+        fitness_best = jnp.where(
+            jnp.isnan(state.fitness_best), state.fitness, state.fitness_best
+        )
+        best_global_idx = jnp.argmin(fitness_best)
+        best_global = population_best[best_global_idx]
+
+        def _ask_velocity(key, velocity, member, member_best):
+            # Sharing r1, r1 across dimensions seems more robust
+            r1, r2 = jax.random.uniform(key, (2,))
+            return (
+                params.inertia_coeff * velocity
+                + params.cognitive_coeff * r1 * (member_best - member)
+                + params.social_coeff * r2 * (best_global - member)
+            )
+
+        # Update particle positions with velocity
+        keys = jax.random.split(key, self.population_size)
+        velocity = jax.vmap(_ask_velocity)(
+            keys, state.velocity, state.population, population_best
+        )
+        x = state.population + velocity
+        return x, state.replace(velocity=velocity)
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state.
-        If fitness of y <= fitness of x -> replace in population.
-        """
-        replace = fitness <= state.best_archive_fitness
-        best_archive = (
-            jnp.expand_dims(replace, 1) * x
-            + (1 - jnp.expand_dims(replace, 1)) * state.best_archive
+        replace = fitness <= state.fitness_best
+        population_best = jnp.where(
+            replace[..., None], population, state.population_best
         )
-        best_archive_fitness = (
-            replace * fitness + (1 - replace) * state.best_archive_fitness
-        )
+        fitness_best = jnp.where(replace, fitness, state.fitness_best)
         return state.replace(
-            mean=x.mean(axis=0),
+            population=population,
             fitness=fitness,
-            archive=x,
-            best_archive=best_archive,
-            best_archive_fitness=best_archive_fitness,
+            population_best=population_best,
+            fitness_best=fitness_best,
         )
-
-
-def single_member_velocity(
-    key: jax.Array,
-    member_id: int,
-    archive: jax.Array,
-    velocity: jax.Array,
-    best_archive: jax.Array,
-    best_fitness: Fitness,
-    inertia_coeff: float,
-    cognitive_coeff: float,
-    social_coeff: float,
-):
-    """Update v_i(t+1) velocities based on: Inertia, Cognitive, Social."""
-    # Sampling one shared r1, r2 across dims of one member seems more robust!
-    # r1, r2 = jax.random.uniform(key, (2, archive.shape[1]))
-    r1, r2 = jax.random.uniform(key, (2,))
-    global_best_id = jnp.argmin(best_fitness)
-    global_best = best_archive[global_best_id]
-    vel_new = (
-        inertia_coeff * velocity[member_id]
-        + cognitive_coeff * r1 * (best_archive[member_id] - archive[member_id])
-        + social_coeff * r2 * (global_best - archive[member_id])
-    )
-    return vel_new

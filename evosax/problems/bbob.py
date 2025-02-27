@@ -50,13 +50,10 @@ class BBOBProblem:
         self,
         key: jax.Array,
         eval_params: jax.Array,
-        noise_std: float = 0.0,
     ) -> Fitness:
         """Batch evaluate the proposal points."""
-        # vmap over population batch dimension
         fn_value, fn_pen = jax.vmap(self.fn)(eval_params)
-        eval_noise = jax.random.normal(key, shape=fn_value.shape) * noise_std
-        return fn_value + eval_noise
+        return fn_value + fn_pen
 
     def sample_solution(self, key: jax.Array) -> Solution:
         return jax.random.uniform(
@@ -220,8 +217,8 @@ def bueche_rastrigin(
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
 
-    # TODO: in "Real-Parameter Black-Box Optimization Benchmarking 2009: Noiseless Functions Definitions", circular
-    # definition between z and s.
+    # TODO: in "Real-Parameter Black-Box Optimization Benchmarking 2009: Noiseless
+    # Functions Definitions", circular definition between z and s.
     z = transform_osz(x - x_opt)
 
     exp = (
@@ -691,7 +688,7 @@ def katsuura(
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
 
-    # num_terms = 32 in Hansen et al., 2010, but set to 30 to avoid overflow
+    # num_terms = 32 in Hansen et al. (2010), but set to 30 to avoid overflow
     num_terms = 30
 
     z = jnp.matmul(r, x - x_opt)

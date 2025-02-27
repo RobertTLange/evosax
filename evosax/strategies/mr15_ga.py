@@ -1,134 +1,102 @@
+"""1/5 Mutation Rate Genetic Algorithm (Rechenberg, 1987).
+
+Reference: https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
-from .simple_ga import single_mate
+from .simple_ga import mutation
 
 
 @struct.dataclass
-class State:
-    mean: jax.Array
-    archive: jax.Array
+class State(State):
+    population: jax.Array
     fitness: Fitness
-    sigma: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    std: jax.Array
 
 
 @struct.dataclass
-class Params:
-    cross_over_rate: float = 0.0
-    sigma_init: float = 0.07
-    sigma_ratio: float = 0.15
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    std_init: float
+    std_limit: float
+    std_ratio: float
 
 
 class MR15_GA(Strategy):
+    """1/5 Mutation Rate Genetic Algorithm (MR15-GA)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        elite_ratio: float = 0.0,
-        sigma_ratio: float = 0.15,
-        sigma_init: float = 0.1,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """1/5 MR Genetic Algorithm (Rechenberg, 1987)
-        Reference: https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
-        """
-        super().__init__(population_size, solution, **fitness_kwargs)
-        self.elite_ratio = elite_ratio
-        self.elite_population_size = max(
-            1, int(self.population_size * self.elite_ratio)
-        )
+        """Initialize MR15-GA."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "MR15_GA"
 
-        # Set core kwargs params
-        self.sigma_ratio = sigma_ratio  # no. mutation that have to improve
-        self.sigma_init = sigma_init
+        self.elite_ratio = 0.5
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        return Params(sigma_init=self.sigma_init, sigma_ratio=self.sigma_ratio)
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the differential evolution strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.elite_population_size, self.num_dims),
-            minval=params.init_min,
-            maxval=params.init_max,
+    def _default_params(self) -> Params:
+        return Params(
+            std_init=1.0,
+            std_limit=0.001,
+            std_ratio=0.2,
         )
+
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization.mean(axis=0),
-            archive=initialization,
-            fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
-            sigma=params.sigma_init,
-            best_member=initialization.mean(axis=0),
+            population=jnp.full((self.population_size, self.num_dims), jnp.nan),
+            fitness=jnp.full((self.population_size,), jnp.inf),
+            std=params.std_init,
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next.
-        1. For each member of elite:
-          - Sample two current elite members (a & b)
-          - Cross over all dims of a with corresponding one from b
-            if random number > co-rate
-          - Additionally add noise on top of all elite parameters
-        """
-        key, key_eps, key_idx_a, key_idx_b = jax.random.split(key, 4)
-        key_mate = jax.random.split(key, self.population_size)
-
-        epsilon = (
-            jax.random.normal(key_eps, (self.population_size, self.num_dims))
-            * state.sigma
-        )
-
-        elite_ids = jnp.arange(self.elite_population_size)
-        idx_a = jax.random.choice(key_idx_a, elite_ids, (self.population_size,))
-        idx_b = jax.random.choice(key_idx_b, elite_ids, (self.population_size,))
-        members_a = state.archive[idx_a]
-        members_b = state.archive[idx_b]
-
-        x = jax.vmap(single_mate, in_axes=(0, 0, 0, None))(
-            key_mate, members_a, members_b, params.cross_over_rate
-        )
-        x += epsilon
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        # Mutation
+        keys = jax.random.split(key, self.population_size)
+        population = jax.vmap(mutation, in_axes=(0, 0, None))(
+            keys, state.population, state.std
+        )
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state.
-        If fitness of y <= fitness of x -> replace in population.
-        """
-        # Combine current elite and recent generation info
+        # Update mutation std
+        beneficial_mutation_rate = jnp.mean(fitness < state.fitness)
+        increase_std = beneficial_mutation_rate > params.std_ratio
+        std = jnp.where(increase_std, 2 * state.std, 0.5 * state.std)
+        std = jnp.clip(std, min=params.std_limit)
+
+        # Combine populations from current and previous generations
+        population = jnp.concatenate([population, state.population])
         fitness = jnp.concatenate([fitness, state.fitness])
-        solution = jnp.concatenate([x, state.archive])
-        # Select top elite from total archive info
-        idx = jnp.argsort(fitness)[0 : self.elite_population_size]
+
+        # Select top elite from total population info
+        idx = jnp.argsort(fitness)[: self.population_size]
+        population = population[idx]
         fitness = fitness[idx]
-        archive = solution[idx]
-        # Update mutation sigma - double if more than 15% improved
-        good_mutations_ratio = jnp.mean(fitness < state.best_fitness)
-        increase_sigma = good_mutations_ratio > params.sigma_ratio
-        sigma = jax.lax.select(increase_sigma, 2 * state.sigma, 0.5 * state.sigma)
-        # Set mean to best member seen so far
-        improved = fitness[0] < state.best_fitness
-        best_mean = jax.lax.select(improved, archive[0], state.best_member)
-        return state.replace(
-            fitness=fitness, archive=archive, sigma=sigma, mean=best_mean
-        )
+
+        return state.replace(population=population, fitness=fitness, std=std)

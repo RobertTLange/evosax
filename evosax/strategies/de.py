@@ -1,219 +1,123 @@
+"""Differential Evolution (Storn & Price, 1997).
+
+Reference: https://link.springer.com/article/10.1023/A:1008202821328
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
-from ..types import Fitness, Solution
+from ..strategy import Params, State, Strategy, metrics_fn
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
-    mean: jax.Array
-    archive: jax.Array
-    fitness_archive: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+class State(State):
+    population: jax.Array
+    fitness: jax.Array
 
 
 @struct.dataclass
-class Params:
-    mutate_best_vector: bool = True  # False - 'random'
-    num_diff_vectors: int = 1  # [1, 2]
-    cross_over_rate: float = 0.9  # cross-over probability [0, 1]
-    diff_w: float = 0.8  # differential weight (F) [0, 2]
-    init_min: float = -0.1
-    init_max: float = 0.1
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    elitism: bool  # If elitism, base vector is best member else random
+    crossover_rate: float  # [0, 1]
+    differential_weight: float  # [0, 2]
 
 
 class DE(Strategy):
+    """Differential Evolution (DE)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
+        num_diff: int = 1,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Differential Evolution (Storn & Price, 1997)
-        Reference: https://tinyurl.com/4pje5a74
-        """
-        assert population_size > 6, "DE requires population_size > 6."
-        super().__init__(population_size, solution, **fitness_kwargs)
+        """Initialize DE."""
+        assert population_size >= 4, "DE requires population_size >= 4."
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "DE"
 
-    @property
-    def params_strategy(self) -> Params:
-        return Params()
+        self.num_diff = num_diff
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the differential evolution strategy.
-        Initialize all population members by randomly sampling
-        positions in search-space (defined in `params`).
-        """
-        initialization = jax.random.uniform(
-            key,
-            (self.population_size, self.num_dims),
-            minval=params.init_min,
-            maxval=params.init_max,
+    @property
+    def _default_params(self) -> Params:
+        return Params(
+            elitism=True,
+            crossover_rate=0.9,
+            differential_weight=0.8,
         )
+
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization.mean(axis=0),
-            archive=initialization,
-            fitness_archive=jnp.zeros(self.population_size)
-            + 20e10,  # TODO: what is 20e10?
-            best_member=initialization.mean(axis=0),
+            population=jnp.full((self.population_size, self.num_dims), jnp.nan),
+            fitness=jnp.full(self.population_size, jnp.inf),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next.
-        For each population member x:
-        - Pick 3 unique members (a, b, c) from rest of pop. at random.
-        - Pick a random dimension R from the parameter space.
-        - Compute the member's potentially new position:
-            - For each i ∈ {1,...,d}, pick a r_i ~ U(0, 1)
-            - If r_i < cr or i = R, set y_i = a_i + F * (b_i - c_i)
-            - Else y_i = x_i
-        Return new potential position y.
-        """
+    def _ask(
+        self,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
         keys = jax.random.split(key, self.population_size)
         member_ids = jnp.arange(self.population_size)
-        x = jax.vmap(single_member_ask, in_axes=(0, 0, None, None, None, None))(
-            keys,
-            member_ids,
-            self.num_dims,
-            state.archive,
-            state.best_member,
-            params,
-        )
-        return jnp.squeeze(x, axis=2), state
+        best_index = jnp.argmin(state.fitness)
 
-    def tell_strategy(
+        def _ask_member(key, member_id):
+            x = state.population[member_id]
+
+            key_a, key_R, key_r, key_ab = jax.random.split(key, 4)
+            p = jnp.ones(self.population_size).at[member_id].set(0.0)
+
+            # Base vector
+            a_index = jax.random.choice(key_a, self.population_size, p=p)
+
+            # Elitism
+            a_index = jnp.where(params.elitism, best_index, a_index)
+            a = state.population[a_index]
+
+            # Crossover dimensions mask
+            R = jax.random.choice(key_R, self.num_dims)
+            R = jax.nn.one_hot(R, self.num_dims)
+
+            r = jax.random.uniform(key_r, (self.num_dims,))
+
+            mask = jnp.logical_or(r < params.crossover_rate, R)
+
+            # Diff vectors
+            p = p.at[a_index].set(0.0)
+            for _ in range(self.num_diff):
+                key_ab, subkey = jax.random.split(key_ab)
+                b, c = jax.random.choice(
+                    subkey, state.population, (2,), replace=False, p=p
+                )
+
+                a = jnp.where(mask, a + params.differential_weight * (b - c), x)
+
+            return a
+
+        y = jax.vmap(_ask_member)(keys, member_ids)
+        return y, state
+
+    def _tell(
         self,
-        x: Solution,
+        key: jax.Array,
+        population: Solution,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state.
-        If fitness of y <= fitness of x -> replace in population.
-        """
-        # Replace member in archive if performance was improved
-        replace = fitness <= state.fitness_archive
-        archive = (
-            jnp.expand_dims(replace, 1) * x
-            + (1 - jnp.expand_dims(replace, 1)) * state.archive
-        )
-        fitness_archive = replace * fitness + (1 - replace) * state.fitness_archive
-        # Keep mean across stored archive around for evaluation protocol
-        mean = archive.mean(axis=0)
-        return state.replace(
-            mean=mean, archive=archive, fitness_archive=fitness_archive
-        )
-
-
-def single_member_ask(
-    key: jax.Array,
-    member_id: int,
-    num_dims: int,
-    archive: jax.Array,
-    best_member: jax.Array,
-    params: Params,
-) -> jax.Array:
-    """Perform `ask` steps for single member."""
-    x = archive[member_id]
-
-    # Sample a, b and c parameter vectors from rest of population
-    key, key_row_ids, key_R = jax.random.split(key, 3)
-    # A bit of an awkward hack - sample one additional member to avoid
-    # using same vector as x - check condition and select extra if needed
-    # Also always sample 6 members - for case where we want two diff vectors
-    row_ids = jax.random.choice(
-        key_row_ids, jnp.arange(archive.shape[0]), (6,), replace=False
-    )
-    a = jax.lax.select(
-        row_ids[0] == member_id, archive[row_ids[5]], archive[row_ids[0]]
-    )
-    b = jax.lax.select(
-        row_ids[1] == member_id, archive[row_ids[5]], archive[row_ids[1]]
-    )
-    c = jax.lax.select(
-        row_ids[2] == member_id, archive[row_ids[5]], archive[row_ids[2]]
-    )
-    d = jax.lax.select(
-        row_ids[3] == member_id, archive[row_ids[5]], archive[row_ids[3]]
-    )
-    e = jax.lax.select(
-        row_ids[4] == member_id, archive[row_ids[5]], archive[row_ids[4]]
-    )
-
-    # Use best vector instead of random `a` vector if `mutate_vector` == "best"
-    a = jax.lax.select(params.mutate_best_vector, best_member, a)
-
-    # Sample random dimension that will be alter for sure
-    R = jax.random.randint(key_R, (1,), minval=0, maxval=num_dims)
-
-    keys = jax.random.split(key, num_dims)
-    dim_ids = jnp.arange(num_dims)
-    y = jax.vmap(
-        single_dimension_ask,
-        in_axes=(
-            0,
-            0,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-    )(
-        keys,
-        dim_ids,
-        x,
-        a,
-        b,
-        c,
-        d,
-        e,
-        R,
-        params.cross_over_rate,
-        params.diff_w,
-        params.num_diff_vectors == 2,
-    )
-    return y
-
-
-def single_dimension_ask(
-    key: jax.Array,
-    dim_id: int,
-    x: jax.Array,
-    a: jax.Array,
-    b: jax.Array,
-    c: jax.Array,
-    d: jax.Array,
-    e: jax.Array,
-    R: int,
-    cr: float,
-    diff_w: float,
-    use_second_diff: bool,
-) -> jax.Array:
-    """Perform `ask` step for single dimension."""
-    r_i = jax.random.uniform(key, (1,))
-    mutate_bool = jnp.logical_or(r_i < cr, dim_id == R)
-    y_i = (
-        mutate_bool * a[dim_id]
-        + diff_w * (b[dim_id] - c[dim_id])
-        # Only add second difference vector if desired!
-        + diff_w * (d[dim_id] - e[dim_id]) * use_second_diff
-        # Mutation - exchange x dim with a dim.
-        + (1 - mutate_bool) * x[dim_id]
-    )
-    return y_i
+        # Replace member in population if performance improved
+        replace = fitness <= state.fitness
+        population = jnp.where(replace[..., None], population, state.population)
+        fitness = jnp.where(replace, fitness, state.fitness)
+        return state.replace(population=population, fitness=fitness)

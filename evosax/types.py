@@ -4,8 +4,9 @@ from typing import Any, TypeAlias
 
 import jax
 
-ArrayTree: TypeAlias = Any
+PyTree: TypeAlias = Any
 
-Solution: TypeAlias = ArrayTree
-Population: TypeAlias = ArrayTree
+Solution: TypeAlias = PyTree
+Population: TypeAlias = PyTree
 Fitness: TypeAlias = jax.Array
+Metrics: TypeAlias = PyTree

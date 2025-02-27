@@ -1,166 +1,163 @@
+"""Exponential Natural Evolution Strategy (Wierstra et al., 2014).
+
+Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
+Inspired by: https://github.com/chanshing/xnes
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
-from .snes import get_snes_weights
+from .snes import get_weights as get_snes_weights
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: float
+    std: float
     B: jax.Array
-    noise: jax.Array
-    lrate_sigma: float
+    lrate_std: float
     weights: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    z: jax.Array
 
 
 @struct.dataclass
-class Params:
-    lrate_mean: float = 1.0
-    lrate_sigma_init: float = 0.1
-    lrate_B: float = 0.1
-    sigma_init: float = 1.0
-    use_adasam: bool = False  # Adaptation sampling lrate sigma
-    rho: float = 0.5  # Significance level adaptation sampling
-    c_prime: float = 0.1  # Adaptation sampling step size
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    std_init: float
+    lrate_mean: float
+    lrate_std_init: float
+    lrate_B: float
+    use_adaptation_sampling: bool  # Adaptation sampling lrate std
+    rho: float  # Significance level adaptation sampling
+    c_prime: float  # Adaptation sampling step size
 
 
 class xNES(Strategy):
+    """Exponential Natural Evolution Strategy (xNES)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        sigma_init: float = 1.0,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Exponential Natural ES (Wierstra et al., 2014)
-        Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
-        Inspired by: https://github.com/chanshing/xnes
-        """
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
+        """Initialize xNES."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "xNES"
 
-        # Set core kwargs params
-        self.sigma_init = sigma_init
-
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolutionary strategy."""
-        lrate_sigma = (9 + 3 * jnp.log(self.num_dims)) / (
+    def _default_params(self) -> Params:
+        lrate_std_init = (9 + 3 * jnp.log(self.num_dims)) / (
             5 * jnp.sqrt(self.num_dims) * self.num_dims
         )
-        rho = 0.5 - 1.0 / (3 * (self.num_dims + 1))
-        params = Params(
-            lrate_sigma_init=lrate_sigma,
-            lrate_B=lrate_sigma,
+        rho = 0.5 - 1 / (3 * (self.num_dims + 1))
+        return Params(
+            std_init=1.0,
+            lrate_mean=1.0,
+            lrate_std_init=lrate_std_init,
+            lrate_B=0.1,
+            use_adaptation_sampling=False,
             rho=rho,
-            sigma_init=self.sigma_init,
+            c_prime=0.1,
         )
-        return params
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolutionary strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
         weights = get_snes_weights(self.population_size)
-        state = State(
-            mean=initialization,
-            B=jnp.eye(self.num_dims) * params.sigma_init,
-            sigma=params.sigma_init,
-            noise=jnp.zeros((self.population_size, self.num_dims)),
-            lrate_sigma=params.lrate_sigma_init,
-            weights=weights,
-            best_member=initialization,
-        )
 
+        state = State(
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init,
+            B=params.std_init
+            * jnp.eye(self.num_dims),  # TODO: check if this is correct
+            lrate_std=params.lrate_std_init,
+            weights=weights,
+            z=jnp.zeros((self.population_size, self.num_dims)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
+        )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        noise = jax.random.normal(key, (self.population_size, self.num_dims))
-
-        def scale_orient(n, sigma, B):
-            return sigma * B.T @ n
-
-        scaled_noise = jax.vmap(scale_orient, in_axes=(0, None, None))(
-            noise, state.sigma, state.B
-        )
-        x = state.mean + scaled_noise
-        return x, state.replace(noise=noise)
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size, self.num_dims))
+        population = state.mean + state.std * jax.vmap(jnp.matmul, in_axes=(None, 0))(
+            state.B.T, z
+        )
+        return population, state.replace(z=z)
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        ranks = fitness.argsort()
-        sorted_noise = state.noise[ranks]
-        grad_mean = (state.weights * sorted_noise).sum(axis=0)
+        z_sorted = state.z[fitness.argsort()]
+        weights = jnp.expand_dims(state.weights, axis=-1)
 
-        def s_grad_m(weight, noise):
-            return weight * (noise @ noise.T - jnp.eye(self.num_dims))
+        # Update mean
+        grad_mean = jnp.sum(weights * z_sorted, axis=0)
+        mean = state.mean + params.lrate_mean * state.std * state.B @ grad_mean
 
-        grad_m = jax.vmap(s_grad_m, in_axes=(0, 0))(state.weights, sorted_noise).sum(
-            axis=0
+        # Update std
+        grad_M = jnp.sum(
+            jnp.expand_dims(weights, axis=-1)
+            * (jax.vmap(jnp.outer)(z_sorted, z_sorted) - jnp.eye(self.num_dims)),
+            axis=0,
         )
-        grad_sigma = jnp.trace(grad_m) / self.num_dims
-        grad_B = grad_m - grad_sigma * jnp.eye(self.num_dims)
+        grad_std = jnp.trace(grad_M) / self.num_dims
+        std = state.std * jnp.exp(0.5 * state.lrate_std * grad_std)
 
-        mean = state.mean + params.lrate_mean * state.sigma * state.B @ grad_mean
-        sigma = state.sigma * jnp.exp(state.lrate_sigma / 2 * grad_sigma)
-        B = state.B * jnp.exp(params.lrate_B / 2 * grad_B)
+        # Update B
+        grad_B = grad_M - grad_std * jnp.eye(self.num_dims)
+        B = state.B * jnp.exp(0.5 * params.lrate_B * grad_B)
 
-        lrate_sigma = adaptation_sampling(
-            state.lrate_sigma,
-            params.lrate_sigma_init,
+        # Adaptation sampling
+        lrate_std = adaptation_sampling(
+            state.lrate_std,
+            params.lrate_std_init,
             mean,
             B,
-            sigma,
-            state.sigma,
-            sorted_noise,
+            std,
+            state.std,
+            z_sorted,
             params.c_prime,
             params.rho,
         )
-        lrate_sigma = jax.lax.select(params.use_adasam, lrate_sigma, state.lrate_sigma)
-        return state.replace(mean=mean, sigma=sigma, B=B, lrate_sigma=lrate_sigma)
+        lrate_std = jax.lax.select(
+            params.use_adaptation_sampling, lrate_std, state.lrate_std
+        )
+
+        return state.replace(mean=mean, std=std, B=B, lrate_std=lrate_std)
 
 
 def adaptation_sampling(
-    lrate_sigma: float,
-    lrate_sigma_init: float,
+    lrate_std: float,
+    lrate_std_init: float,
     mean: jax.Array,
     B: jax.Array,
-    sigma: float,
-    sigma_old: float,
+    std: float,
+    std_old: float,
     sorted_noise: jax.Array,
     c_prime: float,
     rho: float,
 ) -> float:
-    """Adaptation sampling on sigma/std learning rate."""
+    """Adaptation sampling on std/std learning rate."""
     BB = B.T @ B
-    A = sigma**2 * BB
-    sigma_prime = sigma * jnp.sqrt(sigma / sigma_old)
-    A_prime = sigma_prime**2 * BB
+    A = std**2 * BB
+    std_prime = std * jnp.sqrt(std / std_old)
+    A_prime = std_prime**2 * BB
 
     # Probability ration and u-test - sorted order assumed for noise
     prob_0 = jax.scipy.stats.multivariate_normal.logpdf(sorted_noise, mean, A)
@@ -170,13 +167,13 @@ def adaptation_sampling(
     n = jnp.sum(w)
     u = jnp.sum(w * (jnp.arange(population_size) + 0.5))
     u_mean = population_size * n / 2
-    u_sigma = jnp.sqrt(population_size * n * (population_size + n + 1) / 12)
-    cumulative = jax.scipy.stats.norm.cdf(u, loc=u_mean + 1e-10, scale=u_sigma + 1e-10)
+    u_std = jnp.sqrt(population_size * n * (population_size + n + 1) / 12)
+    cumulative = jax.scipy.stats.norm.cdf(u, loc=u_mean + 1e-10, scale=u_std + 1e-10)
 
     # Check test significance and update lrate
-    lrate_sigma = jax.lax.select(
+    lrate_std = jax.lax.select(
         cumulative < rho,
-        (1 - c_prime) * lrate_sigma + c_prime * lrate_sigma_init,
-        jnp.minimum(1, (1 - c_prime) * lrate_sigma),
+        (1 - c_prime) * lrate_std + c_prime * lrate_std_init,
+        jnp.minimum(1, (1 - c_prime) * lrate_std),
     )
-    return lrate_sigma
+    return lrate_std

@@ -10,8 +10,8 @@ from evosax.core.fitness import (
     range_norm_trafo,
     z_score_trafo,
 )
-from evosax.strategies.des import get_des_weights
-from evosax.strategies.snes import get_snes_weights
+from evosax.strategies.des import get_weights as get_des_weights
+from evosax.strategies.snes import get_weights as get_snes_weights
 
 
 @struct.dataclass
@@ -54,7 +54,7 @@ class FitnessFeaturizer:
             )
             print("[BASE] Centered ranks in [-0.5, 0.5]")
             print(f"[{self.improved_best}] Improved best fitness -> f < f_best")
-            print(f"[{self.z_score}] Z-score normalization -> (f-f_mu)/f_sigma")
+            print(f"[{self.z_score}] Z-score normalization -> (f-f_mu)/f_std")
             print(
                 f"[{self.norm_diff_best}] Normalized difference to best -> (f-f_best) in [-1, 1]"
             )
@@ -107,7 +107,7 @@ class FitnessFeaturizer:
 
     @functools.partial(jax.jit, static_argnames=("self",))
     def init(self) -> FitnessFeaturesState:
-        return FitnessFeaturesState(best_fitness=jnp.finfo(jnp.float32).max)
+        return FitnessFeaturesState(best_fitness=jnp.inf)
 
     @property
     def num_features(self) -> int:

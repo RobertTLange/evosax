@@ -1,64 +1,52 @@
-import math
+"""Cost-Reduced Fast-Moving Natural Evolution Strategy (Nomura & Ono, 2022).
+
+Reference: https://arxiv.org/abs/2201.11422
+"""
+
+from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: float
-    v: jax.Array
-    D: jax.Array
-    p_sigma: jax.Array
+    std: float
+    p_std: jax.Array
     p_c: jax.Array
-    w_rank_hat: jax.Array
-    w_rank: jax.Array
+    D: jax.Array
+    v: jax.Array
     z: jax.Array
     y: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
 
 
 @struct.dataclass
-class Params:
+class Params(Params):
+    std_init: float
+    weights_hat: jax.Array
+    weights: jax.Array
     mu_eff: float
-    c_s: float
+    c_std: float
     c_c: float
     c1: float
-    chi_N: float
+    chi_n: float
     h_inv: float
     alpha_dist: float
     lrate_mean: float = 1.0
-    lrate_move_sigma: float = 0.1
-    lrate_stag_sigma: float = 0.1
-    lrate_conv_sigma: float = 0.1
+    lrate_move_std: float = 0.1
+    lrate_stag_std: float = 0.1
+    lrate_conv_std: float = 0.1
     lrate_B: float = 0.1
-    sigma_init: float = 1.0
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
-
-
-def get_recombination_weights(population_size: int) -> tuple[jax.Array, jax.Array]:
-    """Get recombination weights for different ranks."""
-
-    def get_weight(i):
-        return jnp.log(population_size / 2 + 1) - jnp.log(i)
-
-    w_rank_hat = jax.vmap(get_weight)(jnp.arange(1, population_size + 1))
-    w_rank_hat = w_rank_hat * (w_rank_hat >= 0)
-    w_rank = w_rank_hat / sum(w_rank_hat) - (1.0 / population_size)
-    return w_rank_hat.reshape(-1, 1), w_rank.reshape(-1, 1)
 
 
 def get_h_inv(dim: int) -> float:
+    import math
+
     dim = min(dim, 2000)
     f = lambda a: ((1.0 + a * a) * math.exp(a * a / 2.0) / 0.24) - 10.0 - dim
     f_prime = lambda a: (1.0 / 0.24) * a * math.exp(a * a / 2.0) * (3.0 + a * a)
@@ -70,43 +58,43 @@ def get_h_inv(dim: int) -> float:
     return h_inv
 
 
-def w_dist_hat(alpha_dist: float, z: jax.Array) -> jax.Array:
-    return jnp.exp(alpha_dist * jnp.linalg.norm(z))
-
-
 class CR_FM_NES(Strategy):
+    """Cost-Reduced Fast-Moving Natural Evolution Strategy (CR-FM-NES)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        sigma_init: float = 1.0,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Cost-Reduced Fast-Moving Natural ES (Nomura & Ono, 2022)
-        Reference: https://arxiv.org/abs/2201.11422
-        """
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
-        assert not self.population_size & 1, "Population size must be even"
+        """Initialize CR-FM-NES."""
+        assert population_size % 2 == 0, "Population size must be even."
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "CR_FM_NES"
 
-        # Set core kwargs params (sigma)
-        self.sigma_init = sigma_init
+        self.elite_ratio = 0.5
 
     @property
-    def default_params(self) -> Params:
-        """Return default parameters of evolutionary strategy."""
-        w_rank_hat, w_rank = get_recombination_weights(self.population_size)
-        mueff = 1 / (
-            (w_rank + (1 / self.population_size)).T
-            @ (w_rank + (1 / self.population_size))
+    def _default_params(self) -> Params:
+        std_init = 1.0
+
+        weights_hat = jnp.log(self.population_size / 2 + 1) - jnp.log(
+            jnp.arange(1, self.population_size + 1)
         )
-        c_s = (mueff + 2.0) / (self.num_dims + mueff + 5.0)
+        weights_hat = weights_hat * (weights_hat >= 0)
+        weights = weights_hat / sum(weights_hat) - 1 / self.population_size
+
+        mueff = 1 / (
+            (weights + (1 / self.population_size)).T
+            @ (weights + (1 / self.population_size))
+        )
+        c_std = (mueff + 2.0) / (self.num_dims + mueff + 5.0)
         c_c = (4.0 + mueff / self.num_dims) / (
             self.num_dims + 4.0 + 2.0 * mueff / self.num_dims
         )
         c1_cma = 2.0 / (jnp.power(self.num_dims + 1.3, 2) + mueff)
-        chi_N = jnp.sqrt(self.num_dims) * (
+        chi_n = jnp.sqrt(self.num_dims) * (
             1.0
             - 1.0 / (4.0 * self.num_dims)
             + 1.0 / (21.0 * self.num_dims * self.num_dims)
@@ -115,12 +103,12 @@ class CR_FM_NES(Strategy):
         alpha_dist = h_inv * jnp.minimum(
             1.0, jnp.sqrt(self.population_size / self.num_dims)
         )
-        lrate_move_sigma = 1.0
-        lrate_stag_sigma = jnp.tanh(
+        lrate_move_std = 1.0
+        lrate_stag_std = jnp.tanh(
             (0.024 * self.population_size + 0.7 * self.num_dims + 20.0)
             / (self.num_dims + 12.0)
         )
-        lrate_conv_sigma = 2.0 * jnp.tanh(
+        lrate_conv_std = 2.0 * jnp.tanh(
             (0.025 * self.population_size + 0.75 * self.num_dims + 10.0)
             / (self.num_dims + 4.0)
         )
@@ -129,168 +117,158 @@ class CR_FM_NES(Strategy):
             (jnp.minimum(0.02 * self.population_size, 3 * jnp.log(self.num_dims)) + 5)
             / (0.23 * self.num_dims + 25)
         )
+
         params = Params(
-            lrate_move_sigma=lrate_move_sigma,
-            lrate_stag_sigma=lrate_stag_sigma,
-            lrate_conv_sigma=lrate_conv_sigma,
-            lrate_B=lrate_B,
+            std_init=std_init,
+            weights=weights,
+            weights_hat=weights_hat,
             mu_eff=mueff,
-            c_s=c_s,
+            c_std=c_std,
             c_c=c_c,
             c1=c1,
-            chi_N=chi_N,
-            alpha_dist=alpha_dist,
+            chi_n=chi_n,
             h_inv=h_inv,
-            sigma_init=self.sigma_init,
+            alpha_dist=alpha_dist,
+            lrate_move_std=lrate_move_std,
+            lrate_stag_std=lrate_stag_std,
+            lrate_conv_std=lrate_conv_std,
+            lrate_B=lrate_B,
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolutionary strategy."""
-        key_init, key_v = jax.random.split(key)
-        initialization = jax.random.uniform(
-            key_init,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
-        w_rank_hat, w_rank = get_recombination_weights(self.population_size)
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization,
-            sigma=params.sigma_init,
-            v=jax.random.normal(key_v, shape=(self.num_dims, 1))
-            / jnp.sqrt(self.num_dims),
-            D=jnp.ones([self.num_dims, 1]),
-            p_sigma=jnp.zeros((self.num_dims, 1)),
-            p_c=jnp.zeros((self.num_dims, 1)),
-            z=jnp.zeros((self.num_dims, self.population_size)),
-            y=jnp.zeros((self.num_dims, self.population_size)),
-            w_rank_hat=w_rank_hat.reshape(-1, 1),
-            w_rank=w_rank,
-            best_member=initialization,
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init,
+            p_std=jnp.zeros((self.num_dims,)),
+            p_c=jnp.zeros((self.num_dims,)),
+            v=jax.random.normal(key, shape=(self.num_dims,)) / jnp.sqrt(self.num_dims),
+            D=jnp.ones((self.num_dims,)),
+            z=jnp.zeros((self.population_size, self.num_dims)),
+            y=jnp.zeros((self.population_size, self.num_dims)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
-
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        z_plus = jax.random.normal(
-            key,
-            (int(self.population_size / 2), self.num_dims),
-        )
-        z = jnp.concatenate([z_plus, -1.0 * z_plus])
-        z = jnp.swapaxes(z, 0, 1)
-        normv = jnp.linalg.norm(state.v)
-        normv2 = normv**2
-        vbar = state.v / normv
+    def _ask(
+        self,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size // 2, self.num_dims))
+        z = jnp.concatenate([z, -z])
 
-        # Rescale/reparametrize noise
-        y = z + (jnp.sqrt(1 + normv2) - 1) * vbar @ (vbar.T @ z)
-        x = state.mean[:, None] + state.sigma * y * state.D
-        x = jnp.swapaxes(x, 0, 1)
+        norm_v_sq = jnp.sum(jnp.square(state.v))
+        v_bar = state.v / jnp.sqrt(norm_v_sq)
+
+        y = z + (jnp.sqrt(1 + norm_v_sq) - 1) * (z @ v_bar)[:, None] * v_bar
+        x = state.mean + state.std * state.D * y
         return x, state.replace(z=z, y=y)
 
-    def tell_strategy(
+    def _tell(
         self,
-        x: Population,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        ranks = fitness.argsort()
-        z = state.z[:, ranks]
-        y = state.y[:, ranks]
-        x = jnp.swapaxes(x, 0, 1)[:, ranks]
+        # Step 3: Sort population by fitness
+        idx = fitness.argsort()
+        x = population[idx]
+        z = state.z[idx]
+        y = state.y[idx]
 
-        # Update evolution path p_sigma
-        p_sigma = (1 - params.c_s) * state.p_sigma + jnp.sqrt(
-            params.c_s * (2.0 - params.c_s) * params.mu_eff
-        ) * (z @ state.w_rank)
-        p_sigma_norm = jnp.linalg.norm(p_sigma)
+        # Step 4: Update evolution path p_std
+        p_std = (1 - params.c_std) * state.p_std + jnp.sqrt(
+            params.c_std * (2 - params.c_std) * params.mu_eff
+        ) * jnp.dot(params.weights, z)
+        norm_p_std = jnp.linalg.norm(p_std)
 
-        # Calculate distance weight
-        w_tmp = state.w_rank_hat * jax.vmap(w_dist_hat, in_axes=(None, 1))(
-            params.alpha_dist, z
-        ).reshape(-1, 1)
-        weights_dist = w_tmp / sum(w_tmp) - 1.0 / self.population_size
+        # Step 6: Set the weights
+        weights_dist_hat = jnp.exp(params.alpha_dist * jnp.linalg.norm(z, axis=-1))
+        weights_dist = params.weights_hat * weights_dist_hat
+        weights_dist = weights_dist / jnp.sum(weights_dist) - 1.0 / self.population_size
 
-        # switching weights and learning rate
-        p_sigma_cond = p_sigma_norm >= params.chi_N
-        weights = jax.lax.select(p_sigma_cond, weights_dist, state.w_rank)
-        lrate_sigma = jax.lax.select(
-            p_sigma_cond, params.lrate_move_sigma, params.lrate_stag_sigma
-        )
-        lrate_sigma = jax.lax.select(
-            p_sigma_norm >= 0.1 * params.chi_N,
-            lrate_sigma,
-            params.lrate_conv_sigma,
+        movement_cond = params.chi_n <= norm_p_std
+        weights = jnp.where(movement_cond, weights_dist, params.weights)
+
+        # Step 7: Set the learning rate
+        lrate_std = jnp.select(
+            condlist=[movement_cond, 0.1 * params.chi_n <= norm_p_std],
+            choicelist=[params.lrate_move_std, params.lrate_stag_std],
+            default=params.lrate_conv_std,
         )
 
-        # update evolution path p_c and mean
-        wxm = (x - state.mean[:, None]) @ weights
+        # Update evolution path p_c and mean
+        wxm = jnp.dot(weights, x - state.mean)
         p_c = (1.0 - params.c_c) * state.p_c + jnp.sqrt(
-            params.c_c * (2.0 - params.c_c) * params.mu_eff
-        ) * wxm / state.sigma
-        mean = state.mean + params.lrate_mean * wxm.squeeze()
+            params.c_c * (2 - params.c_c) * params.mu_eff
+        ) * wxm / state.std
+        mean = state.mean + params.lrate_mean * wxm
 
-        normv = jnp.linalg.norm(state.v)
-        vbar = state.v / normv
-        normv2 = normv**2
-        normv4 = normv2**2
+        norm_v_2 = jnp.sum(jnp.square(state.v))
+        norm_v_4 = norm_v_2**2
+        norm_v = jnp.sqrt(norm_v_2)
+        v_bar = state.v / norm_v
 
-        exY = jnp.append(y, p_c / state.D, axis=1)
+        exY = jnp.append(y, p_c[None, :] / state.D, axis=0)
         yy = exY * exY
-        ip_yvbar = vbar.T @ exY
-        yvbar = exY * vbar
-        gammav = 1.0 + normv2
-        vbarbar = vbar * vbar
-        alphavd = jnp.minimum(
+        ip_yvbar = exY @ v_bar
+        y_v_bar = exY * v_bar
+        gamma_v = 1.0 + norm_v_2
+        v_barbar = v_bar * v_bar
+        alpha_vd = jnp.minimum(
             1,
-            jnp.sqrt(normv4 + (2 * gammav - jnp.sqrt(gammav)) / jnp.max(vbarbar))
-            / (2 + normv2),
+            jnp.sqrt(norm_v_4 + (2 * gamma_v - jnp.sqrt(gamma_v)) / jnp.max(v_barbar))
+            / (2 + norm_v_2),
         )
-        t = exY * ip_yvbar - vbar * (ip_yvbar**2 + gammav) / 2
-        b = -(1 - alphavd**2) * normv4 / gammav + 2 * alphavd**2
-        H = jnp.ones([self.num_dims, 1]) * 2 - (b + 2 * alphavd**2) * vbarbar
-        invH = H ** (-1)
+        t = exY * ip_yvbar[:, None] - 0.5 * v_bar * (ip_yvbar**2 + gamma_v)[:, None]
+        b = -(1 - alpha_vd**2) * norm_v_4 / gamma_v + 2 * alpha_vd**2
+        H = 2 * jnp.ones((self.num_dims,)) - (b + 2 * alpha_vd**2) * v_barbar
+        invH = 1 / H
         s_step1 = (
             yy
-            - normv2 / gammav * (yvbar * ip_yvbar)
-            - jnp.ones([self.num_dims, self.population_size + 1])
+            - norm_v_2 / gamma_v * (y_v_bar * ip_yvbar[:, None])
+            - jnp.ones((self.population_size + 1, self.num_dims))
         )
-        ip_vbart = vbar.T @ t
-        s_step2 = s_step1 - alphavd / gammav * (
-            (2 + normv2) * (t * vbar) - normv2 * vbarbar @ ip_vbart
+        ip_vbart = jnp.dot(t, v_bar)
+        s_step2 = s_step1 - alpha_vd / gamma_v * (
+            (2 + norm_v_2) * (t * v_bar) - norm_v_2 * jnp.outer(ip_vbart, v_barbar)
         )
-        invHvbarbar = invH * vbarbar
-        ip_s_step2invHvbarbar = invHvbarbar.T @ s_step2
-        s = (s_step2 * invH) - b / (
-            1 + b * vbarbar.T @ invHvbarbar
-        ) * invHvbarbar @ ip_s_step2invHvbarbar
-        ip_svbarbar = vbarbar.T @ s
-        t = t - alphavd * ((2 + normv2) * (s * vbar) - vbar @ ip_svbarbar)
+        invHvbarbar = invH * v_barbar
+        ip_s_step2invHvbarbar = jnp.dot(s_step2, invHvbarbar)
+        s = (s_step2 * invH) - b / (1 + b * jnp.dot(v_barbar, invHvbarbar)) * jnp.outer(
+            ip_s_step2invHvbarbar, invHvbarbar
+        )
+        ip_svbarbar = jnp.dot(s, v_barbar)
+        t = t - alpha_vd * (
+            (2 + norm_v_2) * (s * v_bar) - jnp.outer(ip_svbarbar, v_bar)
+        )
 
-        # update v, D covariance ingredients
-        exw = jnp.append(
-            params.lrate_B * weights,
-            jnp.array([params.c1]).reshape(1, 1),
-            axis=0,
-        )
-        v = state.v + (t @ exw) / normv
-        D = state.D + (s @ exw) * state.D
-        # calculate detA
+        # Update v, D covariance ingredients
+        exw = jnp.concatenate([params.lrate_B * weights, jnp.array([params.c1])])
+        v = state.v + jnp.dot(exw, t) / norm_v
+        D = state.D + jnp.dot(exw, s) * state.D
+
+        # Calculate detA
         nthrootdetA = jnp.exp(
             jnp.sum(jnp.log(D)) / self.num_dims
-            + jnp.log(1 + v.T @ v) / (2 * self.num_dims)
-        )[0][0]
+            + jnp.log(1 + jnp.dot(v, v)) / (2 * self.num_dims)
+        )
         D = D / nthrootdetA
-        # update sigma
+
+        # Update std
         G_s = (
-            jnp.sum((z * z - jnp.ones([self.num_dims, self.population_size])) @ weights)
+            jnp.sum(
+                jnp.dot(
+                    weights, z * z - jnp.ones((self.population_size, self.num_dims))
+                )
+            )
             / self.num_dims
         )
-        sigma = state.sigma * jnp.exp(lrate_sigma / 2 * G_s)
-        return state.replace(p_sigma=p_sigma, mean=mean, p_c=p_c, v=v, D=D, sigma=sigma)
+        std = state.std * jnp.exp(lrate_std / 2 * G_s)
+        return state.replace(mean=mean, std=std, p_std=p_std, p_c=p_c, v=v, D=D)

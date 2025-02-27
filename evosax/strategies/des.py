@@ -1,104 +1,98 @@
+"""Discovered Evolution Strategy (Lange et al., 2023)."""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: jax.Array
-    weights: jax.Array  # Weights for population members
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    std: jax.Array
 
 
 @struct.dataclass
-class Params:
-    temperature: float = 12.5  # Temperature for softmax weights
-    lrate_sigma: float = 0.1  # Learning rate for population std
-    lrate_mean: float = 1.0  # Learning rate for population mean
-    sigma_init: float = 0.1  # Standard deviation
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
-
-
-def get_des_weights(population_size: int, temperature: float = 12.5):
-    """Compute discovered recombination weights."""
-    ranks = jnp.arange(population_size)
-    ranks /= ranks.size - 1
-    ranks = ranks - 0.5
-    sigout = nn.sigmoid(temperature * ranks)
-    weights = nn.softmax(-20 * sigout)
-    return weights[:, None]
+class Params(Params):
+    std_init: float
+    weights: jax.Array
+    temperature: float  # Temperature for softmax weights
+    lrate_mean: float  # Learning rate for population mean
+    lrate_std: float  # Learning rate for population std
 
 
 class DES(Strategy):
+    """Discovered Evolution Strategy (DES)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        temperature: float = 12.5,
-        sigma_init: float = 0.1,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Discovered Evolution Strategy (Lange et al., 2023)"""
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
+        """Initialize DES."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "DES"
-        self.temperature = temperature
-        self.sigma_init = sigma_init
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        return Params(temperature=self.temperature, sigma_init=self.sigma_init)
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        # Get DES discovered recombination weights.
-        weights = get_des_weights(self.population_size, params.temperature)
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
-        state = State(
-            mean=initialization,
-            sigma=params.sigma_init * jnp.ones(self.num_dims),
+    def _default_params(self) -> Params:
+        temperature = 12.5
+        weights = get_weights(self.population_size, temperature)
+        return Params(
+            std_init=1.0,
             weights=weights,
-            best_member=initialization,
+            temperature=temperature,
+            lrate_mean=1.0,
+            lrate_std=0.1,
+        )
+
+    def _init(self, key: jax.Array, params: Params) -> State:
+        state = State(
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init * jnp.ones(self.num_dims),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next."""
-        z = jax.random.normal(key, (self.population_size, self.num_dims))  # ~ N(0, I)
-        x = state.mean + z * state.sigma.reshape(1, self.num_dims)  # ~ N(m, σ^2 I)
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size, self.num_dims))
+        population = state.mean + jnp.expand_dims(state.std, axis=0) * z
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state."""
-        weights = state.weights
-        x = x[fitness.argsort()]
+        x = population[fitness.argsort()]
+
         # Weighted updates
-        weighted_mean = (weights * x).sum(axis=0)
-        weighted_sigma = jnp.sqrt((weights * (x - state.mean) ** 2).sum(axis=0) + 1e-06)
+        weighted_mean = jnp.dot(params.weights, x)
+        weighted_std = jnp.sqrt(jnp.dot(params.weights, (x - state.mean) ** 2))
+
         mean = state.mean + params.lrate_mean * (weighted_mean - state.mean)
-        sigma = state.sigma + params.lrate_sigma * (weighted_sigma - state.sigma)
-        return state.replace(mean=mean, sigma=sigma)
+        std = state.std + params.lrate_std * (weighted_std - state.std)
+        return state.replace(mean=mean, std=std)
+
+
+def get_weights(population_size: int, temperature: float = 12.5):
+    """Get weights for fitness shaping."""
+    ranks = jnp.arange(population_size)
+    sigmoid = nn.sigmoid(temperature * (ranks / population_size - 0.5))
+    return nn.softmax(20 * sigmoid)

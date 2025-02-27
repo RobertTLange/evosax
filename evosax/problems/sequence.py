@@ -3,7 +3,7 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
-from ..types import ArrayTree
+from ..types import PyTree
 
 
 class SequenceProblem:
@@ -47,7 +47,7 @@ class SequenceProblem:
         self.rollout_pop = jax.vmap(self.rollout_rnn, in_axes=(None, 0))
         self.rollout = jax.jit(self.rollout_vmap)
 
-    def rollout_vmap(self, key: jax.Array, network_params: ArrayTree):
+    def rollout_vmap(self, key: jax.Array, network_params: PyTree):
         """Vectorize rollout. Reshape output correctly."""
         loss, perf = self.rollout_pop(key, network_params)
         loss_re = loss.reshape(-1, 1)
@@ -55,7 +55,7 @@ class SequenceProblem:
         return loss_re, perf_re
 
     def rollout_rnn(
-        self, key: jax.Array, network_params: ArrayTree
+        self, key: jax.Array, network_params: PyTree
     ) -> tuple[float, float]:
         """Evaluate a network on a supervised learning task."""
         key_sample, key_rollout = jax.random.split(key)
@@ -71,8 +71,8 @@ class SequenceProblem:
     def rollout_single(
         self,
         key: jax.Array,
-        network_params: ArrayTree,
-        X_single: ArrayTree,
+        network_params: PyTree,
+        X_single: PyTree,
     ):
         """Rollout RNN on a single sequence."""
         # Reset the network

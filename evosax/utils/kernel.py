@@ -1,18 +1,10 @@
-from abc import ABC, abstractmethod
-
 import jax
 import jax.numpy as jnp
 
-
-class Kernel(ABC):
-    @abstractmethod
-    def __call__(self, x1: jax.Array, x2: jax.Array, bandwidth: float) -> jax.Array:
-        """Compute the kernel function between two input arrays."""
-        pass
+from evosax.strategy import Params
 
 
-class RBF(Kernel):
-    """Radial Basis Function (RBF) kernel implementation."""
-
-    def __call__(self, x1: jax.Array, x2: jax.Array, bandwidth: float) -> jax.Array:
-        return jnp.exp(-0.5 * jnp.sum((x1 - x2) ** 2) / bandwidth)
+def kernel_rbf(x: jax.Array, y: jax.Array, params: Params) -> jax.Array:
+    """Radial basis function kernel."""
+    dist_sq = jnp.sum(jnp.square((x - y) / params.kernel_std), axis=-1)
+    return jnp.exp(-0.5 * dist_sq)

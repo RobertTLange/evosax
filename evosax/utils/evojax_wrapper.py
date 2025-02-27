@@ -46,4 +46,4 @@ class Evosax2JAX_Wrapper(NEAlgorithm):
     @property
     def solution(self):
         """Get evaluation parameters for current ES state."""
-        return self.es.get_eval_params(self.state)
+        return self.es.get_eval_solution(self.state)

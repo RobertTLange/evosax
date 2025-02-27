@@ -1,342 +1,237 @@
+"""Separable CMA-ES (Ros & Hansen, 2008).
+
+Reference: https://hal.inria.fr/inria-00287367/document
+CMA-ES reference: https://arxiv.org/abs/1604.00772
+Inspired by: github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_sepcma.py
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
-from ..utils.eigen_decomp import diag_eigen_decomp
 
 
 @struct.dataclass
-class State:
-    p_sigma: jax.Array
+class State(State):
+    mean: jax.Array
+    std: jax.Array
+    p_std: jax.Array
     p_c: jax.Array
     C: jax.Array
-    D: jax.Array | None
-    mean: jax.Array
-    sigma: jax.Array
-    sigma_scale: float
-    weights: jax.Array
-    weights_truncated: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    D: jax.Array
 
 
 @struct.dataclass
-class Params:
+class Params(Params):
+    std_init: float
+    weights: jax.Array
     mu_eff: float
+    c_mean: float
+    c_std: float
+    d_std: float
+    c_c: float
     c_1: float
     c_mu: float
-    c_sigma: float
-    d_sigma: float
-    c_c: float
     chi_n: float
-    c_m: float = 1.0
-    sigma_init: float = 0.065
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
-
-
-def get_cma_elite_weights(
-    population_size: int, elite_population_size: int
-) -> tuple[jax.Array, jax.Array]:
-    """Utility helper to create truncated elite weights for mean
-    update and full weights for covariance update.
-    """
-    weights_prime = jnp.array(
-        [
-            jnp.log(elite_population_size + 1) - jnp.log(i + 1)
-            for i in range(elite_population_size)
-        ]
-    )
-    weights = weights_prime / jnp.sum(weights_prime)
-    weights_truncated = jnp.zeros(population_size)
-    weights_truncated = weights_truncated.at[:elite_population_size].set(weights)
-    return weights, weights_truncated
 
 
 class Sep_CMA_ES(Strategy):
+    """Separable CMA-ES (Sep-CMA-ES)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        elite_ratio: float = 0.5,
-        sigma_init: float = 1.0,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Separable CMA-ES (e.g. Ros & Hansen, 2008)
-        Reference: https://hal.inria.fr/inria-00287367/document
-        Inspired by: github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_sepcma.py
-        """
-        super().__init__(
-            population_size,
-            solution,
-            mean_decay,
-            **fitness_kwargs,
-        )
-        assert 0 <= elite_ratio <= 1
-        self.elite_ratio = elite_ratio
-        self.elite_population_size = max(
-            1, int(self.population_size * self.elite_ratio)
-        )
+        """Initialize Sep-CMA-ES."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "Sep_CMA_ES"
 
-        # Set core kwargs params
-        self.sigma_init = sigma_init
-
-        # Robustness for int32 - squaring in hyperparameter calculations
-        self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
+        self.elite_ratio = 0.5
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        # Temporarily create elite weights for rest of parameters
-        weights, _ = get_cma_elite_weights(
-            self.population_size, self.elite_population_size
-        )
-        mu_eff = 1 / jnp.sum(weights**2)
+    def _default_params(self) -> Params:
+        weights_prime = jnp.log((self.population_size + 1) / 2) - jnp.log(
+            jnp.arange(1, self.population_size + 1)
+        )  # Eq. (48)
 
-        # lrates for rank-one and rank-μ C updates
+        mu_eff = (jnp.sum(weights_prime[: self.num_elites]) ** 2) / jnp.sum(
+            weights_prime[: self.num_elites] ** 2
+        )  # Eq. (8)
+        mu_eff_minus = (jnp.sum(weights_prime[self.num_elites :]) ** 2) / jnp.sum(
+            weights_prime[self.num_elites :] ** 2
+        )  # Table 1
+
+        # Decay rate for cumulation path
+        c_c = (4 + mu_eff / self.num_dims) / (
+            self.num_dims + 4 + 2 * mu_eff / self.num_dims
+        )  # Eq. (56)
+
+        # Learning rate rate for rank-one update
         alpha_cov = 2
-        c_1 = alpha_cov / ((self.max_dims_sq + 1.3) ** 2 + mu_eff)
-        c_mu_full = 2 / mu_eff / ((self.max_dims_sq + jnp.sqrt(2)) ** 2) + (
-            1 - 1 / mu_eff
-        ) * jnp.minimum(1, (2 * mu_eff - 1) / ((self.max_dims_sq + 2) ** 2 + mu_eff))
-        c_mu = (self.num_dims + 2) / 3 * c_mu_full
+        c_1 = alpha_cov / ((self.max_num_dims_sq + 1.3) ** 2 + mu_eff)  # Eq. (57)
 
-        # lrate for cumulation of step-size control and rank-one update
-        c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 3)
-        d_sigma = (
+        # Learning rate for rank-mu update
+        c_mu = jnp.minimum(
+            1 - c_1 - 1e-8,  # 1e-8 is for large population size
+            alpha_cov
+            * (mu_eff + 1 / mu_eff - 2)
+            / ((self.max_num_dims_sq + 2) ** 2 + alpha_cov * mu_eff / 2),
+        )  # Eq. (58)
+
+        # Minimum alpha
+        min_alpha = jnp.minimum(
+            1 + c_1 / c_mu,  # Eq. (50)
+            1 + (2 * mu_eff_minus) / (mu_eff + 2),  # Eq. (51)
+        )
+        min_alpha = jnp.minimum(
+            min_alpha,
+            (1 - c_1 - c_mu) / (self.num_dims * c_mu),  # Eq. (52)
+        )
+
+        # Eq. (53)
+        positive_sum = jnp.sum(weights_prime * (weights_prime > 0))
+        negative_sum = jnp.sum(jnp.abs(weights_prime * (weights_prime < 0)))
+        weights = jnp.where(
+            weights_prime >= 0,
+            weights_prime / positive_sum,
+            0.0,
+        )
+
+        # Learning rate for mean
+        c_mean = 1.0  # Eq. (54)
+
+        # Step-size control
+        c_std = (mu_eff + 2) / (self.num_dims + mu_eff + 5)  # Eq. (55)
+        d_std = (
             1
             + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
-            + c_sigma
-        )
-        c_c = 4 / (self.num_dims + 4)
+            + c_std
+        )  # Eq. (55)
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
-        )
+            1.0
+            - (1.0 / (4.0 * self.num_dims))
+            + 1.0 / (21.0 * (self.max_num_dims_sq**2))
+        )  # Page 28
+
         params = Params(
+            std_init=1.0,
+            weights=weights,
             mu_eff=mu_eff,
+            c_mean=c_mean,
+            c_std=c_std,
+            d_std=d_std,
+            c_c=c_c,
             c_1=c_1,
             c_mu=c_mu,
-            c_sigma=c_sigma,
-            d_sigma=d_sigma,
-            c_c=c_c,
             chi_n=chi_n,
-            sigma_init=self.sigma_init,
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        # Population weightings - store in state
-        weights, weights_truncated = get_cma_elite_weights(
-            self.population_size, self.elite_population_size
-        )
-        # Initialize evolution paths & covariance matrix
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            p_sigma=jnp.zeros(self.num_dims),
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init,
+            p_std=jnp.zeros(self.num_dims),
             p_c=jnp.zeros(self.num_dims),
-            sigma_scale=params.sigma_init,
-            sigma=jnp.ones(self.num_dims) * params.sigma_init,
-            mean=initialization,
             C=jnp.ones(self.num_dims),
-            D=diag_eigen_decomp(jnp.ones(self.num_dims), None),
-            weights=weights,
-            weights_truncated=weights_truncated,
-            best_member=initialization,
+            D=jnp.ones(self.num_dims),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        x = sample(
-            key,
-            state.mean,
-            state.sigma_scale,
-            state.D,
-            self.num_dims,
-            self.population_size,
-        )
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        # Compute D via eigen decomposition of C
+        C, D = eigen_decomposition(state.C)
+
+        # Sample new population
+        z = jax.random.normal(key, (self.population_size, self.num_dims))  # ~ N(0, I)
+        z = D * z  # ~ N(0, C)
+        x = state.mean + state.std * z  # ~ N(m, σ^2 C)
+        return x, state.replace(C=C, D=D)
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        # Sort new results, extract elite, store best performer
-        concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
-        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
-        # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        y_k, y_w, mean = update_mean(
-            state.mean,
-            state.sigma,
-            sorted_solutions,
-            params.c_m,
-            state.weights_truncated,
+        # Sort
+        idx = jnp.argsort(fitness)
+
+        # Update mean
+        y_k = (population[idx] - state.mean) / state.std  # ~ N(0, C)
+        y_w = jnp.dot(
+            params.weights[: self.num_elites], y_k[: self.num_elites]
+        )  # Eq. (41)
+        mean = state.mean + params.c_mean * state.std * y_w  # Eq. (42)
+
+        # Cumulative Step length Adaptation (CSA)
+        p_std = (1 - params.c_std) * state.p_std + jnp.sqrt(
+            params.c_std * (2 - params.c_std) * params.mu_eff
+        ) * (y_w / state.D)  # Eq. (43)
+        norm_p_std = jnp.linalg.norm(p_std)
+
+        # Update std
+        std = state.std * jnp.exp(
+            (params.c_std / params.d_std) * (norm_p_std / params.chi_n - 1)
+        )  # Eq. (44)
+
+        # Covariance matrix adaptation
+        h_std_cond_left = norm_p_std / jnp.sqrt(
+            1 - (1 - params.c_std) ** (2 * (state.generation_counter + 1))
         )
+        h_std_cond_right = (1.4 + 2 / (self.num_dims + 1)) * params.chi_n
+        h_std = h_std_cond_left < h_std_cond_right  # Page 28
+        p_c = (1 - params.c_c) * state.p_c + h_std * jnp.sqrt(
+            params.c_c * (2 - params.c_c) * params.mu_eff
+        ) * y_w  # Eq. (45)
 
-        p_sigma, D = update_p_sigma(
-            state.C, state.D, state.p_sigma, y_w, params.c_sigma, params.mu_eff
-        )
+        w_o = params.weights * jnp.where(
+            params.weights >= 0,
+            1,
+            self.num_dims / (jnp.sum(jnp.square(y_k / state.D), axis=-1) + 1e-8),
+        )  # Eq. (46)
+        delta_h_std = (1 - h_std) * params.c_c * (2 - params.c_c)  # Page 28
+        rank_one = p_c**2
+        rank_mu = jnp.dot(w_o, y_k**2)
+        C = (
+            (
+                1
+                + params.c_1 * delta_h_std
+                - params.c_1
+                - params.c_mu * jnp.sum(params.weights)
+            )
+            * state.C
+            + params.c_1 * rank_one
+            + params.c_mu * rank_mu
+        )  # Eq. (47)
 
-        p_c, norm_p_sigma, h_sigma = update_p_c(
-            mean,
-            p_sigma,
-            state.p_c,
-            state.generation_counter + 1,
-            y_w,
-            params.c_sigma,
-            params.c_c,
-            params.chi_n,
-            params.mu_eff,
-        )
-
-        C = update_covariance(
-            p_c,
-            state.C,
-            y_k,
-            h_sigma,
-            state.weights_truncated,
-            params.c_c,
-            params.c_1,
-            params.c_mu,
-        )
-        sigma_scale = update_sigma(
-            state.sigma_scale,
-            norm_p_sigma,
-            params.c_sigma,
-            params.d_sigma,
-            params.chi_n,
-        )
-        sigma = sigma_scale * D
-        return state.replace(
-            mean=mean,
-            p_sigma=p_sigma,
-            C=C,
-            D=D,
-            p_c=p_c,
-            sigma_scale=sigma_scale,
-            sigma=sigma,
-        )
+        return state.replace(mean=mean, std=std, p_std=p_std, p_c=p_c, C=C)
 
 
-def update_mean(
-    mean: jax.Array,
-    sigma: float,
-    sorted_solutions: jax.Array,
-    c_m: float,
-    weights_truncated: jax.Array,
-) -> tuple[jax.Array, jax.Array, jax.Array]:
-    """Update mean of strategy."""
-    x_k = sorted_solutions[:, 1:]  # ~ N(m, σ^2 C)
-    y_k = (x_k - mean) / sigma  # ~ N(0, C)
-    y_w = jnp.sum(y_k.T * weights_truncated, axis=1)
-    mean += c_m * sigma * y_w
-    return y_k, y_w, mean
+def eigen_decomposition(C: jax.Array) -> jax.Array:
+    """Eigendecomposition of covariance matrix."""
+    C = jnp.clip(C, min=0.0, max=1e8)
 
+    # Diagonal loading
+    eps = 1e-8
+    C = C + eps
 
-def update_p_sigma(
-    C: jax.Array,
-    D: jax.Array,
-    p_sigma: jax.Array,
-    y_w: jax.Array,
-    c_sigma: float,
-    mu_eff: float,
-) -> tuple[jax.Array, None]:
-    """Update evolution path for covariance matrix."""
-    D = diag_eigen_decomp(C, D)
-    p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
-        c_sigma * (2 - c_sigma) * mu_eff
-    ) * (y_w / D)
-    return p_sigma_new, D
-
-
-def update_p_c(
-    mean: jax.Array,
-    p_sigma: jax.Array,
-    p_c: jax.Array,
-    generation_counter: int,
-    y_w: jax.Array,
-    c_sigma: float,
-    c_c: float,
-    chi_n: float,
-    mu_eff: float,
-) -> tuple[jax.Array, float, float]:
-    """Update evolution path for sigma/stepsize."""
-    norm_p_sigma = jnp.linalg.norm(p_sigma)
-    h_sigma_cond_left = norm_p_sigma / jnp.sqrt(
-        1 - (1 - c_sigma) ** (2 * (generation_counter))
-    )
-    h_sigma_cond_right = (1.4 + 2 / (mean.shape[0] + 1)) * chi_n
-    h_sigma = 1.0 * (h_sigma_cond_left < h_sigma_cond_right)
-    p_c_new = (1 - c_c) * p_c + h_sigma * jnp.sqrt(c_c * (2 - c_c) * mu_eff) * y_w
-    return p_c_new, norm_p_sigma, h_sigma
-
-
-def update_covariance(
-    p_c: jax.Array,
-    C: jax.Array,
-    y_k: jax.Array,
-    h_sigma: float,
-    weights_truncated: jax.Array,
-    c_c: float,
-    c_1: float,
-    c_mu: float,
-) -> jax.Array:
-    """Update cov. matrix estimator using rank 1 + μ updates."""
-    delta_h_sigma = (1 - h_sigma) * c_c * (2 - c_c)
-    rank_one = p_c**2
-    rank_mu = jnp.einsum("i,ij->j", weights_truncated, y_k**2)
-    C = (
-        (1 + c_1 * delta_h_sigma - c_1 - c_mu * jnp.sum(weights_truncated)) * C
-        + c_1 * rank_one
-        + c_mu * rank_mu
-    )
-    return C
-
-
-def update_sigma(
-    sigma: float,
-    norm_p_sigma: float,
-    c_sigma: float,
-    d_sigma: float,
-    chi_n: float,
-) -> float:
-    """Update stepsize sigma."""
-    sigma_new = sigma * jnp.exp((c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1))
-    return sigma_new
-
-
-def sample(
-    key: jax.Array,
-    mean: jax.Array,
-    sigma_scale: float,
-    D: jax.Array,
-    n_dim: int,
-    pop_size: int,
-) -> jax.Array:
-    """Jittable Gaussian Sample Helper."""
-    z = jax.random.normal(key, (n_dim, pop_size))  # ~ N(0, I)
-    y = jnp.diag(D).dot(
-        z
-    )  # ~ N(0, C)  TODO: check if this is correct (discrepency between C and D
-    y = jnp.swapaxes(y, 1, 0)
-    x = mean + sigma_scale * y  # ~ N(m, σ^2 C)
-    return x
+    D = jnp.sqrt(C)
+    return C, D

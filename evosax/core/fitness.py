@@ -61,16 +61,17 @@ def z_score_trafo(arr: jax.Array) -> jax.Array:
     return (arr - jnp.nanmean(arr)) / (jnp.nanstd(arr) + 1e-10)
 
 
-def compute_ranks(fitness: Fitness) -> jax.Array:
-    """Return fitness ranks in [0, len(fitness))."""
-    ranks = jnp.zeros(len(fitness))
-    ranks = ranks.at[fitness.argsort()].set(jnp.arange(len(fitness)))
-    return ranks
+def ranksort(fitness: Fitness) -> jax.Array:
+    """Return ranks in [0, fitness.size - 1] based on fitness values."""
+    assert fitness.ndim == 1
+    idx = jnp.argsort(fitness)
+    rank = idx.at[idx].set(jnp.arange(fitness.size))
+    return rank
 
 
 def centered_rank_trafo(fitness: Fitness) -> jax.Array:
     """Return ~ -0.5 to 0.5 centered ranks (best to worst - min!)."""
-    y = compute_ranks(fitness)
+    y = ranksort(fitness)
     y /= fitness.size - 1
     return y - 0.5
 

@@ -1,128 +1,112 @@
+"""Adaptive ES-Active Subspaces for Blackbox Optimization (Choromanski et al., 2019).
+
+Reference: https://arxiv.org/abs/1903.04268
+
+Note that there are a couple of adaptations:
+1. We always sample a fixed population size per generation
+2. We keep a fixed archive of gradients to estimate the subspace
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..core import GradientOptimizer, OptParams, OptState, exp_decay
-from ..strategy import Strategy
+from ..core import GradientOptimizer, OptParams, OptState
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: float
+    std: float
     opt_state: OptState
     grad_subspace: jax.Array
     alpha: float
     UUT: jax.Array
     UUT_ort: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
 
 
 @struct.dataclass
-class Params:
+class Params(Params):
+    std_init: float
+    std_decay: float
+    std_limit: float
     opt_params: OptParams
-    sigma_init: float = 0.03
-    sigma_decay: float = 1.0
-    sigma_limit: float = 0.01
-    grad_decay: float = 0.99
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+    grad_decay: float
 
 
 class ASEBO(Strategy):
+    """Adaptive ES-Active Subspaces for Blackbox Optimization (ASEBO)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        subspace_dims: int = 50,
+        subspace_dims: int = 1,
         opt_name: str = "adam",
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
-        sigma_init: float = 0.03,
-        sigma_decay: float = 1.0,
-        sigma_limit: float = 0.01,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """ASEBO (Choromanski et al., 2019)
-        Reference: https://arxiv.org/abs/1903.04268
-        Note that there are a couple of JAX-based adaptations:
-        1. We always sample a fixed population size per generation
-        2. We keep a fixed archive of gradients to estimate the subspace
-        """
-        super().__init__(
-            population_size,
-            solution,
-            mean_decay,
-            **fitness_kwargs,
-        )
-        assert not self.population_size & 1, "Population size must be even"
-        assert opt_name in ["sgd", "adam", "rmsprop", "clipup"]
-        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.subspace_dims = min(subspace_dims, self.num_dims)
-        if self.subspace_dims < subspace_dims:
-            print(
-                "Subspace has to be smaller than optimization dims. Set to"
-                f" {self.subspace_dims} instead of {subspace_dims}."
-            )
+        """Initialize ASEBO."""
+        assert population_size % 2 == 0, "Population size must be even."
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "ASEBO"
 
-        # Set core kwargs params (lrate/sigma schedules)
+        assert subspace_dims <= self.num_dims, (
+            "Subspace dims must be smaller than optimization dims."
+        )
+        self.subspace_dims = subspace_dims
+
+        # Optimizer
+        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.lrate_init = lrate_init
         self.lrate_decay = lrate_decay
         self.lrate_limit = lrate_limit
-        self.sigma_init = sigma_init
-        self.sigma_decay = sigma_decay
-        self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
+    def _default_params(self) -> Params:
         opt_params = self.optimizer.default_params.replace(
             lrate_init=self.lrate_init,
             lrate_decay=self.lrate_decay,
             lrate_limit=self.lrate_limit,
         )
         return Params(
+            std_init=1.0,
+            std_decay=1.0,
+            std_limit=0.0,
             opt_params=opt_params,
-            sigma_init=self.sigma_init,
-            sigma_decay=self.sigma_decay,
-            sigma_limit=self.sigma_limit,
+            grad_decay=0.99,
         )
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
-
+    def _init(self, key: jax.Array, params: Params) -> State:
         grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))
 
         state = State(
-            mean=initialization,
-            sigma=params.sigma_init,
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init,
             opt_state=self.optimizer.init(params.opt_params),
             grad_subspace=grad_subspace,
             alpha=1.0,
             UUT=jnp.zeros((self.num_dims, self.num_dims)),
             UUT_ort=jnp.zeros((self.num_dims, self.num_dims)),
-            best_member=initialization,
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
+    def _ask(
+        self,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
         # Antithetic sampling of noise
         X = state.grad_subspace
         X -= jnp.mean(X, axis=0)
@@ -149,27 +133,27 @@ class ASEBO(Strategy):
             subspace_ready, UUT, jnp.zeros((self.num_dims, self.num_dims))
         )
         cov = (
-            state.sigma * (state.alpha / self.num_dims) * jnp.eye(self.num_dims)
+            state.std * (state.alpha / self.num_dims) * jnp.eye(self.num_dims)
             + ((1 - state.alpha) / int(self.population_size / 2)) * UUT
         )
         chol = jnp.linalg.cholesky(cov)
-        noise = jax.random.normal(key, (self.num_dims, int(self.population_size / 2)))
-        z_plus = jnp.swapaxes(chol @ noise, 0, 1)
-        z_plus /= jnp.linalg.norm(z_plus, axis=-1)[:, jnp.newaxis]
-        z = jnp.concatenate([z_plus, -1.0 * z_plus])
-        x = state.mean + z
-        return x, state.replace(UUT=UUT, UUT_ort=UUT_ort)
+        z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
+        z_plus = z_plus @ chol.T
+        z_plus /= jnp.linalg.norm(z_plus, axis=-1)[:, None]
+        z = jnp.concatenate([z_plus, -z_plus])
+        population = state.mean + z
+        return population, state.replace(UUT=UUT, UUT_ort=UUT_ort)
 
-    def tell_strategy(
+    def _tell(
         self,
-        x: Population,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
         # Reconstruct noise from last mean/std estimates
-        noise = (x - state.mean) / state.sigma
+        noise = (population - state.mean) / state.std
         noise_1 = noise[: int(self.population_size / 2)]
         fit_1 = fitness[: int(self.population_size / 2)]
         fit_2 = fitness[int(self.population_size / 2) :]
@@ -198,6 +182,5 @@ class ASEBO(Strategy):
         opt_state = self.optimizer.update(opt_state, params.opt_params)
 
         # Update lrate and standard deviation based on min and decay
-        sigma = state.sigma * params.sigma_decay
-        sigma = exp_decay(state.sigma, params.sigma_decay, params.sigma_limit)
-        return state.replace(mean=mean, sigma=sigma, opt_state=opt_state, alpha=alpha)
+        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+        return state.replace(mean=mean, std=std, opt_state=opt_state, alpha=alpha)

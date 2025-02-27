@@ -31,7 +31,7 @@ def load_pkl_object(filename: Any, pkg_load: bool = False) -> Any:
 
 
 def tanh_timestamp(x: jax.Array) -> jax.Array:
-    """Timestamp embedding with evo-adapted timescales. (Metz et al., 2022)"""
+    """Timestamp embedding with evo-adapted timescales (Metz et al., 2022)."""
 
     def single_frequency(timescale):
         return jnp.tanh(x / jnp.float32(timescale) - 1.0)
@@ -107,7 +107,7 @@ class FitnessFeatures:
 
 
 def norm_diff_best(fitness: jax.Array, best_fitness: float) -> jax.Array:
-    """Normalizes difference from best previous fitness score."""
+    """Normalize difference from best previous fitness score."""
     fitness = jnp.clip(fitness, -1e10, 1e10)
     diff_best = fitness - best_fitness
     return jnp.clip(

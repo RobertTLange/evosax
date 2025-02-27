@@ -1,37 +1,40 @@
+"""Evolution Strategy with Meta-loss Clipping (Merchant et al., 2021).
+
+Reference: https://arxiv.org/abs/2107.09661
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
 from ..core import GradientOptimizer, OptParams, OptState
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: jax.Array
+    std: jax.Array
     opt_state: OptState
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    z: jax.Array
 
 
 @struct.dataclass
-class Params:
+class Params(Params):
+    std_init: float
+    std_decay: float
+    std_limit: float
     opt_params: OptParams
-    sigma_init: float = 0.03
-    sigma_decay: float = 0.999
-    sigma_limit: float = 0.01
-    sigma_lrate: float = 0.2  # Learning rate for std
-    sigma_max_change: float = 0.2  # Clip adaptive sigma to 20%
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+    std_lrate: float  # Learning rate for std
+    std_max_change: float  # Clip adaptive std to 20%
 
 
 class ESMC(Strategy):
+    """Evolution Strategy with Meta-loss Clipping (ESMC)."""
+
     def __init__(
         self,
         population_size: int,
@@ -40,97 +43,86 @@ class ESMC(Strategy):
         lrate_init: float = 0.05,
         lrate_decay: float = 1.0,
         lrate_limit: float = 0.001,
-        sigma_init: float = 0.03,
-        sigma_decay: float = 1.0,
-        sigma_limit: float = 0.01,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """ESMC (Merchant et al., 2021)
-        Reference: https://proceedings.mlr.press/v139/merchant21a.html
-        """
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
-        assert self.population_size & 1, "Population size must be odd"
-        assert opt_name in ["sgd", "adam", "rmsprop", "clipup", "adan"]
-        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
+        """Initialize ESMC."""
+        assert population_size % 2 == 1, "Population size must be odd"
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "ESMC"
 
-        # Set core kwargs params (lrate/sigma schedules)
+        # Optimizer
+        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
         self.lrate_init = lrate_init
         self.lrate_decay = lrate_decay
         self.lrate_limit = lrate_limit
-        self.sigma_init = sigma_init
-        self.sigma_decay = sigma_decay
-        self.sigma_limit = sigma_limit
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
+    def _default_params(self) -> Params:
         opt_params = self.optimizer.default_params.replace(
             lrate_init=self.lrate_init,
             lrate_decay=self.lrate_decay,
             lrate_limit=self.lrate_limit,
         )
         return Params(
+            std_init=1.0,
+            std_decay=1.0,
+            std_limit=0.0,
             opt_params=opt_params,
-            sigma_init=self.sigma_init,
-            sigma_decay=self.sigma_decay,
-            sigma_limit=self.sigma_limit,
+            std_lrate=0.2,
+            std_max_change=0.2,
         )
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization,
-            sigma=jnp.ones(self.num_dims) * params.sigma_init,
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init * jnp.ones(self.num_dims),
             opt_state=self.optimizer.init(params.opt_params),
-            best_member=initialization,
+            z=jnp.zeros((self.population_size // 2, self.num_dims)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        # Antithetic sampling of noise
-        z_plus = jax.random.normal(
-            key,
-            (int(self.population_size / 2), self.num_dims),
-        )
-        z = jnp.concatenate([jnp.zeros((1, self.num_dims)), z_plus, -1.0 * z_plus])
-        x = state.mean + z * state.sigma.reshape(1, self.num_dims)
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        # Antithetic sampling
+        z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
+        z = jnp.concatenate(
+            [jnp.zeros((1, self.num_dims)), z_plus, -z_plus]
+        )  # TODO: different from original paper
+        x = state.mean + jnp.expand_dims(state.std, axis=0) * z
+        return x, state.replace(z=z_plus)
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """Update both mean and dim.-wise isotropic Gaussian scale."""
-        # Reconstruct noise from last mean/std estimates
-        noise = (x - state.mean) / state.sigma
-        bline_fitness = fitness[0]
-        noise = noise[1:]
-        fitness = fitness[1:]
-        noise_1 = noise[: int((self.population_size - 1) / 2)]
-        fit_1 = fitness[: int((self.population_size - 1) / 2)]
-        fit_2 = fitness[int((self.population_size - 1) / 2) :]
-        fit_diff = jnp.minimum(fit_1, bline_fitness) - jnp.minimum(fit_2, bline_fitness)
-        fit_diff_noise = jnp.dot(noise_1.T, fit_diff)
-        theta_grad = 1.0 / int((self.population_size - 1) / 2) * fit_diff_noise
-        # Grad update using optimizer instance - decay lrate if desired
-        mean, opt_state = self.optimizer.step(
-            state.mean, theta_grad, state.opt_state, params.opt_params
+        fitness_baseline, fitness = fitness[0], fitness[1:]
+        fitness_plus = fitness[: (self.population_size - 1) // 2]
+        fitness_minus = fitness[(self.population_size - 1) // 2 :]
+
+        # Compute gradient
+        delta = jnp.minimum(fitness_plus, fitness_baseline) - jnp.minimum(
+            fitness_minus, fitness_baseline
+        )
+        grad = jnp.dot(state.z.T, delta) / int((self.population_size - 1) / 2)
+
+        # Grad update using optimizer
+        mean, opt_state = self.optimizer.step(  # TODO: different from original paper
+            state.mean, grad, state.opt_state, params.opt_params
         )
         opt_state = self.optimizer.update(opt_state, params.opt_params)
-        sigma = state.sigma * params.sigma_decay
-        sigma = jnp.maximum(sigma, params.sigma_limit)
-        return state.replace(mean=mean, sigma=sigma, opt_state=opt_state)
+
+        # Update state
+        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+        return state.replace(mean=mean, std=std, opt_state=opt_state)

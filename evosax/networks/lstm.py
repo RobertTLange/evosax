@@ -1,7 +1,7 @@
 import jax
 from flax import linen as nn
 
-from ..types import ArrayTree
+from ..types import PyTree
 from .shared import (
     categorical_out,
     default_bias_init,
@@ -25,9 +25,9 @@ class LSTM(nn.Module):
     def __call__(
         self,
         x: jax.Array,
-        carry: ArrayTree,
+        carry: PyTree,
         key: jax.Array | None = None,
-    ) -> tuple[tuple[ArrayTree, ArrayTree], jax.Array]:
+    ) -> tuple[tuple[PyTree, PyTree], jax.Array]:
         lstm_state, x = nn.LSTMCell(
             bias_init=default_bias_init(),
             kernel_init=kernel_init_fn[self.kernel_init_type](),
@@ -43,7 +43,7 @@ class LSTM(nn.Module):
             x = gaussian_out(key, x, self.num_output_units, self.kernel_init_type)
         return lstm_state, x
 
-    def init_carry(self) -> tuple[ArrayTree, ArrayTree]:
+    def init_carry(self) -> tuple[PyTree, PyTree]:
         """Initialize hidden state of LSTM."""
         return nn.LSTMCell.initialize_carry(
             jax.random.key(0), (), self.num_hidden_units

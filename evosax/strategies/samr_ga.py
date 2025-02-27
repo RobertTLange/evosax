@@ -1,115 +1,103 @@
+"""Self-Adaptation Mutation Rate Genetic Algorithm TODO."""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
-    mean: jax.Array
-    archive: jax.Array
+class State(State):
+    population: Population
     fitness: Fitness
-    sigma: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+    std: jax.Array
 
 
 @struct.dataclass
-class Params:
-    sigma_init: float = 0.07
-    sigma_meta: float = 2.0
-    sigma_best_limit: float = 0.0001
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    std_init: float
+    std_min: float
+    std_max: float
+    std_meta: float
+    std_best_limit: float
 
 
 class SAMR_GA(Strategy):
+    """Self-Adaptation Mutation Rate Genetic Algorithm (SAMR-GA)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        elite_ratio: float = 0.0,
-        sigma_init: float = 0.07,
-        sigma_meta: float = 2.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Self-Adaptation Mutation Rate (SAMR) GA."""
-        super().__init__(population_size, solution, **fitness_kwargs)
-        self.elite_ratio = elite_ratio
-        self.elite_population_size = max(
-            1, int(self.population_size * self.elite_ratio)
-        )
+        """Initialize SAMR-GA."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "SAMR_GA"
 
-        # Set core kwargs params
-        self.sigma_init = sigma_init
-        self.sigma_meta = sigma_meta
+        self.elite_ratio = 0.5
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        return Params(sigma_init=self.sigma_init, sigma_meta=self.sigma_meta)
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the differential evolution strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.elite_population_size, self.num_dims),
-            minval=params.init_min,
-            maxval=params.init_max,
+    def _default_params(self) -> Params:
+        return Params(
+            std_init=1.0,
+            std_min=0.0,
+            std_max=10.0,
+            std_meta=2.0,
+            std_best_limit=0.0001,
         )
+
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization.mean(axis=0),
-            archive=initialization,
-            fitness=jnp.zeros(self.elite_population_size) + jnp.finfo(jnp.float32).max,
-            sigma=jnp.zeros(self.elite_population_size) + params.sigma_init,
-            best_member=initialization.mean(axis=0),
+            population=jnp.full((self.population_size, self.num_dims), jnp.nan),
+            fitness=jnp.full((self.population_size,), jnp.inf),
+            std=jnp.full((self.population_size,), params.std_init),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next."""
-        key_idx, key_eps_x, key_eps_s = jax.random.split(key, 3)
-
-        idx = jax.random.choice(
-            key_idx, jnp.arange(self.elite_population_size), (self.population_size - 1,)
-        )
-        eps_x = jax.random.normal(key_eps_x, (self.population_size, self.num_dims))
-        eps_s = jax.random.uniform(
-            key_eps_s, (self.population_size,), minval=-1, maxval=1
-        )
-
-        sigma_0 = jnp.array([jnp.maximum(params.sigma_best_limit, state.sigma[0])])
-        sigma = jnp.concatenate([sigma_0, state.sigma[idx]])
-        sigma_gen = sigma * params.sigma_meta**eps_s
-
-        x = jnp.concatenate([state.archive[0][None, :], state.archive[idx]])
-        x += sigma_gen[:, None] * eps_x
-        return x, state.replace(archive=x, sigma=sigma_gen)
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        key_idx, key_eps_std, key_eps_x = jax.random.split(key, 3)
+
+        # Sort population by fitness
+        idx = jnp.argsort(state.fitness)
+        population, std = state.population[idx], state.std[idx]
+
+        # Select elites for mutation
+        idx = jax.random.choice(key_idx, self.num_elites, (self.population_size - 1,))
+
+        # Compute std
+        eps_std = jax.random.uniform(
+            key_eps_std, (self.population_size,), minval=-1, maxval=1
+        )
+        std = jnp.concatenate([std[:1], std[idx]]) * params.std_meta**eps_std
+        std = jnp.clip(std, min=0.0, max=10.0)
+
+        # Mutation
+        eps_x = jax.random.normal(key_eps_x, (self.population_size, self.num_dims))
+        population = jnp.concatenate([population[:1], population[idx]])
+        population += std[:, None] * eps_x
+
+        return population, state.replace(std=std)
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state."""
-        idx = jnp.argsort(fitness)[: self.elite_population_size]
-        fitness = fitness[idx]
-        archive = x[idx]
-        sigma = state.sigma[idx]
-
-        # Set mean to best member seen so far
-        improved = fitness[0] < state.best_fitness
-        best_mean = jax.lax.select(improved, archive[0], state.best_member)
-        return state.replace(
-            fitness=fitness, archive=archive, sigma=sigma, mean=best_mean
-        )
+        return state.replace(population=population, fitness=fitness)

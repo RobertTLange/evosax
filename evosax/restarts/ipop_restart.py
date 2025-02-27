@@ -1,3 +1,8 @@
+"""Increasing Population Size Restart (Auger & Hansen, 2005).
+
+Reference: https://ieeexplore.ieee.org/document/1554902
+"""
+
 from functools import partial
 
 import jax
@@ -22,15 +27,15 @@ class RestartParams:
 
 
 class IPOP_Restarter(RestartWrapper):
+    """Increasing Population Size Restarter (IPOP Restarter)."""
+
     def __init__(
         self,
         base_strategy,
         stop_criteria=[spread_criterion],
         strategy_kwargs: dict = {},
     ):
-        """Increasing-Population Restarts (Auer & Hansen, 2005).
-        Reference: http://www.cmap.polytechnique.fr/~nikolaus.hansen/cec2005ipopcmaes.pdf
-        """
+        """Initialize the IPOP Restart."""
         super().__init__(base_strategy, stop_criteria)
         self.default_population_size = self.base_strategy.population_size
         self.strategy_kwargs = strategy_kwargs

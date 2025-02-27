@@ -1,282 +1,175 @@
+"""Limited Memory Matrix Adaptation Evolution Strategy (Loshchilov et al., 2017).
+
+Reference: https://arxiv.org/abs/1705.06693
+Note: The original paper recommends a population size of 4 + 3 * jnp.log(num_dims).
+Instabilities have been observed with larger population sizes.
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
-from ..types import Fitness, Solution
-from .cma_es import get_cma_elite_weights
+from ..strategy import Params, State, Strategy, metrics_fn
+from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
-    p_sigma: jax.Array
-    M: jax.Array
+class State(State):
     mean: jax.Array
-    sigma: float
+    std: float
+    p_std: jax.Array
+    M: jax.Array
+    z: jax.Array
+    d: jax.Array
+
+
+@struct.dataclass
+class Params(Params):
+    std_init: float
+    weights: jax.Array
+    mu_eff: float
+    c_mean: float
+    c_std: float
+    d_std: float
+    chi_n: float
     c_c: jax.Array
     c_d: jax.Array
-    weights_truncated: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
-
-
-@struct.dataclass
-class Params:
-    mu_eff: float
-    c_1: float
-    c_mu: float
-    c_sigma: float
-    d_sigma: float
-    chi_n: float
-    mu_w: float
-    c_m: float = 1.0
-    sigma_init: float = 0.065
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
 
 
 class LM_MA_ES(Strategy):
+    """Limited Memory Matrix Adaptation Evolution Strategy (LM-MA-ES)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        elite_ratio: float = 0.5,
-        memory_size: int = 10,
-        sigma_init: float = 1.0,
-        mean_decay: float = 0.0,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Limited Memory MA-ES (Loshchilov et al., 2017)
-        Reference: https://arxiv.org/pdf/1705.06693.pdf
-        """
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
-        assert 0 <= elite_ratio <= 1
-        self.elite_ratio = elite_ratio
-        self.elite_population_size = max(
-            1, int(self.population_size * self.elite_ratio)
-        )
-        self.memory_size = memory_size
+        """Initialize LM-MA-ES."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "LM_MA_ES"
 
-        # Set core kwargs params
-        self.sigma_init = sigma_init
-
-        # Robustness for int32 - squaring in hyperparameter calculations
-        self.max_dims_sq = jnp.minimum(self.num_dims, 40000)
+        self.elite_ratio = 0.5
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
-        _, weights_truncated, mu_eff, c_1, c_mu = get_cma_elite_weights(
-            self.population_size,
-            self.elite_population_size,
-            self.num_dims,
-            self.max_dims_sq,
+    def _default_params(self) -> Params:
+        self.m = int(4 + jnp.floor(3 * jnp.log(self.num_dims)))
+
+        std_init = 0.05
+
+        weights_prime = jnp.log((self.population_size + 1) / 2) - jnp.log(
+            jnp.arange(1, self.population_size + 1)
+        )  # Eq. (48)
+
+        mu_eff = (jnp.sum(weights_prime[: self.num_elites]) ** 2) / jnp.sum(
+            weights_prime[: self.num_elites] ** 2
+        )  # Eq. (8)
+
+        # Eq. (53)
+        positive_sum = jnp.sum(weights_prime * (weights_prime > 0))
+        weights = jnp.where(
+            weights_prime >= 0,
+            weights_prime / positive_sum,
+            0.0,
         )
 
-        # lrate for cumulation of step-size control and rank-one update
-        c_sigma = (mu_eff + 2) / (self.num_dims + mu_eff + 5)
-        d_sigma = (
+        # Learning rate for mean
+        c_mean = 1.0  # Eq. (54)
+
+        # Step-size control
+        c_std = 2 * self.population_size / self.num_dims
+        d_std = (
             1
             + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
-            + c_sigma
-        )
+            + c_std
+        )  # Eq. (55)
         chi_n = jnp.sqrt(self.num_dims) * (
-            1.0 - (1.0 / (4.0 * self.num_dims)) + 1.0 / (21.0 * (self.max_dims_sq**2))
-        )
-        mu_w = 1 / jnp.sum(weights_truncated**2)
-        params = Params(
+            1.0
+            - (1.0 / (4.0 * self.num_dims))
+            + 1.0 / (21.0 * (self.max_num_dims_sq**2))
+        )  # Page 28
+
+        c_d = 1 / jnp.power(1.5, jnp.arange(self.m)) / self.num_dims
+        c_c = self.population_size / jnp.power(4, jnp.arange(self.m)) / self.num_dims
+
+        return Params(
+            std_init=std_init,
+            weights=weights,
             mu_eff=mu_eff,
-            c_1=c_1,
-            c_mu=c_mu,
-            c_sigma=c_sigma,
-            d_sigma=d_sigma,
+            c_mean=c_mean,
+            c_std=c_std,
+            d_std=d_std,
             chi_n=chi_n,
-            mu_w=mu_w,
-            sigma_init=self.sigma_init,
-        )
-        return params
-
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        _, weights_truncated, _, _, _ = get_cma_elite_weights(
-            self.population_size,
-            self.elite_population_size,
-            self.num_dims,
-            self.max_dims_sq,
-        )
-        c_d = jnp.array([1 / (1.5**i * self.num_dims) for i in range(self.memory_size)])
-        c_c = jnp.array(
-            [
-                self.population_size / (4**i * self.num_dims)
-                for i in range(self.memory_size)
-            ]
-        )
-        c_c = jnp.minimum(c_c, 1.99)
-
-        # Initialize evolution paths & covariance matrix
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
-        state = State(
-            p_sigma=jnp.zeros(self.num_dims),
-            sigma=params.sigma_init,
-            mean=initialization,
-            M=jnp.zeros((self.num_dims, self.memory_size)),
-            weights_truncated=weights_truncated,
             c_d=c_d,
             c_c=c_c,
-            best_member=initialization,
+        )
+
+    def _init(self, key: jax.Array, params: Params) -> State:
+        state = State(
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init,
+            p_std=jnp.zeros(self.num_dims),
+            M=jnp.zeros((self.m, self.num_dims)),
+            z=jnp.zeros((self.population_size, self.num_dims)),
+            d=jnp.zeros((self.population_size, self.num_dims)),
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        x = sample(
-            key,
-            state.mean,
-            state.sigma,
-            state.M,
-            self.num_dims,
-            self.population_size,
-            state.c_d,
-            state.generation_counter,
-        )
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Solution,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size, self.num_dims))
+
+        d = z
+        # L9-10
+        for i in range(self.m):
+            d = jnp.where(
+                i < state.generation_counter,
+                (1 - params.c_d[i]) * d
+                + params.c_d[i] * jnp.dot(d, state.M[i])[:, None] * state.M[i],
+                d,
+            )
+
+        population = state.mean + state.std * d
+        return population, state.replace(z=z, d=d)
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
-        # Sort new results, extract elite, store best performer
-        concat_p_f = jnp.hstack([jnp.expand_dims(fitness, 1), x])
-        sorted_solutions = concat_p_f[concat_p_f[:, 0].argsort()]
-        # Update mean, isotropic/anisotropic paths, covariance, stepsize
-        mean, z_k = update_mean(
-            state.mean,
-            state.sigma,
-            sorted_solutions,
-            params.c_m,
-            state.weights_truncated,
+        # Sort
+        idx = jnp.argsort(fitness)
+        state = state.replace(z=state.z[idx], d=state.d[idx])
+
+        # Update mean
+        mean = state.mean + params.c_mean * state.std * jnp.dot(params.weights, state.d)
+        # mean = state.mean + state.c_mean * jnp.dot(params.weights, population[idx] - state.mean)
+
+        # Update evolution path
+        p_std = (1 - params.c_std) * state.p_std + jnp.sqrt(
+            params.c_std * (2 - params.c_std) * params.mu_eff
+        ) * jnp.dot(params.weights, state.z)
+
+        # Update m
+        M = (1 - params.c_c)[:, None] * state.M + jnp.sqrt(
+            params.mu_eff * params.c_c * (2 - params.c_c)
+        )[:, None] * jnp.dot(params.weights, state.z)
+
+        # Update std
+        std = state.std * jnp.exp(
+            params.c_std * (jnp.linalg.norm(p_std) / params.chi_n - 1) / params.d_std
         )
-        p_sigma, norm_p_sigma = update_p_sigma(
-            z_k,
-            state.p_sigma,
-            params.c_sigma,
-            params.mu_eff,
-            state.weights_truncated,
-        )
-        M = update_M_matrix(
-            state.M,
-            z_k,
-            state.c_c,
-            params.mu_w,
-            state.weights_truncated,
-        )
-        sigma = update_sigma(
-            state.sigma,
-            norm_p_sigma,
-            params.c_sigma,
-            params.d_sigma,
-            params.chi_n,
-        )
-        return state.replace(mean=mean, p_sigma=p_sigma, M=M, sigma=sigma)
-
-
-def update_mean(
-    mean: jax.Array,
-    sigma: float,
-    sorted_solutions: jax.Array,
-    c_m: float,
-    weights_truncated: jax.Array,
-) -> tuple[jax.Array, jax.Array]:
-    """Update mean of strategy."""
-    z_k = sorted_solutions[:, 1:] - mean  # ~ N(0, σ^2 C)
-    y_k = z_k / sigma  # ~ N(0, C)
-    y_w = jnp.sum(y_k.T * weights_truncated, axis=1)
-    mean += c_m * sigma * y_w
-    return mean, z_k
-
-
-def update_p_sigma(
-    z_k: jax.Array,
-    p_sigma: jax.Array,
-    c_sigma: float,
-    mu_eff: float,
-    weights_truncated: jax.Array,
-) -> tuple[jax.Array, float]:
-    """Update evolution path for covariance matrix."""
-    z_w = jnp.sum(z_k.T * weights_truncated, axis=1)
-    p_sigma_new = (1 - c_sigma) * p_sigma + jnp.sqrt(
-        c_sigma * (2 - c_sigma) * mu_eff
-    ) * z_w
-    norm_p_sigma = jnp.linalg.norm(p_sigma_new)
-    return p_sigma_new, norm_p_sigma
-
-
-def update_M_matrix(
-    M: jax.Array,
-    z_k: jax.Array,
-    c_c: jax.Array,
-    mu_w: float,
-    weights_truncated: jax.Array,
-) -> jax.Array:
-    """Update the M matrix."""
-    weighted_elite = jnp.sum(
-        jnp.array([w * z for w, z in zip(weights_truncated, z_k)]),
-        axis=0,
-    )
-    # Loop over individual memory components - this could be vectorized!
-    for i in range(M.shape[1]):
-        new_m = (1 - c_c[i]) * M[:, i] + jnp.sqrt(
-            mu_w * c_c[i] * (2 - c_c[i])
-        ) * weighted_elite
-        M = M.at[:, i].set(new_m)
-    return M
-
-
-def update_sigma(
-    sigma: float,
-    norm_p_sigma: float,
-    c_sigma: float,
-    d_sigma: float,
-    chi_n: float,
-) -> float:
-    """Update stepsize sigma."""
-    sigma_new = sigma * jnp.exp((c_sigma / d_sigma) * (norm_p_sigma / chi_n - 1))
-    return sigma_new
-
-
-def sample(
-    key: jax.Array,
-    mean: jax.Array,
-    sigma: float,
-    M: jax.Array,
-    n_dim: int,
-    pop_size: int,
-    c_d: jax.Array,
-    generation_counter: int,
-) -> jax.Array:
-    """Jittable Gaussian Sample Helper."""
-    z = jax.random.normal(key, (n_dim, pop_size))  # ~ N(0, I)
-    for j in range(M.shape[1]):
-        update_bool = generation_counter > j
-        new_z = (1 - c_d[j]) * z + (c_d[j] * M[:, j])[:, jnp.newaxis] * (
-            M[:, j][:, jnp.newaxis] * z
-        )
-        z = jax.lax.select(update_bool, new_z, z)
-    z = jnp.swapaxes(z, 1, 0)
-    x = mean + sigma * z  # ~ N(m, σ^2 C)
-    return x
+        return state.replace(mean=mean, std=std, p_std=p_std, M=M)

@@ -1,131 +1,119 @@
+"""Simulated Annealing (Rere et al., 2015).
+
+Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
+"""
+
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Strategy
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 
 @struct.dataclass
-class State:
-    mean: jax.Array
-    sigma: float
-    temp: float
-    acceptance: float
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
+class State(State):
+    current_solution: Solution
+    current_fitness: Fitness
+    std: float
+    temperature: float
 
 
 @struct.dataclass
-class Params:
-    temp_init: float = 1.0
-    temp_limit: float = 0.1
-    temp_decay: float = 0.999
-    boltzmann_const: float = 5.0
-    sigma_init: float = 0.05
-    sigma_limit: float = 0.001
-    sigma_decay: float = 0.999
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    std_init: float
+    std_decay: float
+    std_limit: float
+    temperature_init: float
+    temperature_limit: float
+    temperature_decay: float
+    boltzmann_constant: float
 
 
 class SimAnneal(Strategy):
+    """Simulated Annealing (SA)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        sigma_init: float = 0.03,
-        sigma_decay: float = 1.0,
-        sigma_limit: float = 0.01,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Simulated Annealing (Rasdi Rere et al., 2015)
-        Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
-        """
-        super().__init__(population_size, solution, **fitness_kwargs)
+        """Initialize SA."""
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "SimAnneal"
 
-        # Set core kwargs params (lrate/sigma schedules)
-        self.sigma_init = sigma_init
-        self.sigma_decay = sigma_decay
-        self.sigma_limit = sigma_limit
-
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolution strategy."""
+    def _default_params(self) -> Params:
         return Params(
-            sigma_init=self.sigma_init,
-            sigma_decay=self.sigma_decay,
-            sigma_limit=self.sigma_limit,
+            std_init=1.0,
+            std_decay=1.0,
+            std_limit=0.0,
+            temperature_init=1.0,
+            temperature_limit=0.1,
+            temperature_decay=0.999,
+            boltzmann_constant=5.0,
         )
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolution strategy."""
-        key_init, key_acceptance = jax.random.split(key)
-        initialization = jax.random.uniform(
-            key_init,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
-            mean=initialization,
-            sigma=params.sigma_init,
-            temp=params.temp_init,
-            acceptance=jax.random.uniform(key_acceptance),
-            best_member=initialization,
+            current_solution=jnp.full((self.num_dims,), jnp.nan),
+            current_fitness=jnp.inf,
+            std=params.std_init,
+            temperature=params.temperature_init,
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new proposed candidates to evaluate next."""
-        key_noise, key_acceptance = jax.random.split(key)
-        # Sampling of N(0, 1) noise
-        z = jax.random.normal(
-            key_noise,
-            (self.population_size, self.num_dims),
-        )
-        x = state.mean + state.sigma * z
-        return x, state.replace(acceptance=jax.random.uniform(key_acceptance))
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        z = jax.random.normal(key, (self.population_size, self.num_dims))
+        population = state.current_solution + state.std * z
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` update to ES state."""
-        best_in_gen = jnp.argmin(fitness)
-        gen_fitness, gen_member = fitness[best_in_gen], x[best_in_gen]
-        improve_diff = state.best_fitness - gen_fitness
-        improved = improve_diff > 0
+        best_idx = jnp.argmin(fitness)
+        best_member, best_fitness = population[best_idx], fitness[best_idx]
 
-        # Calculate temperature acceptance constant (replace by best in generation)
-        metropolis = jnp.exp(improve_diff / (state.temp * params.boltzmann_const))
+        delta = best_fitness - state.current_fitness
+        metropolis = jnp.exp(-delta / (params.boltzmann_constant * state.temperature))
+        acceptance = jax.random.uniform(key)
 
-        # Replace mean either if improvement or random metropolis acceptance
-        rand_replace = jnp.logical_or(improved, state.acceptance > metropolis)
-        # Note: We replace by best member in generation (not completely random)
-        mean = jax.lax.select(rand_replace, gen_member, state.mean)
+        # Replace if improved or random metropolis acceptance
+        replace = jnp.logical_or(delta < 0, acceptance < metropolis)
 
-        # Update permutation standard deviation
-        sigma = jax.lax.select(
-            state.sigma > params.sigma_limit,
-            state.sigma * params.sigma_decay,
-            state.sigma,
+        # Note: We replace by best member in generation
+        current_solution = jnp.where(replace, best_member, state.current_solution)
+        current_fitness = jnp.where(replace, best_fitness, state.current_fitness)
+
+        # Update std
+        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+
+        # Update temperature
+        temperature = jnp.clip(
+            state.temperature * params.temperature_decay,
+            min=params.temperature_limit,
         )
 
-        temp = jax.lax.select(
-            state.temp > params.temp_limit,
-            state.temp * params.temp_decay,
-            state.temp,
-        )
         return state.replace(
-            mean=mean, sigma=sigma, temp=temp
-        )  # TODO: best member is not updated?
+            current_solution=current_solution,
+            current_fitness=current_fitness,
+            std=std,
+            temperature=temperature,
+        )

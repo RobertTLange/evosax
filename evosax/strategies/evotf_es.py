@@ -1,4 +1,10 @@
+"""Evolution Transformer (Lange et al., 2024).
+
+Reference: https://arxiv.org/abs/2403.02985
+"""
+
 import pkgutil
+from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
@@ -11,18 +17,18 @@ from ..learned_eo.evotf_tools import (
     SolutionFeaturizer,
 )
 from ..learned_eo.les_tools import load_pkl_object
-from ..strategy import Strategy
-from ..types import ArrayTree, Fitness, Population, Solution
+from ..strategy import Params, State, Strategy, metrics_fn
+from ..types import Fitness, Population, PyTree, Solution
 
 
 @struct.dataclass
 class DistributionFeaturesState:
     old_mean: jax.Array
-    old_sigma: jax.Array
+    old_std: jax.Array
     momentum_mean: jax.Array
-    momentum_sigma: jax.Array
+    momentum_std: jax.Array
     evopath_mean: jax.Array
-    evopath_sigma: jax.Array
+    evopath_std: jax.Array
 
 
 @struct.dataclass
@@ -38,38 +44,32 @@ class SolutionFeaturesState:
 
 
 @struct.dataclass
-class State:
+class State(State):
     mean: jax.Array
-    sigma: jax.Array
+    std: jax.Array
     sf_state: SolutionFeaturesState
     ff_state: FitnessFeaturesState
     df_state: DistributionFeaturesState
     solution_context: jax.Array
     fitness_context: jax.Array
     distribution_context: jax.Array
-    best_member: jax.Array
-    best_fitness: float = jnp.finfo(jnp.float32).max
-    generation_counter: int = 0
 
 
 @struct.dataclass
-class Params:
-    net_params: ArrayTree
-    lrate_mean: float = 1.0
-    lrate_sigma: float = 1.0
-    sigma_init: float = 1.0
-    init_min: float = 0.0
-    init_max: float = 0.0
-    clip_min: float = -jnp.finfo(jnp.float32).max
-    clip_max: float = jnp.finfo(jnp.float32).max
+class Params(Params):
+    std_init: float
+    lrate_mean: float
+    lrate_std: float
+    params: PyTree
 
 
 class EvoTF_ES(Strategy):
+    """Evolution Transformer (EvoTF)."""
+
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        sigma_init: float = 1.0,
         max_context_len: int = 100,
         model_config: dict = dict(
             num_layers=1,
@@ -108,13 +108,14 @@ class EvoTF_ES(Strategy):
             use_oai_grad=True,
         ),
         use_antithetic_sampling: bool = False,
-        net_params: ArrayTree | None = None,
-        net_ckpt_path: str | None = None,
-        mean_decay: float = 0.0,
+        params: PyTree | None = None,
+        params_path: str | None = None,
+        metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        super().__init__(population_size, solution, mean_decay, **fitness_kwargs)
+        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "EvoTransformer"
+
         self.max_context_len = max_context_len
         self.model_config = model_config
         self.solution_config = solution_config
@@ -139,9 +140,14 @@ class EvoTF_ES(Strategy):
             seq_len=self.max_context_len,
             **distrib_config,
         )
-        if net_ckpt_path is not None:
-            self.ckpt = load_pkl_object(net_ckpt_path)
-            self.default_net_params = self.ckpt["net_params"]
+
+        if params is not None:
+            # Set params provided
+            self.params = params
+        elif params_path is not None:
+            # Load params from checkpoint
+            self.ckpt = load_pkl_object(params_path)
+            self.params = self.ckpt["net_params"]
             self.model_config = self.ckpt["model_config"]
             self.model = EvoTransformer(**self.model_config)
             self.sf = SolutionFeaturizer(
@@ -162,16 +168,12 @@ class EvoTF_ES(Strategy):
                 seq_len=self.max_context_len,
                 **self.ckpt["distrib_config"],
             )
-            print(f"Loaded EvoTF model from ckpt: {net_ckpt_path}")
-
-        if net_params is not None:
-            self.default_net_params = net_params
-
-        if net_params is None and net_ckpt_path is None:
+        else:
+            # Load default params
             ckpt_fname = "2024_03_SNES_small.pkl"
             data = pkgutil.get_data(__name__, f"ckpt/evotf/{ckpt_fname}")
             self.ckpt = load_pkl_object(data, pkg_load=True)
-            self.default_net_params = self.ckpt["net_params"]
+            self.params = self.ckpt["net_params"]
             self.model_config = self.ckpt["model_config"]
             self.model = EvoTransformer(**self.model_config)
             self.sf = SolutionFeaturizer(
@@ -192,38 +194,28 @@ class EvoTF_ES(Strategy):
                 seq_len=self.max_context_len,
                 **self.ckpt["distrib_config"],
             )
-            print(f"Loaded pretrained EvoTF model from ckpt: {ckpt_fname}")
 
-        self.num_network_params = sum(
-            x.size for x in jax.tree.leaves(self.default_net_params)
-        )
+        self.num_network_params = sum(x.size for x in jax.tree.leaves(self.params))
 
-        # Set core kwargs params
-        self.sigma_init = sigma_init
+        # Antithetic sampling
         self.use_antithetic_sampling = use_antithetic_sampling
         if self.use_antithetic_sampling:
-            assert not self.population_size & 1, "Population size must be even"
-        # Setup look-ahead mask for forward pass
+            assert self.population_size % 2 == 0, "Population size must be even."
+
+        # Setup mask for forward pass
         self.la_mask = jnp.tril(jnp.ones((self.max_context_len, self.max_context_len)))
-        self.strategy_name = "EvoTF_ES"
 
     @property
-    def params_strategy(self) -> Params:
-        """Return default parameters of evolutionary strategy."""
+    def _default_params(self) -> Params:
         params = Params(
-            sigma_init=self.sigma_init,
-            net_params=self.default_net_params,
+            std_init=1.0,
+            lrate_mean=1.0,
+            lrate_std=1.0,
+            params=self.params,
         )
         return params
 
-    def init_strategy(self, key: jax.Array, params: Params) -> State:
-        """`init` the evolutionary strategy."""
-        initialization = jax.random.uniform(
-            key,
-            (self.num_dims,),
-            minval=params.init_min,
-            maxval=params.init_max,
-        )
+    def _init(self, key: jax.Array, params: Params) -> State:
         scon_shape = (
             1,
             self.max_context_len,
@@ -244,48 +236,50 @@ class EvoTF_ES(Strategy):
             self.df.num_features,
         )
         state = State(
-            mean=initialization,
-            sigma=params.sigma_init * jnp.ones(self.num_dims),
+            mean=jnp.full((self.num_dims,), jnp.nan),
+            std=params.std_init * jnp.ones(self.num_dims),
             sf_state=self.sf.init(),
             ff_state=self.ff.init(),
             df_state=self.df.init(),
             solution_context=jnp.zeros(scon_shape),
             fitness_context=jnp.zeros(fcon_shape),
             distribution_context=jnp.zeros(dcon_shape),
-            best_member=initialization,
+            best_solution=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness=jnp.inf,
+            generation_counter=0,
         )
-
         return state
 
-    def ask_strategy(
-        self, key: jax.Array, state: State, params: Params
-    ) -> tuple[jax.Array, State]:
-        """`ask` for new parameter candidates to evaluate next."""
-        if not self.use_antithetic_sampling:
-            noise = jax.random.normal(key, (self.population_size, self.num_dims))
-        else:
-            noise_p = jax.random.normal(
-                key, (int(self.population_size / 2), self.num_dims)
-            )
-            noise = jnp.concatenate([noise_p, -noise_p], axis=0)
-        x = state.mean + noise * state.sigma.reshape(1, self.num_dims)
-        return x, state
-
-    def tell_strategy(
+    def _ask(
         self,
-        x: Population,
+        key: jax.Array,
+        state: State,
+        params: Params,
+    ) -> tuple[Population, State]:
+        if not self.use_antithetic_sampling:
+            z = jax.random.normal(key, (self.population_size, self.num_dims))
+        else:
+            z = jax.random.normal(key, (self.population_size // 2, self.num_dims))
+            z = jnp.concatenate([z, -z])
+
+        population = state.mean + z * state.std
+        return population, state
+
+    def _tell(
+        self,
+        key: jax.Array,
+        population: Population,
         fitness: Fitness,
         state: State,
         params: Params,
     ) -> State:
-        """`tell` performance data for strategy state update."""
         # Get features from population info
         sfeatures, sf_state = self.sf.featurize(
-            x, fitness, state.mean, state.sigma, state.sf_state
+            population, fitness, state.mean, state.std, state.sf_state
         )
-        ffeatures, ff_state = self.ff.featurize(x, fitness, state.ff_state)
+        ffeatures, ff_state = self.ff.featurize(population, fitness, state.ff_state)
         dfeatures, df_state = self.df.featurize(
-            x, fitness, state.mean, state.sigma, state.df_state
+            population, fitness, state.mean, state.std, state.df_state
         )
 
         # Update the context with a sliding window
@@ -318,7 +312,7 @@ class EvoTF_ES(Strategy):
         @jax.jit
         def infer_step(solution_context, fitness_context, distribution_context):
             return self.model.apply(
-                params.net_params,
+                params.params,
                 solution_context,
                 fitness_context,
                 distribution_context,
@@ -327,16 +321,17 @@ class EvoTF_ES(Strategy):
                 mask=self.la_mask,
             )
 
-        pred, att = infer_step(
+        pred, _ = infer_step(
             solution_context, fitness_context, distribution_context
         )  # TODO: att not used?
-        pred_mean = state.mean + params.lrate_mean * state.sigma * pred[0, 0, idx]
-        pred_sigma = state.sigma * jnp.exp(params.lrate_sigma / 2 * pred[1, 0, idx])
-        pred_sigma = jnp.clip(pred_sigma, 1e-08)
+        pred_mean = state.mean + params.lrate_mean * state.std * pred[0, 0, idx]
+        pred_std = state.std * jnp.exp(params.lrate_std / 2 * pred[1, 0, idx])
+        pred_std = jnp.clip(pred_std, 1e-8)
+
         # Collect and sort attention by population fitness order
         return state.replace(
             mean=pred_mean,
-            sigma=pred_sigma,
+            std=pred_std,
             sf_state=sf_state,
             ff_state=ff_state,
             df_state=df_state,
