@@ -9,10 +9,10 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import metrics_fn
 from evosax.core import exp_decay
 from evosax.strategies.open_es import OpenES, Params, State
 
+from ..strategy import metrics_fn
 from ..types import Fitness, Population, Solution
 from ..utils.kernel import kernel_rbf
 

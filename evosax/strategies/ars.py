@@ -10,7 +10,7 @@ import jax.numpy as jnp
 from flax import struct
 
 from ..core import GradientOptimizer, OptParams, OptState
-from ..strategy import Params, State, Strategy, metrics_fn, metrics_fn
+from ..strategy import Params, State, Strategy, metrics_fn
 from ..types import Fitness, Population, Solution
 
 

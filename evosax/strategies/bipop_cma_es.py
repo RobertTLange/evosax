@@ -5,6 +5,7 @@ Inspired by: https://tinyurl.com/44y3ryhf
 """
 
 from functools import partial
+
 import jax
 from flax import struct
 

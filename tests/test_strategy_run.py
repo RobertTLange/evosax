@@ -16,7 +16,7 @@ def test_strategy_run(strategy_name):
     problem = BBOBProblem("sphere", num_dims)
 
     key, subkey = jax.random.split(key)
-    solution = problem.sample_solution(subkey)
+    solution = problem.sample(subkey)
 
     population_size = 17 if strategy_name == "ESMC" else 16
 
@@ -24,11 +24,13 @@ def test_strategy_run(strategy_name):
         es = Strategy(
             population_size=population_size,
             solution=solution,
-            sampling_fn=problem.sample_solution,
+            sampling_fn=problem.sample,
         )
     elif strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
         es = Strategy(
-            population_size=population_size, num_populations=2, solution=solution,
+            population_size=population_size,
+            num_populations=2,
+            solution=solution,
         )
     else:
         es = Strategy(population_size=population_size, solution=solution)
@@ -57,7 +59,7 @@ def test_strategy_scan(strategy_name):
     problem = BBOBProblem("sphere", num_dims)
 
     key, subkey = jax.random.split(key)
-    solution = problem.sample_solution(subkey)
+    solution = problem.sample(subkey)
 
     population_size = 17 if strategy_name == "ESMC" else 16
 
@@ -65,11 +67,13 @@ def test_strategy_scan(strategy_name):
         es = Strategy(
             population_size=population_size,
             solution=solution,
-            sampling_fn=problem.sample_solution,
+            sampling_fn=problem.sample,
         )
     elif strategy_name in ["SV_CMA_ES", "SV_OpenES"]:
         es = Strategy(
-            population_size=population_size, num_populations=2, solution=solution,
+            population_size=population_size,
+            num_populations=2,
+            solution=solution,
         )
     else:
         es = Strategy(population_size=population_size, solution=solution)

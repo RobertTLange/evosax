@@ -8,8 +8,8 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 
-from ..types import Population, Solution
 from ..strategy import metrics_fn
+from ..types import Population, Solution
 from .iamalgam_full import Params, State, iAMaLGaM_Full
 
 

@@ -9,9 +9,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import metrics_fn
 from evosax.strategies.cma_es import CMA_ES, Params, State
 
+from ..strategy import metrics_fn
 from ..types import Fitness, Population, Solution
 from ..utils.kernel import kernel_rbf
 
