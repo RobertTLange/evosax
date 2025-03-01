@@ -45,7 +45,7 @@ class GymnaxProblem(Problem):
         self.num_rollouts = num_rollouts
 
         # Instantiate environment and replace default parameters
-        self.env, self.env_params = gymnax.make(env_name, **env_kwargs)
+        self.env, self.env_params = gymnax.make(self.env_name, **env_kwargs)
         self.env_params.replace(**env_params)
 
         # Test policy and env compatibility

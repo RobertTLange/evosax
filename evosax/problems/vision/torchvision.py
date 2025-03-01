@@ -1,221 +1,263 @@
+"""TorchVision Problem for Computer Vision Optimization.
+
+This module implements a problem class for computer vision optimization using
+the TorchVision library, which provides access to common image datasets.
+
+The TorchVisionProblem class handles:
+- Dataset loading and preprocessing
+- Batch sampling for network training/evaluation
+- Network evaluation on classification tasks
+- Performance metrics calculation (loss and accuracy)
+
+Supported datasets include MNIST, FashionMNIST, CIFAR10, and SVHN.
+
+[1] https://pytorch.org/vision/stable/index.html
+"""
+
+from functools import partial
+
 import jax
 import jax.numpy as jnp
+import optax
+from flax import linen as nn
 
-from ...types import PyTree
+from ...types import PyTree, Solution
 
 
 class TorchVisionProblem:
+    """TorchVision Problem for Computer Vision Optimization."""
+
     def __init__(
         self,
-        task_name: str = "MNIST",
+        task_name: str,
+        network: nn.Module,
         batch_size: int = 1024,
-        test: bool = False,
     ):
+        """Initialize the TorchVisionProblem."""
         self.task_name = task_name
-        self.batch_size = batch_size
-        self.steps_per_member = 1
-        self.test = test
-        self.num_classes = 10
-        self.action_shape = 10
-        data = get_array_data(self.task_name, self.test)
-        self.dataloader = BatchLoader(*data, batch_size=self.batch_size)
-
-    def set_apply_fn(self, network):
-        """Set the network forward function."""
         self.network = network
-        self.eval_pop = jax.vmap(self.eval_ffw, in_axes=(None, 0))
-        self.eval = jax.jit(self.eval_vmap)
+        self.batch_size = batch_size
 
-    def eval_vmap(self, key: jax.Array, network_params: PyTree):
-        """Vectorize evaluation. Reshape output correctly."""
-        loss, acc = self.eval_pop(key, network_params)
-        loss_re = loss.reshape(-1, 1)
-        acc_re = acc.reshape(-1, 1)
-        return loss_re, acc_re
+        if self.task_name == "MNIST":
+            self.get_dataset = self.get_mnist
+        elif self.task_name == "FashionMNIST":
+            self.get_dataset = self.get_fashion_mnist
+        elif self.task_name == "CIFAR10":
+            self.get_dataset = self.get_cifar10
+        elif self.task_name == "SVHN":
+            self.get_dataset = self.get_svhn
+        else:
+            raise ValueError(f"Dataset {self.task_name} is not supported.")
 
-    def eval_ffw(self, key: jax.Array, network_params: PyTree) -> PyTree:
-        """Evaluate a network on a supervised learning task."""
-        key_sample, key_network = jax.random.split(key)
-        X, y = self.dataloader.sample(key_sample)
-        y_pred = self.network(network_params, X, key_network)
-        loss, acc = loss_and_acc(y_pred, y, self.num_classes)
-        # Return negative loss to maximize!
-        return -1 * loss, acc
+        # Get datasets and dataloaders
+        self.dataset_train, self.dataset_test, self.loader_train, self.loader_test = (
+            self.get_dataset()
+        )
+
+        # Put train data on device
+        for image, target in self.loader_train:
+            break
+        self.image_train, self.target_train = jnp.array(image), jnp.array(target)
+
+        # Put test data on device
+        for image, target in self.loader_test:
+            break
+        self.image_test, self.target_test = jnp.array(image), jnp.array(target)
 
     @property
     def input_shape(self) -> tuple[int]:
-        """Get the shape of the observation."""
-        return (1,) + self.dataloader.data_shape
+        """Get image shape."""
+        return self.dataloader.data_shape
 
+    @property
+    def num_classes(self) -> int:
+        """Get the number of classes."""
+        return len(self.dataset_train.classes)
 
-def loss_and_acc(
-    y_pred: jax.Array, y_true: jax.Array, num_classes: int
-) -> tuple[jax.Array, jax.Array]:
-    """Compute cross-entropy loss and accuracy."""
-    acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y_true)
-    labels = jax.nn.one_hot(y_true, num_classes)
-    loss = -jnp.sum(labels * jax.nn.log_softmax(y_pred))
-    loss /= labels.shape[0]
-    return loss, acc
+    @partial(jax.jit, static_argnames=("self",))
+    def sample_batch(self, key: jax.Array) -> tuple[jax.Array, jax.Array]:
+        """Sample a batch of data."""
+        x = jax.random.choice(key, self.image_train, (self.batch_size,), replace=False)
+        y = jax.random.choice(key, self.target_train, (self.batch_size,), replace=False)
+        return x, y
 
+    @partial(jax.jit, static_argnames=("self",))
+    def eval(self, key: jax.Array, network_params: PyTree):
+        """Evaluate a population of networks."""
+        # Pegasus trick
+        loss, acc = jax.vmap(self._predict, in_axes=(None, 0))(key, network_params)
+        return loss, acc
 
-class BatchLoader:
-    def __init__(
-        self,
-        X: jax.Array,
-        y: jax.Array,
-        batch_size: int,
-    ):
-        self.X = X
-        self.y = y
-        self.data_shape = self.X.shape[1:]
-        self.num_train_samples = X.shape[0]
-        self.batch_size = batch_size
+    def _predict(self, key: jax.Array, network_params: PyTree) -> PyTree:
+        """Evaluate network params on a batch."""
+        key_sample, key_network = jax.random.split(key)
 
-    def sample(self, key: jax.Array) -> tuple[jax.Array, jax.Array]:
-        """Sample a single batch of X, y data."""
-        sample_idx = jax.random.choice(
-            key,
-            jnp.arange(self.num_train_samples),
-            (self.batch_size,),
-            replace=False,
-        )
-        return (
-            jnp.take(self.X, sample_idx, axis=0),
-            jnp.take(self.y, sample_idx, axis=0),
-        )
+        # Sample batch
+        x, y = self.sample_batch(key_sample)
 
+        # Predict
+        y_pred = self.network.apply(network_params, x, key_network)
 
-def get_mnist_loaders(test: bool = False):
-    try:
-        import torch
-        from torchvision import datasets, transforms
-    except ModuleNotFoundError as err:
-        raise ModuleNotFoundError(
-            f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `VisionProblem` module."
-        )
+        # Calculate accuracy
+        acc = jnp.mean(jnp.argmax(y_pred, axis=-1) == y)
 
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,)),
-            transforms.Lambda(lambda x: x.permute(1, 2, 0)),
-        ]
-    )
-    bs = 10000 if test else 60000
-    loader = torch.utils.data.DataLoader(
-        datasets.MNIST("~/data", download=True, train=not test, transform=transform),
-        batch_size=bs,
-        shuffle=False,
-    )
-    return loader
+        # Softmax cross-entropy loss
+        loss = optax.softmax_cross_entropy_with_integer_labels(y_pred, y)
 
+        # Take the mean over the batch
+        loss = jnp.mean(loss)
 
-def get_fashion_loaders(test: bool = False):
-    try:
-        import torch
-        from torchvision import datasets, transforms
-    except ModuleNotFoundError as err:
-        raise ModuleNotFoundError(
-            f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `VisionProblem` module."
+        return loss, acc
+
+    @partial(jax.jit, static_argnames=("self",))
+    def sample(self, key: jax.Array) -> Solution:
+        """Sample a solution in the search space."""
+        key_init, key_sample, key_input = jax.random.split(key, 3)
+        x, y = self.sample_batch(key_sample)
+        return self.network.init(key_init, x, key_input)
+
+    def get_mnist(self):
+        """Get the MNIST dataset."""
+        try:
+            import torch
+            from torchvision import datasets, transforms
+        except ImportError:
+            raise ImportError(
+                "You need to install `torchvision` to use this problem class."
+            )
+
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.1307,), std=(0.3081,)),
+                transforms.Lambda(lambda x: x.permute(1, 2, 0)),
+            ]
         )
 
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,)),
-            transforms.Lambda(lambda x: x.permute(1, 2, 0)),
-        ]
-    )
-
-    bs = 10000 if test else 60000
-    loader = torch.utils.data.DataLoader(
-        datasets.FashionMNIST(
-            "~/data", download=True, train=not test, transform=transform
-        ),
-        batch_size=bs,
-        shuffle=False,
-    )
-    return loader
-
-
-def get_cifar_loaders(test: bool = False):
-    """Get PyTorch Data Loaders for CIFAR-10."""
-    try:
-        import torch
-        from torchvision import datasets, transforms
-    except ModuleNotFoundError as err:
-        raise ModuleNotFoundError(
-            f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `VisionProblem` module."
+        # Load the MNIST dataset
+        dataset_train = datasets.MNIST(
+            "~/data", download=True, train=True, transform=transform
+        )
+        dataset_test = datasets.MNIST(
+            "~/data", download=True, train=False, transform=transform
         )
 
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            transforms.Lambda(lambda x: x.permute(1, 2, 0)),
-        ]
-    )
-
-    bs = 10000 if test else 50000
-    loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10(
-            root="~/data", train=not test, download=True, transform=transform
-        ),
-        batch_size=bs,
-        shuffle=False,
-    )
-    return loader
-
-
-def normalize(data_tensor):
-    """re-scale image values to [-1, 1]"""
-    return (data_tensor / 255.0) * 2.0 - 1.0
-
-
-def get_svhn_loaders(test: bool = False):
-    """Get PyTorch Data Loaders for SVHN."""
-    try:
-        import torch
-        from torchvision import datasets, transforms
-    except ModuleNotFoundError as err:
-        raise ModuleNotFoundError(
-            f"{err}. You need to install `torch` and `torchvision`"
-            "to use the `VisionProblem` module."
+        # Create data loaders
+        loader_train = torch.utils.data.DataLoader(
+            dataset_train, batch_size=len(dataset_train), shuffle=False
+        )
+        loader_test = torch.utils.data.DataLoader(
+            dataset_test, batch_size=len(dataset_test), shuffle=False
         )
 
-    transform = [
-        transforms.ToTensor(),
-        transforms.Lambda(lambda x: normalize(x)),
-        transforms.Lambda(lambda x: x.permute(1, 2, 0)),
-    ]
+        return dataset_train, dataset_test, loader_train, loader_test
 
-    bs = 26032 if test else 73257
-    loader = torch.utils.data.DataLoader(
-        datasets.SVHN(
-            root="~/data", train=not test, download=True, transform=transform
-        ),
-        batch_size=bs,
-        shuffle=False,
-    )
-    return loader
+    def get_fashion_mnist(self):
+        """Get the Fashion MNIST dataset."""
+        try:
+            import torch
+            from torchvision import datasets, transforms
+        except ImportError:
+            raise ImportError(
+                "You need to install `torchvision` to use this problem class."
+            )
 
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.1307,), std=(0.3081,)),
+                transforms.Lambda(lambda x: x.permute(1, 2, 0)),
+            ]
+        )
 
-def get_array_data(task_name: str = "MNIST", test: bool = False):
-    """Get raw data arrays to subsample from."""
-    if task_name == "MNIST":
-        loader = get_mnist_loaders(test)
-    elif task_name == "FashionMNIST":
-        loader = get_fashion_loaders(test)
-    elif task_name == "CIFAR10":
-        loader = get_cifar_loaders(test)
-    elif task_name == "SVHN":
-        loader = get_svhn_loaders(test)
-    else:
-        raise ValueError("Dataset is not supported.")
-    for _, (data, target) in enumerate(loader):
-        break
-    return jnp.array(data), jnp.array(target)
+        # Load the Fashion MNIST dataset
+        dataset_train = datasets.FashionMNIST(
+            "~/data", download=True, train=True, transform=transform
+        )
+        dataset_test = datasets.FashionMNIST(
+            "~/data", download=True, train=False, transform=transform
+        )
+
+        # Create data loaders
+        loader_train = torch.utils.data.DataLoader(
+            dataset_train, batch_size=len(dataset_train), shuffle=False
+        )
+        loader_test = torch.utils.data.DataLoader(
+            dataset_test, batch_size=len(dataset_test), shuffle=False
+        )
+
+        return dataset_train, dataset_test, loader_train, loader_test
+
+    def get_cifar10(self):
+        """Get the CIFAR-10 dataset."""
+        try:
+            import torch
+            from torchvision import datasets, transforms
+        except ImportError:
+            raise ImportError(
+                "You need to install `torchvision` to use this problem class."
+            )
+
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)
+                ),
+                transforms.Lambda(lambda x: x.permute(1, 2, 0)),
+            ]
+        )
+
+        # Load the CIFAR-10 dataset
+        dataset_train = datasets.CIFAR10(
+            "~/data", download=True, train=True, transform=transform
+        )
+        dataset_test = datasets.CIFAR10(
+            "~/data", download=True, train=False, transform=transform
+        )
+
+        # Create data loaders
+        loader_train = torch.utils.data.DataLoader(
+            dataset_train, batch_size=len(dataset_train), shuffle=False
+        )
+        loader_test = torch.utils.data.DataLoader(
+            dataset_test, batch_size=len(dataset_test), shuffle=False
+        )
+
+        return dataset_train, dataset_test, loader_train, loader_test
+
+    def get_svhn(self):
+        """Get the SVHN dataset."""
+        try:
+            import torch
+            from torchvision import datasets, transforms
+        except ImportError:
+            raise ImportError(
+                "You need to install `torchvision` to use this problem class."
+            )
+
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: 2.0 * (x / 255) - 1.0),
+                transforms.Lambda(lambda x: x.permute(1, 2, 0)),
+            ]
+        )
+
+        # Load the SVHN dataset
+        dataset_train = datasets.SVHN(
+            "~/data", download=True, split="train", transform=transform
+        )
+        dataset_test = datasets.SVHN(
+            "~/data", download=True, split="test", transform=transform
+        )
+
+        # Create data loaders
+        loader_train = torch.utils.data.DataLoader(
+            dataset_train, batch_size=len(dataset_train), shuffle=False
+        )
+        loader_test = torch.utils.data.DataLoader(
+            dataset_test, batch_size=len(dataset_test), shuffle=False
+        )
+
+        return dataset_train, dataset_test, loader_train, loader_test

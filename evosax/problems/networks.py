@@ -69,7 +69,7 @@ class CNN(nn.Module):
     use_bias: bool = True
 
     @nn.compact
-    def __call__(self, x: jax.Array):
+    def __call__(self, x: jax.Array, key: jax.Array | None = None):
         """Forward pass of the CNN."""
         hidden = x
         for num_filter, kernel_size, stride in zip(
@@ -93,4 +93,4 @@ class CNN(nn.Module):
             use_bias=self.use_bias,
             kernel_init=self.kernel_init,
             bias_init=self.bias_init,
-        )(x)
+        )(hidden, key)

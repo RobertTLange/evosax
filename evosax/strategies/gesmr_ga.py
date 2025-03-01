@@ -40,9 +40,9 @@ class GESMR_GA(Strategy):
         **fitness_kwargs: bool | int | float,
     ):
         """Initialize GESMR."""
-        assert (
-            population_size - 1
-        ) % num_groups == 0, "Population size must be divisible by number of std groups"
+        assert (population_size - 1) % num_groups == 0, (
+            "Population size must be divisible by number of std groups"
+        )
         super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "GESMR_GA"
 

@@ -25,9 +25,9 @@ class MultiHeadSelfAttention(nn.Module):
             output of shape `[length, num_features]`.
 
         """
-        assert (
-            self.num_features % self.num_heads == 0
-        ), "Memory dimension must be divisible by number of heads."
+        assert self.num_features % self.num_heads == 0, (
+            "Memory dimension must be divisible by number of heads."
+        )
         head_dim = self.num_features // self.num_heads
         # project x to multi-headed q/k/v + apply dot-product attention
         # dimensions are then [length, n_heads, n_features_per_head]
@@ -59,9 +59,9 @@ class MultiHeadCrossAttention(nn.Module):
             output of shape `[length_2, num_features]`.
 
         """
-        assert (
-            self.num_features % self.num_heads == 0
-        ), "Memory dimension must be divisible by number of heads."
+        assert self.num_features % self.num_heads == 0, (
+            "Memory dimension must be divisible by number of heads."
+        )
         head_dim = self.num_features // self.num_heads
         # project x to multi-headed q/k/v + apply dot-product attention
         # dimensions are then [length, n_heads, n_features_per_head]
