@@ -1,6 +1,4 @@
 from .core import FitnessShaper
-from .networks import NetworkMapper
-from .problems import ProblemMapper
 from .strategies import (
     ARS,
     ASEBO,

@@ -25,7 +25,7 @@ def test_bbob_eval(classic_name: str):
 
 def test_env_ffw_eval(env_name: str):
     key = jax.random.key(0)
-    problem = GymnaxProblem(env_name, num_env_steps=100, num_rollouts=10)
+    problem = GymnaxProblem(env_name, episode_length=100, num_rollouts=10)
     network = NetworkMapper["MLP"](
         num_hidden_units=64,
         num_hidden_layers=2,

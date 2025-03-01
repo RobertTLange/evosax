@@ -1,19 +1,13 @@
-from .bbob import BBOBProblem
-from .gymnax import GymnaxProblem
-from .sequence import SequenceProblem
-from .vision import VisionProblem
-
-ProblemMapper = {
-    "Gymnax": GymnaxProblem,
-    "Vision": VisionProblem,
-    "BBOB": BBOBProblem,
-    "Sequence": SequenceProblem,
-}
+from .bbob.bbob import BBOBProblem
+from .bbob.meta_bbob import MetaBBOBProblem
+from .rl.brax import BraxProblem
+from .rl.gymnax import GymnaxProblem
+from .vision.torchvision import TorchVisionProblem
 
 __all__ = [
-    "GymnaxProblem",
-    "VisionProblem",
     "BBOBProblem",
-    "SequenceProblem",
-    "ProblemMapper",
+    "MetaBBOBProblem",
+    "GymnaxProblem",
+    "BraxProblem",
+    "TorchVisionProblem",
 ]

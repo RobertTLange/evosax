@@ -55,9 +55,9 @@ class GuidedES(Strategy):
         super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
         self.strategy_name = "GuidedES"
 
-        assert subspace_dims <= self.num_dims, (
-            "Subspace dims must be smaller than optimization dims."
-        )
+        assert (
+            subspace_dims <= self.num_dims
+        ), "Subspace dims must be smaller than optimization dims."
         self.subspace_dims = subspace_dims
 
         # Optimizer

@@ -11,10 +11,10 @@ import jax.numpy as jnp
 import matplotlib.colors
 import matplotlib.pyplot as plt
 
-from ..types import Fitness, Population, PyTree, Solution
+from ...types import Fitness, Population, PyTree, Solution
+from ..problem import Problem
 from .bbob_fn import fn_names_short_dict
 from .meta_bbob import MetaBBOBProblem
-from .problem import Problem
 
 
 class BBOBProblem(Problem):

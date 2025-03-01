@@ -5,7 +5,8 @@ from functools import partial
 import jax
 from flax import struct
 
-from ..types import Fitness, Population, PyTree, Solution
+from ..types import Fitness, Population, PyTree
+from .problem import Problem
 
 
 @struct.dataclass
@@ -18,7 +19,7 @@ class State:
     pass
 
 
-class MetaProblem:
+class MetaProblem(Problem):
     """Abstract class for meta-optimization problems."""
 
     @partial(jax.jit, static_argnames=("self",))
@@ -40,9 +41,4 @@ class MetaProblem:
         params: Params,
     ) -> tuple[Fitness, State, PyTree]:
         """Evaluate a batch of solutions."""
-        raise NotImplementedError
-
-    @partial(jax.jit, static_argnames=("self",))
-    def sample(self, key: jax.Array) -> Solution:
-        """Sample a solution in the search space."""
         raise NotImplementedError

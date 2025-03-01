@@ -35,9 +35,9 @@ class SV_CMA_ES(CMA_ES):
         **fitness_kwargs: bool | int | float,
     ):
         """Initialize SV-CMA-ES."""
-        assert population_size % num_populations == 0, (
-            "population_size must be divisible by num_populations."
-        )
+        assert (
+            population_size % num_populations == 0
+        ), "population_size must be divisible by num_populations."
         super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
 
         self.num_populations = num_populations

@@ -1,10 +1,10 @@
 import jax
 import jax.numpy as jnp
 
-from ..types import PyTree
+from ...types import PyTree
 
 
-class VisionProblem:
+class TorchVisionProblem:
     def __init__(
         self,
         task_name: str = "MNIST",

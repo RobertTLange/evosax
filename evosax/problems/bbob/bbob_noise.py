@@ -10,7 +10,8 @@ Noise models:
 - Additive
 
 [1] https://inria.hal.science/inria-00369466
-[2] https://numbbo.github.io/temp-doc-bbob/bbob-noisy/def.html
+[2] https://inria.hal.science/inria-00362633
+[3] https://numbbo.github.io/temp-doc-bbob/bbob-noisy/def.html
 """
 
 import jax
@@ -51,6 +52,7 @@ class NoiseModel:
         },
         use_stabilization: bool = False,
     ):
+        """Initialize noise model."""
         # Collect active noise models
         self.noise_ids, self.noise_models, counter = [], [], 0
         for noise_model_name, noise_model in all_noise_models.items():
@@ -215,7 +217,7 @@ def cauchy_noise(
 def additive_noise(
     key: jax.Array, fn_val: jax.Array, noise_params: NoiseParams
 ) -> jax.Array:
-    """Apply additive noisification."""
+    """Apply additive noise."""
     # Moderate noise: std = 0.01
     # Severe noise: std = 1
     return fn_val + noise_params.additive_std * jax.random.normal(
@@ -224,13 +226,15 @@ def additive_noise(
 
 
 def stabilize(
-    fn_val: jax.Array, fn_noise: jax.Array, target_value: float = 1e-08
+    fn_val: jax.Array,
+    fn_noise: jax.Array,
+    target_fn_val: float = 1e-08,  # Target function value (see [2] Appendix A.6)
 ) -> jax.Array:
-    """Stabilize final function value ([1], Eq. 4)."""
-    # Return undisturbed function value if f is smaller than target value
-    return (fn_noise + 1.01 * target_value) * (fn_val >= target_value) + fn_val * (
-        fn_val < target_value
-    )
+    """Stabilize final function value ([1], Eq. 4).
+
+    Return undisturbed function value if f is smaller than target value
+    """
+    return jnp.where(fn_val < target_fn_val, fn_val, fn_noise + 1.01 * target_fn_val)
 
 
 all_noise_models = {

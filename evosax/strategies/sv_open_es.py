@@ -41,9 +41,9 @@ class SV_OpenES(OpenES):
         **fitness_kwargs: bool | int | float,
     ):
         """Initialize SV-OpenAI-ES."""
-        assert population_size % num_populations == 0, (
-            "population_size must be divisible by num_populations."
-        )
+        assert (
+            population_size % num_populations == 0
+        ), "population_size must be divisible by num_populations."
         super().__init__(
             population_size=population_size,
             solution=solution,

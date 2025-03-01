@@ -10,10 +10,10 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..types import Fitness, Population, Solution
+from ...types import Fitness, Population, Solution
+from ..meta_problem import MetaProblem, Params, State
 from .bbob_fn import bbob_fns
 from .bbob_noise import NoiseModel, NoiseParams
-from .meta_problem import MetaProblem, Params, State
 
 
 @struct.dataclass
