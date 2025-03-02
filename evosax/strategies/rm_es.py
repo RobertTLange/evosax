@@ -12,8 +12,9 @@ import jax.numpy as jnp
 from flax import struct
 
 from ..core.fitness import ranksort
-from ..strategy import Params, State, Strategy, metrics_fn
+from ..strategy import State, metrics_fn
 from ..types import Fitness, Population, Solution
+from .cma_es import CMA_ES, Params
 
 
 @struct.dataclass
@@ -29,20 +30,11 @@ class State(State):
 
 @struct.dataclass
 class Params(Params):
-    std_init: float
-    std_limit: float
-    weights: jax.Array
-    mu_eff: float
-    c_mean: float
-    c_std: float
-    d_std: float
-    c_c: float
-    c_cov: float
     T: int
     q_star: float
 
 
-class Rm_ES(Strategy):
+class Rm_ES(CMA_ES):
     """Rank-m Evolution Strategy (Rm-ES)."""
 
     def __init__(
@@ -59,38 +51,28 @@ class Rm_ES(Strategy):
         self.strategy_name = "Rm_ES"
 
         self.elite_ratio = 0.5
+        self.use_negative_weights = False
 
     @property
     def _default_params(self) -> Params:
-        weights_prime = jnp.log((self.population_size + 1) / 2) - jnp.log(
-            jnp.arange(1, self.population_size + 1)
-        )  # From CMA-ES paper, slightly modified from paper, works better
-
-        mu_eff = (jnp.sum(weights_prime[: self.num_elites]) ** 2) / jnp.sum(
-            weights_prime[: self.num_elites] ** 2
-        )
-
-        positive_sum = jnp.sum(weights_prime * (weights_prime > 0))
-        weights = jnp.where(
-            weights_prime >= 0,
-            weights_prime / positive_sum,
-            0.0,
-        )
+        params = super()._default_params
 
         params = Params(
-            std_init=1.0,
-            std_limit=1e-3,
-            weights=weights,
-            mu_eff=mu_eff,
-            c_mean=1.0,
+            std_init=params.std_init,
+            std_min=1e-3,
+            std_max=params.std_max,
+            weights=params.weights,
+            mu_eff=params.mu_eff,
+            c_mean=params.c_mean,
             c_std=0.3,
             d_std=1.0,
             c_c=2 / (self.num_dims + 7),  # Table 1
-            c_cov=1 / (3 * jnp.sqrt(self.num_dims) + 5),  # Table 1
+            c_1=1 / (3 * jnp.sqrt(self.num_dims) + 5),  # Table 1, c_cov renamed to c_1
+            c_mu=params.c_mu,
+            chi_n=params.chi_n,
             T=20,
             q_star=0.3,
         )
-
         return params
 
     def _init(self, key: jax.Array, params: Params) -> State:
@@ -119,8 +101,8 @@ class Rm_ES(Strategy):
         r = jax.random.normal(key_r, (self.m,))
 
         # Compute std
-        a = jnp.power(jnp.sqrt(1 - params.c_cov), jnp.arange(self.m + 1)[::-1])
-        perturbation = a[0] * z + jnp.sqrt(params.c_cov) * jnp.dot(a[1:] * r, state.P)
+        a = jnp.power(jnp.sqrt(1 - params.c_1), jnp.arange(self.m + 1)[::-1])
+        perturbation = a[0] * z + jnp.sqrt(params.c_1) * jnp.dot(a[1:] * r, state.P)
 
         x = state.mean + state.std * perturbation
         return x, state
@@ -135,12 +117,11 @@ class Rm_ES(Strategy):
     ) -> State:
         # Sort
         idx = jnp.argsort(fitness)
-        elites_sorted = population[idx][: self.num_elites]
         fitness_elites_sorted = fitness[idx][: self.num_elites]
 
         # Update mean
-        mean = state.mean + params.c_mean * jnp.dot(
-            params.weights[: self.num_elites], elites_sorted - state.mean
+        mean, y_k, y_w = self.update_mean(
+            population, fitness, state.mean, state.std, params
         )
 
         # Rank-based Success Rule (RSR)
@@ -158,13 +139,10 @@ class Rm_ES(Strategy):
         ) * state.cumulative_rank_rate + params.c_std * (q - params.q_star)
 
         # Update std
-        std = state.std * jnp.exp(cumulative_rank_rate / params.d_std)
-        std = jnp.clip(std, min=params.std_limit, max=1e8)  # Prevent extreme step sizes
+        std = self.update_std(state.std, cumulative_rank_rate, params)
 
         # Update evolution path
-        p_c = (1 - params.c_c) * state.p_c + jnp.sqrt(
-            params.c_c * (2 - params.c_c) * params.mu_eff
-        ) * (mean - state.mean) / state.std
+        p_c = self.update_p_c(state.p_c, True, y_w, params)
 
         # Update P and t
         P_shifted = jnp.roll(state.P, shift=-1, axis=0)
@@ -203,3 +181,10 @@ class Rm_ES(Strategy):
             t=t,
             fitness_elites_sorted=fitness_elites_sorted,
         )
+
+    def update_std(
+        self, std: float, cumulative_rank_rate: float, params: Params
+    ) -> float:
+        """Update the step size (standard deviation)."""
+        std = std * jnp.exp(cumulative_rank_rate / params.d_std)  # Eq. (14)
+        return jnp.clip(std, min=params.std_min, max=params.std_max)

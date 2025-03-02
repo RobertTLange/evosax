@@ -77,8 +77,6 @@ class CR_FM_NES(Strategy):
 
     @property
     def _default_params(self) -> Params:
-        std_init = 1.0
-
         weights_hat = jnp.log(self.population_size / 2 + 1) - jnp.log(
             jnp.arange(1, self.population_size + 1)
         )
@@ -99,6 +97,8 @@ class CR_FM_NES(Strategy):
             - 1.0 / (4.0 * self.num_dims)
             + 1.0 / (21.0 * self.num_dims * self.num_dims)
         )
+
+        # CR-FM-NES specific parameters
         h_inv = get_h_inv(self.num_dims)
         alpha_dist = h_inv * jnp.minimum(
             1.0, jnp.sqrt(self.population_size / self.num_dims)
@@ -119,7 +119,7 @@ class CR_FM_NES(Strategy):
         )
 
         params = Params(
-            std_init=std_init,
+            std_init=1.0,
             weights=weights,
             weights_hat=weights_hat,
             mu_eff=mueff,

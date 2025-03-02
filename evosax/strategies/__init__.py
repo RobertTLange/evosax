@@ -13,7 +13,7 @@ from .gld import GLD
 from .guided_es import GuidedES
 from .hill_climber import HillClimber
 from .iamalgam_full import iAMaLGaM_Full
-from .iamalgam_indep import iAMaLGaM_Indep
+from .iamalgam_univariate import iAMaLGaM_Univariate
 from .ipop_cma_es import IPOP_CMA_ES
 from .les import LES
 from .lga import LGA
@@ -51,7 +51,7 @@ __all__ = [
     "BIPOP_CMA_ES",
     "IPOP_CMA_ES",
     "iAMaLGaM_Full",
-    "iAMaLGaM_Indep",
+    "iAMaLGaM_Univariate",
     "MA_ES",
     "LM_MA_ES",
     "Rm_ES",

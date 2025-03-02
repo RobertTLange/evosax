@@ -13,7 +13,9 @@ from ..types import Population, Solution
 from .iamalgam_full import Params, State, iAMaLGaM_Full
 
 
-class iAMaLGaM_Indep(iAMaLGaM_Full):
+class iAMaLGaM_Univariate(iAMaLGaM_Full):
+    """Incremental Adapted Maximum-Likelihood Gaussian Model - Iterated Density-Estimation Evolutionary Algorithm (iAMaLGaM) with diagonal covariance matrix."""
+
     def __init__(
         self,
         population_size: int,
@@ -21,13 +23,14 @@ class iAMaLGaM_Indep(iAMaLGaM_Full):
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
+        """Initialize iAMaLGaM."""
         super().__init__(
             population_size,
             solution,
             metrics_fn,
             **fitness_kwargs,
         )
-        self.strategy_name = "iAMaLGaM_Indep"
+        self.strategy_name = "iAMaLGaM_Univariate"
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(

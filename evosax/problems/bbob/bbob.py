@@ -35,18 +35,20 @@ class BBOBProblem(Problem):
     ):
         """Initialize BBOB problem."""
         self.fn_name = fn_name
-        self.num_dims = num_dims
+        self._num_dims = num_dims
 
         key = jax.random.key(seed)
         key_params, key_state = jax.random.split(key)
 
         # Initialize meta-problem params
-        noise_config["noise_model_names"] = [noise_config.pop("noise_model_name")]
         self.meta_problem = MetaBBOBProblem(
             fn_names=[fn_name],
-            min_num_dims=num_dims,
-            max_num_dims=num_dims,
-            noise_config=noise_config,
+            min_num_dims=self._num_dims,
+            max_num_dims=self._num_dims,
+            noise_config={
+                "noise_model_names": noise_config["noise_model_name"],
+                "use_stabilization": noise_config["use_stabilization"],
+            },
         )
         self._params = self.meta_problem.sample_params(key_params)
 
@@ -60,8 +62,8 @@ class BBOBProblem(Problem):
         # Set R and Q based on provided values
         if not sample_rotations:
             self._params = self._params.replace(
-                R=jnp.eye(num_dims),
-                Q=jnp.eye(num_dims),
+                R=jnp.eye(self._num_dims),
+                Q=jnp.eye(self._num_dims),
             )
 
         # Initialize meta-problem state
@@ -95,14 +97,14 @@ class BBOBProblem(Problem):
         """Sample a solution in the search space."""
         return jax.random.uniform(
             key,
-            shape=(self.num_dims,),
+            shape=(self._num_dims,),
             minval=self.x_range[0],
             maxval=self.x_range[1],
         )
 
     def visualize_2d(self, key: jax.Array, *, ax=None, logscale=False):
         """Visualize optimization problem in 2D."""
-        assert self.num_dims == 2
+        assert self._num_dims == 2
 
         # Create a meshgrid for visualization
         x = jnp.linspace(self.x_range[0], self.x_range[1], 1024)
@@ -167,7 +169,7 @@ class BBOBProblem(Problem):
 
     def visualize_3d(self, key: jax.Array, *, ax=None, logscale=False):
         """Visualize optimization problem in 3D."""
-        assert self.num_dims == 2
+        assert self._num_dims == 2
 
         # Create a meshgrid for visualization
         x = jnp.linspace(self.x_range[0], self.x_range[1], 1024)

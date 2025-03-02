@@ -36,7 +36,7 @@ from .strategies import (
     SimpleGA,
     SV_OpenES,
     iAMaLGaM_Full,
-    iAMaLGaM_Indep,
+    iAMaLGaM_Univariate,
     xNES,
 )
 from .strategy import Params, State, Strategy
@@ -55,7 +55,7 @@ Strategies = {
     "BIPOP_CMA_ES": BIPOP_CMA_ES,
     "IPOP_CMA_ES": IPOP_CMA_ES,
     "iAMaLGaM_Full": iAMaLGaM_Full,
-    "iAMaLGaM_Indep": iAMaLGaM_Indep,
+    "iAMaLGaM_Univariate": iAMaLGaM_Univariate,
     "MA_ES": MA_ES,
     "LM_MA_ES": LM_MA_ES,
     "Rm_ES": Rm_ES,
@@ -103,7 +103,7 @@ __all__ = [
     "BIPOP_CMA_ES",
     "IPOP_CMA_ES",
     "iAMaLGaM_Full",
-    "iAMaLGaM_Indep",
+    "iAMaLGaM_Univariate",
     "MA_ES",
     "LM_MA_ES",
     "Rm_ES",

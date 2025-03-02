@@ -41,7 +41,7 @@ class Params(Params):
 
 
 class iAMaLGaM_Full(Strategy):
-    """Incremental Adapted Maximum-Likelihood Gaussian Model - Iterated Density-Estimation Evolutionary Algorithm (iAMaLGaM)."""
+    """Incremental Adapted Maximum-Likelihood Gaussian Model - Iterated Density-Estimation Evolutionary Algorithm (iAMaLGaM) with full covariance matrix."""
 
     def __init__(
         self,

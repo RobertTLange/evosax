@@ -23,12 +23,13 @@ class State(State):
     C: jax.Array
     B: jax.Array
     D: jax.Array
-    grad: jax.Array
 
 
 @struct.dataclass
 class Params(Params):
     std_init: float
+    std_min: float
+    std_max: float
     weights: jax.Array
     mu_eff: float
     c_mean: float
@@ -55,6 +56,7 @@ class CMA_ES(Strategy):
         self.strategy_name = "CMA_ES"
 
         self.elite_ratio = 0.5
+        self.use_negative_weights = True
 
     @property
     def _default_params(self) -> Params:
@@ -102,7 +104,7 @@ class CMA_ES(Strategy):
         weights = jnp.where(
             weights_prime >= 0,
             weights_prime / positive_sum,
-            min_alpha * weights_prime / negative_sum,  # Zeroing out is also possible
+            self.use_negative_weights * min_alpha * weights_prime / negative_sum,
         )
 
         # Learning rate for mean
@@ -123,6 +125,8 @@ class CMA_ES(Strategy):
 
         return Params(
             std_init=1.0,
+            std_min=0.0,
+            std_max=1e8,
             weights=weights,
             mu_eff=mu_eff,
             c_mean=c_mean,
@@ -143,7 +147,6 @@ class CMA_ES(Strategy):
             C=jnp.eye(self.num_dims),
             B=jnp.eye(self.num_dims),
             D=jnp.ones((self.num_dims,)),
-            grad=0.0,
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -174,59 +177,120 @@ class CMA_ES(Strategy):
         state: State,
         params: Params,
     ) -> State:
-        # Sort
-        idx = jnp.argsort(fitness)
-
         # Update mean
-        y_k = (population[idx] - state.mean) / state.std  # ~ N(0, C)
-        y_w = jnp.dot(
-            params.weights[: self.num_elites], y_k[: self.num_elites]
-        )  # Eq. (41)
-        mean = state.mean + params.c_mean * (state.std * y_w + state.grad)  # Eq. (42)
+        mean, y_k, y_w = self.update_mean(
+            population, fitness, state.mean, state.std, params
+        )
 
         # Cumulative Step length Adaptation (CSA)
-        C_inv_sqrt = state.B @ jnp.diag(1 / state.D) @ state.B.T
-        p_std = (1 - params.c_std) * state.p_std + jnp.sqrt(
-            params.c_std * (2 - params.c_std) * params.mu_eff
-        ) * C_inv_sqrt @ y_w  # Eq. (43)
+        p_std = self.update_p_std(
+            state.p_std, state.B @ ((state.B.T @ y_w) / state.D), params
+        )
         norm_p_std = jnp.linalg.norm(p_std)
 
         # Update std
-        std = state.std * jnp.exp(
-            (params.c_std / params.d_std) * (norm_p_std / params.chi_n - 1)
-        )  # Eq. (44)
+        std = self.update_std(state.std, norm_p_std, params)
 
         # Covariance matrix adaptation
+        h_std = self.h_std(norm_p_std, state.generation_counter + 1, params)
+        p_c = self.update_p_c(state.p_c, h_std, y_w, params)
+
+        delta_h_std = self.delta_h_std(h_std, params)
+        rank_one = self.rank_one(p_c)
+        rank_mu = self.rank_mu(y_k, (y_k @ state.B) * (1 / state.D) @ state.B.T, params)
+        C = self.update_C(state.C, delta_h_std, rank_one, rank_mu, params)
+
+        return state.replace(mean=mean, std=std, p_std=p_std, p_c=p_c, C=C)
+
+    def update_mean(
+        self,
+        population: Population,
+        fitness: Fitness,
+        mean: jax.Array,
+        std: float,
+        params: Params,
+    ) -> tuple[jax.Array, jax.Array, jax.Array]:
+        """Update the mean of the distribution."""
+        # Sort
+        idx = jnp.argsort(fitness)
+
+        y_k = (population[idx] - mean) / std  # ~ N(0, C)
+        y_w = jnp.dot(
+            params.weights[: self.num_elites], y_k[: self.num_elites]
+        )  # Eq. (41)
+        return mean + params.c_mean * std * y_w, y_k, y_w  # Eq. (42)
+
+    def update_p_std(
+        self, p_std: jax.Array, C_inv_sqrt_y_w: jax.Array, params: Params
+    ) -> jax.Array:
+        """Update the evolution path for the step-size adaptation."""
+        return (1 - params.c_std) * p_std + jnp.sqrt(
+            params.c_std * (2 - params.c_std) * params.mu_eff
+        ) * C_inv_sqrt_y_w  # Eq. (43)
+
+    def update_std(self, std: float, norm_p_std: float, params: Params) -> float:
+        """Update the step size (standard deviation)."""
+        std = std * jnp.exp(
+            (params.c_std / params.d_std) * (norm_p_std / params.chi_n - 1)
+        )  # Eq. (44)
+        return jnp.clip(std, min=params.std_min, max=params.std_max)
+
+    def h_std(self, norm_p_std: float, generation_counter: int, params: Params) -> bool:
+        """Compute the stall indicator for the rank-one update."""
         h_std_cond_left = norm_p_std / jnp.sqrt(
-            1 - (1 - params.c_std) ** (2 * (state.generation_counter + 1))
+            1 - (1 - params.c_std) ** (2 * (generation_counter + 1))
         )
         h_std_cond_right = (1.4 + 2 / (self.num_dims + 1)) * params.chi_n
-        h_std = h_std_cond_left < h_std_cond_right  # Page 28
-        p_c = (1 - params.c_c) * state.p_c + h_std * jnp.sqrt(
+        return h_std_cond_left < h_std_cond_right  # Page 28
+
+    def update_p_c(
+        self, p_c: jax.Array, h_std: bool, y_w: jax.Array, params: Params
+    ) -> jax.Array:
+        """Update the evolution path for the covariance matrix adaptation."""
+        return (1 - params.c_c) * p_c + h_std * jnp.sqrt(
             params.c_c * (2 - params.c_c) * params.mu_eff
         ) * y_w  # Eq. (45)
 
+    def delta_h_std(self, h_std: bool, params: Params) -> float:
+        """Compute the coefficient for the rank-one update when stalled."""
+        return (1 - h_std) * params.c_c * (2 - params.c_c)  # Page 28
+
+    def rank_one(self, p_c: jax.Array) -> jax.Array:
+        """Compute the rank-one update term for the covariance matrix."""
+        return jnp.outer(p_c, p_c)
+
+    def rank_mu(
+        self, y_k: jax.Array, C_inv_sqrt_y_k: jax.Array, params: Params
+    ) -> jax.Array:
+        """Compute the rank-mu update term for the covariance matrix."""
         w_o = params.weights * jnp.where(
             params.weights >= 0,
             1,
-            self.num_dims / (jnp.sum(jnp.square(y_k @ C_inv_sqrt.T), axis=-1) + 1e-8),
+            self.num_dims
+            / jnp.clip(jnp.sum(jnp.square(C_inv_sqrt_y_k), axis=-1), min=1e-8),
         )  # Eq. (46)
-        delta_h_std = (1 - h_std) * params.c_c * (2 - params.c_c)  # Page 28
-        rank_one = jnp.outer(p_c, p_c)
-        rank_mu = jnp.einsum("i,ij,ik->jk", w_o, y_k, y_k)
-        C = (
+        return jnp.einsum("i,ij,ik->jk", w_o, y_k, y_k)
+
+    def update_C(
+        self,
+        C: jax.Array,
+        delta_h_std: float,
+        rank_one: jax.Array,
+        rank_mu: jax.Array,
+        params: Params,
+    ) -> jax.Array:
+        """Update the covariance matrix."""
+        return (
             (
                 1
                 + params.c_1 * delta_h_std
                 - params.c_1
                 - params.c_mu * jnp.sum(params.weights)
             )
-            * state.C
+            * C
             + params.c_1 * rank_one
             + params.c_mu * rank_mu
         )  # Eq. (47)
-
-        return state.replace(mean=mean, std=std, p_std=p_std, p_c=p_c, C=C)
 
 
 def eigen_decomposition(C: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:

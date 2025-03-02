@@ -11,34 +11,18 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategy import Params, State, Strategy, metrics_fn
+from ..strategy import metrics_fn
 from ..types import Fitness, Population, Solution
-
-
-@struct.dataclass
-class State(State):
-    mean: jax.Array
-    std: float
-    p_std: jax.Array
-    M: jax.Array
-    z: jax.Array
-    d: jax.Array
+from .cma_es import Params
+from .ma_es import MA_ES, State
 
 
 @struct.dataclass
 class Params(Params):
-    std_init: float
-    weights: jax.Array
-    mu_eff: float
-    c_mean: float
-    c_std: float
-    d_std: float
-    chi_n: float
-    c_c: jax.Array
     c_d: jax.Array
 
 
-class LM_MA_ES(Strategy):
+class LM_MA_ES(MA_ES):
     """Limited Memory Matrix Adaptation Evolution Strategy (LM-MA-ES)."""
 
     def __init__(
@@ -53,58 +37,35 @@ class LM_MA_ES(Strategy):
         self.strategy_name = "LM_MA_ES"
 
         self.elite_ratio = 0.5
+        self.use_negative_weights = False
 
     @property
     def _default_params(self) -> Params:
+        # Calculate m for LM-MA-ES
         self.m = int(4 + jnp.floor(3 * jnp.log(self.num_dims)))
 
-        std_init = 0.05
+        # Get parent class parameters
+        parent_params = super()._default_params
 
-        weights_prime = jnp.log((self.population_size + 1) / 2) - jnp.log(
-            jnp.arange(1, self.population_size + 1)
-        )  # Eq. (48)
-
-        mu_eff = (jnp.sum(weights_prime[: self.num_elites]) ** 2) / jnp.sum(
-            weights_prime[: self.num_elites] ** 2
-        )  # Eq. (8)
-
-        # Eq. (53)
-        positive_sum = jnp.sum(weights_prime * (weights_prime > 0))
-        weights = jnp.where(
-            weights_prime >= 0,
-            weights_prime / positive_sum,
-            0.0,
-        )
-
-        # Learning rate for mean
-        c_mean = 1.0  # Eq. (54)
-
-        # Step-size control
-        c_std = 2 * self.population_size / self.num_dims
-        d_std = (
-            1
-            + 2 * jnp.maximum(0, jnp.sqrt((mu_eff - 1) / (self.num_dims + 1)) - 1)
-            + c_std
-        )  # Eq. (55)
-        chi_n = jnp.sqrt(self.num_dims) * (
-            1.0
-            - (1.0 / (4.0 * self.num_dims))
-            + 1.0 / (21.0 * (self.max_num_dims_sq**2))
-        )  # Page 28
-
+        # Override or add LM-MA-ES specific parameters
         c_d = 1 / jnp.power(1.5, jnp.arange(self.m)) / self.num_dims
         c_c = self.population_size / jnp.power(4, jnp.arange(self.m)) / self.num_dims
 
+        # Set c_1 and c_mu to 0 as they're not used in LM-MA-ES
         return Params(
-            std_init=std_init,
-            weights=weights,
-            mu_eff=mu_eff,
-            c_mean=c_mean,
-            c_std=c_std,
-            d_std=d_std,
-            chi_n=chi_n,
-            c_d=c_d,
+            std_init=parent_params.std_init,
+            std_min=parent_params.std_min,
+            std_max=parent_params.std_max,
+            weights=parent_params.weights,
+            mu_eff=parent_params.mu_eff,
+            c_mean=parent_params.c_mean,
+            c_std=parent_params.c_std,
+            d_std=parent_params.d_std,
             c_c=c_c,
+            c_1=0.0,  # Not used in LM-MA-ES
+            c_mu=0.0,  # Not used in LM-MA-ES
+            chi_n=parent_params.chi_n,
+            c_d=c_d,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
@@ -114,7 +75,6 @@ class LM_MA_ES(Strategy):
             p_std=jnp.zeros(self.num_dims),
             M=jnp.zeros((self.m, self.num_dims)),
             z=jnp.zeros((self.population_size, self.num_dims)),
-            d=jnp.zeros((self.population_size, self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -140,7 +100,7 @@ class LM_MA_ES(Strategy):
             )
 
         population = state.mean + state.std * d
-        return population, state.replace(z=z, d=d)
+        return population, state.replace(z=z)
 
     def _tell(
         self,
@@ -152,24 +112,28 @@ class LM_MA_ES(Strategy):
     ) -> State:
         # Sort
         idx = jnp.argsort(fitness)
-        state = state.replace(z=state.z[idx], d=state.d[idx])
+        state = state.replace(z=state.z[idx])
 
         # Update mean
-        mean = state.mean + params.c_mean * state.std * jnp.dot(params.weights, state.d)
-        # mean = state.mean + state.c_mean * jnp.dot(params.weights, population[idx] - state.mean)
+        # Use the parent method to update the mean
+        mean, _, _ = self.update_mean(
+            population, fitness, state.mean, state.std, params
+        )
 
-        # Update evolution path
-        p_std = (1 - params.c_std) * state.p_std + jnp.sqrt(
-            params.c_std * (2 - params.c_std) * params.mu_eff
-        ) * jnp.dot(params.weights, state.z)
-
-        # Update m
-        M = (1 - params.c_c)[:, None] * state.M + jnp.sqrt(
-            params.mu_eff * params.c_c * (2 - params.c_c)
-        )[:, None] * jnp.dot(params.weights, state.z)
+        # Cumulative Step length Adaptation (CSA) - reuse from parent class
+        p_std = self.update_p_std(state.p_std, jnp.dot(params.weights, state.z), params)
+        norm_p_std = jnp.linalg.norm(p_std)
 
         # Update std
-        std = state.std * jnp.exp(
-            params.c_std * (jnp.linalg.norm(p_std) / params.chi_n - 1) / params.d_std
-        )
+        std = self.update_std(state.std, norm_p_std, params)
+
+        # Update M matrix - specific to LM-MA-ES
+        M = self.update_M(state.M, state.z, params)
+
         return state.replace(mean=mean, std=std, p_std=p_std, M=M)
+
+    def update_M(self, M: jax.Array, z: jax.Array, params: Params) -> jax.Array:
+        """Update the low-memory transformation matrix M."""
+        return (1 - params.c_c)[:, None] * M + jnp.sqrt(
+            params.mu_eff * params.c_c * (2 - params.c_c)
+        )[:, None] * jnp.dot(params.weights, z)
