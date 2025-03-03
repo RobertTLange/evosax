@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
-from ..core.fitness import (
+from ..core.fitness_shaping import (
     centered_rank_trafo,
     compute_l2_norm,
     range_norm_trafo,
@@ -144,9 +144,7 @@ class EvoPathMLP(nn.Module):
         path_sigma: jax.Array,
         time_embed: jax.Array,
     ):
-        timestamps = jnp.repeat(
-            jnp.expand_dims(time_embed, axis=0), repeats=path_c.shape[0], axis=0
-        )
+        timestamps = jnp.repeat(time_embed[None, ...], repeats=path_c.shape[0], axis=0)
         X = jnp.concatenate([path_c, path_sigma, timestamps], axis=1)
         # Perform MLP hidden state update for each solution dim. in parallel
         hidden = jax.vmap(nn.Dense(self.mlp_hidden_dims), in_axes=(0))(X)

@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
-from ..core.fitness import range_norm_trafo, z_score_trafo
+from ..core.fitness_shaping import range_norm_trafo, z_score_trafo
 
 
 def tanh_age(x: jax.Array, generation_counter: float) -> jax.Array:

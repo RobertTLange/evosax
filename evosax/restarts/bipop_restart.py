@@ -9,7 +9,7 @@ from functools import partial
 import jax
 from flax import struct
 
-from ..strategy import State
+from ..algorithms.base import State
 from .restarter import RestartWrapper, WrapperParams, WrapperState, spread_criterion
 
 

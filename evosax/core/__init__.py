@@ -1,6 +1,5 @@
-# Import additional utilities for reshaping flat parameters into net dict
 # Import additional utilities for reshaping fitness
-from .fitness import FitnessShaper
+from .fitness_shaping import FitnessShaper
 
 # Import Gradient Based Optimizer step functions
 from .optimizer import (

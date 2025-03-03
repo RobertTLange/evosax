@@ -4,8 +4,8 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from evosax.core.fitness import range_norm_trafo
-from evosax.strategy import update_best_solution_and_fitness
+from evosax.algorithms.base import update_best_solution_and_fitness
+from evosax.core.fitness_shaping import range_norm_trafo
 
 
 @struct.dataclass

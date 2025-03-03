@@ -4,8 +4,8 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from evosax.core.fitness import centered_rank_trafo
-from evosax.strategies.snes import get_weights as get_snes_weights
+from evosax.algorithms.distribution_based.snes import get_weights as get_snes_weights
+from evosax.core.fitness_shaping import centered_rank_trafo
 
 
 class TraceConstructor:

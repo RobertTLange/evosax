@@ -1,4 +1,5 @@
 # `evosax`: Evolution Strategies in JAX 🦎
+
 [![Pyversions](https://img.shields.io/pypi/pyversions/evosax.svg?style=flat-square)](https://pypi.python.org/pypi/evosax) [![PyPI version](https://badge.fury.io/py/evosax.svg)](https://badge.fury.io/py/evosax)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![codecov](https://codecov.io/gh/RobertTLange/evosax/branch/main/graph/badge.svg?token=5FUSX35KWO)](https://codecov.io/gh/RobertTLange/evosax)
@@ -156,84 +157,9 @@ fit_shaper = FitnessShaper(
 # Shape the evaluated fitness scores
 fit_shaped = fit_shaper.apply(x, fitness) 
 ```
-<details>
-  <summary>Additonal Work-In-Progress</summary>
-    **Strategy Restart Wrappers**: *Work-in-progress*. You can also choose from a set of different restart mechanisms, which will relaunch a strategy (with e.g. new population size) based on termination criteria. Note: For all restart strategies which alter the population size the ask and tell methods will have to be re-compiled at the time of change. Note that all strategies can also be executed without explicitly providing `params`. In this case the default parameters will be used.
-
-    ```python
-    from evosax import CMA_ES
-    from evosax.restarts import BIPOP_Restarter
-
-    # Define a termination criterion (kwargs - fitness, state, params)
-    def std_criterion(fitness, state, params):
-        """Restart strategy if fitness std across population is small."""
-        return fitness.std() < 0.001
-
-    # Instantiate Base CMA-ES & wrap with BIPOP restarts
-    # Pass strategy-specific kwargs separately (e.g. elite_ration or opt_name)
-    strategy = CMA_ES(num_dims, population_size, elite_ratio)
-    re_strategy = BIPOP_Restarter(
-        strategy,
-        stop_criteria=[std_criterion],
-        strategy_kwargs={"elite_ratio": elite_ratio},
-    )
-
-    key, subkey = jax.random.split(key)
-    state = re_strategy.init(subkey)
-
-    # ask/tell loop - restarts are automatically handled 
-    key, key_ask, key_eval = jax.random.split(key, 3)
-    x, state = re_strategy.ask(key_ask, state)
-    fitness = ...  # Your population evaluation fct 
-    state = re_strategy.tell(x, fitness, state)
-    ```
-
-    - **Batch Strategy Rollouts**: *Work-in-progress*. We are currently also working on different ways of incorporating multiple subpopulations with different communication protocols.
-
-    ```python
-    from evosax.experimental.subpops import BatchStrategy
-
-    # Instantiates 5 CMA-ES subpops of 20 members
-    strategy = BatchStrategy(
-            strategy_name="CMA_ES",
-            num_dims=4096,
-            population_size=100,
-            num_subpops=5,
-            strategy_kwargs={"elite_ratio": 0.5},
-            communication="best_subpop",
-        )
-
-    state = strategy.init(key)
-    # Ask for evaluation candidates of different subpopulation ES
-    x, state = strategy.ask(key_ask, state)
-    fitness = ...
-    state = strategy.tell(x, fitness, state)
-    ```
-
-    - **Indirect Encodings**: *Work-in-progress*. ES can struggle with high-dimensional search spaces (e.g. due to harder estimation of covariances). One potential way to alleviate this challenge, is to use indirect parameter encodings in a lower dimensional space. So far we provide JAX-compatible encodings with random projections (Gaussian/Rademacher) and Hypernetworks for MLPs. They act as drop-in replacements for the `ParameterReshaper`:
-
-    ```python
-    from evosax.experimental.decodings import RandomDecoder, HyperDecoder
-
-    # For arbitrary network architectures / search spaces
-    num_encoding_dims = 6
-    param_reshaper = RandomDecoder(num_encoding_dims, net_params)
-    x_shaped = param_reshaper.reshape(x)
-
-    # For MLP-based models we also support a HyperNetwork en/decoding
-    reshaper = HyperDecoder(
-            net_params,
-            hypernet_config={
-                "num_latent_units": 3,  # Latent units per module kernel/bias
-                "num_hidden_units": 2,  # Hidden dimensionality of a_i^j embedding
-            },
-        )
-    x_shaped = param_reshaper.reshape(x)
-    ```
-</details>
-
 
 ## Resources & Other Great JAX-ES Tools 📝
+
 * 📺 [Rob's MLC Research Jam Talk](https://www.youtube.com/watch?v=Wn6Lq2bexlA&t=51s): Small motivation talk at the ML Collective Research Jam.
 * 📝 [Rob's 02/2021 Blog](https://roberttlange.github.io/posts/2021/02/cma-es-jax/): Tutorial on CMA-ES & leveraging JAX's primitives.
 * 💻 [Evojax](https://github.com/google/evojax): JAX-ES library by Google Brain with great rollout wrappers.

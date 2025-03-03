@@ -54,9 +54,9 @@ include = ["evosax*"]
 
 [tool.setuptools.package-data]
 evosax = [
-	"strategies/ckpt/les/*.pkl",
-	"strategies/ckpt/lga/*.pkl",
-	"strategies/ckpt/evotf/*.pkl"
+	"algorithms/ckpt/les/*.pkl",
+	"algorithms/ckpt/lga/*.pkl",
+	"algorithms/ckpt/evotf/*.pkl"
 ]
 
 [tool.ruff]

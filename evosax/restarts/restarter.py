@@ -20,7 +20,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ..strategies.cma_es import eigen_decomposition
+from ..algorithms.distribution_based.cma_es import eigen_decomposition
 from ..types import Fitness, Population, PyTree
 
 

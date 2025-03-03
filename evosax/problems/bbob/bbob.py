@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from ...types import Fitness, Population, PyTree, Solution
 from ..problem import Problem
-from .bbob_fn import fn_names_short_dict
+from .bbob_fns import fn_names_short_dict
 from .meta_bbob import MetaBBOBProblem
 
 
@@ -83,6 +83,16 @@ class BBOBProblem(Problem):
     def f_opt_range(self):
         """Range for the optimal function value."""
         return self.meta_problem.f_opt_range
+
+    @property
+    def x_opt(self):
+        """Optimal solution location."""
+        return self._params.x_opt
+
+    @property
+    def f_opt(self):
+        """Optimal function value."""
+        return self._params.f_opt
 
     @partial(jax.jit, static_argnames=("self",))
     def eval(self, key: jax.Array, solutions: Population) -> tuple[Fitness, PyTree]:

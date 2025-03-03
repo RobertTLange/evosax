@@ -4,14 +4,14 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from evosax.core.fitness import (
+from evosax.algorithms.distribution_based.des import get_weights as get_des_weights
+from evosax.algorithms.distribution_based.snes import get_weights as get_snes_weights
+from evosax.core.fitness_shaping import (
     centered_rank_trafo,
     compute_l2_norm,
     range_norm_trafo,
     z_score_trafo,
 )
-from evosax.strategies.des import get_weights as get_des_weights
-from evosax.strategies.snes import get_weights as get_snes_weights
 
 
 @struct.dataclass
