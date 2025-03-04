@@ -380,7 +380,7 @@ def schaffers_f7(
     return (out / (num_dims - 1.0)) ** 2, 10 * f_pen(x, num_dims)
 
 
-def schaffers_f7_ill_conditioned(
+def schaffers_f7_ill_cond(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
 ) -> jax.Array:
     """Schaffers F7 Function, moderately ill-conditioned ([1], p. 12)."""
@@ -654,7 +654,7 @@ bbob_fns = {
     "rastrigin_rotated": rastrigin_rotated,
     "weierstrass": weierstrass,
     "schaffers_f7": schaffers_f7,
-    "schaffers_f7_ill_conditioned": schaffers_f7_ill_conditioned,
+    "schaffers_f7_ill_cond": schaffers_f7_ill_cond,
     "griewank_rosenbrock": griewank_rosenbrock,
     # Part 5: Multi-modal functions with weak global structure
     "schwefel": schwefel,
@@ -686,7 +686,7 @@ fn_names_dict = {
     "rastrigin_rotated": "Rastrigin Function",
     "weierstrass": "Weierstrass Function",
     "schaffers_f7": "Schaffers F7 Function",
-    "schaffers_f7_ill_conditioned": "Schaffers F7 Function, moderately ill-conditioned",
+    "schaffers_f7_ill_cond": "Schaffers F7 Function, moderately ill-conditioned",
     "griewank_rosenbrock": "Composite Griewank-Rosenbrock Function F8F2",
     # Part 5: Multi-modal functions with weak global structure
     "schwefel": "Schwefel Function",
@@ -718,7 +718,7 @@ fn_names_short_dict = {
     "rastrigin_rotated": "Rastrigin Rotated",
     "weierstrass": "Weierstrass",
     "schaffers_f7": "Schaffers F7",
-    "schaffers_f7_ill_conditioned": "Schaffers F7 Ill-cond.",
+    "schaffers_f7_ill_cond": "Schaffers F7 Ill-cond.",
     "griewank_rosenbrock": "Griewank-Rosenbrock",
     # Part 5: Multi-modal functions with weak global structure
     "schwefel": "Schwefel",

@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from flax import struct
 
 from ...types import Fitness, Population, Solution
-from ..base import Params, State, EvolutionaryAlgorithm, metrics_fn
+from ..base import EvolutionaryAlgorithm, Params, State, metrics_fn
 
 
 @struct.dataclass

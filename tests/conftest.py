@@ -1,7 +1,6 @@
 """Pytest configuration file for evosax tests."""
 
 import jax
-import jax.numpy as jnp
 import pytest
 from evosax.algorithms.distribution_based import distribution_based_algorithms
 from evosax.algorithms.population_based import population_based_algorithms

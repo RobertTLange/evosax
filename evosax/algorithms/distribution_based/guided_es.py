@@ -8,9 +8,9 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
+import optax
 from flax import struct
 
-from ...core import GradientOptimizer, OptParams, OptState
 from ...types import Fitness, Population, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
@@ -19,7 +19,7 @@ from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 class State(State):
     mean: jax.Array
     std: float
-    opt_state: OptState
+    opt_state: optax.OptState
     grad_subspace: jax.Array
     grad: jax.Array
     z: jax.Array
@@ -30,7 +30,6 @@ class Params(Params):
     std_init: float
     std_decay: float
     std_limit: float
-    opt_params: OptParams
     alpha: float
     beta: float
 
@@ -43,10 +42,7 @@ class GuidedES(DistributionBasedAlgorithm):
         population_size: int,
         solution: Solution,
         subspace_dims: int = 1,  # k param in example notebook
-        opt_name: str = "sgd",
-        lrate_init: float = 0.05,
-        lrate_decay: float = 1.0,
-        lrate_limit: float = 0.001,
+        optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1e-3),
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
@@ -60,23 +56,14 @@ class GuidedES(DistributionBasedAlgorithm):
         self.subspace_dims = subspace_dims
 
         # Optimizer
-        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.lrate_init = lrate_init
-        self.lrate_decay = lrate_decay
-        self.lrate_limit = lrate_limit
+        self.optimizer = optimizer
 
     @property
     def _default_params(self) -> Params:
-        opt_params = self.optimizer.default_params.replace(
-            lrate_init=self.lrate_init,
-            lrate_decay=self.lrate_decay,
-            lrate_limit=self.lrate_limit,
-        )
         return Params(
             std_init=1.0,
             std_decay=1.0,
             std_limit=0.01,
-            opt_params=opt_params,
             alpha=0.5,
             beta=1.0,
         )
@@ -85,7 +72,7 @@ class GuidedES(DistributionBasedAlgorithm):
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
-            opt_state=self.optimizer.init(params.opt_params),
+            opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             grad=jnp.full((self.num_dims,), jnp.nan),
             grad_subspace=jnp.zeros((self.num_dims, self.subspace_dims)),
             z=jnp.zeros((self.population_size, self.num_dims)),
@@ -148,15 +135,15 @@ class GuidedES(DistributionBasedAlgorithm):
         fitness_plus = fitness[: self.population_size // 2]
         fitness_minus = fitness[self.population_size // 2 :]
 
+        # Compute grad
         delta = fitness_plus - fitness_minus
         grad = params.beta * jnp.dot(z_plus.T, delta) / (2 * state.std**2)
 
-        # Grad update using optimizer
-        mean, opt_state = self.optimizer.step(
-            state.mean, grad, state.opt_state, params.opt_params
-        )
-        opt_state = self.optimizer.update(opt_state, params.opt_params)
+        # Update mean
+        updates, opt_state = self.optimizer.update(grad, state.opt_state)
+        mean = optax.apply_updates(state.mean, updates)
 
-        # Update state
+        # Update std
         std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+
         return state.replace(mean=mean, std=std, opt_state=opt_state)

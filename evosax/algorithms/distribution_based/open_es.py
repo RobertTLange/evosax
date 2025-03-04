@@ -8,9 +8,9 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
+import optax
 from flax import struct
 
-from ...core import GradientOptimizer, OptParams, OptState
 from ...types import Fitness, Population, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
@@ -19,7 +19,7 @@ from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 class State(State):
     mean: jax.Array
     std: jax.Array
-    opt_state: OptState
+    opt_state: optax.OptState
 
 
 @struct.dataclass
@@ -27,7 +27,6 @@ class Params(Params):
     std_init: float
     std_decay: float
     std_limit: float
-    opt_params: OptParams
 
 
 class Open_ES(DistributionBasedAlgorithm):
@@ -38,10 +37,7 @@ class Open_ES(DistributionBasedAlgorithm):
         population_size: int,
         solution: Solution,
         use_antithetic_sampling: bool = True,
-        opt_name: str = "sgd",
-        lrate_init: float = 0.05,
-        lrate_decay: float = 1.0,
-        lrate_limit: float = 0.001,
+        optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1e-3),
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
@@ -49,34 +45,25 @@ class Open_ES(DistributionBasedAlgorithm):
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
 
+        # Optimizer
+        self.optimizer = optimizer
+
         # Antithetic sampling
         self.use_antithetic_sampling = use_antithetic_sampling
 
-        # Optimizer
-        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.lrate_init = lrate_init
-        self.lrate_decay = lrate_decay
-        self.lrate_limit = lrate_limit
-
     @property
     def _default_params(self) -> Params:
-        opt_params = self.optimizer.default_params.replace(
-            lrate_init=self.lrate_init,
-            lrate_decay=self.lrate_decay,
-            lrate_limit=self.lrate_limit,
-        )
         return Params(
             std_init=1.0,
             std_decay=1.0,
             std_limit=0.0,
-            opt_params=opt_params,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
-            opt_state=self.optimizer.init(params.opt_params),
+            opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -105,17 +92,16 @@ class Open_ES(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        # Compute gradient
+        # Compute grad
         grad = jnp.dot(fitness, (population - state.mean) / state.std) / (
             self.population_size * state.std
         )
 
-        # Grad update using optimizer
-        mean, opt_state = self.optimizer.step(
-            state.mean, grad, state.opt_state, params.opt_params
-        )
-        opt_state = self.optimizer.update(opt_state, params.opt_params)
+        # Update mean
+        updates, opt_state = self.optimizer.update(grad, state.opt_state)
+        mean = optax.apply_updates(state.mean, updates)
 
-        # Update state
+        # Update std
         std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+
         return state.replace(mean=mean, std=std, opt_state=opt_state)

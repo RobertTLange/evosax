@@ -95,7 +95,7 @@ class EvolutionaryAlgorithm:
         state = self._init(key, params)
         return state
 
-    @partial(jax.jit, static_argnames=("self",))
+    # @partial(jax.jit, static_argnames=("self",))
     def ask(
         self,
         key: jax.Array,
@@ -111,7 +111,7 @@ class EvolutionaryAlgorithm:
 
         return population, state
 
-    @partial(jax.jit, static_argnames=("self",))
+    # @partial(jax.jit, static_argnames=("self",))
     def tell(
         self,
         key: jax.Array,

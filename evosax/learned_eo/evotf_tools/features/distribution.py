@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from evosax.algorithms.distribution_based.snes import get_weights as get_snes_weights
+from evosax.algorithms.distribution_based.xnes import get_weights as get_nes_weights
 from evosax.core.fitness_shaping import centered_rank_trafo
 
 
@@ -98,7 +98,7 @@ class DistributionFeaturizer:
         state: DistributionFeaturesState,
     ) -> jax.Array:
         ranks = fitness.argsort()
-        weights = get_snes_weights(fitness.shape[0])
+        weights = get_nes_weights(fitness.shape[0])
         noise = (x - mean) / std
         sorted_noise = noise[ranks]
         grad_mean = jnp.dot(weights, sorted_noise).reshape(-1, 1)

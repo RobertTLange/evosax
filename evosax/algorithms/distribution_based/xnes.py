@@ -8,30 +8,30 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
+import optax
 from flax import struct
 
 from ...types import Fitness, Population, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
-from .snes import get_weights as get_snes_weights
 
 
 @struct.dataclass
 class State(State):
     mean: jax.Array
     std: float
+    opt_state: optax.OptState
     B: jax.Array
     lrate_std: float
-    weights: jax.Array
     z: jax.Array
 
 
 @struct.dataclass
 class Params(Params):
     std_init: float
-    lrate_mean: float
+    weights: jax.Array
     lrate_std_init: float
     lrate_B: float
-    use_adaptation_sampling: bool  # Adaptation sampling lrate std
+    use_adaptation_sampling: bool
     rho: float  # Significance level adaptation sampling
     c_prime: float  # Adaptation sampling step size
 
@@ -43,38 +43,41 @@ class xNES(DistributionBasedAlgorithm):
         self,
         population_size: int,
         solution: Solution,
+        optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1.0),
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
         """Initialize xNES."""
         super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
 
+        # Optimizer
+        self.optimizer = optimizer
+
     @property
     def _default_params(self) -> Params:
+        weights = get_weights(self.population_size)
+
         lrate_std_init = (9 + 3 * jnp.log(self.num_dims)) / (
             5 * jnp.sqrt(self.num_dims) * self.num_dims
         )
         rho = 0.5 - 1 / (3 * (self.num_dims + 1))
         return Params(
             std_init=1.0,
-            lrate_mean=1.0,
+            weights=weights,
             lrate_std_init=lrate_std_init,
-            lrate_B=0.1,
+            lrate_B=lrate_std_init,
             use_adaptation_sampling=False,
             rho=rho,
             c_prime=0.1,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
-        weights = get_snes_weights(self.population_size)
-
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
-            B=params.std_init
-            * jnp.eye(self.num_dims),  # TODO: check if this is correct
+            opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
+            B=params.std_init * jnp.eye(self.num_dims),
             lrate_std=params.lrate_std_init,
-            weights=weights,
             z=jnp.zeros((self.population_size, self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
@@ -89,9 +92,7 @@ class xNES(DistributionBasedAlgorithm):
         params: Params,
     ) -> tuple[Population, State]:
         z = jax.random.normal(key, (self.population_size, self.num_dims))
-        population = state.mean + state.std * jax.vmap(jnp.matmul, in_axes=(None, 0))(
-            state.B.T, z
-        )
+        population = state.mean + state.std * z @ state.B
         return population, state.replace(z=z)
 
     def _tell(
@@ -102,77 +103,115 @@ class xNES(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        z_sorted = state.z[fitness.argsort()]
-        weights = state.weights[..., None]
+        z = state.z[fitness.argsort()]
+
+        # Compute grad for mean
+        grad_mean = -state.std * state.B @ jnp.dot(params.weights, z)
 
         # Update mean
-        grad_mean = jnp.sum(weights * z_sorted, axis=0)
-        mean = state.mean + params.lrate_mean * state.std * state.B @ grad_mean
+        updates, opt_state = self.optimizer.update(grad_mean, state.opt_state)
+        mean = optax.apply_updates(state.mean, updates)
 
-        # Update std
-        grad_M = jnp.sum(
-            weights[..., None]
-            * (jax.vmap(jnp.outer)(z_sorted, z_sorted) - jnp.eye(self.num_dims)),
-            axis=0,
+        # Compute grad for std
+        grad_M = jnp.einsum(
+            "i,ijk->jk",
+            params.weights,
+            jax.vmap(jnp.outer)(z, z) - jnp.eye(self.num_dims),
         )
         grad_std = jnp.trace(grad_M) / self.num_dims
+
+        # Update std
         std = state.std * jnp.exp(0.5 * state.lrate_std * grad_std)
 
         # Update B
         grad_B = grad_M - grad_std * jnp.eye(self.num_dims)
         B = state.B * jnp.exp(0.5 * params.lrate_B * grad_B)
 
-        # Adaptation sampling
-        lrate_std = adaptation_sampling(
+        # Adaptation sampling for std learning rate
+        lrate_std = self.adaptation_sampling(
             state.lrate_std,
-            params.lrate_std_init,
-            mean,
-            B,
-            std,
-            state.std,
-            z_sorted,
-            params.c_prime,
-            params.rho,
+            z,
+            state,
+            params,
         )
-        lrate_std = jax.lax.select(
+        lrate_std = jnp.where(
             params.use_adaptation_sampling, lrate_std, state.lrate_std
         )
 
-        return state.replace(mean=mean, std=std, B=B, lrate_std=lrate_std)
+        return state.replace(
+            mean=mean, std=std, opt_state=opt_state, B=B, lrate_std=lrate_std
+        )
+
+    def adaptation_sampling(
+        self,
+        lrate_std: float,
+        z_sorted: jax.Array,
+        state: State,
+        params: Params,
+    ) -> float:
+        """Adaptation sampling for std learning rate adaptation."""
+        # Create hypothetical distribution with increased learning rate
+        lrate_std_prime = 1.5 * lrate_std
+
+        # Calculate what the distribution would be with the new learning rate
+        # Instead of computing the full matrix grad_M and then taking the trace
+        # Directly compute the trace which is more efficient:
+        weighted_squares_sum = jnp.einsum("i,ij->j", params.weights, z_sorted**2)
+        grad_std = (
+            jnp.sum(weighted_squares_sum) - self.num_dims * jnp.sum(params.weights)
+        ) / self.num_dims
+
+        # The hypothetical new std
+        std_prime = state.std * jnp.exp(0.5 * lrate_std_prime * grad_std)
+
+        # Calculate importance weights (ratio of probability densities)
+        # Original distribution: N(0, I) since z are already standardized samples
+        # New distribution: we're changing the scale, not the shape
+        log_ratio = self.num_dims * jnp.log(state.std / std_prime)
+        log_exp_term = (
+            0.5 * ((state.std / std_prime) ** 2 - 1) * jnp.sum(z_sorted**2, axis=1)
+        )
+
+        # Use logaddexp to stabilize addition in log space when needed
+        log_weights = log_ratio + log_exp_term
+
+        # Convert back to normal space for the rest of the computation
+        weights = jnp.exp(log_weights)
+
+        # Perform weighted Mann-Whitney U test
+        ranks = jnp.arange(1, self.population_size + 1)
+
+        # Calculate weighted ranks
+        weighted_ranks = weights * ranks
+        sum_w = jnp.sum(weights)
+        sum_wr = jnp.sum(weighted_ranks)
+
+        # Compute the U statistic and its expected value/variance under H0
+        U = sum_wr - sum_w * (sum_w + 1) / 2
+        E_U = self.population_size * sum_w / 2
+        Var_U = self.population_size * sum_w * (self.population_size + sum_w + 1) / 12
+
+        # Compute z-score and p-value
+        z_score = (U - E_U) / jnp.sqrt(Var_U + 1e-8)
+        p_value = jax.scipy.stats.norm.cdf(z_score)
+
+        # Update learning rate based on test result
+        # If p_value < rho (significant improvement), increase learning rate
+        # Otherwise, move it closer to initial value
+        new_lrate_std = jnp.where(
+            p_value < params.rho,
+            jnp.minimum((1 + params.c_prime) * lrate_std, 1.0),  # Cap at 1.0
+            (1 - params.c_prime) * lrate_std + params.c_prime * params.lrate_std_init,
+        )
+
+        return new_lrate_std
 
 
-def adaptation_sampling(
-    lrate_std: float,
-    lrate_std_init: float,
-    mean: jax.Array,
-    B: jax.Array,
-    std: float,
-    std_old: float,
-    sorted_noise: jax.Array,
-    c_prime: float,
-    rho: float,
-) -> float:
-    """Adaptation sampling on std/std learning rate."""
-    BB = B.T @ B
-    A = std**2 * BB
-    std_prime = std * jnp.sqrt(std / std_old)
-    A_prime = std_prime**2 * BB
-
-    # Probability ration and u-test - sorted order assumed for noise
-    prob_0 = jax.scipy.stats.multivariate_normal.logpdf(sorted_noise, mean, A)
-    prob_1 = jax.scipy.stats.multivariate_normal.logpdf(sorted_noise, mean, A_prime)
-    w = jnp.exp(prob_1 - prob_0)
-    population_size = sorted_noise.shape[0]
-    n = jnp.sum(w)
-    u = jnp.sum(w * (jnp.arange(population_size) + 0.5))
-    u_mean = population_size * n / 2
-    u_std = jnp.sqrt(population_size * n * (population_size + n + 1) / 12)
-    cumulative = jax.scipy.stats.norm.cdf(u, loc=u_mean + 1e-10, scale=u_std + 1e-10)
-
-    # Check test significance and update lrate
-    lrate_std = jax.lax.select(
-        cumulative < rho,
-        (1 - c_prime) * lrate_std + c_prime * lrate_std_init,
-        jnp.minimum(1, (1 - c_prime) * lrate_std),
+def get_weights(population_size: int):
+    """Get weights for fitness shaping."""
+    weights = jnp.clip(
+        jnp.log(population_size / 2 + 1) - jnp.log(jnp.arange(1, population_size + 1)),
+        min=0.0,
     )
-    return lrate_std
+    weights = weights / jnp.sum(weights)
+    return weights - 1 / population_size

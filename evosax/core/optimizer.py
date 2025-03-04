@@ -1,315 +1,113 @@
+"""Custom optimizers for evolutionary algorithms.
+
+This module provides custom optimization algorithms that are not available in optax.
+These optimizers are designed specifically for evolutionary algorithms and can be
+used as drop-in replacements for optax optimizers in evosax algorithms.
+"""
+
+from typing import NamedTuple
+
 import jax
 import jax.numpy as jnp
-from flax import struct
-
-# TODO: Add gradient clipping - select leads to more compute
-# "use_clip_by_global_norm": False,
-# "clip_global_norm": 5,
-# "use_clip_by_value": False,
-# "clip_value": 5,
+import optax
 
 
-def exp_decay(
-    param: jax.Array, param_decay: jax.Array, param_limit: jax.Array
-) -> jax.Array:
-    """Exponentially decay parameter & clip by minimal value."""
-    param = param * param_decay
-    param = jnp.maximum(param, param_limit)
-    return param
+class ScaleByClipUpState(NamedTuple):
+    velocity: optax.Updates
+    count: jnp.ndarray
 
 
-@struct.dataclass
-class OptState:
-    lrate: float
-    m: jax.Array
-    v: jax.Array | None = None
-    n: jax.Array | None = None
-    last_grads: jax.Array | None = None
-    generation_counter: int = 0
+def scale_by_clipup(
+    max_velocity_ratio: float = 2.0,
+    momentum: float = 0.9,
+) -> optax.GradientTransformation:
+    """Core ClipUp gradient scaling transformation.
 
+    This transformation implements the core ClipUp steps:
+    1. Update velocity with momentum.
+    2. Clip velocity if its norm exceeds max_velocity_ratio.
+    3. Return the clipped velocity as updates.
 
-@struct.dataclass
-class OptParams:
-    lrate_init: float = 0.01
-    lrate_decay: float = 0.999
-    lrate_limit: float = 0.001
-    momentum: float | None = None
-    beta_1: float | None = None
-    beta_2: float | None = None
-    beta_3: float | None = None
-    eps: float | None = None
-    max_speed: float | None = None
+    Note 1: This does not apply gradient normalization, which should be handled by a
+    preceding transformation (e.g., optax.normalize_by_update_norm()).
 
+    Note 2: This does not apply the learning rate, which should be handled by a
+    following transformation (e.g., optax.scale_by_learning_rate(learning_rate)).
 
-class Optimizer:
-    def __init__(self, num_dims: int):
-        """Simple JAX-Compatible Optimizer Class."""
-        self.num_dims = num_dims
+    Args:
+        max_velocity_ratio: Maximum velocity magnitude before learning rate scaling.
+        momentum: Momentum coefficient (decay rate for velocity).
 
-    @property
-    def default_params(self) -> OptParams:
-        """Return shared and optimizer-specific default parameters."""
-        return OptParams(**self.params_opt)
+    Returns:
+        An optax.GradientTransformation that computes the clipped velocity direction.
 
-    def init(self, params: OptParams) -> OptState:
-        """Initialize the optimizer state."""
-        return self.init_opt(params)
+    """
 
-    def step(
-        self,
-        mean: jax.Array,
-        grads: jax.Array,
-        state: OptState,
-        params: OptParams,
-    ) -> [jax.Array, OptState]:
-        """Perform a gradient-based update step."""
-        return self.step_opt(mean, grads, state, params)
-
-    def update(self, state: OptState, params: OptParams) -> OptState:
-        """Exponentially decay the learning rate if desired."""
-        lrate = exp_decay(state.lrate, params.lrate_decay, params.lrate_limit)
-        return state.replace(lrate=lrate)
-
-    @property
-    def params_opt(self) -> OptParams:
-        """Optimizer-specific hyperparameters."""
-        raise NotImplementedError
-
-    def init_opt(self, params: OptParams) -> OptState:
-        """Optimizer-specific initialization of optimizer state."""
-        raise NotImplementedError
-
-    def step_opt(
-        self,
-        mean: jax.Array,
-        grads: jax.Array,
-        state: OptState,
-        params: OptParams,
-    ) -> tuple[jax.Array, OptState]:
-        """Optimizer-specific step to update parameter estimates."""
-        raise NotImplementedError
-
-
-class SGD(Optimizer):
-    def __init__(self, num_dims: int):
-        """Simple JAX-Compatible SGD + Momentum optimizer."""
-        super().__init__(num_dims)
-        self.opt_name = "sgd"
-
-    @property
-    def params_opt(self) -> dict[str, float]:
-        """Return default SGD+Momentum parameters."""
-        return {
-            "momentum": 0.0,
-        }
-
-    def init_opt(self, params: OptParams) -> OptState:
-        """Initialize the momentum trace of the optimizer."""
-        return OptState(m=jnp.zeros(self.num_dims), lrate=params.lrate_init)
-
-    def step_opt(
-        self,
-        mean: jax.Array,
-        grads: jax.Array,
-        state: OptState,
-        params: OptParams,
-    ) -> tuple[jax.Array, OptState]:
-        """Perform a simple SGD + Momentum step."""
-        m = grads + params.momentum * state.m
-        mean_new = mean - state.lrate * state.m
-        return mean_new, state.replace(
-            m=m, generation_counter=state.generation_counter + 1
+    def init_fn(params):
+        return ScaleByClipUpState(
+            velocity=jax.tree.map(jnp.zeros_like, params),
+            count=jnp.zeros([], dtype=jnp.int32),
         )
 
+    def update_fn(updates, state, params=None):
+        del params  # Unused
 
-class Adam(Optimizer):
-    def __init__(self, num_dims: int):
-        """JAX-Compatible Adam Optimizer (Kingma & Ba, 2015)
-        Reference: https://arxiv.org/abs/1412.6980
-        """
-        super().__init__(num_dims)
-        self.opt_name = "adam"
-
-    @property
-    def params_opt(self) -> dict[str, float]:
-        """Return default Adam parameters."""
-        return {
-            "beta_1": 0.99,
-            "beta_2": 0.999,
-            "eps": 1e-8,
-        }
-
-    def init_opt(self, params: OptParams) -> OptState:
-        """Initialize the m, v trace of the optimizer."""
-        return OptState(
-            m=jnp.zeros(self.num_dims),
-            v=jnp.zeros(self.num_dims),
-            lrate=params.lrate_init,
+        # Update velocity with momentum
+        new_velocity = jax.tree.map(
+            lambda v, u: momentum * v + u, state.velocity, updates
         )
 
-    def step_opt(
-        self,
-        mean: jax.Array,
-        grads: jax.Array,
-        state: OptState,
-        params: OptParams,
-    ) -> tuple[jax.Array, OptState]:
-        """Perform a simple Adam GD step."""
-        m = (1 - params.beta_1) * grads + params.beta_1 * state.m
-        v = (1 - params.beta_2) * (grads**2) + params.beta_2 * state.v
-        mhat = m / (1 - params.beta_1 ** (state.generation_counter + 1))
-        vhat = v / (1 - params.beta_2 ** (state.generation_counter + 1))
-        mean_new = mean - state.lrate * mhat / (jnp.sqrt(vhat) + params.eps)
-        return mean_new, state.replace(
-            m=m, v=v, generation_counter=state.generation_counter + 1
+        # Clip velocity if its norm exceeds max_velocity_ratio
+        velocity_norm = optax.global_norm(new_velocity)
+        scale = jnp.where(
+            velocity_norm > max_velocity_ratio, max_velocity_ratio / velocity_norm, 1.0
+        )
+        clipped_velocity = jax.tree.map(lambda v: v * scale, new_velocity)
+
+        # Update state with new velocity and increment count
+        count_inc = state.count + 1
+        return clipped_velocity, ScaleByClipUpState(
+            velocity=clipped_velocity, count=count_inc
         )
 
-
-class RMSProp(Optimizer):
-    def __init__(self, num_dims: int):
-        """JAX-Compatible RMSProp Optimizer (Hinton et al., 2012)
-        Reference: https://tinyurl.com/2sbbcnrv
-        """
-        super().__init__(num_dims)
-        self.opt_name = "rmsprop"
-
-    @property
-    def params_opt(self) -> dict[str, float]:
-        """Return default RMSProp parameters."""
-        return {
-            "momentum": 0.9,
-            "beta_1": 0.99,
-            "eps": 1e-8,
-        }
-
-    def init_opt(self, params: OptParams) -> OptState:
-        """Initialize the m, v trace of the optimizer."""
-        return OptState(
-            m=jnp.zeros(self.num_dims),
-            v=jnp.zeros(self.num_dims),
-            lrate=params.lrate_init,
-        )
-
-    def step_opt(
-        self,
-        mean: jax.Array,
-        grads: jax.Array,
-        state: OptState,
-        params: OptParams,
-    ) -> tuple[jax.Array, OptState]:
-        """Perform a simple RMSprop GD step."""
-        v = (1 - params.beta_1) * (grads**2) + params.beta_1 * state.v
-        m = params.momentum * state.m + grads / (jnp.sqrt(v) + params.eps)
-        mean_new = mean - state.lrate * m
-        return mean_new, state.replace(
-            m=m, v=v, generation_counter=state.generation_counter + 1
-        )
+    return optax.GradientTransformation(init_fn, update_fn)
 
 
-class ClipUp(Optimizer):
-    def __init__(self, num_dims: int):
-        """JAX-Compatible ClipUp Optimizer (Toklu et al., 2020)
-        Reference: https://arxiv.org/abs/2008.02387
-        """
-        super().__init__(num_dims)
-        self.opt_name = "clipup"
+def clipup(
+    learning_rate: float,
+    max_velocity: float = 0.1,
+    momentum: float = 0.9,
+    eps: float = 1e-8,
+) -> optax.GradientTransformation:
+    """ClipUp optimizer.
 
-    @property
-    def params_opt(self) -> dict[str, float]:
-        """Return default ClipUp parameters."""
-        return {
-            "lrate_init": 0.15,
-            "lrate_decay": 0.999,
-            "lrate_limit": 0.05,
-            "max_speed": 0.3,
-            "momentum": 0.9,
-        }
+    This transformation implements the ClipUp steps:
+    1. Normalizes the gradient globally.
+    2. Applies momentum to update velocity.
+    3. Clip velocity if its norm exceeds max_velocity_ratio.
+    4. Return the clipped velocity as updates.
+    5. Scales by learning_rate.
 
-    def init_opt(self, params: OptParams) -> OptState:
-        """Initialize the momentum trace of the optimizer."""
-        return OptState(m=jnp.zeros(self.num_dims), lrate=params.lrate_init)
+    Args:
+        learning_rate: Learning rate to scale the updates.
+        max_velocity: Maximum step size magnitude (||updates|| <= max_velocity).
+        momentum: Momentum coefficient.
+        eps: Small constant to prevent division by zero.
 
-    def step_opt(
-        self,
-        mean: jax.Array,
-        grads: jax.Array,
-        state: OptState,
-        params: OptParams,
-    ) -> tuple[jax.Array, OptState]:
-        """Perform a ClipUp step. mom = 0.9, lrate = vmax/2, vmax = small"""
-        # Normalize length of gradients - vmax & alpha control max step magnitude
-        grad_magnitude = jnp.sqrt(jnp.sum(grads * grads))
-        gradient = grads / (grad_magnitude + 1e-08)
-        step = gradient * state.lrate
-        velocity = params.momentum * state.m + step
+    Returns:
+        An optax.GradientTransformation representing the ClipUp optimizer.
 
-        def clip(velocity: jax.Array, max_speed: float):
-            """Rescale clipped velocities."""
-            vel_magnitude = jnp.sqrt(jnp.sum(velocity * velocity))
-            ratio_scale = vel_magnitude > max_speed
-            scaled_vel = velocity * (max_speed / (vel_magnitude + 1e-08))
-            x_out = jax.lax.select(ratio_scale, scaled_vel, velocity)
-            return x_out
+    Reference:
+        Toklu et al., "ClipUp: A Simple and Powerful Optimizer for Distribution-based
+        Policy Evolution", 2020.
+        https://arxiv.org/abs/2008.02387
 
-        # Clip the update velocity and apply the update
-        m = clip(velocity, params.max_speed)
-        mean_new = mean - state.lrate * m
-        return mean_new, state.replace(m=m)
-
-
-class Adan(Optimizer):
-    def __init__(self, num_dims: int):
-        """JAX-Compatible Adan Optimizer (Xi et al., 2022)
-        Reference: https://arxiv.org/pdf/2208.06677.pdf
-        """
-        super().__init__(num_dims)
-        self.opt_name = "adan"
-
-    @property
-    def params_opt(self) -> dict[str, float]:
-        """Return default Adam parameters."""
-        return {
-            "beta_1": 0.98,
-            "beta_2": 0.92,
-            "beta_3": 0.99,
-            "eps": 1e-8,
-        }
-
-    def init_opt(self, params: OptParams) -> OptState:
-        """Initialize the m, v, n trace of the optimizer."""
-        return OptState(
-            m=jnp.zeros(self.num_dims),
-            v=jnp.zeros(self.num_dims),
-            n=jnp.zeros(self.num_dims),
-            last_grads=jnp.zeros(self.num_dims),
-            lrate=params.lrate_init,
-        )
-
-    def step_opt(
-        self,
-        mean: jax.Array,
-        grads: jax.Array,
-        state: OptState,
-        params: OptParams,
-    ) -> tuple[jax.Array, OptState]:
-        """Perform a simple Adan GD step."""
-        m = (1 - params.beta_1) * grads + params.beta_1 * state.m
-        grad_diff = grads - state.last_grads
-        v = (1 - params.beta_2) * grad_diff + params.beta_2 * state.v
-        n = (1 - params.beta_3) * (
-            grads + params.beta_2 * grad_diff
-        ) ** 2 + params.beta_3 * state.n
-
-        mhat = m / (1 - params.beta_1 ** (state.generation_counter + 1))
-        vhat = v / (1 - params.beta_2 ** (state.generation_counter + 1))
-        nhat = n / (1 - params.beta_3 ** (state.generation_counter + 1))
-        mean_new = mean - state.lrate * (mhat + params.beta_2 * vhat) / (
-            jnp.sqrt(nhat) + params.eps
-        )
-        return mean_new, state.replace(
-            m=m,
-            v=v,
-            n=n,
-            last_grads=grads,
-            generation_counter=state.generation_counter + 1,
-        )
+    """
+    return optax.chain(
+        optax.normalize_by_update_norm(eps=eps),
+        scale_by_clipup(
+            max_velocity_ratio=max_velocity / learning_rate,
+            momentum=momentum,
+        ),
+        optax.scale_by_learning_rate(learning_rate),
+    )

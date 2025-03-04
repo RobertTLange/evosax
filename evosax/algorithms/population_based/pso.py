@@ -20,7 +20,6 @@ class State(State):
     population_best: Population
     fitness_best: Fitness
     velocity: jax.Array
-    generation_counter: int
 
 
 @struct.dataclass

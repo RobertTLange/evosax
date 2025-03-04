@@ -21,7 +21,12 @@ def test_run(
 
     # Get initial population and fitness
     key, key_init = jax.random.split(key)
-    population_init = jnp.vstack([bbob_problem.sample(key) for key in jax.random.split(key_init, population_size)])
+    population_init = jnp.vstack(
+        [
+            bbob_problem.sample(key)
+            for key in jax.random.split(key_init, population_size)
+        ]
+    )
     fitness_init, _ = bbob_problem.eval(key, population_init)
 
     # Initialize state

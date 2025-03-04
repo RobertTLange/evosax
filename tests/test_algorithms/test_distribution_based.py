@@ -6,14 +6,23 @@ from evosax.algorithms.distribution_based import distribution_based_algorithms
 
 
 def test_run(
-    distribution_based_algorithm_name, key, num_dims, num_generations, population_size, bbob_problem
+    distribution_based_algorithm_name,
+    key,
+    num_dims,
+    num_generations,
+    population_size,
+    bbob_problem,
 ):
     """Instantiate algo and test API."""
     # Get the algorithm class from the name
     AlgorithmClass = distribution_based_algorithms[distribution_based_algorithm_name]
 
     # Adjust population size for ESMC which requires odd population size
-    population_size = population_size + 1 if distribution_based_algorithm_name == "ESMC" else population_size
+    population_size = (
+        population_size + 1
+        if distribution_based_algorithm_name == "ESMC"
+        else population_size
+    )
 
     # Initialize algo
     solution = bbob_problem.sample(key)
@@ -31,17 +40,19 @@ def test_run(
             solution=solution,
         )
     else:
-        algo = AlgorithmClass(
-            population_size=population_size,
-            solution=solution
-        )
+        algo = AlgorithmClass(population_size=population_size, solution=solution)
 
     # Use default parameters
     params = algo.default_params
 
     # Get initial mean
     if distribution_based_algorithm_name in ["SV_CMA_ES", "SV_OpenES"]:
-        mean_init = jnp.zeros((num_populations, num_dims,))
+        mean_init = jnp.zeros(
+            (
+                num_populations,
+                num_dims,
+            )
+        )
     else:
         mean_init = jnp.zeros((num_dims,))
 
@@ -68,14 +79,23 @@ def test_run(
 
 
 def test_run_scan(
-    distribution_based_algorithm_name, key, num_dims, num_generations, population_size, bbob_problem
+    distribution_based_algorithm_name,
+    key,
+    num_dims,
+    num_generations,
+    population_size,
+    bbob_problem,
 ):
     """Instantiate algo and test API using scan."""
     # Get the algorithm class from the name
     AlgorithmClass = distribution_based_algorithms[distribution_based_algorithm_name]
 
     # Adjust population size for ESMC which requires odd population size
-    population_size = population_size + 1 if distribution_based_algorithm_name == "ESMC" else population_size
+    population_size = (
+        population_size + 1
+        if distribution_based_algorithm_name == "ESMC"
+        else population_size
+    )
 
     # Initialize algo
     solution = bbob_problem.sample(key)
@@ -85,7 +105,7 @@ def test_run_scan(
             solution=solution,
             sampling_fn=bbob_problem.sample,
         )
-    elif distribution_based_algorithm_name in ["SV_CMA_ES", "SV_OpenES"]:
+    elif distribution_based_algorithm_name in ["SV_CMA_ES", "SV_Open_ES"]:
         num_populations = 2
         algo = AlgorithmClass(
             population_size=population_size,
@@ -93,10 +113,7 @@ def test_run_scan(
             solution=solution,
         )
     else:
-        algo = AlgorithmClass(
-            population_size=population_size,
-            solution=solution
-        )
+        algo = AlgorithmClass(population_size=population_size, solution=solution)
 
     # Use default parameters
     params = algo.default_params

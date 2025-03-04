@@ -8,9 +8,8 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+import optax
 from flax import struct
-
-from evosax.core import exp_decay
 
 from ...core.kernel import kernel_rbf
 from ...types import Fitness, Population, Solution
@@ -39,10 +38,7 @@ class SV_Open_ES(Open_ES):
         solution: Solution,
         kernel: Callable = kernel_rbf,
         use_antithetic_sampling: bool = True,
-        opt_name: str = "adam",
-        lrate_init: float = 0.05,
-        lrate_decay: float = 1.0,
-        lrate_limit: float = 0.001,
+        optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1e-3),
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
@@ -51,10 +47,7 @@ class SV_Open_ES(Open_ES):
             population_size=population_size,
             solution=solution,
             use_antithetic_sampling=use_antithetic_sampling,
-            opt_name=opt_name,
-            lrate_init=lrate_init,
-            lrate_decay=lrate_decay,
-            lrate_limit=lrate_limit,
+            optimizer=optimizer,
             metrics_fn=metrics_fn,
             **fitness_kwargs,
         )
@@ -71,7 +64,6 @@ class SV_Open_ES(Open_ES):
             std_init=params.std_init,
             std_decay=params.std_decay,
             std_limit=params.std_limit,
-            opt_params=params.opt_params,
             kernel_std=1.0,
             alpha=1.0,
         )
@@ -130,17 +122,15 @@ class SV_Open_ES(Open_ES):
         svgd_grad_kernel = svgd_grad_kernel_fn(state.mean, grad, self.kernel, params)
         grad = -(svgd_grad + params.alpha * svgd_grad_kernel)
 
-        # Grad update using optimizer
-        mean, opt_state = jax.vmap(self.optimizer.step, (0, 0, 0, None))(
-            state.mean, grad, state.opt_state, params.opt_params
-        )
-        opt_state = jax.vmap(self.optimizer.update, (0, None))(
-            opt_state, params.opt_params
-        )
+        # Update mean
+        updates, opt_state = jax.vmap(self.optimizer.update)(grad, state.opt_state)
+        mean = jax.vmap(optax.apply_updates)(state.mean, updates)
 
-        std = jax.vmap(exp_decay, (0, None, None))(
-            state.std, params.std_decay, params.std_limit
-        )
+        # Update std
+        std = jax.vmap(
+            lambda std, std_decay, std_limit: jnp.clip(std * std_decay, min=std_limit)
+        )(state.std, params.std_decay, params.std_limit)
+
         return state.replace(mean=mean, std=std, opt_state=opt_state)
 
 

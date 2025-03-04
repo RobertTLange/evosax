@@ -32,7 +32,7 @@ class Params(Params):
     boltzmann_constant: float
 
 
-class SimAnneal(DistributionBasedAlgorithm):
+class SimulatedAnnealing(DistributionBasedAlgorithm):
     """Simulated Annealing (SA)."""
 
     def __init__(

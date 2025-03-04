@@ -1,4 +1,7 @@
-"""Gaussian Hill Climbing algorithm."""
+"""Gradientless Descent (Golovin et al., 2019).
+
+Reference: https://arxiv.org/abs/1911.06317
+"""
 
 from collections.abc import Callable
 
@@ -12,19 +15,18 @@ from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 @struct.dataclass
 class State(State):
-    mean: jax.Array
-    std: jax.Array
+    mean: Solution
 
 
 @struct.dataclass
 class Params(Params):
-    std_init: float
-    std_decay: float
-    std_limit: float
+    radius_min: float
+    radius_max: float
+    radius_decay: float
 
 
-class HillClimber(DistributionBasedAlgorithm):
-    """Gaussian Hill Climbing algorithm."""
+class GradientlessDescent(DistributionBasedAlgorithm):
+    """GradientLess Descent (GLD)."""
 
     def __init__(
         self,
@@ -33,21 +35,20 @@ class HillClimber(DistributionBasedAlgorithm):
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
-        """Initialize Gaussian Hill Climbing."""
+        """Initialize GLD."""
         super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
 
     @property
     def _default_params(self) -> Params:
         return Params(
-            std_init=1.0,
-            std_decay=1.0,
-            std_limit=0.0,
+            radius_min=0.001,
+            radius_max=0.2,
+            radius_decay=5.0,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
-            std=params.std_init * jnp.ones((self.num_dims,)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -61,8 +62,18 @@ class HillClimber(DistributionBasedAlgorithm):
         params: Params,
     ) -> tuple[Population, State]:
         z = jax.random.normal(key, (self.population_size, self.num_dims))
-        population = state.mean + state.std[None, ...] * z
-        return population, state
+
+        # Exponentially decaying radius
+        radius = (
+            params.radius_min
+            + jnp.exp2(  # TODO: different from the original paper
+                -jnp.arange(self.population_size) / params.radius_decay
+            )
+            * (params.radius_max - params.radius_min)
+        )
+
+        x = state.mean + radius[..., None] * z
+        return x, state
 
     def _tell(
         self,
@@ -72,7 +83,4 @@ class HillClimber(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        # Update std
-        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
-
-        return state.replace(mean=state.best_solution, std=std)
+        return state.replace(mean=state.best_solution)

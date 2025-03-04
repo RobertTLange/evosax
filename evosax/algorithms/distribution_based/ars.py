@@ -7,9 +7,9 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
+import optax
 from flax import struct
 
-from ...core import GradientOptimizer, OptParams, OptState
 from ...types import Fitness, Population, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
@@ -18,7 +18,7 @@ from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 class State(State):
     mean: jax.Array
     std: float
-    opt_state: OptState
+    opt_state: optax.OptState
     z: jax.Array
 
 
@@ -27,7 +27,6 @@ class Params(Params):
     std_init: float
     std_decay: float
     std_limit: float
-    opt_params: OptParams
 
 
 class ARS(DistributionBasedAlgorithm):
@@ -37,10 +36,7 @@ class ARS(DistributionBasedAlgorithm):
         self,
         population_size: int,
         solution: Solution,
-        opt_name: str = "adam",
-        lrate_init: float = 0.05,
-        lrate_decay: float = 1.0,
-        lrate_limit: float = 0.001,
+        optimizer: optax.GradientTransformation = optax.adam(learning_rate=1e-3),
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
@@ -51,30 +47,21 @@ class ARS(DistributionBasedAlgorithm):
         self.elite_ratio = 0.5
 
         # Optimizer
-        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.lrate_init = lrate_init
-        self.lrate_decay = lrate_decay
-        self.lrate_limit = lrate_limit
+        self.optimizer = optimizer
 
     @property
     def _default_params(self) -> Params:
-        opt_params = self.optimizer.default_params.replace(
-            lrate_init=self.lrate_init,
-            lrate_decay=self.lrate_decay,
-            lrate_limit=self.lrate_limit,
-        )
         return Params(
             std_init=1.0,
             std_decay=1.0,
             std_limit=0.0,
-            opt_params=opt_params,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
-            opt_state=self.optimizer.init(params.opt_params),
+            opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             z=jnp.zeros((self.population_size, self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
@@ -115,17 +102,16 @@ class ARS(DistributionBasedAlgorithm):
         )
         fitness_std = jnp.clip(jnp.std(fitness_elite), min=1e-8)
 
-        # Compute gradient
+        # Compute grad
         z = state.z[: self.population_size // 2]
         delta = fitness_plus[elite_idx] - fitness_minus[elite_idx]
         grad = jnp.dot(z[elite_idx].T, delta) / (self.num_elites * fitness_std)
 
-        # Grad update using optimizer
-        mean, opt_state = self.optimizer.step(
-            state.mean, grad, state.opt_state, params.opt_params
-        )
-        opt_state = self.optimizer.update(opt_state, params.opt_params)
+        # Update mean
+        updates, opt_state = self.optimizer.update(grad, state.opt_state)
+        mean = optax.apply_updates(state.mean, updates)
 
-        # Update state
+        # Update std
         std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+
         return state.replace(mean=mean, std=std, opt_state=opt_state)

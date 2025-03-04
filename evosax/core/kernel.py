@@ -1,3 +1,5 @@
+"""Kernel functions for use in evolutionary algorithms."""
+
 import jax
 import jax.numpy as jnp
 

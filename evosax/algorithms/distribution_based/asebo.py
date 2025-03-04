@@ -11,9 +11,9 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
+import optax
 from flax import struct
 
-from ...core import GradientOptimizer, OptParams, OptState
 from ...types import Fitness, Population, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
@@ -22,7 +22,7 @@ from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 class State(State):
     mean: jax.Array
     std: float
-    opt_state: OptState
+    opt_state: optax.OptState
     grad_subspace: jax.Array
     alpha: float
     UUT: jax.Array
@@ -34,7 +34,6 @@ class Params(Params):
     std_init: float
     std_decay: float
     std_limit: float
-    opt_params: OptParams
     grad_decay: float
 
 
@@ -46,10 +45,7 @@ class ASEBO(DistributionBasedAlgorithm):
         population_size: int,
         solution: Solution,
         subspace_dims: int = 1,
-        opt_name: str = "adam",
-        lrate_init: float = 0.05,
-        lrate_decay: float = 1.0,
-        lrate_limit: float = 0.001,
+        optimizer: optax.GradientTransformation = optax.adam(learning_rate=1e-3),
         metrics_fn: Callable = metrics_fn,
         **fitness_kwargs: bool | int | float,
     ):
@@ -63,23 +59,14 @@ class ASEBO(DistributionBasedAlgorithm):
         self.subspace_dims = subspace_dims
 
         # Optimizer
-        self.optimizer = GradientOptimizer[opt_name](self.num_dims)
-        self.lrate_init = lrate_init
-        self.lrate_decay = lrate_decay
-        self.lrate_limit = lrate_limit
+        self.optimizer = optimizer
 
     @property
     def _default_params(self) -> Params:
-        opt_params = self.optimizer.default_params.replace(
-            lrate_init=self.lrate_init,
-            lrate_decay=self.lrate_decay,
-            lrate_limit=self.lrate_limit,
-        )
         return Params(
             std_init=1.0,
             std_decay=1.0,
             std_limit=0.0,
-            opt_params=opt_params,
             grad_decay=0.99,
         )
 
@@ -89,7 +76,7 @@ class ASEBO(DistributionBasedAlgorithm):
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
-            opt_state=self.optimizer.init(params.opt_params),
+            opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             grad_subspace=grad_subspace,
             alpha=1.0,
             UUT=jnp.zeros((self.num_dims, self.num_dims)),
@@ -157,10 +144,10 @@ class ASEBO(DistributionBasedAlgorithm):
         fit_1 = fitness[: int(self.population_size / 2)]
         fit_2 = fitness[int(self.population_size / 2) :]
         fit_diff_noise = jnp.dot(noise_1.T, fit_1 - fit_2)
-        theta_grad = 1.0 / 2.0 * fit_diff_noise
+        grad = 1.0 / 2.0 * fit_diff_noise
 
-        alpha = jnp.linalg.norm(jnp.dot(theta_grad, state.UUT_ort)) / jnp.linalg.norm(
-            jnp.dot(theta_grad, state.UUT)
+        alpha = jnp.linalg.norm(jnp.dot(grad, state.UUT_ort)) / jnp.linalg.norm(
+            jnp.dot(grad, state.UUT)
         )
         subspace_ready = state.generation_counter > self.subspace_dims
         alpha = jax.lax.select(subspace_ready, alpha, 1.0)
@@ -168,18 +155,17 @@ class ASEBO(DistributionBasedAlgorithm):
         # Add grad FIFO-style to subspace archive (only if provided else FD)
         grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))
         grad_subspace = grad_subspace.at[:-1, :].set(state.grad_subspace[1:, :])
-        grad_subspace = grad_subspace.at[-1, :].set(theta_grad)
+        grad_subspace = grad_subspace.at[-1, :].set(grad)
         state = state.replace(grad_subspace=grad_subspace)
 
         # Normalize gradients by norm / num_dims
-        theta_grad /= jnp.linalg.norm(theta_grad) / self.num_dims + 1e-8
+        grad /= jnp.linalg.norm(grad) / self.num_dims + 1e-8
 
-        # Grad update using optimizer instance - decay lrate if desired
-        mean, opt_state = self.optimizer.step(
-            state.mean, theta_grad, state.opt_state, params.opt_params
-        )
-        opt_state = self.optimizer.update(opt_state, params.opt_params)
+        # Update mean
+        updates, opt_state = self.optimizer.update(grad, state.opt_state)
+        mean = optax.apply_updates(state.mean, updates)
 
-        # Update lrate and standard deviation based on min and decay
+        # Update std
         std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
+
         return state.replace(mean=mean, std=std, opt_state=opt_state, alpha=alpha)
