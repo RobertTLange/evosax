@@ -177,7 +177,7 @@ Big thanks to Cornelius Braun (@cornelius-braun
 - `ParameterReshaper` can now be directly applied from within the strategy. You simply have to provide a solution at strategy instantiation (and no `num_dims`).
 - `FitnessShaper` can also be directly applied from within the strategy. This makes it easier to track the best performing member across generations and addresses issue #32. Simply provide the fitness shaping settings as args to the strategy (`maximize`, `centered_rank`, ...)
 - Removes Brax fitness (use EvoJAX version instead)
-- Add lrate and sigma schedule to strategy instantiation
+- Add lr and sigma schedule to strategy instantiation
 
 ##### Fixed
 

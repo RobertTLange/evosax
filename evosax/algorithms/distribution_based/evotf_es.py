@@ -58,8 +58,8 @@ class State(State):
 @struct.dataclass
 class Params(Params):
     std_init: float
-    lrate_mean: float
-    lrate_std: float
+    lr_mean: float
+    lr_std: float
     params: PyTree
 
 
@@ -208,8 +208,8 @@ class EvoTF_ES(DistributionBasedAlgorithm):
     def _default_params(self) -> Params:
         params = Params(
             std_init=1.0,
-            lrate_mean=1.0,
-            lrate_std=1.0,
+            lr_mean=1.0,
+            lr_std=1.0,
             params=self.params,
         )
         return params
@@ -323,8 +323,8 @@ class EvoTF_ES(DistributionBasedAlgorithm):
         pred, _ = infer_step(
             solution_context, fitness_context, distribution_context
         )  # TODO: att not used?
-        pred_mean = state.mean + params.lrate_mean * state.std * pred[0, 0, idx]
-        pred_std = state.std * jnp.exp(params.lrate_std / 2 * pred[1, 0, idx])
+        pred_mean = state.mean + params.lr_mean * state.std * pred[0, 0, idx]
+        pred_std = state.std * jnp.exp(params.lr_std / 2 * pred[1, 0, idx])
         pred_std = jnp.clip(pred_std, 1e-8)
 
         # Collect and sort attention by population fitness order

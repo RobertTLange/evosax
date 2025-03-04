@@ -25,8 +25,6 @@ class State(State):
 class Params(Params):
     crossover_rate: float
     std_init: float
-    std_decay: float
-    std_limit: float
 
 
 class SimpleGA(PopulationBasedAlgorithm):
@@ -49,8 +47,6 @@ class SimpleGA(PopulationBasedAlgorithm):
         return Params(
             crossover_rate=0.0,
             std_init=1.0,
-            std_decay=1.0,
-            std_limit=0.0,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
@@ -102,12 +98,7 @@ class SimpleGA(PopulationBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
-        return state.replace(
-            population=population,
-            fitness=fitness,
-            std=std,
-        )
+        return state.replace(population=population, fitness=fitness)
 
 
 def crossover(

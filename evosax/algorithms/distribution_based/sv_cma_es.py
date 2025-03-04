@@ -193,3 +193,8 @@ class SV_CMA_ES(CMA_ES):
 
         # Update mean
         return mean + params.c_mean * std * y_w, y_k, y_w
+
+    def get_mean(self, state: State) -> Solution:
+        """Return unravelled mean."""
+        mean = jax.vmap(self._unravel_solution)(state.mean)
+        return mean

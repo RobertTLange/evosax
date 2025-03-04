@@ -25,8 +25,6 @@ class State(State):
 @struct.dataclass
 class Params(Params):
     std_init: float
-    std_decay: float
-    std_limit: float
 
 
 class ARS(DistributionBasedAlgorithm):
@@ -51,11 +49,7 @@ class ARS(DistributionBasedAlgorithm):
 
     @property
     def _default_params(self) -> Params:
-        return Params(
-            std_init=1.0,
-            std_decay=1.0,
-            std_limit=0.0,
-        )
+        return Params(std_init=1.0)
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
@@ -111,7 +105,4 @@ class ARS(DistributionBasedAlgorithm):
         updates, opt_state = self.optimizer.update(grad, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
-        # Update std
-        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
-
-        return state.replace(mean=mean, std=std, opt_state=opt_state)
+        return state.replace(mean=mean, opt_state=opt_state)

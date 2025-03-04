@@ -62,8 +62,6 @@ class SV_Open_ES(Open_ES):
         params = super()._default_params
         return Params(
             std_init=params.std_init,
-            std_decay=params.std_decay,
-            std_limit=params.std_limit,
             kernel_std=1.0,
             alpha=1.0,
         )
@@ -126,12 +124,12 @@ class SV_Open_ES(Open_ES):
         updates, opt_state = jax.vmap(self.optimizer.update)(grad, state.opt_state)
         mean = jax.vmap(optax.apply_updates)(state.mean, updates)
 
-        # Update std
-        std = jax.vmap(
-            lambda std, std_decay, std_limit: jnp.clip(std * std_decay, min=std_limit)
-        )(state.std, params.std_decay, params.std_limit)
+        return state.replace(mean=mean, opt_state=opt_state)
 
-        return state.replace(mean=mean, std=std, opt_state=opt_state)
+    def get_mean(self, state: State) -> Solution:
+        """Return unravelled mean."""
+        mean = jax.vmap(self._unravel_solution)(state.mean)
+        return mean
 
 
 def svgd_grad_fn(

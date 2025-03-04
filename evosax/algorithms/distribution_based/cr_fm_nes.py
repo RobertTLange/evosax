@@ -37,11 +37,11 @@ class Params(Params):
     chi_n: float
     h_inv: float
     alpha_dist: float
-    lrate_mean: float = 1.0
-    lrate_move_std: float = 0.1
-    lrate_stag_std: float = 0.1
-    lrate_conv_std: float = 0.1
-    lrate_B: float = 0.1
+    lr_mean: float = 1.0
+    lr_move_std: float = 0.1
+    lr_stag_std: float = 0.1
+    lr_conv_std: float = 0.1
+    lr_B: float = 0.1
 
 
 def get_h_inv(dim: int) -> float:
@@ -102,17 +102,17 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         alpha_dist = h_inv * jnp.minimum(
             1.0, jnp.sqrt(self.population_size / self.num_dims)
         )
-        lrate_move_std = 1.0
-        lrate_stag_std = jnp.tanh(
+        lr_move_std = 1.0
+        lr_stag_std = jnp.tanh(
             (0.024 * self.population_size + 0.7 * self.num_dims + 20.0)
             / (self.num_dims + 12.0)
         )
-        lrate_conv_std = 2.0 * jnp.tanh(
+        lr_conv_std = 2.0 * jnp.tanh(
             (0.025 * self.population_size + 0.75 * self.num_dims + 10.0)
             / (self.num_dims + 4.0)
         )
         c1 = c1_cma * (self.num_dims - 5) / 6
-        lrate_B = jnp.tanh(
+        lr_B = jnp.tanh(
             (jnp.minimum(0.02 * self.population_size, 3 * jnp.log(self.num_dims)) + 5)
             / (0.23 * self.num_dims + 25)
         )
@@ -128,10 +128,10 @@ class CR_FM_NES(DistributionBasedAlgorithm):
             chi_n=chi_n,
             h_inv=h_inv,
             alpha_dist=alpha_dist,
-            lrate_move_std=lrate_move_std,
-            lrate_stag_std=lrate_stag_std,
-            lrate_conv_std=lrate_conv_std,
-            lrate_B=lrate_B,
+            lr_move_std=lr_move_std,
+            lr_stag_std=lr_stag_std,
+            lr_conv_std=lr_conv_std,
+            lr_B=lr_B,
         )
         return params
 
@@ -196,10 +196,10 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         weights = jnp.where(movement_cond, weights_dist, params.weights)
 
         # Step 7: Set the learning rate
-        lrate_std = jnp.select(
+        lr_std = jnp.select(
             condlist=[movement_cond, 0.1 * params.chi_n <= norm_p_std],
-            choicelist=[params.lrate_move_std, params.lrate_stag_std],
-            default=params.lrate_conv_std,
+            choicelist=[params.lr_move_std, params.lr_stag_std],
+            default=params.lr_conv_std,
         )
 
         # Update evolution path p_c and mean
@@ -207,7 +207,7 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         p_c = (1.0 - params.c_c) * state.p_c + jnp.sqrt(
             params.c_c * (2 - params.c_c) * params.mu_eff
         ) * wxm / state.std
-        mean = state.mean + params.lrate_mean * wxm
+        mean = state.mean + params.lr_mean * wxm
 
         norm_v_2 = jnp.sum(jnp.square(state.v))
         norm_v_4 = norm_v_2**2
@@ -249,7 +249,7 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         )
 
         # Update v, D covariance ingredients
-        exw = jnp.concatenate([params.lrate_B * weights, jnp.array([params.c1])])
+        exw = jnp.concatenate([params.lr_B * weights, jnp.array([params.c1])])
         v = state.v + jnp.dot(exw, t) / norm_v
         D = state.D + jnp.dot(exw, s) * state.D
 
@@ -269,5 +269,5 @@ class CR_FM_NES(DistributionBasedAlgorithm):
             )
             / self.num_dims
         )
-        std = state.std * jnp.exp(lrate_std / 2 * G_s)
+        std = state.std * jnp.exp(lr_std / 2 * G_s)
         return state.replace(mean=mean, std=std, p_std=p_std, p_c=p_c, v=v, D=D)

@@ -19,8 +19,6 @@ class State(State):
 @struct.dataclass
 class Params(Params):
     std_init: float
-    std_decay: float
-    std_limit: float
 
 
 class HillClimbing(DistributionBasedAlgorithm):
@@ -38,11 +36,7 @@ class HillClimbing(DistributionBasedAlgorithm):
 
     @property
     def _default_params(self) -> Params:
-        return Params(
-            std_init=1.0,
-            std_decay=1.0,
-            std_limit=0.0,
-        )
+        return Params(std_init=1.0)
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
@@ -72,6 +66,4 @@ class HillClimbing(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        # Update std
-        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
-        return state.replace(mean=state.best_solution, std=std)
+        return state.replace(mean=state.best_solution)

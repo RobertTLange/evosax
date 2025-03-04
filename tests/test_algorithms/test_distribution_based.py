@@ -8,7 +8,6 @@ from evosax.algorithms.distribution_based import distribution_based_algorithms
 def test_run(
     distribution_based_algorithm_name,
     key,
-    num_dims,
     num_generations,
     population_size,
     bbob_problem,
@@ -32,7 +31,7 @@ def test_run(
             solution=solution,
             sampling_fn=bbob_problem.sample,
         )
-    elif distribution_based_algorithm_name in ["SV_CMA_ES", "SV_OpenES"]:
+    elif distribution_based_algorithm_name in ["SV_CMA_ES", "SV_Open_ES"]:
         num_populations = 2
         algo = AlgorithmClass(
             population_size=population_size,
@@ -46,15 +45,13 @@ def test_run(
     params = algo.default_params
 
     # Get initial mean
-    if distribution_based_algorithm_name in ["SV_CMA_ES", "SV_OpenES"]:
-        mean_init = jnp.zeros(
-            (
-                num_populations,
-                num_dims,
-            )
-        )
+    if distribution_based_algorithm_name in ["SV_CMA_ES", "SV_Open_ES"]:
+        key, subkey = jax.random.split(key)
+        keys = jax.random.split(subkey, num_populations)
+        mean_init = jax.vmap(bbob_problem.sample)(keys)
     else:
-        mean_init = jnp.zeros((num_dims,))
+        key, subkey = jax.random.split(key)
+        mean_init = bbob_problem.sample(subkey)
 
     # Initialize state
     key, subkey = jax.random.split(key)
@@ -81,7 +78,6 @@ def test_run(
 def test_run_scan(
     distribution_based_algorithm_name,
     key,
-    num_dims,
     num_generations,
     population_size,
     bbob_problem,
@@ -119,7 +115,7 @@ def test_run_scan(
     params = algo.default_params
 
     # Get initial mean
-    if distribution_based_algorithm_name in ["SV_CMA_ES", "SV_OpenES"]:
+    if distribution_based_algorithm_name in ["SV_CMA_ES", "SV_Open_ES"]:
         key, subkey = jax.random.split(key)
         keys = jax.random.split(subkey, num_populations)
         mean_init = jax.vmap(bbob_problem.sample)(keys)
@@ -149,7 +145,9 @@ def test_run_scan(
     assert fitness_log.shape[0] == num_generations
 
 
-def test_base_api(distribution_based_algorithm_name, key, num_dims, population_size):
+def test_base_api(
+    distribution_based_algorithm_name, key, num_dims, population_size, bbob_problem
+):
     """Test the base API methods of distribution-based algorithms."""
     # Get the algorithm class from the name
     AlgorithmClass = distribution_based_algorithms[distribution_based_algorithm_name]
@@ -160,14 +158,14 @@ def test_base_api(distribution_based_algorithm_name, key, num_dims, population_s
     )
 
     # Initialize algo
-    solution = jnp.zeros((num_dims,))
+    solution = bbob_problem.sample(key)
     if distribution_based_algorithm_name in ["RandomSearch"]:
         algo = AlgorithmClass(
             population_size=population_size,
             solution=solution,
-            sampling_fn=lambda key: jnp.zeros((num_dims,)),
+            sampling_fn=bbob_problem.sample,
         )
-    elif distribution_based_algorithm_name in ["SV_CMA_ES", "SV_OpenES"]:
+    elif distribution_based_algorithm_name in ["SV_CMA_ES", "SV_Open_ES"]:
         num_populations = 2
         algo = AlgorithmClass(
             population_size=population_size,
@@ -175,16 +173,19 @@ def test_base_api(distribution_based_algorithm_name, key, num_dims, population_s
             solution=solution,
         )
     else:
-        algo = AlgorithmClass(
-            population_size=population_size,
-            solution=solution,
-        )
+        algo = AlgorithmClass(population_size=population_size, solution=solution)
 
     # Use default parameters
     params = algo.default_params
 
     # Get initial mean
-    mean_init = jnp.zeros((num_dims,))
+    if distribution_based_algorithm_name in ["SV_CMA_ES", "SV_Open_ES"]:
+        key, subkey = jax.random.split(key)
+        keys = jax.random.split(subkey, num_populations)
+        mean_init = jax.vmap(bbob_problem.sample)(keys)
+    else:
+        key, subkey = jax.random.split(key)
+        mean_init = bbob_problem.sample(subkey)
 
     # Initialize state
     key, subkey = jax.random.split(key)
@@ -192,7 +193,13 @@ def test_base_api(distribution_based_algorithm_name, key, num_dims, population_s
 
     # Test get_mean
     mean = algo.get_mean(state)
-    assert mean.shape == (num_dims,)
+    if distribution_based_algorithm_name in ["SV_CMA_ES", "SV_Open_ES"]:
+        assert mean.shape == (
+            num_populations,
+            num_dims,
+        )
+    else:
+        assert mean.shape == (num_dims,)
 
     # Test metrics_fn - create a dummy population and fitness for testing
     key, subkey = jax.random.split(key)

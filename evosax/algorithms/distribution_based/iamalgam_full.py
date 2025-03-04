@@ -28,8 +28,6 @@ class State(State):
 @struct.dataclass
 class Params(Params):
     std_init: float
-    std_decay: float
-    std_limit: float
     eta_std: float
     eta_shift: float
     eta_avs_inc: float
@@ -76,9 +74,7 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         )
 
         return Params(
-            std_init=0.1,
-            std_decay=0.999,
-            std_limit=0.0,
+            std_init=1.0,
             eta_std=eta_std,
             eta_shift=eta_shift,
             eta_avs_inc=1 / 0.9,
@@ -167,12 +163,8 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         # Update covariance - difference full vs. indep
         C = self.update_cov(elites, state.C, mean, params)
 
-        # Decay isotropic part of Gaussian search distribution
-        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
-
         return state.replace(
             mean=mean,
-            std=std,
             C=C,
             mean_shift=mean_shift,
             nis_counter=nis_counter,

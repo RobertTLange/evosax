@@ -24,8 +24,6 @@ class State(State):
 @struct.dataclass
 class Params(Params):
     std_init: float
-    std_decay: float
-    std_limit: float
     temperature_init: float
     temperature_limit: float
     temperature_decay: float
@@ -49,8 +47,6 @@ class SimulatedAnnealing(DistributionBasedAlgorithm):
     def _default_params(self) -> Params:
         return Params(
             std_init=1.0,
-            std_decay=1.0,
-            std_limit=0.0,
             temperature_init=1.0,
             temperature_limit=0.1,
             temperature_decay=0.999,
@@ -101,9 +97,6 @@ class SimulatedAnnealing(DistributionBasedAlgorithm):
         mean = jnp.where(replace, best_member, state.mean)
         fitness = jnp.where(replace, best_fitness, state.fitness)
 
-        # Update std
-        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
-
         # Update temperature
         temperature = jnp.clip(
             state.temperature * params.temperature_decay,
@@ -113,6 +106,5 @@ class SimulatedAnnealing(DistributionBasedAlgorithm):
         return state.replace(
             mean=mean,
             fitness=fitness,
-            std=std,
             temperature=temperature,
         )

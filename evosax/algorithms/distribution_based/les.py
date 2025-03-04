@@ -63,7 +63,7 @@ class LES(DistributionBasedAlgorithm):
         # LES components
         self.fitness_features = FitnessFeatures(centered_rank=True, z_score=True)
         self.weight_layer = AttentionWeights(8)
-        self.lrate_layer = EvoPathMLP(8)
+        self.lr_layer = EvoPathMLP(8)
         self.evopath = EvolutionPath(
             num_dims=self.num_dims, timescales=jnp.array([0.1, 0.5, 0.9])
         )
@@ -136,7 +136,7 @@ class LES(DistributionBasedAlgorithm):
         p_std = self.evopath.update(state.p_std, weight_noise)
 
         # Learning rates
-        lrates_mean, lrates_std = self.lrate_layer.apply(
+        lrs_mean, lrs_std = self.lr_layer.apply(
             params.params["lrate_modulation"],
             p_c,
             p_std,
@@ -148,8 +148,8 @@ class LES(DistributionBasedAlgorithm):
         weighted_std = jnp.sqrt(
             jnp.sum(weights * (population - state.mean) ** 2, axis=0) + 1e-8
         )
-        mean = state.mean + lrates_mean * (weighted_mean - state.mean)
-        std = state.std + lrates_std * (weighted_std - state.std)
+        mean = state.mean + lrs_mean * (weighted_mean - state.mean)
+        std = state.std + lrs_std * (weighted_std - state.std)
         std = jnp.clip(std, min=0)
 
         return state.replace(

@@ -21,7 +21,7 @@ class State(State):
     std: float
     opt_state: optax.OptState
     B: jax.Array
-    lrate_std: float
+    lr_std: float
     z: jax.Array
 
 
@@ -29,8 +29,8 @@ class State(State):
 class Params(Params):
     std_init: float
     weights: jax.Array
-    lrate_std_init: float
-    lrate_B: float
+    lr_std_init: float
+    lr_B: float
     use_adaptation_sampling: bool
     rho: float  # Significance level adaptation sampling
     c_prime: float  # Adaptation sampling step size
@@ -57,15 +57,15 @@ class xNES(DistributionBasedAlgorithm):
     def _default_params(self) -> Params:
         weights = get_weights(self.population_size)
 
-        lrate_std_init = (9 + 3 * jnp.log(self.num_dims)) / (
+        lr_std_init = (9 + 3 * jnp.log(self.num_dims)) / (
             5 * jnp.sqrt(self.num_dims) * self.num_dims
         )
         rho = 0.5 - 1 / (3 * (self.num_dims + 1))
         return Params(
             std_init=1.0,
             weights=weights,
-            lrate_std_init=lrate_std_init,
-            lrate_B=lrate_std_init,
+            lr_std_init=lr_std_init,
+            lr_B=lr_std_init,
             use_adaptation_sampling=False,
             rho=rho,
             c_prime=0.1,
@@ -77,7 +77,7 @@ class xNES(DistributionBasedAlgorithm):
             std=params.std_init,
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             B=params.std_init * jnp.eye(self.num_dims),
-            lrate_std=params.lrate_std_init,
+            lr_std=params.lr_std_init,
             z=jnp.zeros((self.population_size, self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
@@ -121,37 +121,35 @@ class xNES(DistributionBasedAlgorithm):
         grad_std = jnp.trace(grad_M) / self.num_dims
 
         # Update std
-        std = state.std * jnp.exp(0.5 * state.lrate_std * grad_std)
+        std = state.std * jnp.exp(0.5 * state.lr_std * grad_std)
 
         # Update B
         grad_B = grad_M - grad_std * jnp.eye(self.num_dims)
-        B = state.B * jnp.exp(0.5 * params.lrate_B * grad_B)
+        B = state.B * jnp.exp(0.5 * params.lr_B * grad_B)
 
         # Adaptation sampling for std learning rate
-        lrate_std = self.adaptation_sampling(
-            state.lrate_std,
+        lr_std = self.adaptation_sampling(
+            state.lr_std,
             z,
             state,
             params,
         )
-        lrate_std = jnp.where(
-            params.use_adaptation_sampling, lrate_std, state.lrate_std
-        )
+        lr_std = jnp.where(params.use_adaptation_sampling, lr_std, state.lr_std)
 
         return state.replace(
-            mean=mean, std=std, opt_state=opt_state, B=B, lrate_std=lrate_std
+            mean=mean, std=std, opt_state=opt_state, B=B, lr_std=lr_std
         )
 
     def adaptation_sampling(
         self,
-        lrate_std: float,
+        lr_std: float,
         z_sorted: jax.Array,
         state: State,
         params: Params,
     ) -> float:
         """Adaptation sampling for std learning rate adaptation."""
         # Create hypothetical distribution with increased learning rate
-        lrate_std_prime = 1.5 * lrate_std
+        lr_std_prime = 1.5 * lr_std
 
         # Calculate what the distribution would be with the new learning rate
         # Instead of computing the full matrix grad_M and then taking the trace
@@ -162,7 +160,7 @@ class xNES(DistributionBasedAlgorithm):
         ) / self.num_dims
 
         # The hypothetical new std
-        std_prime = state.std * jnp.exp(0.5 * lrate_std_prime * grad_std)
+        std_prime = state.std * jnp.exp(0.5 * lr_std_prime * grad_std)
 
         # Calculate importance weights (ratio of probability densities)
         # Original distribution: N(0, I) since z are already standardized samples
@@ -198,13 +196,13 @@ class xNES(DistributionBasedAlgorithm):
         # Update learning rate based on test result
         # If p_value < rho (significant improvement), increase learning rate
         # Otherwise, move it closer to initial value
-        new_lrate_std = jnp.where(
+        new_lr_std = jnp.where(
             p_value < params.rho,
-            jnp.minimum((1 + params.c_prime) * lrate_std, 1.0),  # Cap at 1.0
-            (1 - params.c_prime) * lrate_std + params.c_prime * params.lrate_std_init,
+            jnp.minimum((1 + params.c_prime) * lr_std, 1.0),  # Cap at 1.0
+            (1 - params.c_prime) * lr_std + params.c_prime * params.lr_std_init,
         )
 
-        return new_lrate_std
+        return new_lr_std
 
 
 def get_weights(population_size: int):

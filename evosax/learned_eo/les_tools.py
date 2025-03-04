@@ -55,8 +55,8 @@ class EvolutionPath:
     def update(self, paths: jax.Array, diff: jax.Array) -> jax.Array:
         """Batch update evolution paths for multiple dims & timescales."""
 
-        def update_path(lrate, path, diff):
-            return (1 - lrate) * path + lrate * diff
+        def update_path(lr, path, diff):
+            return (1 - lr) * path + lr * diff
 
         return jax.vmap(update_path, in_axes=(0, 1, None), out_axes=1)(
             self.timescales, paths, diff
@@ -149,6 +149,6 @@ class EvoPathMLP(nn.Module):
         # Perform MLP hidden state update for each solution dim. in parallel
         hidden = jax.vmap(nn.Dense(self.mlp_hidden_dims), in_axes=(0))(X)
         hidden = nn.relu(hidden)
-        lrates_mean = nn.sigmoid(nn.Dense(1)(hidden)).squeeze()
-        lrates_sigma = nn.sigmoid(nn.Dense(1)(hidden)).squeeze()
-        return lrates_mean, lrates_sigma
+        lrs_mean = nn.sigmoid(nn.Dense(1)(hidden)).squeeze()
+        lrs_sigma = nn.sigmoid(nn.Dense(1)(hidden)).squeeze()
+        return lrs_mean, lrs_sigma

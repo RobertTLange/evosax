@@ -25,9 +25,7 @@ class State(State):
 @struct.dataclass
 class Params(Params):
     std_init: float
-    std_decay: float
-    std_limit: float
-    std_lrate: float  # Learning rate for std
+    std_lr: float  # Learning rate for std
     std_max_change: float  # Clip adaptive std to 20%
 
 
@@ -55,9 +53,7 @@ class PGPE(DistributionBasedAlgorithm):
     def _default_params(self) -> Params:
         return Params(
             std_init=1.0,
-            std_decay=1.0,
-            std_limit=0.0,
-            std_lrate=0.1,
+            std_lr=0.1,
             std_max_change=0.2,
         )
 
@@ -131,10 +127,9 @@ class PGPE(DistributionBasedAlgorithm):
         std_max = state.std + std_max_change
 
         std = jnp.clip(
-            state.std - params.std_lrate * grad_std,
+            state.std - params.std_lr * grad_std,
             min=std_min,
             max=std_max,
         )
-        std = jnp.clip(std * params.std_decay, min=params.std_limit)
 
         return state.replace(mean=mean, std=std, opt_state=opt_state)

@@ -82,7 +82,7 @@ class SAMR_GA(PopulationBasedAlgorithm):
             key_eps_std, (self.population_size,), minval=-1, maxval=1
         )
         std = jnp.concatenate([std[:1], std[idx]]) * params.std_meta**eps_std
-        std = jnp.clip(std, min=0.0, max=10.0)
+        std = jnp.clip(std, min=params.std_min, max=params.std_max)
 
         # Mutation
         eps_x = jax.random.normal(key_eps_x, (self.population_size, self.num_dims))

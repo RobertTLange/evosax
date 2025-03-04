@@ -26,8 +26,6 @@ class State(State):
 @struct.dataclass
 class Params(Params):
     std_init: float
-    std_decay: float
-    std_limit: float
     T: int  # Total inner problem length
     K: int  # Truncation length for partial unrolls
 
@@ -54,8 +52,6 @@ class NoiseReuseES(DistributionBasedAlgorithm):
     def _default_params(self) -> Params:
         return Params(
             std_init=1.0,
-            std_decay=1.0,
-            std_limit=0.0,
             T=100,
             K=10,
         )
@@ -111,12 +107,8 @@ class NoiseReuseES(DistributionBasedAlgorithm):
             inner_step_counter >= params.T, 0, inner_step_counter
         )
 
-        # Update std
-        std = jnp.clip(state.std * params.std_decay, min=params.std_limit)
-
         return state.replace(
             mean=mean,
-            std=std,
             opt_state=opt_state,
             inner_step_counter=inner_step_counter,
         )

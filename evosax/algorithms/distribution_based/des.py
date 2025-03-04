@@ -22,8 +22,8 @@ class Params(Params):
     std_init: float
     weights: jax.Array
     temperature: float  # Temperature for softmax weights
-    lrate_mean: float  # Learning rate for population mean
-    lrate_std: float  # Learning rate for population std
+    lr_mean: float  # Learning rate for population mean
+    lr_std: float  # Learning rate for population std
 
 
 class DES(DistributionBasedAlgorithm):
@@ -47,8 +47,8 @@ class DES(DistributionBasedAlgorithm):
             std_init=1.0,
             weights=weights,
             temperature=temperature,
-            lrate_mean=1.0,
-            lrate_std=0.1,
+            lr_mean=1.0,
+            lr_std=0.1,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
@@ -85,8 +85,8 @@ class DES(DistributionBasedAlgorithm):
         weighted_mean = jnp.dot(params.weights, x)
         weighted_std = jnp.sqrt(jnp.dot(params.weights, (x - state.mean) ** 2))
 
-        mean = state.mean + params.lrate_mean * (weighted_mean - state.mean)
-        std = state.std + params.lrate_std * (weighted_std - state.std)
+        mean = state.mean + params.lr_mean * (weighted_mean - state.mean)
+        std = state.std + params.lr_std * (weighted_std - state.std)
         return state.replace(mean=mean, std=std)
 
 

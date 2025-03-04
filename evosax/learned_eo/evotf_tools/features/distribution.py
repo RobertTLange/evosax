@@ -17,8 +17,8 @@ class TraceConstructor:
         return jnp.zeros((self.num_dims, self.timescales.shape[0]))
 
     def update(self, paths: jax.Array, diff: jax.Array) -> jax.Array:
-        def update_path(lrate, path, diff):
-            return (1 - lrate) * path + lrate * diff
+        def update_path(lr, path, diff):
+            return (1 - lr) * path + lr * diff
 
         return jax.vmap(update_path, in_axes=(0, 1, None), out_axes=1)(
             self.timescales, paths, diff

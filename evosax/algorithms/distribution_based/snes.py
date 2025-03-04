@@ -20,14 +20,14 @@ class State(State):
     mean: jax.Array
     std: jax.Array
     opt_state: optax.OptState
-    lrate_std: float
+    lr_std: float
 
 
 @struct.dataclass
 class Params(Params):
     std_init: float
     weights: jax.Array
-    lrate_std_init: float
+    lr_std_init: float
     use_adaptation_sampling: bool
     rho: float  # Significance level adaptation sampling
     c_prime: float  # Adaptation sampling step size
@@ -54,12 +54,12 @@ class SNES(xNES):
         params = super()._default_params
 
         # Override the learning rate for std with SNES-specific value
-        lrate_std_init = (3 + jnp.log(self.num_dims)) / (5 * jnp.sqrt(self.num_dims))
+        lr_std_init = (3 + jnp.log(self.num_dims)) / (5 * jnp.sqrt(self.num_dims))
 
         return Params(
             std_init=params.std_init,
             weights=params.weights,
-            lrate_std_init=lrate_std_init,
+            lr_std_init=lr_std_init,
             use_adaptation_sampling=params.use_adaptation_sampling,
             rho=params.rho,
             c_prime=params.c_prime,
@@ -70,7 +70,7 @@ class SNES(xNES):
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init * jnp.ones(self.num_dims),
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
-            lrate_std=params.lrate_std_init,
+            lr_std=params.lr_std_init,
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -109,37 +109,33 @@ class SNES(xNES):
         grad_std = jnp.dot(params.weights, z**2 - 1)
 
         # Update std
-        std = state.std * jnp.exp(0.5 * state.lrate_std * grad_std)
+        std = state.std * jnp.exp(0.5 * state.lr_std * grad_std)
 
         # Adaptation sampling for std learning rate
-        lrate_std = self.adaptation_sampling(
-            state.lrate_std,
+        lr_std = self.adaptation_sampling(
+            state.lr_std,
             z,
             state,
             params,
         )
-        lrate_std = jnp.where(
-            params.use_adaptation_sampling, lrate_std, state.lrate_std
-        )
+        lr_std = jnp.where(params.use_adaptation_sampling, lr_std, state.lr_std)
 
-        return state.replace(
-            mean=mean, std=std, opt_state=opt_state, lrate_std=lrate_std
-        )
+        return state.replace(mean=mean, std=std, opt_state=opt_state, lr_std=lr_std)
 
     def adaptation_sampling(
         self,
-        lrate_std: float,
+        lr_std: float,
         z_sorted: jax.Array,
         state: State,
         params: Params,
     ) -> float:
         """Adaptation sampling for std learning rate adaptation."""
         # Create hypothetical distribution with increased learning rate
-        lrate_std_prime = 1.5 * lrate_std
+        lr_std_prime = 1.5 * lr_std
 
         # Calculate what the std would be with the new learning rate
         grad_std = jnp.dot(params.weights, z_sorted**2 - 1)
-        std_prime = state.std * jnp.exp(0.5 * lrate_std_prime * grad_std)
+        std_prime = state.std * jnp.exp(0.5 * lr_std_prime * grad_std)
 
         # For the separable case, we need to handle per-dimension calculations
         # Calculate log ratios for each dimension, then sum across dimensions
@@ -173,10 +169,10 @@ class SNES(xNES):
         p_value = jax.scipy.stats.norm.cdf(z_score)
 
         # Update learning rate based on test result
-        new_lrate_std = jnp.where(
+        new_lr_std = jnp.where(
             p_value < params.rho,
-            jnp.minimum((1 + params.c_prime) * lrate_std, 1.0),
-            (1 - params.c_prime) * lrate_std + params.c_prime * params.lrate_std_init,
+            jnp.minimum((1 + params.c_prime) * lr_std, 1.0),
+            (1 - params.c_prime) * lr_std + params.c_prime * params.lr_std_init,
         )
 
-        return new_lrate_std
+        return new_lr_std
