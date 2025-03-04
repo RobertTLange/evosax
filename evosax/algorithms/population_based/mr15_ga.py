@@ -9,6 +9,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 from .simple_ga import mutation
@@ -35,11 +36,11 @@ class MR15_GA(PopulationBasedAlgorithm):
         self,
         population_size: int,
         solution: Solution,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize MR15-GA."""
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
 

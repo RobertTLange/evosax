@@ -8,6 +8,7 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Population, Solution
 from .base import metrics_fn
 from .iamalgam_full import Params, State, iAMaLGaM_Full
@@ -20,16 +21,11 @@ class iAMaLGaM_Univariate(iAMaLGaM_Full):
         self,
         population_size: int,
         solution: Solution,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize iAMaLGaM."""
-        super().__init__(
-            population_size,
-            solution,
-            metrics_fn,
-            **fitness_kwargs,
-        )
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(

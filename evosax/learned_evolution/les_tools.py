@@ -6,11 +6,11 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
-from ..core.fitness_shaping import (
-    centered_rank_trafo,
-    compute_l2_norm,
-    range_norm_trafo,
-    z_score_trafo,
+from .fitness_shaping import (
+    centered_rank,
+    l2_norm_sq,
+    normalize,
+    standardize,
 )
 
 if sys.version_info < (3, 8):
@@ -89,19 +89,19 @@ class FitnessFeatures:
         fit_out = ((fitness < best_fitness) * 1.0).reshape(-1, 1)
 
         if self.centered_rank:
-            fit_cr = centered_rank_trafo(fitness).reshape(-1, 1)
+            fit_cr = centered_rank(fitness).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_cr], axis=1)
         if self.z_score:
-            fit_zs = z_score_trafo(fitness).reshape(-1, 1)
+            fit_zs = standardize(fitness).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_zs], axis=1)
         if self.diff_best:
             fit_best = norm_diff_best(fitness, best_fitness).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_best], axis=1)
         if self.norm_range:
-            fit_norm = range_norm_trafo(fitness, -1.0, 1.0).reshape(-1, 1)
+            fit_norm = normalize(fitness, -1.0, 1.0).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_norm], axis=1)
         if self.w_decay:
-            fit_wnorm = compute_l2_norm(x).reshape(-1, 1)
+            fit_wnorm = l2_norm_sq(x).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_wnorm], axis=1)
         return fit_out
 

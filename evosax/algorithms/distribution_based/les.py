@@ -14,7 +14,8 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...learned_eo.les_tools import (
+from ...core.fitness_shaping import identity_fitness_shaping_fn
+from ...learned_evolution.les_tools import (
     AttentionWeights,
     EvolutionPath,
     EvoPathMLP,
@@ -49,16 +50,11 @@ class LES(DistributionBasedAlgorithm):
         solution: Solution,
         params: PyTree | None = None,
         params_path: str | None = None,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize LES."""
-        super().__init__(
-            population_size,
-            solution,
-            metrics_fn,
-            **fitness_kwargs,
-        )
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # LES components
         self.fitness_features = FitnessFeatures(centered_rank=True, z_score=True)

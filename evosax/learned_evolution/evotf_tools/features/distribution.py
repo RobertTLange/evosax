@@ -5,7 +5,8 @@ import jax.numpy as jnp
 from flax import struct
 
 from evosax.algorithms.distribution_based.xnes import get_weights as get_nes_weights
-from evosax.core.fitness_shaping import centered_rank_trafo
+
+from ...fitness_shaping import centered_rank
 
 
 class TraceConstructor:
@@ -128,7 +129,7 @@ class DistributionFeaturizer:
             )
         if self.use_oai_grad:
             population_size = x.shape[0]
-            fitness_re = centered_rank_trafo(fitness)
+            fitness_re = centered_rank(fitness)
             oai_grad = 1.0 / (population_size * std) * jnp.dot(noise.T, fitness_re)
             distrib_features = jnp.concatenate(
                 [distrib_features, oai_grad.reshape(-1, 1)], axis=1

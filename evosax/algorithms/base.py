@@ -8,19 +8,19 @@ import jax.numpy as jnp
 from flax import struct
 from jax import flatten_util
 
-from ..core import FitnessShaper
-from ..types import Fitness, Metrics, Population, Solution
+from ..core.fitness_shaping import identity_fitness_shaping_fn
+from ..types import Fitness, Metrics, Params, Population, Solution, State
 
 
 @struct.dataclass
-class State:
+class State(State):
     best_solution: Solution
     best_fitness: float
     generation_counter: int
 
 
 @struct.dataclass
-class Params:
+class Params(Params):
     pass
 
 
@@ -50,8 +50,8 @@ class EvolutionaryAlgorithm:
         self,
         population_size: int,
         solution: Solution,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize base class for evolutionary algorithm."""
         assert population_size > 0, "Population size must be greater than 0"
@@ -64,8 +64,8 @@ class EvolutionaryAlgorithm:
         self.solution_flat = self._ravel_solution(solution)
         self.num_dims = self.solution_flat.size
 
-        # Setup optional fitness shaper
-        self.fitness_shaper = FitnessShaper(**fitness_kwargs)
+        # Fitness shaping function
+        self.fitness_shaping_fn = fitness_shaping_fn
 
         # Default elite ratio
         self.elite_ratio = 1.0
@@ -134,7 +134,7 @@ class EvolutionaryAlgorithm:
         population = jax.vmap(self._ravel_solution)(population)
 
         # Shape fitness
-        fitness = self.fitness_shaper.apply(population, fitness)
+        fitness = self.fitness_shaping_fn(population, fitness, state, params)
 
         # Update state
         state = self._tell(key, population, fitness, state, params)

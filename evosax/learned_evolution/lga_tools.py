@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
-from ..core.fitness_shaping import range_norm_trafo, z_score_trafo
+from .fitness_shaping import normalize, standardize
 
 
 def tanh_age(x: jax.Array, generation_counter: float) -> jax.Array:
@@ -16,10 +16,10 @@ class MultiHeadSelfAttention(nn.Module):
 
     @nn.compact
     def __call__(self, x: jax.Array) -> jax.Array:
-        """Applies multi-head dot product self-attention on the input data.
+        """Apply multi-head dot product self-attention on the input data.
 
         Args:
-          x: input of shape `[length, features_in]`.
+            x: input of shape `[length, features_in]`.
 
         Returns:
             output of shape `[length, num_features]`.
@@ -49,7 +49,7 @@ class MultiHeadCrossAttention(nn.Module):
 
     @nn.compact
     def __call__(self, x: jax.Array, y: jax.Array) -> jax.Array:
-        """Applies multi-head dot product self-attention on the input data.
+        """Apply multi-head dot product self-attention on the input data.
 
         Args:
           x: input of shape `[length_1, features_in]`. - Key/value input.
@@ -80,7 +80,7 @@ class MultiHeadCrossAttention(nn.Module):
 def multi_head_embedding(
     x: jax.Array, num_heads: int, head_dim: int, label: str
 ) -> jax.Array:
-    """Simple dense general embedding layer."""
+    """Dense general embedding layer."""
     return nn.linear.DenseGeneral(
         features=(num_heads, head_dim),
         use_bias=True,
@@ -89,7 +89,7 @@ def multi_head_embedding(
 
 
 def mix_head_outputs(x: jax.Array, num_features: int, label: str) -> jax.Array:
-    """Simple dense mixing of heads layer."""
+    """Dense mixing of heads layer."""
     return nn.linear.DenseGeneral(
         features=num_features,
         axis=(-2, -1),
@@ -99,14 +99,14 @@ def mix_head_outputs(x: jax.Array, num_features: int, label: str) -> jax.Array:
 
 
 def scaled_dot_product(q: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
-    """Computes dot-product attention given multi-headed query, key, and value.
+    """Compute dot-product attention given multi-headed query, key, and value.
 
     Args:
-        q - queries for calculating attention with shape of
+        q: queries for calculating attention with shape of
             `[length, heads, embed_dim]`.
-        k - keys for calculating attention with shape of
+        k: keys for calculating attention with shape of
             `[length, heads, embed_dim]`.
-        v - values for calculating attention with shape of
+        v: values for calculating attention with shape of
             `[length, heads, embed_dim]`.
 
     Returns:
@@ -164,8 +164,8 @@ class MutationAttention(nn.Module):
 
     @nn.compact
     def __call__(self, sigma: jax.Array, F: jax.Array) -> jax.Array:
-        z_feat = z_score_trafo(sigma)
-        norm_feat = range_norm_trafo(sigma)
+        z_feat = standardize(sigma)
+        norm_feat = normalize(sigma)
         conc_inputs = jnp.concatenate([F, z_feat, norm_feat], axis=1)
         M = MultiHeadSelfAttention(self.num_att_heads, self.att_hidden_dims)(
             conc_inputs

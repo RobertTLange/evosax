@@ -14,11 +14,12 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...learned_eo.les_tools import (
+from ...core.fitness_shaping import identity_fitness_shaping_fn
+from ...learned_evolution.les_tools import (
     FitnessFeatures,
     load_pkl_object,
 )
-from ...learned_eo.lga_tools import (
+from ...learned_evolution.lga_tools import (
     MutationAttention,
     SamplingAttention,
     SelectionAttention,
@@ -53,11 +54,11 @@ class LGA(PopulationBasedAlgorithm):
         solution: Solution,
         params: PyTree | None = None,
         params_path: str | None = None,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize LGA."""
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 1.0
 

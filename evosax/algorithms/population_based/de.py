@@ -9,6 +9,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 
@@ -34,12 +35,12 @@ class DE(PopulationBasedAlgorithm):
         population_size: int,
         solution: Solution,
         num_diff: int = 1,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize DE."""
         assert population_size >= 4, "DE requires population_size >= 4."
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.num_diff = num_diff
 

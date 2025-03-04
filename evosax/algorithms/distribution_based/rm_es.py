@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import ranksort
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import State, metrics_fn
 from .cma_es import CMA_ES, Params
@@ -42,15 +42,17 @@ class Rm_ES(CMA_ES):
         population_size: int,
         solution: Solution,
         m: int = 1,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize Rm-ES."""
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
-        self.m = m  # number of evolution paths
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
         self.use_negative_weights = False
+
+        # Number of evolution paths
+        self.m = m
 
     @property
     def _default_params(self) -> Params:
@@ -125,7 +127,7 @@ class Rm_ES(CMA_ES):
 
         # Rank-based Success Rule (RSR)
         F = jnp.concatenate([state.fitness_elites_sorted, fitness_elites_sorted])
-        ranks = ranksort(F)
+        ranks = jax.scipy.stats.rankdata(F, axis=-1) - 1.0
         q = (
             jnp.dot(
                 params.weights[: self.num_elites],

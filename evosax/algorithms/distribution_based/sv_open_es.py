@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...core.kernel import kernel_rbf
 from ...types import Fitness, Population, Solution
 from .base import metrics_fn
@@ -39,8 +40,8 @@ class SV_Open_ES(Open_ES):
         kernel: Callable = kernel_rbf,
         use_antithetic_sampling: bool = True,
         optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1e-3),
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize SV-OpenAI-ES."""
         super().__init__(
@@ -48,8 +49,8 @@ class SV_Open_ES(Open_ES):
             solution=solution,
             use_antithetic_sampling=use_antithetic_sampling,
             optimizer=optimizer,
+            fitness_shaping_fn=fitness_shaping_fn,
             metrics_fn=metrics_fn,
-            **fitness_kwargs,
         )
 
         self.num_populations = num_populations

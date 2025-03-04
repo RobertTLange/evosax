@@ -10,6 +10,7 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import Params, State, metrics_fn
 from .xnes import xNES
@@ -41,12 +42,12 @@ class SNES(xNES):
         population_size: int,
         solution: Solution,
         optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1.0),
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize SNES."""
         super().__init__(
-            population_size, solution, optimizer, metrics_fn, **fitness_kwargs
+            population_size, solution, optimizer, fitness_shaping_fn, metrics_fn
         )
 
     @property

@@ -6,11 +6,12 @@ from flax import struct
 
 from evosax.algorithms.distribution_based.des import get_weights as get_des_weights
 from evosax.algorithms.distribution_based.xnes import get_weights as get_nes_weights
-from evosax.core.fitness_shaping import (
-    centered_rank_trafo,
-    compute_l2_norm,
-    range_norm_trafo,
-    z_score_trafo,
+
+from ...fitness_shaping import (
+    centered_rank,
+    l2_norm_sq,
+    normalize,
+    standardize,
 )
 
 
@@ -68,14 +69,14 @@ class FitnessFeaturizer:
         self, x: jax.Array, fitness: jax.Array, state: FitnessFeaturesState
     ) -> tuple[jax.Array, FitnessFeaturesState]:
         fitness = jax.lax.select(self.maximize, -1 * fitness, fitness)
-        fit_out = centered_rank_trafo(fitness).reshape(-1, 1)
+        fit_out = centered_rank(fitness).reshape(-1, 1)
 
         if self.improved_best:
             fit_improve = ((fitness < state.best_fitness) * 1.0).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_improve], axis=1)
 
         if self.z_score:
-            fit_zs = z_score_trafo(fitness).reshape(-1, 1)
+            fit_zs = standardize(fitness).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_zs], axis=1)
 
         if self.norm_diff_best:
@@ -83,7 +84,7 @@ class FitnessFeaturizer:
             fit_out = jnp.concatenate([fit_out, fit_best], axis=1)
 
         if self.norm_range:
-            fit_norm = range_norm_trafo(fitness, -0.5, 0.5).reshape(-1, 1)
+            fit_norm = normalize(fitness, -0.5, 0.5).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_norm], axis=1)
 
         if self.snes_weights:
@@ -99,7 +100,7 @@ class FitnessFeaturizer:
             fit_out = jnp.concatenate([fit_out, fit_des], axis=1)
 
         if self.w_decay:
-            fit_wnorm = compute_l2_norm(x).reshape(-1, 1)
+            fit_wnorm = l2_norm_sq(x).reshape(-1, 1)
             fit_out = jnp.concatenate([fit_out, fit_wnorm], axis=1)
 
         best_fitness = update_best_fitness(fitness, state.best_fitness, self.maximize)

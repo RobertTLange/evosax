@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import metrics_fn
 from .ma_es import MA_ES, Params, State
@@ -33,11 +34,11 @@ class LM_MA_ES(MA_ES):
         self,
         population_size: int,
         solution: Solution,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize LM-MA-ES."""
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
         self.use_negative_weights = False

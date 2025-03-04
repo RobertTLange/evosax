@@ -141,23 +141,6 @@ _, fitness = jax.lax.scan(
 )
 ```
 
-- **Flexible Fitness Shaping**: By default `evosax` assumes that the fitness objective is to be minimized. If you would like to maximize instead, perform rank centering, z-scoring or add weight regularization you can use the `FitnessShaper`: 
-
-```python
-from evosax import FitnessShaper
-
-# Instantiate jit-able fitness shaper (e.g. for Open ES)
-fit_shaper = FitnessShaper(
-    centered_rank=True,
-    z_score=False,
-    weight_decay=0.01,
-    maximize=True,
-)
-
-# Shape the evaluated fitness scores
-fit_shaped = fit_shaper.apply(x, fitness) 
-```
-
 ## Resources & Other Great JAX-ES Tools 📝
 
 * 📺 [Rob's MLC Research Jam Talk](https://www.youtube.com/watch?v=Wn6Lq2bexlA&t=51s): Small motivation talk at the ML Collective Research Jam.

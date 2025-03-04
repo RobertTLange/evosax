@@ -10,6 +10,7 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
@@ -38,12 +39,12 @@ class NoiseReuseES(DistributionBasedAlgorithm):
         population_size: int,
         solution: Solution,
         optimizer: optax.GradientTransformation = optax.adam(learning_rate=1e-3),
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize NRES."""
         assert population_size % 2 == 0, "Population size must be even."
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # Optimizer
         self.optimizer = optimizer

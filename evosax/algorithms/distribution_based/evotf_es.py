@@ -10,13 +10,14 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...learned_eo.evotf_tools import (
+from ...core.fitness_shaping import identity_fitness_shaping_fn
+from ...learned_evolution.evotf_tools import (
     DistributionFeaturizer,
     EvoTransformer,
     FitnessFeaturizer,
     SolutionFeaturizer,
 )
-from ...learned_eo.les_tools import load_pkl_object
+from ...learned_evolution.les_tools import load_pkl_object
 from ...types import Fitness, Population, PyTree, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
@@ -110,10 +111,10 @@ class EvoTF_ES(DistributionBasedAlgorithm):
         use_antithetic_sampling: bool = False,
         params: PyTree | None = None,
         params_path: str | None = None,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.max_context_len = max_context_len
         self.model_config = model_config

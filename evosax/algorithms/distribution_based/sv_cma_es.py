@@ -10,6 +10,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...core.kernel import kernel_rbf
 from ...types import Fitness, Population, Solution
 from .base import metrics_fn
@@ -36,11 +37,11 @@ class SV_CMA_ES(CMA_ES):
         num_populations: int,
         solution: Solution,
         kernel: Callable = kernel_rbf,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize SV-CMA-ES."""
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.num_populations = num_populations
         self.total_population_size = num_populations * population_size

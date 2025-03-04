@@ -10,6 +10,7 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
@@ -41,12 +42,12 @@ class ESMC(DistributionBasedAlgorithm):
                 decay_rate=0.98,
             )
         ),
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize ESMC."""
         assert population_size % 2 == 1, "Population size must be odd"
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # Optimizer
         self.optimizer = optimizer

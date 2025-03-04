@@ -4,11 +4,13 @@ Reference: https://hal.inria.fr/inria-00382093/document
 Inspired by: https://tinyurl.com/44y3ryhf
 """
 
+from collections.abc import Callable
 from functools import partial
 
 import jax
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...restarts.restarter import (
     WrapperParams,
     WrapperState,
@@ -16,6 +18,7 @@ from ...restarts.restarter import (
     spread_criterion,
 )
 from ...types import Fitness, Population, Solution
+from .base import metrics_fn
 from .cma_es import CMA_ES
 
 
@@ -37,7 +40,8 @@ class BIPOP_CMA_ES:
         solution: Solution,
         elite_ratio: float = 0.5,
         sigma_init: float = 1.0,
-        **fitness_kwargs: bool | int | float,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        metrics_fn: Callable = metrics_fn,
     ):
         # Instantiate base strategy & wrap it with restart wrapper
         self.strategy = CMA_ES(
@@ -45,7 +49,8 @@ class BIPOP_CMA_ES:
             solution=solution,
             elite_ratio=elite_ratio,
             sigma_init=sigma_init,
-            **fitness_kwargs,
+            fitness_shaping_fn=fitness_shaping_fn,
+            metrics_fn=metrics_fn,
         )
         from ..restarts import BIPOP_Restarter
 

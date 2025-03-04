@@ -9,6 +9,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 
@@ -36,14 +37,14 @@ class GESMR_GA(PopulationBasedAlgorithm):
         population_size: int,
         solution: Solution,
         num_groups: int = 1,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize GESMR."""
         assert (population_size - 1) % num_groups == 0, (
             "Population size must be divisible by number of std groups"
         )
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
         self.std_ratio = 0.5

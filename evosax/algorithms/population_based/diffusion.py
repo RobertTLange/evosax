@@ -10,7 +10,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import ranksort
+from ...core.fitness_shaping import identity_fitness_shaping_fn
 from ...types import Fitness, Population, Solution
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 
@@ -66,12 +66,6 @@ def fitness_mapping_energy(fitness: Fitness, temperature: float = 1.0) -> jax.Ar
     return jnp.exp(fitness)
 
 
-def fitness_mapping_rank(fitness: Fitness) -> jax.Array:
-    """Transform fitness into probabilities proportional to ranks."""
-    ranks = ranksort(fitness)
-    return ranks / jnp.sum(ranks)
-
-
 class DiffusionEvolution(PopulationBasedAlgorithm):
     """Diffusion Evolution."""
 
@@ -83,11 +77,11 @@ class DiffusionEvolution(PopulationBasedAlgorithm):
         fitness_mapping: Callable = fitness_mapping_energy,
         alpha_schedule: Callable = cosine_schedule,
         num_latent_dims: int | None = None,
+        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
-        **fitness_kwargs: bool | int | float,
     ):
         """Initialize Diffusion Evolution."""
-        super().__init__(population_size, solution, metrics_fn, **fitness_kwargs)
+        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.num_generations = num_generations
         self.num_latent_dims = num_latent_dims

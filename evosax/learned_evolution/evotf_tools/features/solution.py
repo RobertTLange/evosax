@@ -5,7 +5,8 @@ import jax.numpy as jnp
 from flax import struct
 
 from evosax.algorithms.base import update_best_solution_and_fitness
-from evosax.core.fitness_shaping import range_norm_trafo
+
+from ...fitness_shaping import normalize
 
 
 @struct.dataclass
@@ -94,9 +95,9 @@ class SolutionFeaturizer:
             sol_out = jnp.concatenate([sol_out, diff_best], axis=-1)
 
         if self.norm_diff_best:
-            dist_best_norm = jax.vmap(
-                range_norm_trafo, in_axes=(1, None, None), out_axes=1
-            )(population - best_solution, -0.5, 0.5)
+            dist_best_norm = jax.vmap(normalize, in_axes=(1, None, None), out_axes=1)(
+                population - best_solution, -0.5, 0.5
+            )
             dist_best_norm = jnp.expand_dims(dist_best_norm, axis=-1)
             sol_out = jnp.concatenate([sol_out, dist_best_norm], axis=-1)
         return sol_out, state.replace(
