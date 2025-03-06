@@ -10,6 +10,7 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 from flax import struct
+import optax
 
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
@@ -32,7 +33,6 @@ class State(State):
 
 @struct.dataclass
 class Params(Params):
-    std_init: float
     eta_std: float
     eta_shift: float
     eta_avs_inc: float
@@ -50,6 +50,7 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         self,
         population_size: int,
         solution: Solution,
+        std_schedule: Callable = optax.constant_schedule(1.0),
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
@@ -65,6 +66,9 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         )
         self.ams_population_size = int(alpha_ams * (self.population_size - 1))
 
+        # std schedule
+        self.std_schedule = std_schedule
+
     @property
     def _default_params(self) -> Params:
         # Table 1
@@ -79,7 +83,6 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         )
 
         return Params(
-            std_init=1.0,
             eta_std=eta_std,
             eta_shift=eta_shift,
             eta_avs_inc=1 / 0.9,
@@ -93,7 +96,7 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
-            std=params.std_init,
+            std=self.std_schedule(0),
             mean_shift=jnp.zeros(self.num_dims),
             C=jnp.eye(self.num_dims),
             nis_counter=0,
@@ -177,6 +180,7 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
 
         return state.replace(
             mean=mean,
+            std=self.std_schedule(state.generation_counter),
             C=C,
             mean_shift=mean_shift,
             nis_counter=nis_counter,

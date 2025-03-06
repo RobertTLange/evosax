@@ -27,6 +27,7 @@ class State(State):
 class Params(Params):
     std_init: float
     std_min: float
+    std_max: float
     std_ratio: float
 
 
@@ -49,7 +50,8 @@ class MR15_GA(PopulationBasedAlgorithm):
     def _default_params(self) -> Params:
         return Params(
             std_init=1.0,
-            std_min=0.001,
+            std_min=0.0,
+            std_max=jnp.inf,
             std_ratio=0.2,
         )
 
@@ -89,7 +91,7 @@ class MR15_GA(PopulationBasedAlgorithm):
         beneficial_mutation_rate = jnp.mean(fitness < state.fitness)
         increase_std = beneficial_mutation_rate > params.std_ratio
         std = jnp.where(increase_std, 2 * state.std, 0.5 * state.std)
-        std = jnp.clip(std, min=params.std_min)
+        std = jnp.clip(std, min=params.std_min, max=params.std_max)
 
         # Combine populations from current and previous generations
         population = jnp.concatenate([population, state.population])

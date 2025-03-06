@@ -29,7 +29,6 @@ class State(State):
 
 @struct.dataclass
 class Params(Params):
-    std_init: float
     alpha: float
     beta: float
 
@@ -43,6 +42,7 @@ class GuidedES(DistributionBasedAlgorithm):
         solution: Solution,
         subspace_dims: int = 1,  # k param in example notebook
         optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1e-3),
+        std_schedule: Callable = optax.constant_schedule(1.0),
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
@@ -58,18 +58,17 @@ class GuidedES(DistributionBasedAlgorithm):
         # Optimizer
         self.optimizer = optimizer
 
+        # std schedule
+        self.std_schedule = std_schedule
+
     @property
     def _default_params(self) -> Params:
-        return Params(
-            std_init=1.0,
-            alpha=0.5,
-            beta=1.0,
-        )
+        return Params(alpha=0.5, beta=1.0)
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
-            std=params.std_init,
+            std=self.std_schedule(0),
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             grad=jnp.full((self.num_dims,), jnp.nan),
             grad_subspace=jnp.zeros((self.num_dims, self.subspace_dims)),
@@ -141,4 +140,4 @@ class GuidedES(DistributionBasedAlgorithm):
         updates, opt_state = self.optimizer.update(grad, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
-        return state.replace(mean=mean, opt_state=opt_state)
+        return state.replace(mean=mean, std=self.std_schedule(state.generation_counter), opt_state=opt_state)

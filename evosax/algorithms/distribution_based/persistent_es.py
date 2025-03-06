@@ -10,6 +10,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from flax import struct
+import optax
 
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
@@ -28,7 +29,6 @@ class State(State):
 
 @struct.dataclass
 class Params(Params):
-    std_init: float
     T: int  # Total inner problem length
     K: int  # Truncation length for partial unrolls
 
@@ -41,6 +41,7 @@ class PES(DistributionBasedAlgorithm):
         population_size: int,
         solution: Solution,
         optimizer: optax.GradientTransformation = optax.adam(learning_rate=1e-3),
+        std_schedule: Callable = optax.constant_schedule(1.0),
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
@@ -51,18 +52,17 @@ class PES(DistributionBasedAlgorithm):
         # Optimizer
         self.optimizer = optimizer
 
+        # std schedule
+        self.std_schedule = std_schedule
+
     @property
     def _default_params(self) -> Params:
-        return Params(
-            std_init=1.0,
-            T=100,
-            K=10,
-        )
+        return Params(T=100, K=10)
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
-            std=params.std_init,
+            std=self.std_schedule(0),
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             pert_accum=jnp.zeros((self.population_size, self.num_dims)),
             inner_step_counter=0,
@@ -112,6 +112,7 @@ class PES(DistributionBasedAlgorithm):
 
         return state.replace(
             mean=mean,
+            std=self.std_schedule(state.generation_counter),
             opt_state=opt_state,
             pert_accum=pert_accum,
             inner_step_counter=inner_step_counter,

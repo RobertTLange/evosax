@@ -121,6 +121,9 @@ class EvolutionaryAlgorithm:
         params: Params,
     ) -> tuple[State, Metrics]:
         """Tell evolutionary algorithm fitness for state update."""
+        # Ravel population
+        population = jax.vmap(self._ravel_solution)(population)
+
         # Update best solution and fitness
         best_solution, best_fitness = update_best_solution_and_fitness(
             population, fitness, state.best_solution, state.best_fitness
@@ -129,9 +132,6 @@ class EvolutionaryAlgorithm:
 
         # Compute metrics
         metrics = self.metrics_fn(key, population, fitness, state, params)
-
-        # Ravel population
-        population = jax.vmap(self._ravel_solution)(population)
 
         # Shape fitness
         fitness = self.fitness_shaping_fn(population, fitness, state, params)

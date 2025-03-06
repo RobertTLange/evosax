@@ -33,7 +33,6 @@ class State(State):
 
 @struct.dataclass
 class Params(Params):
-    std_init: float
     grad_decay: float
 
 
@@ -46,6 +45,7 @@ class ASEBO(DistributionBasedAlgorithm):
         solution: Solution,
         subspace_dims: int = 1,
         optimizer: optax.GradientTransformation = optax.adam(learning_rate=1e-3),
+        std_schedule: Callable = optax.constant_schedule(1.0),
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
@@ -61,19 +61,19 @@ class ASEBO(DistributionBasedAlgorithm):
         # Optimizer
         self.optimizer = optimizer
 
+        # std schedule
+        self.std_schedule = std_schedule
+
     @property
     def _default_params(self) -> Params:
-        return Params(
-            std_init=1.0,
-            grad_decay=0.99,
-        )
+        return Params(grad_decay=0.99)
 
     def _init(self, key: jax.Array, params: Params) -> State:
         grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))
 
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
-            std=params.std_init,
+            std=self.std_schedule(0),
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             grad_subspace=grad_subspace,
             alpha=1.0,
@@ -162,5 +162,9 @@ class ASEBO(DistributionBasedAlgorithm):
         mean = optax.apply_updates(state.mean, updates)
 
         return state.replace(
-            mean=mean, opt_state=opt_state, grad_subspace=grad_subspace, alpha=alpha
+            mean=mean,
+            std=self.std_schedule(state.generation_counter),
+            opt_state=opt_state,
+            grad_subspace=grad_subspace,
+            alpha=alpha,
         )

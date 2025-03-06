@@ -62,6 +62,7 @@ class RandomSearch(DistributionBasedAlgorithm):
     ) -> tuple[Population, State]:
         keys = jax.random.split(key, self.population_size)
         population = jax.vmap(self.sampling_fn)(keys)
+        population = jax.vmap(self._ravel_solution)(population)
         return population, state
 
     def _tell(

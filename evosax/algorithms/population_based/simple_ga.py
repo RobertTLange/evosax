@@ -9,6 +9,7 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 from flax import struct
+import optax
 
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
@@ -26,7 +27,6 @@ class State(State):
 @struct.dataclass
 class Params(Params):
     crossover_rate: float
-    std_init: float
 
 
 class SimpleGA(PopulationBasedAlgorithm):
@@ -36,6 +36,7 @@ class SimpleGA(PopulationBasedAlgorithm):
         self,
         population_size: int,
         solution: Solution,
+        std_schedule: Callable = optax.constant_schedule(1.0),
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
@@ -44,18 +45,18 @@ class SimpleGA(PopulationBasedAlgorithm):
 
         self.elite_ratio = 0.5
 
+        # std schedule
+        self.std_schedule = std_schedule
+
     @property
     def _default_params(self) -> Params:
-        return Params(
-            crossover_rate=0.0,
-            std_init=1.0,
-        )
+        return Params(crossover_rate=0.0)
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             population=jnp.full((self.population_size, self.num_dims), jnp.nan),
             fitness=jnp.full((self.population_size,), jnp.inf),
-            std=params.std_init,
+            std=self.std_schedule(0),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -100,7 +101,7 @@ class SimpleGA(PopulationBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        return state.replace(population=population, fitness=fitness)
+        return state.replace(population=population, fitness=fitness, std=self.std_schedule(state.generation_counter))
 
 
 def crossover(

@@ -40,6 +40,7 @@ class SV_Open_ES(SV_ES, Open_ES):
         kernel: Callable = kernel_rbf,
         use_antithetic_sampling: bool = True,
         optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1e-3),
+        std_schedule: Callable = optax.constant_schedule(1.0),
         fitness_shaping_fn: Callable = centered_rank_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
@@ -60,18 +61,14 @@ class SV_Open_ES(SV_ES, Open_ES):
             solution,
             use_antithetic_sampling,
             optimizer,
+            std_schedule,
             fitness_shaping_fn,
             metrics_fn,
         )
 
     @property
     def _default_params(self) -> Params:
-        params = super()._default_params
-        return Params(
-            std_init=params.std_init,
-            kernel_std=1.0,
-            alpha=1.0,
-        )
+        return Params(kernel_std=1.0, alpha=1.0)
 
     def _tell(
         self,

@@ -36,6 +36,7 @@ class ARS(DistributionBasedAlgorithm):
         population_size: int,
         solution: Solution,
         optimizer: optax.GradientTransformation = optax.adam(learning_rate=1e-3),
+        std_schedule: Callable = optax.constant_schedule(1.0),
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
@@ -47,6 +48,9 @@ class ARS(DistributionBasedAlgorithm):
 
         # Optimizer
         self.optimizer = optimizer
+
+        # std schedule
+        self.std_schedule = std_schedule
 
     @property
     def num_elites(self):
@@ -60,7 +64,7 @@ class ARS(DistributionBasedAlgorithm):
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
-            std=params.std_init,
+            std=self.std_schedule(0),
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
@@ -77,7 +81,6 @@ class ARS(DistributionBasedAlgorithm):
         # Antithetic sampling
         z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
         z = jnp.concatenate([z_plus, -z_plus])
-
         population = state.mean + state.std * z
         return population, state
 
@@ -111,4 +114,4 @@ class ARS(DistributionBasedAlgorithm):
         updates, opt_state = self.optimizer.update(grad, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
-        return state.replace(mean=mean, opt_state=opt_state)
+        return state.replace(mean=mean, opt_state=opt_state, std=self.std_schedule(state.generation_counter))

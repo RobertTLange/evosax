@@ -25,7 +25,7 @@ class State(State):
 
 @struct.dataclass
 class Params(Params):
-    std_init: float
+    pass
 
 
 class ESMC(DistributionBasedAlgorithm):
@@ -42,6 +42,7 @@ class ESMC(DistributionBasedAlgorithm):
                 decay_rate=0.98,
             )
         ),
+        std_schedule: Callable = optax.constant_schedule(1.0),
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
@@ -52,14 +53,17 @@ class ESMC(DistributionBasedAlgorithm):
         # Optimizer
         self.optimizer = optimizer
 
+        # std schedule
+        self.std_schedule = std_schedule
+
     @property
     def _default_params(self) -> Params:
-        return Params(std_init=1.0)
+        return Params()
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
-            std=params.std_init * jnp.ones(self.num_dims),
+            std=self.std_schedule(0),
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
@@ -105,4 +109,4 @@ class ESMC(DistributionBasedAlgorithm):
         updates, opt_state = self.optimizer.update(grad, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
-        return state.replace(mean=mean, opt_state=opt_state)
+        return state.replace(mean=mean, std=self.std_schedule(state.generation_counter), opt_state=opt_state)

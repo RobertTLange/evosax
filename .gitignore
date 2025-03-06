@@ -1,5 +1,6 @@
 # Custom
 output/
+*.html
 *.png
 *.jpg
 *.jpeg
