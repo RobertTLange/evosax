@@ -1,7 +1,6 @@
 """Tests for optimizer functions."""
 
 import jax.numpy as jnp
-import optax
 from evosax.core.optimizer import ScaleByClipUpState, clipup, scale_by_clipup
 
 

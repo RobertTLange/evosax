@@ -53,12 +53,13 @@ class MetaBBOBProblem(MetaProblem):
         self.f_opt_range = [-1000, 1000]
 
         # Collect active BBOB functions
-        self.fn_ids, self.fns, counter = [], [], 0
-        for fn_name, fn in bbob_fns.items():
-            if fn_name in fn_names:
-                self.fn_ids.append(counter)
-                self.fns.append(jax.vmap(fn, in_axes=(0, None, None, None, None)))
-                counter += 1
+        self.fn_ids, self.fns = [], []
+        for counter, fn_name in enumerate(fn_names):
+            assert fn_name in bbob_fns, f"Function {fn_name} not found in bbob_fns"
+            self.fn_ids.append(counter)
+            self.fns.append(
+                jax.vmap(bbob_fns[fn_name], in_axes=(0, None, None, None, None))
+            )
         self.fn_ids = jnp.array(self.fn_ids)
 
         # Noise

@@ -1,4 +1,4 @@
-"""Self-Adaptation Mutation Rate Genetic Algorithm TODO."""
+"""Self-Adaptation Mutation Rate Genetic Algorithm."""
 
 from collections.abc import Callable
 

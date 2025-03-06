@@ -111,8 +111,6 @@ def bueche_rastrigin(
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
 
-    # TODO: in "Real-Parameter Black-Box Optimization Benchmarking 2009: Noiseless
-    # Functions Definitions", circular definition between z and s.
     z = transform_osz(x - x_opt)
 
     exp = (
@@ -197,11 +195,13 @@ def step_ellipsoidal(
 def rosenbrock(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
 ) -> jax.Array:
-    """Rosenbrock Function, original ([1], p. 8)."""
+    """Rosenbrock Function, original ([1], p. 8).
+
+    Exceptionally, here x_opt must be in [-3, 3].
+    """
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
 
-    x_opt *= 3 / 4
     z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * (x - x_opt) + 1.0
     z_i = z[:-1]
     z_ip1 = jnp.roll(z, -1)[:-1]
@@ -217,9 +217,7 @@ def rosenbrock_rotated(
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
 
-    z = (
-        jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(R, x - x_opt) + 0.5
-    )  # TODO: check if correct
+    z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(R, x) + 0.5
     z_i = z[:-1]
     z_ip1 = jnp.roll(z, -1)[:-1]
 
@@ -410,10 +408,7 @@ def griewank_rosenbrock(
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
 
-    z = (
-        jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(R, x - x_opt) + 0.5
-    )  # TODO: check if correct
-    # z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(R, x - x_opt) + 1.0
+    z = jnp.maximum(1.0, jnp.sqrt(num_dims) / 8.0) * jnp.matmul(R, x) + 0.5
     z_i = z[:-1]
     z_ip1 = jnp.roll(z, -1)[:-1]
 

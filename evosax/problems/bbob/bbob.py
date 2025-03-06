@@ -161,14 +161,20 @@ class BBOBProblem(Problem):
         ax.set_aspect("equal")
 
         # Plot the optimal solution point
-        ax.scatter(
-            self._params.x_opt[0],
-            self._params.x_opt[1],
-            color="red",
-            marker="*",
-            s=100,
-            edgecolors="black",
-        )
+        if self.fn_name not in [
+            "rosenbrock_rotated",
+            "griewank_rosenbrock",
+            "schwefel",
+        ]:
+            ax.scatter(
+                self._params.x_opt[0],
+                self._params.x_opt[1],
+                color="yellow",
+                marker="*",
+                s=100,
+                edgecolors="black",
+                linewidths=0.5,  # Reduce the thickness of the black edges
+            )
 
         # Show the plot only if we created it
         if created_fig:
