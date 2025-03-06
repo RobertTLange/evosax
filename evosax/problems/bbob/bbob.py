@@ -10,8 +10,8 @@ import jax
 import jax.numpy as jnp
 import matplotlib.colors
 import matplotlib.pyplot as plt
+from evosax.types import Fitness, Population, PyTree, Solution
 
-from ...types import Fitness, Population, PyTree, Solution
 from ..problem import Problem
 from .bbob_fns import fn_names_short_dict
 from .meta_bbob import MetaBBOBProblem

@@ -5,7 +5,7 @@ from .asebo import ASEBO
 from .bipop_cma_es import BIPOP_CMA_ES
 from .cma_es import CMA_ES
 from .cr_fm_nes import CR_FM_NES
-from .des import DES
+from .discovered_es import DiscoveredES
 from .esmc import ESMC
 from .evotf_es import EvoTF_ES
 from .gradientless_descent import GradientlessDescent
@@ -14,7 +14,7 @@ from .hill_climbing import HillClimbing
 from .iamalgam_full import iAMaLGaM_Full
 from .iamalgam_univariate import iAMaLGaM_Univariate
 from .ipop_cma_es import IPOP_CMA_ES
-from .les import LES
+from .learned_es import LearnedES
 from .lm_ma_es import LM_MA_ES
 from .ma_es import MA_ES
 from .noise_reuse_es import NoiseReuseES
@@ -27,8 +27,8 @@ from .sep_cma_es import Sep_CMA_ES
 from .simple_es import SimpleES
 from .simulated_annealing import SimulatedAnnealing
 from .snes import SNES
-from .sv_cma_es import SV_CMA_ES
-from .sv_open_es import SV_Open_ES
+from .sv.sv_cma_es import SV_CMA_ES
+from .sv.sv_open_es import SV_Open_ES
 from .xnes import xNES
 
 distribution_based_algorithms = {
@@ -37,7 +37,7 @@ distribution_based_algorithms = {
     "BIPOP_CMA_ES": BIPOP_CMA_ES,
     "CMA_ES": CMA_ES,
     "CR_FM_NES": CR_FM_NES,
-    "DES": DES,
+    "DES": DiscoveredES,
     "ESMC": ESMC,
     "EvoTF_ES": EvoTF_ES,
     "GradientlessDescent": GradientlessDescent,
@@ -46,7 +46,7 @@ distribution_based_algorithms = {
     "iAMaLGaM_Full": iAMaLGaM_Full,
     "iAMaLGaM_Univariate": iAMaLGaM_Univariate,
     "IPOP_CMA_ES": IPOP_CMA_ES,
-    "LES": LES,
+    "LES": LearnedES,
     "LM_MA_ES": LM_MA_ES,
     "MA_ES": MA_ES,
     "NoiseReuseES": NoiseReuseES,

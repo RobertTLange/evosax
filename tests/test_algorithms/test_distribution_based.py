@@ -16,13 +16,6 @@ def test_run(
     # Get the algorithm class from the name
     AlgorithmClass = distribution_based_algorithms[distribution_based_algorithm_name]
 
-    # Adjust population size for ESMC which requires odd population size
-    population_size = (
-        population_size + 1
-        if distribution_based_algorithm_name == "ESMC"
-        else population_size
-    )
-
     # Initialize algo
     solution = bbob_problem.sample(key)
     if distribution_based_algorithm_name in ["RandomSearch"]:
@@ -86,13 +79,6 @@ def test_run_scan(
     # Get the algorithm class from the name
     AlgorithmClass = distribution_based_algorithms[distribution_based_algorithm_name]
 
-    # Adjust population size for ESMC which requires odd population size
-    population_size = (
-        population_size + 1
-        if distribution_based_algorithm_name == "ESMC"
-        else population_size
-    )
-
     # Initialize algo
     solution = bbob_problem.sample(key)
     if distribution_based_algorithm_name in ["RandomSearch"]:
@@ -151,11 +137,6 @@ def test_base_api(
     """Test the base API methods of distribution-based algorithms."""
     # Get the algorithm class from the name
     AlgorithmClass = distribution_based_algorithms[distribution_based_algorithm_name]
-
-    # Adjust population size for ESMC which requires odd population size
-    population_size = (
-        17 if distribution_based_algorithm_name == "ESMC" else population_size
-    )
 
     # Initialize algo
     solution = bbob_problem.sample(key)

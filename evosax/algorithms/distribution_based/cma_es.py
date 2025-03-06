@@ -1,7 +1,7 @@
 """Covariance Matrix Adaptation Evolution Strategy (Hansen et al., 2001).
 
-Reference: https://arxiv.org/abs/1604.00772
-Inspired by: https://github.com/CyberAgentAILab/cmaes
+[1] https://arxiv.org/abs/1604.00772
+[2] https://github.com/CyberAgentAILab/cmaes
 """
 
 from collections.abc import Callable
@@ -10,8 +10,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -49,7 +50,7 @@ class CMA_ES(DistributionBasedAlgorithm):
         self,
         population_size: int,
         solution: Solution,
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize CMA-ES."""
@@ -64,10 +65,10 @@ class CMA_ES(DistributionBasedAlgorithm):
             jnp.arange(1, self.population_size + 1)
         )  # Eq. (48)
 
-        mu_eff = (jnp.sum(weights_prime[: self.num_elites]) ** 2) / jnp.sum(
+        mu_eff = jnp.sum(weights_prime[: self.num_elites]) ** 2 / jnp.sum(
             weights_prime[: self.num_elites] ** 2
         )  # Eq. (8)
-        mu_eff_minus = (jnp.sum(weights_prime[self.num_elites :]) ** 2) / jnp.sum(
+        mu_eff_minus = jnp.sum(weights_prime[self.num_elites :]) ** 2 / jnp.sum(
             weights_prime[self.num_elites :] ** 2
         )  # Table 1
 
@@ -197,7 +198,9 @@ class CMA_ES(DistributionBasedAlgorithm):
 
         delta_h_std = self.delta_h_std(h_std, params)
         rank_one = self.rank_one(p_c)
-        rank_mu = self.rank_mu(y_k, (y_k @ state.B) * (1 / state.D) @ state.B.T, params)
+        rank_mu = self.rank_mu(
+            fitness, y_k, (y_k @ state.B) * (1 / state.D) @ state.B.T
+        )
         C = self.update_C(state.C, delta_h_std, rank_one, rank_mu, params)
 
         return state.replace(mean=mean, std=std, p_std=p_std, p_c=p_c, C=C)
@@ -211,13 +214,8 @@ class CMA_ES(DistributionBasedAlgorithm):
         params: Params,
     ) -> tuple[jax.Array, jax.Array, jax.Array]:
         """Update the mean of the distribution."""
-        # Sort
-        idx = jnp.argsort(fitness)
-
-        y_k = (population[idx] - mean) / std  # ~ N(0, C)
-        y_w = jnp.dot(
-            params.weights[: self.num_elites], y_k[: self.num_elites]
-        )  # Eq. (41)
+        y_k = (population - mean) / std  # ~ N(0, C)
+        y_w = jnp.dot(jnp.where(fitness < 0.0, 0.0, fitness), y_k)  # Eq. (41)
         return mean + params.c_mean * std * y_w, y_k, y_w  # Eq. (42)
 
     def update_p_std(
@@ -260,11 +258,11 @@ class CMA_ES(DistributionBasedAlgorithm):
         return jnp.outer(p_c, p_c)
 
     def rank_mu(
-        self, y_k: jax.Array, C_inv_sqrt_y_k: jax.Array, params: Params
+        self, fitness: Fitness, y_k: jax.Array, C_inv_sqrt_y_k: jax.Array
     ) -> jax.Array:
         """Compute the rank-mu update term for the covariance matrix."""
-        w_o = params.weights * jnp.where(
-            params.weights >= 0,
+        w_o = fitness * jnp.where(
+            fitness >= 0,
             1,
             self.num_dims
             / jnp.clip(jnp.sum(jnp.square(C_inv_sqrt_y_k), axis=-1), min=1e-8),

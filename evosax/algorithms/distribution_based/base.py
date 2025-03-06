@@ -7,8 +7,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Metrics, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Metrics, Population, Solution
+
 from ..base import EvolutionaryAlgorithm, Params, State
 from ..base import metrics_fn as base_metrics_fn
 
@@ -32,7 +33,10 @@ def metrics_fn(
 ) -> Metrics:
     """Compute metrics for distribution-based algorithm."""
     metrics = base_metrics_fn(key, population, fitness, state, params)
-    return metrics | {"mean": state.mean, "mean_norm": jnp.linalg.norm(state.mean)}
+    return metrics | {
+        "mean": state.mean,
+        "mean_norm": jnp.linalg.norm(state.mean, axis=-1),
+    }
 
 
 class DistributionBasedAlgorithm(EvolutionaryAlgorithm):
@@ -57,7 +61,6 @@ class DistributionBasedAlgorithm(EvolutionaryAlgorithm):
     ) -> State:
         """Initialize distribution-based algorithm."""
         state = self._init(key, params)
-
         state = state.replace(mean=self._ravel_solution(mean))
         return state
 

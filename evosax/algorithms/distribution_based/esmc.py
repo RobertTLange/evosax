@@ -1,6 +1,6 @@
 """Evolution Strategy with Meta-loss Clipping (Merchant et al., 2021).
 
-Reference: https://arxiv.org/abs/2107.09661
+[1] https://arxiv.org/abs/2107.09661
 """
 
 from collections.abc import Callable
@@ -10,8 +10,9 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -20,7 +21,6 @@ class State(State):
     mean: jax.Array
     std: jax.Array
     opt_state: optax.OptState
-    z: jax.Array
 
 
 @struct.dataclass
@@ -46,7 +46,7 @@ class ESMC(DistributionBasedAlgorithm):
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize ESMC."""
-        assert population_size % 2 == 1, "Population size must be odd"
+        assert population_size >= 4, "Population size must be >= 4"
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # Optimizer
@@ -61,7 +61,6 @@ class ESMC(DistributionBasedAlgorithm):
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init * jnp.ones(self.num_dims),
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
-            z=jnp.zeros((self.population_size // 2, self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -75,12 +74,10 @@ class ESMC(DistributionBasedAlgorithm):
         params: Params,
     ) -> tuple[Population, State]:
         # Antithetic sampling
-        z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
-        z = jnp.concatenate(
-            [jnp.zeros((1, self.num_dims)), z_plus, -z_plus]
-        )  # TODO: different from original paper
-        x = state.mean + state.std[None, ...] * z
-        return x, state.replace(z=z_plus)
+        z_plus = jax.random.normal(key, (self.population_size // 2 - 1, self.num_dims))
+        z = jnp.concatenate([jnp.zeros((2, self.num_dims)), z_plus, -z_plus])
+        x = state.mean + state.std * z
+        return x, state
 
     def _tell(
         self,
@@ -90,15 +87,19 @@ class ESMC(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        fitness_baseline, fitness = fitness[0], fitness[1:]
-        fitness_plus = fitness[: (self.population_size - 1) // 2]
-        fitness_minus = fitness[(self.population_size - 1) // 2 :]
+        z_plus = (
+            population[2 : self.population_size // 2 + 1] - state.mean
+        ) / state.std
+
+        fitness_baseline, fitness = jnp.mean(fitness[:2], axis=0), fitness[2:]
+        fitness_plus = fitness[: self.population_size // 2 - 1]
+        fitness_minus = fitness[self.population_size // 2 - 1 :]
 
         # Compute grad
         delta = jnp.minimum(fitness_plus, fitness_baseline) - jnp.minimum(
             fitness_minus, fitness_baseline
         )
-        grad = jnp.dot(state.z.T, delta) / int((self.population_size - 1) / 2)
+        grad = jnp.dot(delta, z_plus) / int((self.population_size - 1) / 2)
 
         # Update mean
         updates, opt_state = self.optimizer.update(grad, state.opt_state)

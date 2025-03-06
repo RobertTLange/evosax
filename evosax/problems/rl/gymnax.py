@@ -16,9 +16,9 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+from evosax.types import Fitness, PyTree, Solution
 from flax import linen as nn
 
-from ...types import Fitness, PyTree, Solution
 from ..problem import Problem
 
 

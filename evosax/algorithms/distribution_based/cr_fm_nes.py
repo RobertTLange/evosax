@@ -1,6 +1,7 @@
 """Cost-Reduced Fast-Moving Natural Evolution Strategy (Nomura & Ono, 2022).
 
-Reference: https://arxiv.org/abs/2201.11422
+[1] https://arxiv.org/abs/2201.11422
+[2] https://ieeexplore.ieee.org/document/9504865
 """
 
 from collections.abc import Callable
@@ -9,8 +10,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -46,11 +48,17 @@ class Params(Params):
 
 
 def get_h_inv(dim: int) -> float:
+    """Get h_inv following [1,2]."""
     import math
 
     dim = min(dim, 2000)
-    f = lambda a: ((1.0 + a * a) * math.exp(a * a / 2.0) / 0.24) - 10.0 - dim
-    f_prime = lambda a: (1.0 / 0.24) * a * math.exp(a * a / 2.0) * (3.0 + a * a)
+
+    def f(a):
+        return ((1.0 + a * a) * math.exp(a * a / 2.0) / 0.24) - 10.0 - dim
+
+    def f_prime(a):
+        return (1.0 / 0.24) * a * math.exp(a * a / 2.0) * (3.0 + a * a)
+
     h_inv = 1.0
     counter = 0
     while abs(f(h_inv)) > 1e-10:
@@ -66,7 +74,7 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         self,
         population_size: int,
         solution: Solution,
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize CR-FM-NES."""
@@ -80,8 +88,11 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         weights_hat = jnp.log(self.population_size / 2 + 1) - jnp.log(
             jnp.arange(1, self.population_size + 1)
         )
-        weights_hat = weights_hat * (weights_hat >= 0)
-        weights = weights_hat / sum(weights_hat) - 1 / self.population_size
+        weights = (
+            weights_hat / jnp.sum(jnp.clip(weights_hat, min=0.0))
+            - 1 / self.population_size
+        )
+        weights_hat = jnp.clip(weights_hat, min=0.0)
 
         mueff = 1 / (
             (weights + (1 / self.population_size)).T
@@ -118,7 +129,7 @@ class CR_FM_NES(DistributionBasedAlgorithm):
             / (0.23 * self.num_dims + 25)
         )
 
-        params = Params(
+        return Params(
             std_init=1.0,
             weights=weights,
             weights_hat=weights_hat,
@@ -134,7 +145,6 @@ class CR_FM_NES(DistributionBasedAlgorithm):
             lr_conv_std=lr_conv_std,
             lr_B=lr_B,
         )
-        return params
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
@@ -176,25 +186,27 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        # Step 3: Sort population by fitness
-        idx = fitness.argsort()
-        x = population[idx]
-        z = state.z[idx]
-        y = state.y[idx]
+        ranks = jax.scipy.stats.rankdata(-fitness, axis=-1) - 1.0
+        weights_hat = params.weights_hat[..., ranks.astype(jnp.int32)]
+
+        # Remove negative weights
+        fitness = jnp.clip(fitness, min=0.0)
 
         # Step 4: Update evolution path p_std
         p_std = (1 - params.c_std) * state.p_std + jnp.sqrt(
             params.c_std * (2 - params.c_std) * params.mu_eff
-        ) * jnp.dot(params.weights, z)
+        ) * jnp.dot(fitness, state.z)
         norm_p_std = jnp.linalg.norm(p_std)
 
         # Step 6: Set the weights
-        weights_dist_hat = jnp.exp(params.alpha_dist * jnp.linalg.norm(z, axis=-1))
-        weights_dist = params.weights_hat * weights_dist_hat
+        weights_dist_hat = jnp.exp(
+            params.alpha_dist * jnp.linalg.norm(state.z, axis=-1)
+        )
+        weights_dist = weights_hat * weights_dist_hat
         weights_dist = weights_dist / jnp.sum(weights_dist) - 1.0 / self.population_size
 
         movement_cond = params.chi_n <= norm_p_std
-        weights = jnp.where(movement_cond, weights_dist, params.weights)
+        weights = jnp.where(movement_cond, weights_dist, fitness)
 
         # Step 7: Set the learning rate
         lr_std = jnp.select(
@@ -204,7 +216,7 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         )
 
         # Update evolution path p_c and mean
-        wxm = jnp.dot(weights, x - state.mean)
+        wxm = jnp.dot(weights, population - state.mean)
         p_c = (1.0 - params.c_c) * state.p_c + jnp.sqrt(
             params.c_c * (2 - params.c_c) * params.mu_eff
         ) * wxm / state.std
@@ -215,7 +227,7 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         norm_v = jnp.sqrt(norm_v_2)
         v_bar = state.v / norm_v
 
-        exY = jnp.append(y, p_c[None, :] / state.D, axis=0)
+        exY = jnp.append(state.y, p_c[None, :] / state.D, axis=0)
         yy = exY * exY
         ip_yvbar = exY @ v_bar
         y_v_bar = exY * v_bar
@@ -265,7 +277,8 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         G_s = (
             jnp.sum(
                 jnp.dot(
-                    weights, z * z - jnp.ones((self.population_size, self.num_dims))
+                    weights,
+                    state.z * state.z - jnp.ones((self.population_size, self.num_dims)),
                 )
             )
             / self.num_dims

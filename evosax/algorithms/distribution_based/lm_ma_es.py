@@ -1,6 +1,6 @@
 """Limited Memory Matrix Adaptation Evolution Strategy (Loshchilov et al., 2017).
 
-Reference: https://arxiv.org/abs/1705.06693
+[1] https://arxiv.org/abs/1705.06693
 Note: The original paper recommends a population size of 4 + 3 * jnp.log(num_dims).
 Instabilities have been observed with larger population sizes.
 """
@@ -11,8 +11,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import metrics_fn
 from .ma_es import MA_ES, Params, State
 
@@ -34,7 +35,7 @@ class LM_MA_ES(MA_ES):
         self,
         population_size: int,
         solution: Solution,
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize LM-MA-ES."""
@@ -114,10 +115,6 @@ class LM_MA_ES(MA_ES):
         state: State,
         params: Params,
     ) -> State:
-        # Sort
-        idx = jnp.argsort(fitness)
-        state = state.replace(z=state.z[idx])
-
         # Update mean
         # Use the parent method to update the mean
         mean, _, _ = self.update_mean(
@@ -125,7 +122,7 @@ class LM_MA_ES(MA_ES):
         )
 
         # Cumulative Step length Adaptation (CSA) - reuse from parent class
-        p_std = self.update_p_std(state.p_std, jnp.dot(params.weights, state.z), params)
+        p_std = self.update_p_std(state.p_std, jnp.dot(fitness, state.z), params)
         norm_p_std = jnp.linalg.norm(p_std)
 
         # Update std

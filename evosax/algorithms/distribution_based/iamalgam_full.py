@@ -2,7 +2,7 @@
 
 Full covariance version.
 
-Reference: https://homepages.cwi.nl/~bosman/publications/2013_benchmarkingparameterfree.pdf
+[1] https://homepages.cwi.nl/~bosman/publications/2013_benchmarkingparameterfree.pdf
 """
 
 from collections.abc import Callable
@@ -11,8 +11,10 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
+from ..base import update_best_solution_and_fitness
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -24,6 +26,8 @@ class State(State):
     mean_shift: jax.Array
     nis_counter: int
     c_mult: float
+    best_solution_shaped: Solution
+    best_fitness_shaped: float
 
 
 @struct.dataclass
@@ -94,6 +98,8 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
             C=jnp.eye(self.num_dims),
             nis_counter=0,
             c_mult=params.c_mult_init,
+            best_solution_shaped=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness_shaped=jnp.inf,
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -136,7 +142,7 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         fitness_elites = fitness[idx]
 
         # Check for fitness improvement
-        improvement_mask = fitness_elites < state.best_fitness
+        improvement_mask = fitness_elites < state.best_fitness_shaped
         any_improvement = jnp.any(improvement_mask)
 
         # Standard deviation ratio
@@ -164,12 +170,19 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         # Update covariance - difference full vs. indep
         C = self.update_cov(elites, state.C, mean, params)
 
+        # Update best solution and fitness shaped
+        best_solution_shaped, best_fitness_shaped = update_best_solution_and_fitness(
+            population, fitness, state.best_solution_shaped, state.best_fitness_shaped
+        )
+
         return state.replace(
             mean=mean,
             C=C,
             mean_shift=mean_shift,
             nis_counter=nis_counter,
             c_mult=c_mult,
+            best_solution_shaped=best_solution_shaped,
+            best_fitness_shaped=best_fitness_shaped,
         )
 
     def anticipated_mean_shift(

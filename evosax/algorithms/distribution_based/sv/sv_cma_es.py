@@ -1,20 +1,20 @@
 """Stein Variational CMA-ES (Braun et al., 2024).
 
-Reference: https://arxiv.org/abs/2410.10390
+[1] https://arxiv.org/abs/2410.10390
 """
 
 from collections.abc import Callable
-from functools import partial
 
 import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...core.kernel import kernel_rbf
-from ...types import Fitness, Population, Solution
-from .base import metrics_fn
-from .cma_es import CMA_ES, Params, State
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.core.kernel import kernel_rbf
+from evosax.types import Fitness, Population, Solution
+
+from ..cma_es import CMA_ES, Params, State
+from .base import SV_ES, metrics_fn
 
 
 @struct.dataclass
@@ -28,7 +28,7 @@ class Params(Params):
     alpha: float
 
 
-class SV_CMA_ES(CMA_ES):
+class SV_CMA_ES(SV_ES, CMA_ES):
     """Stein Variational CMA-ES (SV-CMA-ES)."""
 
     def __init__(
@@ -37,16 +37,27 @@ class SV_CMA_ES(CMA_ES):
         num_populations: int,
         solution: Solution,
         kernel: Callable = kernel_rbf,
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize SV-CMA-ES."""
-        super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
+        SV_ES.__init__(
+            self,
+            population_size,
+            num_populations,
+            solution,
+            kernel,
+            fitness_shaping_fn,
+            metrics_fn,
+        )
 
-        self.num_populations = num_populations
-        self.total_population_size = num_populations * population_size
-
-        self.kernel = kernel
+        CMA_ES.__init__(
+            self,
+            population_size,
+            solution,
+            fitness_shaping_fn,
+            metrics_fn,
+        )
 
     @property
     def _default_params(self) -> Params:
@@ -68,37 +79,6 @@ class SV_CMA_ES(CMA_ES):
             alpha=1.0,
         )
 
-    @partial(jax.jit, static_argnames=("self",))
-    def init(
-        self,
-        key: jax.Array,
-        means: Solution,
-        params: Params,
-    ) -> State:
-        """Initialize distribution-based algorithm."""
-        state = self._init(key, params)
-
-        state = state.replace(mean=jax.vmap(self._ravel_solution)(means))
-        return state
-
-    def _init(self, key: jax.Array, params: Params) -> State:
-        keys = jax.random.split(key, num=self.num_populations)
-        state = jax.vmap(super()._init, in_axes=(0, None))(keys, params)
-        return state
-
-    def _ask(
-        self,
-        key: jax.Array,
-        state: State,
-        params: Params,
-    ) -> tuple[Population, State]:
-        keys = jax.random.split(key, num=self.num_populations)
-        population, state = jax.vmap(super()._ask, in_axes=(0, 0, None))(
-            keys, state, params
-        )
-        population = population.reshape(self.total_population_size, self.num_dims)
-        return population, state
-
     def _tell(
         self,
         key: jax.Array,
@@ -107,11 +87,6 @@ class SV_CMA_ES(CMA_ES):
         state: State,
         params: Params,
     ) -> State:
-        population = population.reshape(
-            self.num_populations, self.population_size, self.num_dims
-        )
-        fitness = fitness.reshape(self.num_populations, self.population_size)
-
         # Update mean with SV gradient
         mean, y_k, y_w = jax.vmap(self.update_mean, in_axes=(0, 0, 0, 0, None, None))(
             population, fitness, state.mean, state.std, state.mean, params
@@ -146,9 +121,7 @@ class SV_CMA_ES(CMA_ES):
         C_inv_sqrt_y_k = jax.vmap(lambda y, B, D: (y @ B) * (1 / D) @ B.T)(
             y_k, state.B, state.D
         )
-        rank_mu = jax.vmap(self.rank_mu, in_axes=(0, 0, None))(
-            y_k, C_inv_sqrt_y_k, params
-        )
+        rank_mu = jax.vmap(self.rank_mu)(fitness, y_k, C_inv_sqrt_y_k)
 
         C = jax.vmap(self.update_C, in_axes=(0, 0, 0, 0, None))(
             state.C, delta_h_std, rank_one, rank_mu, params
@@ -172,14 +145,8 @@ class SV_CMA_ES(CMA_ES):
         params: Params,
     ) -> tuple[jax.Array, jax.Array, jax.Array]:
         """Update the mean of the distribution with Stein variational gradient."""
-        # Sort
-        idx = jnp.argsort(fitness)
-
-        # Get y_k and y_w as in standard CMA-ES
-        y_k = (population[idx] - mean) / std  # ~ N(0, C)
-        y_w = jnp.dot(
-            params.weights[: self.num_elites], y_k[: self.num_elites]
-        )  # Eq. (41)
+        y_k = (population - mean) / std  # ~ N(0, C)
+        y_w = jnp.dot(jnp.where(fitness < 0.0, 0.0, fitness), y_k)  # Eq. (41)
 
         # Compute kernel gradient
         grad_kernel = jnp.mean(
@@ -194,8 +161,3 @@ class SV_CMA_ES(CMA_ES):
 
         # Update mean
         return mean + params.c_mean * std * y_w, y_k, y_w
-
-    def get_mean(self, state: State) -> Solution:
-        """Return unravelled mean."""
-        mean = jax.vmap(self._unravel_solution)(state.mean)
-        return mean

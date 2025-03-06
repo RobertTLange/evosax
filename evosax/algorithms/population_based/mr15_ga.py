@@ -1,6 +1,6 @@
 """1/5 Mutation Rate Genetic Algorithm (Rechenberg, 1987).
 
-Reference: https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
+[1] https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8
 """
 
 from collections.abc import Callable
@@ -9,8 +9,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 from .simple_ga import mutation
 

@@ -1,7 +1,7 @@
 """BIPOP-CMA-ES (Hansen, 2009).
 
-Reference: https://hal.inria.fr/inria-00382093/document
-Inspired by: https://tinyurl.com/44y3ryhf
+[1] https://hal.inria.fr/inria-00382093/document
+[2] https://tinyurl.com/44y3ryhf
 """
 
 from collections.abc import Callable
@@ -10,14 +10,15 @@ from functools import partial
 import jax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from ...restarts.restarter import (
     WrapperParams,
     WrapperState,
     cma_criterion,
     spread_criterion,
 )
-from ...types import Fitness, Population, Solution
 from .base import metrics_fn
 from .cma_es import CMA_ES
 

@@ -6,14 +6,17 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
+from ..base import update_best_solution_and_fitness
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
 @struct.dataclass
 class State(State):
-    pass
+    best_solution_shaped: Solution
+    best_fitness_shaped: float
 
 
 @struct.dataclass
@@ -43,6 +46,8 @@ class RandomSearch(DistributionBasedAlgorithm):
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
+            best_solution_shaped=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness_shaped=jnp.inf,
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -67,4 +72,12 @@ class RandomSearch(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        return state.replace(mean=state.best_solution)
+        # Update best solution and fitness shaped
+        best_solution_shaped, best_fitness_shaped = update_best_solution_and_fitness(
+            population, fitness, state.best_solution_shaped, state.best_fitness_shaped
+        )
+        return state.replace(
+            mean=best_solution_shaped,
+            best_solution_shaped=best_solution_shaped,
+            best_fitness_shaped=best_fitness_shaped,
+        )

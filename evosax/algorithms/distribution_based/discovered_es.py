@@ -4,11 +4,13 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
+import optax
 from flax import linen as nn
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -16,39 +18,42 @@ from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 class State(State):
     mean: jax.Array
     std: jax.Array
+    opt_state: optax.OptState
 
 
 @struct.dataclass
 class Params(Params):
     std_init: float
     weights: jax.Array
-    temperature: float  # Temperature for softmax weights
-    lr_mean: float  # Learning rate for population mean
     lr_std: float  # Learning rate for population std
 
 
-class DES(DistributionBasedAlgorithm):
+class DiscoveredES(DistributionBasedAlgorithm):
     """Discovered Evolution Strategy (DES)."""
 
     def __init__(
         self,
         population_size: int,
         solution: Solution,
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1.0),
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize DES."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
+        # Optimizer
+        self.optimizer = optimizer
+
+        self.temperature = 12.5
+
     @property
     def _default_params(self) -> Params:
-        temperature = 12.5
-        weights = get_weights(self.population_size, temperature)
+        weights = get_weights(self.population_size, self.temperature)
+
         return Params(
             std_init=1.0,
             weights=weights,
-            temperature=temperature,
-            lr_mean=1.0,
             lr_std=0.1,
         )
 
@@ -56,6 +61,7 @@ class DES(DistributionBasedAlgorithm):
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init * jnp.ones(self.num_dims),
+            opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -69,7 +75,7 @@ class DES(DistributionBasedAlgorithm):
         params: Params,
     ) -> tuple[Population, State]:
         z = jax.random.normal(key, (self.population_size, self.num_dims))
-        population = state.mean + state.std[None, ...] * z
+        population = state.mean + state.std * z
         return population, state
 
     def _tell(
@@ -80,19 +86,24 @@ class DES(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        x = population[fitness.argsort()]
+        # Compute grad
+        grad_mean = -jnp.dot(fitness, population - state.mean)
+        grad_std = -(
+            jnp.sqrt(jnp.dot(fitness, (population - state.mean) ** 2)) - state.std
+        )
 
-        # Weighted updates
-        weighted_mean = jnp.dot(params.weights, x)
-        weighted_std = jnp.sqrt(jnp.dot(params.weights, (x - state.mean) ** 2))
+        # Update mean
+        updates, opt_state = self.optimizer.update(grad_mean, state.opt_state)
+        mean = optax.apply_updates(state.mean, updates)
 
-        mean = state.mean + params.lr_mean * (weighted_mean - state.mean)
-        std = state.std + params.lr_std * (weighted_std - state.std)
-        return state.replace(mean=mean, std=std)
+        # Update std
+        std = state.std - params.lr_std * grad_std
+
+        return state.replace(mean=mean, std=std, opt_state=opt_state)
 
 
 def get_weights(population_size: int, temperature: float = 12.5):
     """Get weights for fitness shaping."""
-    ranks = jnp.arange(population_size)
-    sigmoid = nn.sigmoid(temperature * (ranks / population_size - 0.5))
-    return nn.softmax(20 * sigmoid)
+    centered_ranks = jnp.arange(population_size) / (population_size - 1) - 0.5
+    sigmoid = nn.sigmoid(temperature * centered_ranks)
+    return nn.softmax(-20 * sigmoid)

@@ -1,6 +1,6 @@
 """Matrix Adaptation Evolution Strategy (Bayer & Sendhoff, 2017).
 
-Reference: https://ieeexplore.ieee.org/document/7875115
+[1] https://ieeexplore.ieee.org/document/7875115
 """
 
 from collections.abc import Callable
@@ -9,8 +9,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import State, metrics_fn
 from .cma_es import CMA_ES, Params
 
@@ -36,7 +37,7 @@ class MA_ES(CMA_ES):
         self,
         population_size: int,
         solution: Solution,
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize MA-ES."""
@@ -78,17 +79,13 @@ class MA_ES(CMA_ES):
         state: State,
         params: Params,
     ) -> State:
-        # Sort
-        idx = jnp.argsort(fitness)
-        state = state.replace(z=state.z[idx])
-
         # Update mean
         mean, _, _ = self.update_mean(
             population, fitness, state.mean, state.std, params
         )
 
         # Cumulative Step length Adaptation (CSA)
-        p_std = self.update_p_std(state.p_std, jnp.dot(params.weights, state.z), params)
+        p_std = self.update_p_std(state.p_std, jnp.dot(fitness, state.z), params)
         norm_p_std = jnp.linalg.norm(p_std)
 
         # Update std

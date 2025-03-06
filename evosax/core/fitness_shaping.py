@@ -12,10 +12,12 @@ import jax.numpy as jnp
 from ..types import Fitness, Params, Population, State
 
 
-def normalize(a: jax.Array, minval: float = -1.0, maxval: float = 1.0) -> jax.Array:
+def normalize(
+    a: jax.Array, axis: int = -1, minval: float = -1.0, maxval: float = 1.0
+) -> jax.Array:
     """Normalize fitness."""
-    a_min = jnp.nanmin(a)
-    a_max = jnp.nanmax(a)
+    a_min = jnp.nanmin(a, axis=axis, keepdims=True)
+    a_max = jnp.nanmax(a, axis=axis, keepdims=True)
 
     return jnp.where(
         jnp.allclose(a_max, a_min),
@@ -56,7 +58,7 @@ def normalize_fitness_shaping_fn(
     population: Population, fitness: Fitness, state: State, params: Params
 ) -> Fitness:
     """Return normalized fitness."""
-    return normalize(fitness)
+    return normalize(fitness, axis=-1)
 
 
 def centered_rank_fitness_shaping_fn(
@@ -71,4 +73,5 @@ def weights_fitness_shaping_fn(
     population: Population, fitness: Fitness, state: State, params: Params
 ) -> Fitness:
     """Return weights according to fitness."""
-    return params.weights
+    ranks = jax.scipy.stats.rankdata(fitness, axis=-1) - 1.0
+    return params.weights[..., ranks.astype(jnp.int32)]

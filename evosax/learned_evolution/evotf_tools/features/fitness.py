@@ -4,7 +4,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from evosax.algorithms.distribution_based.des import get_weights as get_des_weights
+from evosax.algorithms.distribution_based.discovered_es import (
+    get_weights as get_des_weights,
+)
 from evosax.algorithms.distribution_based.xnes import get_weights as get_nes_weights
 
 from ...fitness_shaping import (

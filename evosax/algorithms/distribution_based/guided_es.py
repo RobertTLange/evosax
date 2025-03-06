@@ -1,7 +1,7 @@
 """Guided Evolution Strategy (Maheswaranathan et al., 2018).
 
-Reference: https://arxiv.org/abs/1806.10230
-Inspired by: https://github.com/brain-research/guided-evolutionary-strategies
+[1] https://arxiv.org/abs/1806.10230
+[2] https://github.com/brain-research/guided-evolutionary-strategies
 """
 
 from collections.abc import Callable
@@ -11,8 +11,9 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -134,7 +135,7 @@ class GuidedES(DistributionBasedAlgorithm):
 
         # Compute grad
         delta = fitness_plus - fitness_minus
-        grad = params.beta * jnp.dot(z_plus.T, delta) / (2 * state.std**2)
+        grad = params.beta * jnp.dot(delta, z_plus) / (2 * state.std**2)
 
         # Update mean
         updates, opt_state = self.optimizer.update(grad, state.opt_state)

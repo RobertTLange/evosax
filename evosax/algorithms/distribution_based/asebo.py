@@ -1,6 +1,6 @@
 """Adaptive ES-Active Subspaces for Blackbox Optimization (Choromanski et al., 2019).
 
-Reference: https://arxiv.org/abs/1903.04268
+[1] https://arxiv.org/abs/1903.04268
 
 Note that there are a couple of adaptations:
 1. We always sample a fixed population size per generation
@@ -14,8 +14,9 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -135,13 +136,13 @@ class ASEBO(DistributionBasedAlgorithm):
         state: State,
         params: Params,
     ) -> State:
-        # Reconstruct noise from last mean/std estimates
-        noise = (population - state.mean) / state.std
-        noise_1 = noise[: int(self.population_size / 2)]
-        fit_1 = fitness[: int(self.population_size / 2)]
-        fit_2 = fitness[int(self.population_size / 2) :]
-        fit_diff_noise = jnp.dot(noise_1.T, fit_1 - fit_2)
-        grad = 1.0 / 2.0 * fit_diff_noise
+        # Compute grad
+        fitness_plus = fitness[: self.population_size // 2]
+        fitness_minus = fitness[self.population_size // 2 :]
+        grad = 0.5 * jnp.dot(
+            fitness_plus - fitness_minus,
+            (population[: self.population_size // 2] - state.mean) / state.std,
+        )
 
         alpha = jnp.linalg.norm(jnp.dot(grad, state.UUT_ort)) / jnp.linalg.norm(
             jnp.dot(grad, state.UUT)
@@ -149,11 +150,9 @@ class ASEBO(DistributionBasedAlgorithm):
         subspace_ready = state.generation_counter > self.subspace_dims
         alpha = jax.lax.select(subspace_ready, alpha, 1.0)
 
-        # Add grad FIFO-style to subspace archive (only if provided else FD)
-        grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))
-        grad_subspace = grad_subspace.at[:-1, :].set(state.grad_subspace[1:, :])
+        # FIFO grad subspace (same as in guided_es.py)
+        grad_subspace = jnp.roll(state.grad_subspace, shift=-1, axis=0)
         grad_subspace = grad_subspace.at[-1, :].set(grad)
-        state = state.replace(grad_subspace=grad_subspace)
 
         # Normalize gradients by norm / num_dims
         grad /= jnp.linalg.norm(grad) / self.num_dims + 1e-8
@@ -162,4 +161,6 @@ class ASEBO(DistributionBasedAlgorithm):
         updates, opt_state = self.optimizer.update(grad, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
-        return state.replace(mean=mean, opt_state=opt_state, alpha=alpha)
+        return state.replace(
+            mean=mean, opt_state=opt_state, grad_subspace=grad_subspace, alpha=alpha
+        )

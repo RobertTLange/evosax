@@ -1,6 +1,6 @@
 """IPOP-CMA-ES (Auer & Hansen, 2005).
 
-Reference: https://ieeexplore.ieee.org/document/1554902
+[1] https://ieeexplore.ieee.org/document/1554902
 """
 
 from collections.abc import Callable
@@ -9,14 +9,15 @@ from functools import partial
 import jax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from ...restarts.restarter import (
     WrapperParams,
     WrapperState,
     cma_criterion,
     spread_criterion,
 )
-from ...types import Fitness, Population, Solution
 from .base import metrics_fn
 from .cma_es import CMA_ES
 

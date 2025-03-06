@@ -7,15 +7,16 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from ..base import EvolutionaryAlgorithm, Params, State, metrics_fn
 
 
 @struct.dataclass
 class State(State):
     population: Population
-    fitness: Fitness
+    fitness: Fitness  # Shaped fitness
 
 
 @struct.dataclass
@@ -47,8 +48,14 @@ class PopulationBasedAlgorithm(EvolutionaryAlgorithm):
         """Initialize population-based algorithm."""
         state = self._init(key, params)
 
+        # Ravel population
+        population = jax.vmap(self._ravel_solution)(population)
+
+        # Shape fitness
+        fitness = self.fitness_shaping_fn(population, fitness, state, params)
+
         state = state.replace(
-            population=jax.vmap(self._ravel_solution)(population),
+            population=population,
             fitness=fitness,
         )
         return state

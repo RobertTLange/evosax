@@ -1,8 +1,8 @@
 """Separable CMA-ES (Ros & Hansen, 2008).
 
-Reference: https://hal.inria.fr/inria-00287367/document
-CMA-ES reference: https://arxiv.org/abs/1604.00772
-Inspired by: github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_sepcma.py
+[1] https://hal.inria.fr/inria-00287367/document
+[2] https://arxiv.org/abs/1604.00772
+[3] https://github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_sepcma.py
 """
 
 from collections.abc import Callable
@@ -11,8 +11,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import State, metrics_fn
 from .cma_es import CMA_ES, Params
 
@@ -39,7 +40,7 @@ class Sep_CMA_ES(CMA_ES):
         self,
         population_size: int,
         solution: Solution,
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize Sep-CMA-ES."""
@@ -104,7 +105,7 @@ class Sep_CMA_ES(CMA_ES):
 
         delta_h_std = self.delta_h_std(h_std, params)
         rank_one = self.rank_one(p_c)
-        rank_mu = self.rank_mu(y_k, y_k / state.D, params)
+        rank_mu = self.rank_mu(fitness, y_k, y_k / state.D)
         C = self.update_C(state.C, delta_h_std, rank_one, rank_mu, params)
 
         return state.replace(mean=mean, std=std, p_std=p_std, p_c=p_c, C=C)
@@ -114,11 +115,14 @@ class Sep_CMA_ES(CMA_ES):
         return p_c**2
 
     def rank_mu(
-        self, y_k: jax.Array, C_inv_sqrt_y_k: jax.Array, params: Params
+        self,
+        fitness: Fitness,
+        y_k: jax.Array,
+        C_inv_sqrt_y_k: jax.Array,
     ) -> jax.Array:
         """Compute the rank-mu update term for the covariance matrix."""
-        w_o = params.weights * jnp.where(
-            params.weights >= 0,
+        w_o = fitness * jnp.where(
+            fitness >= 0,
             1,
             self.num_dims
             / jnp.clip(jnp.sum(jnp.square(C_inv_sqrt_y_k), axis=-1), min=1e-8),

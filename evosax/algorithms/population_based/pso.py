@@ -1,6 +1,6 @@
 """Particle Swarm Optimization (Kennedy & Eberhart, 1995).
 
-Reference: https://ieeexplore.ieee.org/document/488968
+[1] https://ieeexplore.ieee.org/document/488968
 """
 
 from collections.abc import Callable
@@ -9,8 +9,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 
 

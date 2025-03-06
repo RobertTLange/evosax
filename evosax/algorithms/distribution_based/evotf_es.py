@@ -1,6 +1,6 @@
 """Evolution Transformer (Lange et al., 2024).
 
-Reference: https://arxiv.org/abs/2403.02985
+[1] https://arxiv.org/abs/2403.02985
 """
 
 import pkgutil
@@ -10,7 +10,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, PyTree, Solution
+
 from ...learned_evolution.evotf_tools import (
     DistributionFeaturizer,
     EvoTransformer,
@@ -18,7 +20,6 @@ from ...learned_evolution.evotf_tools import (
     SolutionFeaturizer,
 )
 from ...learned_evolution.les_tools import load_pkl_object
-from ...types import Fitness, Population, PyTree, Solution
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -207,13 +208,12 @@ class EvoTF_ES(DistributionBasedAlgorithm):
 
     @property
     def _default_params(self) -> Params:
-        params = Params(
+        return Params(
             std_init=1.0,
             lr_mean=1.0,
             lr_std=1.0,
             params=self.params,
         )
-        return params
 
     def _init(self, key: jax.Array, params: Params) -> State:
         scon_shape = (

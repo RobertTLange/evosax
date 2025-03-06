@@ -1,6 +1,6 @@
 """Noise-Reuse Evolution Strategy (Li et al., 2023).
 
-Reference: https://arxiv.org/abs/2304.12180
+[1] https://arxiv.org/abs/2304.12180
 """
 
 from collections.abc import Callable
@@ -10,8 +10,9 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 

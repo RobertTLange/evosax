@@ -1,6 +1,6 @@
 """Policy Gradients with Parameter-Based Exploration (Sehnke et al., 2010).
 
-Reference: https://link.springer.com/chapter/10.1007/978-3-540-87536-9_40
+[1] https://link.springer.com/chapter/10.1007/978-3-540-87536-9_40
 """
 
 from collections.abc import Callable
@@ -10,9 +10,10 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...core.optimizer import clipup
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import centered_rank_fitness_shaping_fn
+from evosax.core.optimizer import clipup
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -38,9 +39,9 @@ class PGPE(DistributionBasedAlgorithm):
         population_size: int,
         solution: Solution,
         optimizer: optax.GradientTransformation = clipup(
-            learning_rate=0.05, max_velocity=0.1
+            learning_rate=0.01, max_velocity=0.02
         ),
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = centered_rank_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize PGPE."""
@@ -95,28 +96,30 @@ class PGPE(DistributionBasedAlgorithm):
         fitness_minus = fitness[self.population_size // 2 :]
 
         # Compute grad for mean
+        grad_mean = (
+            jnp.dot(fitness_plus - fitness_minus, z_scaled) / self.population_size
+        )  # equivalent to below
+
         # grad_mean = jnp.mean(
         #     0.5 * (fitness_plus - fitness_minus)[:, None] * z_scaled, axis=0
         # )
-        grad_mean = (
-            jnp.dot(fitness_plus - fitness_minus, z_scaled) / self.population_size
-        )  # equivalent to the above
 
         # Compute grad for std
         baseline = jnp.mean(fitness)
-        # grad_std = jnp.mean(
-        #     (0.5 * (fitness_plus + fitness_minus) - baseline)
-        #     * (z_scaled**2 - state.std**2)
-        #     / state.std,
-        #     axis=0,
-        # )
         grad_std = (
             jnp.dot(
                 fitness_plus + fitness_minus - 2 * baseline,
                 (z_scaled**2 - state.std**2) / state.std,
             )
             / self.population_size
-        )  # equivalent to the above
+        )  # equivalent to below
+
+        # grad_std = jnp.mean(
+        #     (0.5 * (fitness_plus + fitness_minus) - baseline)
+        #     * (z_scaled**2 - state.std**2)
+        #     / state.std,
+        #     axis=0,
+        # )
 
         # Update mean
         updates, opt_state = self.optimizer.update(grad_mean, state.opt_state)

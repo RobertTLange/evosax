@@ -1,6 +1,6 @@
 """Augmented Random Search (Mania et al., 2018).
 
-Reference: https://arxiv.org/abs/1803.07055
+[1] https://arxiv.org/abs/1803.07055
 """
 
 from collections.abc import Callable
@@ -10,8 +10,9 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -20,7 +21,6 @@ class State(State):
     mean: jax.Array
     std: float
     opt_state: optax.OptState
-    z: jax.Array
 
 
 @struct.dataclass
@@ -49,6 +49,11 @@ class ARS(DistributionBasedAlgorithm):
         self.optimizer = optimizer
 
     @property
+    def num_elites(self):
+        """Set the elite ratio and update num_elites."""
+        return max(1, int(self.elite_ratio * self.population_size // 2))
+
+    @property
     def _default_params(self) -> Params:
         return Params(std_init=1.0)
 
@@ -57,7 +62,6 @@ class ARS(DistributionBasedAlgorithm):
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
             opt_state=self.optimizer.init(jnp.zeros(self.num_dims)),
-            z=jnp.zeros((self.population_size, self.num_dims)),
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -73,8 +77,9 @@ class ARS(DistributionBasedAlgorithm):
         # Antithetic sampling
         z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
         z = jnp.concatenate([z_plus, -z_plus])
+
         population = state.mean + state.std * z
-        return population, state.replace(z=z)
+        return population, state
 
     def _tell(
         self,
@@ -98,9 +103,9 @@ class ARS(DistributionBasedAlgorithm):
         fitness_std = jnp.clip(jnp.std(fitness_elite), min=1e-8)
 
         # Compute grad
-        z = state.z[: self.population_size // 2]
+        z = (population[: self.population_size // 2] - state.mean) / state.std
         delta = fitness_plus[elite_idx] - fitness_minus[elite_idx]
-        grad = jnp.dot(z[elite_idx].T, delta) / (self.num_elites * fitness_std)
+        grad = jnp.dot(delta, z[elite_idx]) / (self.num_elites * fitness_std)
 
         # Update mean
         updates, opt_state = self.optimizer.update(grad, state.opt_state)

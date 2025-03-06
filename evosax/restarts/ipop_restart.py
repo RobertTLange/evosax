@@ -1,6 +1,6 @@
 """Increasing Population Size Restart (Auger & Hansen, 2005).
 
-Reference: https://ieeexplore.ieee.org/document/1554902
+[1] https://ieeexplore.ieee.org/document/1554902
 """
 
 from functools import partial

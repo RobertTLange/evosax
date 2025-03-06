@@ -1,6 +1,6 @@
 """Learned Genetic Algorithm (Lange et al., 2023).
 
-Reference: https://arxiv.org/abs/2304.03995
+[1] https://arxiv.org/abs/2304.03995
 Note: This is an independent reimplementation which does not use the same meta-trained
 checkpoint used to generate the results in the paper. It has been independently
 meta-trained and tested on a handful of Brax tasks. The results may therefore differ
@@ -14,7 +14,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, PyTree, Solution
+
 from ...learned_evolution.les_tools import (
     FitnessFeatures,
     load_pkl_object,
@@ -25,7 +27,7 @@ from ...learned_evolution.lga_tools import (
     SelectionAttention,
     tanh_age,
 )
-from ...types import Fitness, Population, PyTree, Solution
+from ..base import update_best_solution_and_fitness
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 
 
@@ -36,6 +38,8 @@ class State(State):
     std: jax.Array  # Parents: Mutation strengths
     age: jax.Array  # Parents: 'Age' counter
     std_C: jax.Array  # Children: Mutation strengths
+    best_solution_shaped: Solution
+    best_fitness_shaped: float
 
 
 @struct.dataclass
@@ -45,7 +49,7 @@ class Params(Params):
     params: PyTree
 
 
-class LGA(PopulationBasedAlgorithm):
+class LearnedGA(PopulationBasedAlgorithm):
     """Learned Genetic Algorithm (LGA)."""
 
     def __init__(
@@ -98,6 +102,8 @@ class LGA(PopulationBasedAlgorithm):
             std=params.std_init * jnp.ones((self.num_elites,)),
             age=jnp.zeros(self.num_elites),
             std_C=jnp.zeros((self.population_size,)),
+            best_solution_shaped=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness_shaped=jnp.inf,
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -114,7 +120,7 @@ class LGA(PopulationBasedAlgorithm):
         # Sample candidates with replacement given distribution
         age_features = tanh_age(state.age, state.generation_counter + 1e-8)
         F_E = self.fitness_features.apply(
-            state.population, state.fitness, state.best_fitness
+            state.population, state.fitness, state.best_fitness_shaped
         )
         F_E = jnp.concatenate([F_E, age_features[..., None]], axis=-1)
         p = self.sampling_layer.apply(params.params["sampling"], F_E)
@@ -126,7 +132,7 @@ class LGA(PopulationBasedAlgorithm):
         std_C = state.std[idx]
 
         # Perform mutation rate adaptation of solutions
-        F_C_tilde = self.fitness_features.apply(X_C, f_C, state.best_fitness)
+        F_C_tilde = self.fitness_features.apply(X_C, f_C, state.best_fitness_shaped)
         std_C = self.mutation_layer.apply(
             params.params["mutation"], std_C[..., None], F_C_tilde
         )
@@ -147,7 +153,7 @@ class LGA(PopulationBasedAlgorithm):
         fitness_all = jnp.concatenate([fitness, state.fitness])
         solution_all = jnp.concatenate([population, state.population])
         fitness_features = self.fitness_features.apply(
-            solution_all, fitness_all, state.best_fitness
+            solution_all, fitness_all, state.best_fitness_shaped
         )
 
         # Perform selection - either learned or hard truncation based
@@ -162,9 +168,16 @@ class LGA(PopulationBasedAlgorithm):
         std = select @ state.std_C[:, None] + keep_parent[:, None] * state.std[:, None]
         age = jnp.where(keep_parent, state.age + 1, 0)
 
+        # Update best solution and fitness shaped
+        best_solution_shaped, best_fitness_shaped = update_best_solution_and_fitness(
+            population, fitness, state.best_solution_shaped, state.best_fitness_shaped
+        )
+
         return state.replace(
             population=population,
             fitness=fitness,
             std=jnp.squeeze(std, axis=-1),
             age=age,
+            best_solution_shaped=best_solution_shaped,
+            best_fitness_shaped=best_fitness_shaped,
         )

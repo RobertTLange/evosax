@@ -1,7 +1,7 @@
 """Persistent Evolution Strategy (Vicol et al., 2021).
 
-Reference: https://arxiv.org/abs/2112.13835
-Inspired by: https://github.com/google-research/google-research/tree/master/persistent_es
+[1] https://arxiv.org/abs/2112.13835
+[2] https://github.com/google-research/google-research/tree/master/persistent_es
 """
 
 from collections.abc import Callable
@@ -11,8 +11,9 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 

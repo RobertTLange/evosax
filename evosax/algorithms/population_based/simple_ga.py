@@ -1,7 +1,7 @@
 """Simple Genetic Algorithm (Such et al., 2017).
 
-Reference: https://arxiv.org/abs/1712.06567
-Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+[1] https://arxiv.org/abs/1712.06567
+[2] https://github.com/hardmaru/estool/blob/master/es.py
 """
 
 from collections.abc import Callable
@@ -10,8 +10,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 
 

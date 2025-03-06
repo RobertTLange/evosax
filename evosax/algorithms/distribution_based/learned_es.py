@@ -1,6 +1,6 @@
 """Learned Evolution Strategy (Lange et al., 2023).
 
-Reference: https://arxiv.org/abs/2211.11260
+[1] https://arxiv.org/abs/2211.11260
 Note: This is an independent reimplementation which does not use the same meta-trained
 checkpoint used to generate the results in the paper. It has been independently
 meta-trained and tested on a handful of Brax tasks. The results may therefore differ
@@ -14,7 +14,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, PyTree, Solution
+
 from ...learned_evolution.les_tools import (
     AttentionWeights,
     EvolutionPath,
@@ -23,7 +25,7 @@ from ...learned_evolution.les_tools import (
     load_pkl_object,
     tanh_timestamp,
 )
-from ...types import Fitness, Population, PyTree, Solution
+from ..base import update_best_solution_and_fitness
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -33,6 +35,8 @@ class State(State):
     std: jax.Array
     p_std: jax.Array
     p_c: jax.Array
+    best_solution_shaped: Solution
+    best_fitness_shaped: float
 
 
 @struct.dataclass
@@ -41,7 +45,7 @@ class Params(Params):
     params: PyTree
 
 
-class LES(DistributionBasedAlgorithm):
+class LearnedES(DistributionBasedAlgorithm):
     """Learned Evolution Strategy (LES)."""
 
     def __init__(
@@ -91,6 +95,8 @@ class LES(DistributionBasedAlgorithm):
             std=params.std_init * jnp.ones(self.num_dims),
             p_c=init_p_c,
             p_std=init_p_std,
+            best_solution_shaped=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness_shaped=jnp.inf,
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,
@@ -116,7 +122,7 @@ class LES(DistributionBasedAlgorithm):
     ) -> State:
         # Fitness features
         fitness_features = self.fitness_features.apply(
-            population, fitness, state.best_fitness
+            population, fitness, state.best_fitness_shaped
         )
         time_embed = tanh_timestamp(state.generation_counter)
 
@@ -148,9 +154,16 @@ class LES(DistributionBasedAlgorithm):
         std = state.std + lrs_std * (weighted_std - state.std)
         std = jnp.clip(std, min=0)
 
+        # Update best solution and fitness shaped
+        best_solution_shaped, best_fitness_shaped = update_best_solution_and_fitness(
+            population, fitness, state.best_solution_shaped, state.best_fitness_shaped
+        )
+
         return state.replace(
             mean=mean,
             std=std,
             p_c=p_c,
             p_std=p_std,
+            best_solution_shaped=best_solution_shaped,
+            best_fitness_shaped=best_fitness_shaped,
         )

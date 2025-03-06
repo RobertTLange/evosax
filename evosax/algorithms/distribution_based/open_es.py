@@ -1,7 +1,7 @@
 """OpenAI Evolution Strategy (Salimans et al. 2017).
 
-Reference: https://arxiv.org/abs/1703.03864
-Inspired by: https://github.com/hardmaru/estool/blob/master/es.py
+[1] https://arxiv.org/abs/1703.03864
+[2] https://github.com/hardmaru/estool/blob/master/es.py
 """
 
 from collections.abc import Callable
@@ -11,8 +11,9 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import centered_rank_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 
@@ -37,7 +38,7 @@ class Open_ES(DistributionBasedAlgorithm):
         solution: Solution,
         use_antithetic_sampling: bool = True,
         optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1e-3),
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = centered_rank_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize OpenAI-ES."""

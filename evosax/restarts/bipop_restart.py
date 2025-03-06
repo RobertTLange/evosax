@@ -1,7 +1,7 @@
 """Bi-Population Restarts (Hansen, 2009) - Interlaced population sizes.
 
-Reference: https://hal.inria.fr/inria-00382093/document
-Inspired by: https://github.com/CyberAgentAILab/cmaes/blob/main/examples/bipop_cma.py
+[1] https://hal.inria.fr/inria-00382093/document
+[2] https://github.com/CyberAgentAILab/cmaes/blob/main/examples/bipop_cma.py
 """
 
 from functools import partial

@@ -1,6 +1,6 @@
 """Differential Evolution (Storn & Price, 1997).
 
-Reference: https://link.springer.com/article/10.1023/A:1008202821328
+[1] https://link.springer.com/article/10.1023/A:1008202821328
 """
 
 from collections.abc import Callable
@@ -9,8 +9,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 
 
@@ -27,7 +28,7 @@ class Params(Params):
     differential_weight: float  # [0, 2]
 
 
-class DE(PopulationBasedAlgorithm):
+class DifferentialEvolution(PopulationBasedAlgorithm):
     """Differential Evolution (DE)."""
 
     def __init__(

@@ -1,6 +1,6 @@
 """Diffusion Evolution (Zhang et al., 2024).
 
-Reference: https://arxiv.org/abs/2410.02543
+[1] https://arxiv.org/abs/2410.02543
 Note: This implementation is based on the reference implementation https://github.com/openai/diffusion-evolution.
 """
 
@@ -10,8 +10,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
 
 

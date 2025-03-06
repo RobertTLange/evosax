@@ -19,9 +19,8 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 import optax
+from evosax.types import PyTree, Solution
 from flax import linen as nn
-
-from ...types import PyTree, Solution
 
 
 class TorchVisionProblem:

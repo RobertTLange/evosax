@@ -1,6 +1,6 @@
 """Separable Natural Evolution Strategy (Wierstra et al., 2014).
 
-Reference: https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
+[1] https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf
 """
 
 from collections.abc import Callable
@@ -10,8 +10,9 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import Params, State, metrics_fn
 from .xnes import xNES
 
@@ -29,9 +30,6 @@ class Params(Params):
     std_init: float
     weights: jax.Array
     lr_std_init: float
-    use_adaptation_sampling: bool
-    rho: float  # Significance level adaptation sampling
-    c_prime: float  # Adaptation sampling step size
 
 
 class SNES(xNES):
@@ -42,7 +40,7 @@ class SNES(xNES):
         population_size: int,
         solution: Solution,
         optimizer: optax.GradientTransformation = optax.sgd(learning_rate=1.0),
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize SNES."""
@@ -61,9 +59,6 @@ class SNES(xNES):
             std_init=params.std_init,
             weights=params.weights,
             lr_std_init=lr_std_init,
-            use_adaptation_sampling=params.use_adaptation_sampling,
-            rho=params.rho,
-            c_prime=params.c_prime,
         )
 
     def _init(self, key: jax.Array, params: Params) -> State:
@@ -97,83 +92,18 @@ class SNES(xNES):
         params: Params,
     ) -> State:
         z = (population - state.mean) / state.std
-        z = z[fitness.argsort()]
 
         # Compute grad
-        grad_mean = -state.std * jnp.dot(params.weights, z)
-        updates, opt_state = self.optimizer.update(grad_mean, state.opt_state)
+        grad_mean = -state.std * jnp.dot(fitness, z)
 
         # Update mean
+        updates, opt_state = self.optimizer.update(grad_mean, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
         # Compute grad for std
-        grad_std = jnp.dot(params.weights, z**2 - 1)
+        grad_std = jnp.dot(fitness, z**2 - 1)
 
         # Update std
         std = state.std * jnp.exp(0.5 * state.lr_std * grad_std)
 
-        # Adaptation sampling for std learning rate
-        lr_std = self.adaptation_sampling(
-            state.lr_std,
-            z,
-            state,
-            params,
-        )
-        lr_std = jnp.where(params.use_adaptation_sampling, lr_std, state.lr_std)
-
-        return state.replace(mean=mean, std=std, opt_state=opt_state, lr_std=lr_std)
-
-    def adaptation_sampling(
-        self,
-        lr_std: float,
-        z_sorted: jax.Array,
-        state: State,
-        params: Params,
-    ) -> float:
-        """Adaptation sampling for std learning rate adaptation."""
-        # Create hypothetical distribution with increased learning rate
-        lr_std_prime = 1.5 * lr_std
-
-        # Calculate what the std would be with the new learning rate
-        grad_std = jnp.dot(params.weights, z_sorted**2 - 1)
-        std_prime = state.std * jnp.exp(0.5 * lr_std_prime * grad_std)
-
-        # For the separable case, we need to handle per-dimension calculations
-        # Calculate log ratios for each dimension, then sum across dimensions
-        log_det_ratio = jnp.sum(jnp.log(state.std) - jnp.log(std_prime))
-
-        # Calculate the exponent term for each sample and dimension
-        std_ratio_squared = (state.std / std_prime) ** 2
-        log_exp_terms = 0.5 * jnp.einsum("ij,j->i", z_sorted**2, std_ratio_squared - 1)
-
-        # Combine for final log weights
-        log_weights = log_det_ratio + log_exp_terms
-
-        # Convert back to normal space for the Mann-Whitney test
-        weights = jnp.exp(log_weights)
-
-        # Perform weighted Mann-Whitney U test
-        ranks = jnp.arange(1, self.population_size + 1)
-
-        # Calculate weighted ranks
-        weighted_ranks = weights * ranks
-        sum_w = jnp.sum(weights)
-        sum_wr = jnp.sum(weighted_ranks)
-
-        # Compute the U statistic and its expected value/variance under H0
-        U = sum_wr - sum_w * (sum_w + 1) / 2  # Corrected formula
-        E_U = self.population_size * sum_w / 2
-        Var_U = self.population_size * sum_w * (self.population_size + sum_w + 1) / 12
-
-        # Compute z-score and p-value
-        z_score = (U - E_U) / jnp.sqrt(Var_U + 1e-8)
-        p_value = jax.scipy.stats.norm.cdf(z_score)
-
-        # Update learning rate based on test result
-        new_lr_std = jnp.where(
-            p_value < params.rho,
-            jnp.minimum((1 + params.c_prime) * lr_std, 1.0),
-            (1 - params.c_prime) * lr_std + params.c_prime * params.lr_std_init,
-        )
-
-        return new_lr_std
+        return state.replace(mean=mean, std=std, opt_state=opt_state)

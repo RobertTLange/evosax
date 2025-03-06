@@ -1,6 +1,6 @@
 """Simulated Annealing (Rere et al., 2015).
 
-Reference: https://www.sciencedirect.com/science/article/pii/S1877050915035759
+[1] https://www.sciencedirect.com/science/article/pii/S1877050915035759
 """
 
 from collections.abc import Callable
@@ -9,8 +9,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
 
 

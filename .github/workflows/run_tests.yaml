@@ -37,7 +37,7 @@ jobs:
         flake8 ./evosax --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Run unit/integration tests
       run: |
-        python -m pytest --all -vv --durations=0 --cov=./ --cov-report=term-missing --cov-report=xml
+        python -m pytest tests/ -vv --durations=0 --cov=./ --cov-report=term-missing --cov-report=xml
     - name: "Upload coverage to Codecov"
       uses: codecov/codecov-action@v2
       with:

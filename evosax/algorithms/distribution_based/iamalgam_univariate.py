@@ -1,6 +1,6 @@
 """(Iterative) AMaLGaM (Bosman et al., 2013) - Diagonal Covariance.
 
-Reference: https://homepages.cwi.nl/~bosman/publications/2013_benchmarkingparameterfree.pdf
+[1] https://homepages.cwi.nl/~bosman/publications/2013_benchmarkingparameterfree.pdf
 """
 
 from collections.abc import Callable
@@ -8,8 +8,9 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Population, Solution
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Population, Solution
+
 from .base import metrics_fn
 from .iamalgam_full import Params, State, iAMaLGaM_Full
 
@@ -35,6 +36,8 @@ class iAMaLGaM_Univariate(iAMaLGaM_Full):
             C=jnp.ones(self.num_dims),
             nis_counter=0,
             c_mult=params.c_mult_init,
+            best_solution_shaped=jnp.full((self.num_dims,), jnp.nan),
+            best_fitness_shaped=jnp.inf,
             best_solution=jnp.full((self.num_dims,), jnp.nan),
             best_fitness=jnp.inf,
             generation_counter=0,

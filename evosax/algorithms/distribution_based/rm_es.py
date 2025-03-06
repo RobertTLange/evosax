@@ -1,6 +1,6 @@
 """Rank-m Evolution Strategy (Li & Zhang, 2017).
 
-Reference: https://ieeexplore.ieee.org/document/8080257
+[1] https://ieeexplore.ieee.org/document/8080257
 Note: The original paper recommends a population size of 4 + 3 * jnp.log(num_dims).
 Instabilities have been observed with larger population sizes.
 """
@@ -11,8 +11,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
-from ...core.fitness_shaping import identity_fitness_shaping_fn
-from ...types import Fitness, Population, Solution
+from evosax.core.fitness_shaping import weights_fitness_shaping_fn
+from evosax.types import Fitness, Population, Solution
+
 from .base import State, metrics_fn
 from .cma_es import CMA_ES, Params
 
@@ -42,7 +43,7 @@ class Rm_ES(CMA_ES):
         population_size: int,
         solution: Solution,
         m: int = 1,
-        fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
+        fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize Rm-ES."""
@@ -57,8 +58,7 @@ class Rm_ES(CMA_ES):
     @property
     def _default_params(self) -> Params:
         params = super()._default_params
-
-        params = Params(
+        return Params(
             std_init=params.std_init,
             std_min=1e-3,
             std_max=params.std_max,
@@ -74,7 +74,6 @@ class Rm_ES(CMA_ES):
             T=20,
             q_star=0.3,
         )
-        return params
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(
@@ -117,8 +116,7 @@ class Rm_ES(CMA_ES):
         params: Params,
     ) -> State:
         # Sort
-        idx = jnp.argsort(fitness)
-        fitness_elites_sorted = fitness[idx][: self.num_elites]
+        fitness_elites_sorted = jnp.sort(fitness)[: self.num_elites]
 
         # Update mean
         mean, y_k, y_w = self.update_mean(
