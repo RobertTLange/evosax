@@ -20,8 +20,9 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
+from evosax.types import Fitness, Population, PyTree
+
 from ..algorithms.distribution_based.cma_es import eigen_decomposition
-from ..types import Fitness, Population, PyTree
 
 
 @struct.dataclass

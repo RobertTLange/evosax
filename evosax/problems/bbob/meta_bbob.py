@@ -8,7 +8,7 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
-from evosax.types import Fitness, Population, Solution
+from evosax.types import Fitness, Metrics, Population, Solution
 from flax import struct
 
 from ..meta_problem import MetaProblem, Params, State
@@ -29,7 +29,7 @@ class Params(Params):
 
 @struct.dataclass
 class State(State):
-    counter: int = 0
+    pass
 
 
 class MetaBBOBProblem(MetaProblem):
@@ -40,9 +40,12 @@ class MetaBBOBProblem(MetaProblem):
         fn_names: list[str] = ["sphere"],
         min_num_dims: int = 2,
         max_num_dims: int = 8,
-        noise_config: dict = {},
+        noise_config: dict = {
+            "noise_model_names": "noiseless",
+            "use_stabilization": True,
+        },
     ):
-        """Initialize Meta-BBOB problem."""
+        """Initialize BBOB meta-problem."""
         self.fn_names = fn_names
         self.min_num_dims = min_num_dims
         self.max_num_dims = max_num_dims
@@ -109,7 +112,7 @@ class MetaBBOBProblem(MetaProblem):
         solutions: Population,
         state: State,
         params: Params,
-    ) -> tuple[Fitness, State]:
+    ) -> tuple[Fitness, State, Metrics]:
         """Evaluate a batch of solutions."""
         fn_val, fn_pen = jax.lax.switch(
             params.fn_id,
@@ -124,10 +127,11 @@ class MetaBBOBProblem(MetaProblem):
         # Apply noise
         fn_noise = self.noise_model.apply(key, fn_val, params.noise_params)
 
-        # Add boundary handling penalty and optimal function value
-        fn_val = fn_noise + fn_pen + params.f_opt
-
-        return fn_val, state.replace(counter=state.counter + 1), {}
+        return (
+            fn_noise + fn_pen + params.f_opt,
+            state.replace(counter=state.counter + 1),
+            {"fn_val": fn_val, "fn_noise": fn_noise, "fn_pen": fn_pen},
+        )
 
     @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
@@ -147,8 +151,8 @@ class MetaBBOBProblem(MetaProblem):
         http://home.lu.lv/~sd20008/papers/essays/Random%20unitary%20[paper].pdf
         https://github.com/alecjacobson/gptoolbox/blob/master/matrix/rand_rotation.m
 
-        Uses a fixed-size matrix of max_num_dims and masks the extra dimensions to handle
-        variable num_dims while remaining jit-compatible.
+        Uses a fixed-size matrix of max_num_dims and masks the extra dimensions to
+        handle variable num_dims while remaining jit-compatible.
         """
         # Generate fixed-size random normal matrix but mask based on num_dims
         random_matrix = jax.random.normal(key, (self.max_num_dims, self.max_num_dims))

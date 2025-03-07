@@ -74,7 +74,7 @@ def test_torchvision_problem_batch_sampling():
     )
 
     # Sample a batch
-    x, y = problem.sample_batch(key)
+    x, y = problem._sample_batch(key)
 
     # Check shapes
     assert x.shape[0] == 128  # batch_size
@@ -101,6 +101,9 @@ def test_torchvision_problem_eval():
         batch_size=128,
     )
 
+    # Initialize state
+    state = problem.init(key)
+
     # Create a batch of solutions using vmap
     population_size = 2
     keys = jax.random.split(key, population_size)
@@ -108,13 +111,11 @@ def test_torchvision_problem_eval():
 
     # Evaluate the solutions
     key_eval = jax.random.key(42)
-    loss, acc = problem.eval(key_eval, solutions)
+    fitness, new_state, info = problem.eval(key_eval, solutions, state)
 
     # Check shapes
-    assert loss.shape == (population_size,)
-    assert acc.shape == (population_size,)
-    assert jnp.all(loss >= 0.0)  # Loss should be non-negative
-    assert jnp.all((acc >= 0.0) & (acc <= 1.0))  # Accuracy between 0 and 1
+    assert fitness.shape == (population_size,)
+    assert new_state.counter == state.counter + 1
 
 
 def test_different_datasets():
@@ -142,7 +143,7 @@ def test_different_datasets():
 
         # Basic functionality test
         key = jax.random.key(0)
-        x, y = problem.sample_batch(key)
+        x, y = problem._sample_batch(key)
 
         assert x.shape[0] == 64  # batch_size
         assert y.shape[0] == 64  # batch_size

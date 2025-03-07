@@ -1,8 +1,16 @@
 """Abstract class for optimization problems."""
 
-import jax
+from functools import partial
 
-from ..types import Fitness, Population, PyTree, Solution
+import jax
+from flax import struct
+
+from evosax.types import Fitness, Metrics, Population, Solution
+
+
+@struct.dataclass
+class State:
+    counter: int
 
 
 class Problem:
@@ -14,10 +22,22 @@ class Problem:
         solution = self.sample(jax.random.key(0))
         return sum(x.size for x in jax.tree.leaves(solution))
 
-    def eval(self, key: jax.Array, solutions: Population) -> tuple[Fitness, PyTree]:
+    @partial(jax.jit, static_argnames=("self",))
+    def init(self, key: jax.Array) -> State:
+        """Initialize state."""
+        return State(counter=0)
+
+    @partial(jax.jit, static_argnames=("self",))
+    def eval(
+        self,
+        key: jax.Array,
+        solutions: Population,
+        state: State,
+    ) -> tuple[Fitness, State, Metrics]:
         """Evaluate a batch of solutions."""
         raise NotImplementedError
 
+    @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
         """Sample a solution in the search space."""
         raise NotImplementedError

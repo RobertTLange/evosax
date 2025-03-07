@@ -8,6 +8,7 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 import optax
+
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Population, Solution
 
@@ -27,7 +28,9 @@ class iAMaLGaM_Univariate(iAMaLGaM_Full):
         metrics_fn: Callable = metrics_fn,
     ):
         """Initialize iAMaLGaM."""
-        super().__init__(population_size, solution, std_schedule, fitness_shaping_fn, metrics_fn)
+        super().__init__(
+            population_size, solution, std_schedule, fitness_shaping_fn, metrics_fn
+        )
 
     def _init(self, key: jax.Array, params: Params) -> State:
         state = State(

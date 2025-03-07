@@ -11,6 +11,11 @@ def test_bbob_problem_init():
     assert problem.fn_name == "sphere"
     assert problem.num_dims == 2
 
+    # Initialize state
+    key = jax.random.key(0)
+    state = problem.init(key)
+    assert state.counter == 0
+
 
 def test_bbob_problem_sample():
     """Test BBOB problem solution sampling."""
@@ -31,15 +36,20 @@ def test_bbob_problem_eval():
     key = jax.random.key(0)
     problem = BBOBProblem(fn_name="sphere", num_dims=2, seed=0)
 
+    # Initialize state
+    state = problem.init(key)
+
     # Create a test solution
     population_size = 5
     solution = jnp.zeros((population_size, 2))
 
     # Evaluate the solution
-    fitness, info = problem.eval(key, solution)
+    key_eval = jax.random.key(1)
+    fitness, new_state, info = problem.eval(key_eval, solution, state)
 
     # For sphere function, origin should be close to optimal if x_opt is near origin
     assert fitness.shape == (population_size,)
+    assert new_state.counter == state.counter + 1
 
 
 def test_bbob_problem_custom_params():

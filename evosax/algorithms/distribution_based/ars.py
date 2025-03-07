@@ -114,4 +114,8 @@ class ARS(DistributionBasedAlgorithm):
         updates, opt_state = self.optimizer.update(grad, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
-        return state.replace(mean=mean, opt_state=opt_state, std=self.std_schedule(state.generation_counter))
+        return state.replace(
+            mean=mean,
+            opt_state=opt_state,
+            std=self.std_schedule(state.generation_counter),
+        )

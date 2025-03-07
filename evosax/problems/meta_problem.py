@@ -5,8 +5,9 @@ from functools import partial
 import jax
 from flax import struct
 
-from ..types import Fitness, Population, PyTree
-from .problem import Problem
+from evosax.types import Fitness, Metrics, Population
+
+from .problem import Problem, State
 
 
 @struct.dataclass
@@ -15,7 +16,7 @@ class Params:
 
 
 @struct.dataclass
-class State:
+class State(State):
     pass
 
 
@@ -39,6 +40,6 @@ class MetaProblem(Problem):
         solutions: Population,
         state: State,
         params: Params,
-    ) -> tuple[Fitness, State, PyTree]:
+    ) -> tuple[Fitness, State, Metrics]:
         """Evaluate a batch of solutions."""
         raise NotImplementedError

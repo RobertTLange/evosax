@@ -6,7 +6,7 @@
 [![Paper](http://img.shields.io/badge/paper-arxiv.2212.04180-B31B1B.svg)](http://arxiv.org/abs/2212.04180)
 <a href="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true"><img src="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true" width="170" align="right" /></a>
 
-Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and auto-vectorization/parallelization to scale ES to your favorite accelerators. The API is based on the classical `ask`, `evaluate`, `tell` cycle of ES. Both `ask` and `tell` calls are compatible with `jit`, `vmap`/`pmap` and `lax.scan`. It includes a vast set of both classic (e.g. CMA-ES, Differential Evolution, etc.) and modern neuroevolution (e.g. OpenAI-ES, Augmented RS, etc.) strategies. You can get started here 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/00_getting_started.ipynb)
+Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for evolution strategies (ES)? `evosax` allows you to leverage JAX, XLA compilation and auto-vectorization/parallelization to scale ES to your favorite accelerators. The API is based on the classical `ask`-`eval`-`tell` cycle of ES. Both `ask` and `tell` calls are compatible with `jit`, `vmap` and `lax.scan`. It includes a vast set of both classic (e.g., CMA-ES, Differential Evolution, etc.) and modern (e.g. OpenAI-ES, Augmented Random Search, etc.) evolution strategies. You can get started here 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/00_getting_started.ipynb)
 
 ## Basic `evosax` API Usage 🍲
 
@@ -90,6 +90,7 @@ pip install git+https://github.com/RobertTLange/evosax.git@main
 ```
 
 ## Examples 📖
+
 * 📓 [Classic ES Tasks](https://github.com/RobertTLange/evosax/blob/main/examples/01_classic_benchmark.ipynb): API introduction on Rosenbrock function (CMA-ES, Simple GA, etc.).
 * 📓 [CartPole-Control](https://github.com/RobertTLange/evosax/blob/main/examples/02_mlp_control.ipynb): OpenES & PEPG on the `CartPole-v1` gym task (MLP/LSTM controller).
 * 📓 [MNIST-Classifier](https://github.com/RobertTLange/evosax/blob/main/examples/03_cnn_mnist.ipynb): OpenES on MNIST with CNN network.
@@ -102,7 +103,7 @@ pip install git+https://github.com/RobertTLange/evosax.git@main
 
 - **Strategy Diversity**: `evosax` implements more than 30 classical and modern neuroevolution strategies. All of them follow the same simple `ask`/`eval` API and come with tailored tools such as the [ClipUp](https://arxiv.org/abs/2008.02387) optimizer, parameter reshaping into PyTrees and fitness shaping (see below).
 
-- **Vectorization/Parallelization of `ask`/`tell` Calls**: Both `ask` and `tell` calls can leverage `jit`, `vmap`/`pmap`. This enables vectorized/parallel rollouts of different evolution strategies.
+- **Vectorization/Parallelization of `ask`/`tell` Calls**: Both `ask` and `tell` calls can leverage `jit` and `vmap`. This enables vectorized/parallel rollouts of different evolution strategies.
 
 ```python
 from evosax.strategies.ars import ARS, Params
@@ -144,30 +145,28 @@ _, fitness = jax.lax.scan(
 ## Resources & Other Great JAX-ES Tools 📝
 
 * 📺 [Rob's MLC Research Jam Talk](https://www.youtube.com/watch?v=Wn6Lq2bexlA&t=51s): Small motivation talk at the ML Collective Research Jam.
-* 📝 [Rob's 02/2021 Blog](https://roberttlange.github.io/posts/2021/02/cma-es-jax/): Tutorial on CMA-ES & leveraging JAX's primitives.
-* 💻 [Evojax](https://github.com/google/evojax): JAX-ES library by Google Brain with great rollout wrappers.
+* 📝 [Rob's 02/2021 Blog](https://roberttlange.github.io/posts/2021/02/cma-es-jax/): Tutorial on CMA-ES & JAX.
+* 💻 [Evojax](https://github.com/google/evojax): Hardware-Accelerated Neuroevolution with great rollout wrappers.
 * 💻 [QDax](https://github.com/adaptive-intelligent-robotics/QDax): Quality-Diversity algorithms in JAX.
 
 ## Acknowledgements & Citing `evosax` ✏️
 
 If you use `evosax` in your research, please cite the following [paper](https://arxiv.org/abs/2212.04180):
-
 ```
 @article{evosax2022github,
-  author = {Robert Tjarko Lange},
-  title = {evosax: JAX-based Evolution Strategies},
-  journal={arXiv preprint arXiv:2212.04180},
-  year = {2022},
+    author = {Robert Tjarko Lange},
+    title = {evosax: JAX-based Evolution Strategies},
+    journal={arXiv preprint arXiv:2212.04180},
+    year = {2022},
 }
 ```
 
-We acknowledge financial support by the [Google TRC](https://sites.research.google/trc/about/) and the Deutsche
-Forschungsgemeinschaft (DFG, German Research Foundation) under Germany's Excellence Strategy - EXC 2002/1 ["Science of Intelligence"](https://www.scienceofintelligence.de/) - project number 390523135.
+We acknowledge financial support by the [Google TRC](https://sites.research.google/trc/about/) and the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) under Germany's Excellence Strategy - EXC 2002/1 ["Science of Intelligence"](https://www.scienceofintelligence.de/) - project number 390523135.
 
-## Development 👷
+## Contributing 👷
 
-You can run the test suite via `python -m pytest -vv --all`. If you find a bug or are missing your favourite feature, feel free to create an issue and/or start [contributing](CONTRIBUTING.md) 🤗.
+If you find a bug or are missing your favourite feature, feel free to create an issue and/or start [contributing](CONTRIBUTING.md) 🤗.
 
 ## Disclaimer ⚠️
 
-This repository contains an independent reimplementation of LES and DES based on the corresponding ICLR 2023 publication [(Lange et al., 2023)](https://arxiv.org/abs/2211.11260). It is unrelated to Google or DeepMind. The implementation has been tested to roughly reproduce the official results on a range of tasks.
+This repository contains independent reimplementations of LES and DES based and is unrelated to Google DeepMind. The implementation has been tested to reproduce the official results on a range of tasks.

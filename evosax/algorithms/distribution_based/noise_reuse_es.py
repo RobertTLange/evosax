@@ -9,7 +9,6 @@ import jax
 import jax.numpy as jnp
 import optax
 from flax import struct
-import optax
 
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution

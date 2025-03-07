@@ -10,11 +10,17 @@ import jax
 import jax.numpy as jnp
 import matplotlib.colors
 import matplotlib.pyplot as plt
-from evosax.types import Fitness, Population, PyTree, Solution
+from evosax.types import Fitness, Metrics, Population, Solution
+from flax import struct
 
-from ..problem import Problem
+from ..problem import Problem, State
 from .bbob_fns import fn_names_short_dict
 from .meta_bbob import MetaBBOBProblem
+
+
+@struct.dataclass
+class State(State):
+    pass
 
 
 class BBOBProblem(Problem):
@@ -95,12 +101,19 @@ class BBOBProblem(Problem):
         return self._params.f_opt
 
     @partial(jax.jit, static_argnames=("self",))
-    def eval(self, key: jax.Array, solutions: Population) -> tuple[Fitness, PyTree]:
+    def init(self, key: jax.Array) -> State:
+        """Initialize state."""
+        return self.meta_problem.init(key, self._params)
+
+    @partial(jax.jit, static_argnames=("self",))
+    def eval(
+        self, key: jax.Array, solutions: Population, state: State
+    ) -> tuple[Fitness, State, Metrics]:
         """Evaluate a batch of solutions."""
-        fn_val, _, info = self.meta_problem.eval(
-            key, solutions, self._state, self._params
+        fn_val, state, info = self.meta_problem.eval(
+            key, solutions, state, self._params
         )
-        return fn_val, info
+        return fn_val, state, info
 
     @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
@@ -126,7 +139,7 @@ class BBOBProblem(Problem):
 
         # Evaluate the function at each point
         keys = jax.random.split(key, grid.shape[0])
-        values, _ = self.eval(keys, grid)
+        values, _, _ = self.eval(keys, grid, self._state)
         Z = values.reshape(X.shape)
 
         # Create figure and axes if not provided
@@ -196,7 +209,7 @@ class BBOBProblem(Problem):
         grid = jnp.reshape(jnp.stack([X, Y], axis=-1), (-1, 2))
 
         # Evaluate the function at each point
-        values, _ = self.eval(key, grid)
+        values, _, _ = self.eval(key, grid, self._state)
         Z = values.reshape(X.shape)
 
         if logscale:

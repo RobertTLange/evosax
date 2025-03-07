@@ -3,7 +3,7 @@
 import jax
 import jax.numpy as jnp
 
-from ..types import Fitness, Solution
+from evosax.types import Fitness, Solution
 
 
 def standardize(fitness: jax.Array) -> jax.Array:

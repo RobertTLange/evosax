@@ -8,8 +8,8 @@ import jax.numpy as jnp
 from flax import struct
 from jax import flatten_util
 
-from ..core.fitness_shaping import identity_fitness_shaping_fn
-from ..types import Fitness, Metrics, Params, Population, Solution, State
+from evosax.core.fitness_shaping import identity_fitness_shaping_fn
+from evosax.types import Fitness, Metrics, Params, Population, Solution, State
 
 
 @struct.dataclass

@@ -41,6 +41,9 @@ def test_gymnax_problem_eval():
         env_name="CartPole-v1", policy=policy, episode_length=100, num_rollouts=3
     )
 
+    # Initialize state
+    state = problem.init(key)
+
     # Create a batch of solutions using vmap
     population_size = 4
     keys = jax.random.split(key, population_size)
@@ -50,10 +53,11 @@ def test_gymnax_problem_eval():
 
     # Evaluate the solutions
     key_eval = jax.random.key(42)
-    fitness, _ = problem.eval(key_eval, solutions)
+    fitness, new_state, info = problem.eval(key_eval, solutions, state)
 
     # Check shape (population_size,)
     assert fitness.shape == (population_size,)
+    assert new_state.counter == state.counter + 1
 
 
 def test_brax_problem_init():
@@ -92,6 +96,9 @@ def test_brax_problem_eval():
         env_name="ant", policy=policy, episode_length=100, num_rollouts=3
     )
 
+    # Initialize state
+    state = problem.init(key)
+
     # Create a batch of solutions using vmap
     population_size = 4
     keys = jax.random.split(key, population_size)
@@ -101,7 +108,8 @@ def test_brax_problem_eval():
 
     # Evaluate the solutions
     key_eval = jax.random.key(42)
-    fitness, _ = problem.eval(key_eval, solutions)
+    fitness, new_state, info = problem.eval(key_eval, solutions, state)
 
     # Check shape (population_size,)
     assert fitness.shape == (population_size,)
+    assert new_state.counter == state.counter + 1

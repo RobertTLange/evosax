@@ -9,7 +9,7 @@ regularization terms like weight decay.
 import jax
 import jax.numpy as jnp
 
-from ..types import Fitness, Params, Population, State
+from evosax.types import Fitness, Params, Population, State
 
 
 def normalize(

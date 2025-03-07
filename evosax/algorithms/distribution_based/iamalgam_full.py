@@ -9,8 +9,8 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
-from flax import struct
 import optax
+from flax import struct
 
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution

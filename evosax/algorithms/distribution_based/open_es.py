@@ -10,7 +10,6 @@ import jax
 import jax.numpy as jnp
 import optax
 from flax import struct
-import optax
 
 from evosax.core.fitness_shaping import centered_rank_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
@@ -102,4 +101,8 @@ class Open_ES(DistributionBasedAlgorithm):
         updates, opt_state = self.optimizer.update(grad, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
-        return state.replace(mean=mean, std=self.std_schedule(state.generation_counter), opt_state=opt_state)
+        return state.replace(
+            mean=mean,
+            std=self.std_schedule(state.generation_counter),
+            opt_state=opt_state,
+        )
