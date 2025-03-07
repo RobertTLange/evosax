@@ -16,6 +16,7 @@ solutions from the search space and evaluate their fitness, respectively.
 from .bbob.bbob import BBOBProblem
 from .bbob.bbob_fns import bbob_fns
 from .bbob.meta_bbob import MetaBBOBProblem
+from .meta_problem import MetaProblem
 
 # Networks
 from .networks import (
@@ -25,6 +26,7 @@ from .networks import (
     identity_output_fn,
     tanh_output_fn,
 )
+from .problem import Problem
 
 # RL
 from .rl.brax import BraxProblem

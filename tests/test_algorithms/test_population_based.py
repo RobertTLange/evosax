@@ -27,11 +27,20 @@ def test_run(
             for key in jax.random.split(key_init, population_size)
         ]
     )
-    fitness_init, _ = bbob_problem.eval(key, population_init)
+
+    key, subkey = jax.random.split(key)
+    problem_state = bbob_problem.init(subkey)
+    fitness_init, problem_state, _ = bbob_problem.eval(
+        key, population_init, problem_state
+    )
 
     # Initialize state
     key, subkey = jax.random.split(key)
     state = algo.init(subkey, population_init, fitness_init, params)
+
+    # Initialize problem state
+    key, subkey = jax.random.split(key)
+    problem_state = bbob_problem.init(subkey)
 
     best_fitness = []
     for _ in range(num_generations):
@@ -41,7 +50,9 @@ def test_run(
         population, state = algo.ask(key_ask, state, params)
 
         # Eval using BBOB problem
-        fitness, _ = bbob_problem.eval(key_tell, population)
+        fitness, problem_state, _ = bbob_problem.eval(
+            key_tell, population, problem_state
+        )
 
         # Tell
         state, metrics = algo.tell(key_tell, population, fitness, state, params)
@@ -71,24 +82,33 @@ def test_run_scan(
     population_init = jax.vmap(bbob_problem.sample)(keys)
 
     key, subkey = jax.random.split(key)
-    fitness_init, _ = bbob_problem.eval(subkey, population_init)
+    problem_state = bbob_problem.init(subkey)
+    fitness_init, problem_state, _ = bbob_problem.eval(
+        key, population_init, problem_state
+    )
 
     # Initialize state
     key, subkey = jax.random.split(key)
     state = algo.init(subkey, population_init, fitness_init, params)
 
+    # Initialize problem state
+    key, subkey = jax.random.split(key)
+    problem_state = bbob_problem.init(subkey)
+
     def step(carry, _):
-        key, state = carry
+        key, state, problem_state = carry
         key, key_ask, key_tell = jax.random.split(key, 3)
         population, state = algo.ask(key_ask, state, params)
         # Eval using BBOB problem
-        fitness, _ = bbob_problem.eval(key_tell, population)
+        fitness, problem_state, _ = bbob_problem.eval(
+            key_tell, population, problem_state
+        )
         state, metrics = algo.tell(key_tell, population, fitness, state, params)
-        return (key, state), metrics["best_fitness"]
+        return (key, state, problem_state), metrics["best_fitness"]
 
     _, fitness_log = jax.lax.scan(
         step,
-        (key, state),
+        (key, state, problem_state),
         jnp.zeros(num_generations),
     )
 

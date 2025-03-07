@@ -92,43 +92,58 @@ class TorchVisionProblem(Problem):
     ) -> tuple[Fitness, State, Metrics]:
         """Evaluate a population of networks."""
         # Pegasus trick
-        loss, accuracy = jax.vmap(self._predict, in_axes=(None, 0))(key, solutions)
+        loss, accuracy = jax.vmap(self._predict, in_axes=(None, 0, None, None))(
+            key, solutions, self.image_train, self.target_train
+        )
+        return loss, state.replace(counter=state.counter + 1), {"accuracy": accuracy}
+
+    @partial(jax.jit, static_argnames=("self",))
+    def eval_test(
+        self, key: jax.Array, solutions: Population, state: State
+    ) -> tuple[Fitness, State, Metrics]:
+        """Evaluate a population of networks."""
+        # Pegasus trick
+        loss, accuracy = jax.vmap(self._predict, in_axes=(None, 0, None, None))(
+            key, solutions, self.image_test, self.target_test
+        )
         return loss, state.replace(counter=state.counter + 1), {"accuracy": accuracy}
 
     @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
         """Sample a solution in the search space."""
         key_init, key_sample, key_input = jax.random.split(key, 3)
-        x, y = self._sample_batch(key_sample)
+        x, y = self._sample_batch(key_sample, self.image_train, self.target_train)
         return self.network.init(key_init, x, key_input)
 
     def _predict(
-        self, key: jax.Array, network_params: PyTree
+        self, key: jax.Array, network_params: PyTree, x: jax.Array, y: jax.Array
     ) -> tuple[jax.Array, jax.Array]:
         """Evaluate network params on a batch."""
         key_sample, key_network = jax.random.split(key)
 
         # Sample batch
-        x, y = self._sample_batch(key_sample)
+        batch_x, batch_y = self._sample_batch(key_sample, x, y)
 
         # Predict
-        y_pred = self.network.apply(network_params, x, key_network)
+        y_pred = self.network.apply(network_params, batch_x, key_network)
 
         # Calculate accuracy
-        accuracy = jnp.mean(jnp.argmax(y_pred, axis=-1) == y)
+        accuracy = jnp.mean(jnp.argmax(y_pred, axis=-1) == batch_y)
 
         # Softmax cross-entropy loss
-        loss = optax.softmax_cross_entropy_with_integer_labels(y_pred, y)
+        loss = optax.softmax_cross_entropy_with_integer_labels(y_pred, batch_y)
 
         # Take the mean over the batch
         loss = jnp.mean(loss)
 
         return loss, accuracy
 
-    def _sample_batch(self, key: jax.Array) -> tuple[jax.Array, jax.Array]:
+    def _sample_batch(
+        self, key: jax.Array, x: jax.Array, y: jax.Array
+    ) -> tuple[jax.Array, jax.Array]:
         """Sample a batch of data."""
-        x = jax.random.choice(key, self.image_train, (self.batch_size,), replace=False)
-        y = jax.random.choice(key, self.target_train, (self.batch_size,), replace=False)
+        x = jax.random.choice(key, x, (self.batch_size,), replace=False)
+        y = jax.random.choice(key, y, (self.batch_size,), replace=False)
         return x, y
 
     def get_mnist(self):

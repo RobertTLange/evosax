@@ -1,7 +1,6 @@
 """Tests for vision problems."""
 
 import jax
-import jax.numpy as jnp
 from evosax.problems import TorchVisionProblem
 from evosax.problems.networks import CNN, identity_output_fn
 
