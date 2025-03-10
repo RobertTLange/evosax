@@ -1,18 +1,4 @@
-"""Restart Wrappers for Evolution Strategies.
-
-This module provides base classes and utilities for implementing restart mechanisms
-in evolutionary strategies. Restarts are a common technique to escape local optima
-and improve exploration in evolutionary algorithms.
-
-The module includes:
-- Base wrapper classes for implementing restart mechanisms
-- Common restart criteria (e.g., fitness spread, CMA-ES specific conditions)
-- Utility functions for state management during restarts
-
-Restart wrappers can be applied to any evolution strategy to enhance their
-global optimization capabilities by periodically reinitializing the search
-when certain conditions are met.
-"""
+"""Restart utilities for Evolution Strategies."""
 
 import jax.numpy as jnp
 from flax import struct
@@ -116,3 +102,37 @@ def amalgam_cond(
 ) -> bool:
     """Stop if c_mult is below threshold."""
     return state.c_mult < 1e-10
+
+
+@struct.dataclass
+class IPOPRestartState(RestartState):
+    restart_counter: int
+    restart_next: bool
+    active_population_size: int
+
+
+@struct.dataclass
+class IPOPRestartParams(RestartParams):
+    min_num_gens: int = 50
+    min_fitness_spread: float = 1e-12
+    population_size_multiplier: int = 2
+    copy_mean: bool = False
+
+
+@struct.dataclass
+class BIPOPRestartState(RestartState):
+    restart_counter: int
+    restart_next: bool
+    active_population_size: int
+    restart_large_counter: int
+    large_eval_budget: int
+    small_eval_budget: int
+    small_pop_active: bool
+
+
+@struct.dataclass
+class BIPOPRestartParams(RestartParams):
+    min_num_gens: int = 50
+    min_fitness_spread: float = 1e-12
+    population_size_multiplier: int = 2
+    copy_mean: bool = False
