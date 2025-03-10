@@ -32,7 +32,7 @@ class Params(Params):
     K: int  # Truncation length for partial unrolls
 
 
-class PES(DistributionBasedAlgorithm):
+class PersistentES(DistributionBasedAlgorithm):
     """Persistent Evolution Strategy (PES)."""
 
     def __init__(

@@ -17,7 +17,6 @@ organized into two main categories:
 from .distribution_based import distribution_based_algorithms
 from .distribution_based.ars import ARS
 from .distribution_based.asebo import ASEBO
-from .distribution_based.bipop_cma_es import BIPOP_CMA_ES
 from .distribution_based.cma_es import CMA_ES
 from .distribution_based.cr_fm_nes import CR_FM_NES
 from .distribution_based.discovered_es import DiscoveredES
@@ -28,13 +27,12 @@ from .distribution_based.guided_es import GuidedES
 from .distribution_based.hill_climbing import HillClimbing
 from .distribution_based.iamalgam_full import iAMaLGaM_Full
 from .distribution_based.iamalgam_univariate import iAMaLGaM_Univariate
-from .distribution_based.ipop_cma_es import IPOP_CMA_ES
 from .distribution_based.learned_es import LearnedES
 from .distribution_based.lm_ma_es import LM_MA_ES
 from .distribution_based.ma_es import MA_ES
 from .distribution_based.noise_reuse_es import NoiseReuseES
 from .distribution_based.open_es import Open_ES
-from .distribution_based.persistent_es import PES
+from .distribution_based.persistent_es import PersistentES
 from .distribution_based.pgpe import PGPE
 from .distribution_based.random_search import RandomSearch
 from .distribution_based.rm_es import Rm_ES

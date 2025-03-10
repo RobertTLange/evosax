@@ -8,7 +8,9 @@ from functools import partial
 import jax
 from flax import struct
 
-from .restarter import RestartWrapper, WrapperParams, WrapperState, spread_criterion
+from evosax.algorithms import algorithms
+
+from .restart_conds import RestartParams, RestartState, spread_cond
 
 
 @struct.dataclass
@@ -26,13 +28,13 @@ class RestartParams:
     copy_mean: bool = False
 
 
-class IPOP_Restarter(RestartWrapper):
+class IPOP_Restarter:
     """Increasing Population Size Restarter (IPOP Restarter)."""
 
     def __init__(
         self,
         base_strategy,
-        stop_criteria=[spread_criterion],
+        stop_criteria=[spread_cond],
         strategy_kwargs: dict = {},
     ):
         """Initialize the IPOP Restart."""
@@ -40,17 +42,13 @@ class IPOP_Restarter(RestartWrapper):
         self.default_population_size = self.base_strategy.population_size
         self.strategy_kwargs = strategy_kwargs
 
-        from .. import Strategies
-
-        global Strategies
-
     @property
     def restart_params(self) -> RestartParams:
         """Return default parameters for strategy restarting."""
         return RestartParams()
 
     @partial(jax.jit, static_argnames=("self",))
-    def init(self, key: jax.Array, params: WrapperParams | None = None) -> WrapperState:
+    def init(self, key: jax.Array, params: RestartParams | None = None) -> RestartState:
         """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -62,14 +60,14 @@ class IPOP_Restarter(RestartWrapper):
             restart_next=False,
             active_population_size=self.base_strategy.population_size,
         )
-        return WrapperState(strategy_state, restart_state)
+        return RestartState(strategy_state, restart_state)
 
     def ask(
         self,
         key: jax.Array,
-        state: WrapperState,
-        params: WrapperParams | None = None,
-    ) -> tuple[jax.Array, WrapperState]:
+        state: RestartState,
+        params: RestartParams | None = None,
+    ) -> tuple[jax.Array, RestartState]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -89,9 +87,9 @@ class IPOP_Restarter(RestartWrapper):
     def restart(
         self,
         key: jax.Array,
-        state: WrapperState,
-        params: WrapperParams,
-    ) -> WrapperState:
+        state: RestartState,
+        params: RestartParams,
+    ) -> RestartState:
         """Reinstantiate a new strategy with increased population sizes."""
         # Reinstantiate new strategy - based on name of previous strategy
         active_population_size = (
@@ -100,7 +98,7 @@ class IPOP_Restarter(RestartWrapper):
         )
 
         # Reinstantiate new ES with new population size
-        self.base_strategy = Strategies[self.base_strategy.strategy_name](
+        self.base_strategy = algorithms[self.base_strategy.strategy_name](
             population_size=int(active_population_size),
             solution=self.base_strategy.solution,
             **self.strategy_kwargs,
@@ -122,4 +120,4 @@ class IPOP_Restarter(RestartWrapper):
             restart_counter=state.restart_state.restart_counter + 1,
             restart_next=False,
         )
-        return WrapperState(strategy_state, restart_state)
+        return RestartState(strategy_state, restart_state)

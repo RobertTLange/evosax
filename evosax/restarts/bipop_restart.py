@@ -9,8 +9,9 @@ from functools import partial
 import jax
 from flax import struct
 
-from ..algorithms.base import State
-from .restarter import RestartWrapper, WrapperParams, WrapperState, spread_criterion
+from evosax.algorithms import algorithms
+
+from .restart_conds import RestartParams, RestartState, spread_cond
 
 
 @struct.dataclass
@@ -32,20 +33,16 @@ class RestartParams:
     copy_mean: bool = False
 
 
-class BIPOP_Restarter(RestartWrapper):
+class BIPOP_Restarter:
     def __init__(
         self,
         base_strategy,
-        stop_criteria=[spread_criterion],
+        stop_criteria=[spread_cond],
         strategy_kwargs: dict = {},
     ):
         super().__init__(base_strategy, stop_criteria)
         self.default_population_size = self.base_strategy.population_size
         self.strategy_kwargs = strategy_kwargs
-
-        from .. import Strategies
-
-        global Strategies
 
     @property
     def restart_params(self) -> RestartParams:
@@ -53,7 +50,7 @@ class BIPOP_Restarter(RestartWrapper):
         return RestartParams()
 
     @partial(jax.jit, static_argnames=("self",))
-    def init(self, key: jax.Array, params: WrapperParams | None = None) -> WrapperState:
+    def init(self, key: jax.Array, params: RestartParams | None = None) -> RestartState:
         """`init` the evolution strategy."""
         # Use default hyperparameters if no other settings provided
         if params is None:
@@ -69,13 +66,13 @@ class BIPOP_Restarter(RestartWrapper):
             small_eval_budget=0,
             small_pop_active=True,
         )
-        return WrapperState(strategy_state, restart_state)
+        return RestartState(strategy_state, restart_state)
 
     def ask(
         self,
         key: jax.Array,
-        state: WrapperState,
-        params: WrapperParams | None = None,
+        state: RestartState,
+        params: RestartParams | None = None,
     ) -> tuple[jax.Array, State]:
         """`ask` for new parameter candidates to evaluate next."""
         # Use default hyperparameters if no other settings provided
@@ -95,9 +92,9 @@ class BIPOP_Restarter(RestartWrapper):
     def restart(
         self,
         key: jax.Array,
-        state: WrapperState,
-        params: WrapperParams,
-    ) -> WrapperState:
+        state: RestartState,
+        params: RestartParams,
+    ) -> RestartState:
         """Reinstantiate a new strategy with interlaced population sizes."""
         key_uniform, key_init = jax.random.split(key)
 
@@ -134,7 +131,7 @@ class BIPOP_Restarter(RestartWrapper):
         )
 
         # Reinstantiate new ES with new population size
-        self.base_strategy = Strategies[self.base_strategy.strategy_name](
+        self.base_strategy = algorithms[self.base_strategy.strategy_name](
             population_size=int(active_population_size),
             solution=self.base_strategy.solution,
             **self.strategy_kwargs,
@@ -162,4 +159,4 @@ class BIPOP_Restarter(RestartWrapper):
             restart_counter=state.restart_state.restart_counter + 1,
             restart_next=False,
         )
-        return WrapperState(strategy_state, restart_state)
+        return RestartState(strategy_state, restart_state)

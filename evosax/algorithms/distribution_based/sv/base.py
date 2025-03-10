@@ -92,6 +92,9 @@ class SV_ES(DistributionBasedAlgorithm):
         params: Params,
     ) -> tuple[State, Metrics]:
         """Tell evolutionary algorithm fitness for state update."""
+        # Ravel population
+        population = jax.vmap(jax.vmap(self._ravel_solution))(population)
+
         # Reshape population and fitness
         population = population.reshape(
             self.num_populations, self.population_size, self.num_dims
@@ -110,9 +113,6 @@ class SV_ES(DistributionBasedAlgorithm):
         metrics = jax.vmap(self.metrics_fn, in_axes=(0, 0, 0, 0, None))(
             keys, population, fitness, state, params
         )
-
-        # Ravel population
-        population = jax.vmap(jax.vmap(self._ravel_solution))(population)
 
         # Shape fitness
         fitness = jax.vmap(self.fitness_shaping_fn, in_axes=(0, 0, 0, None))(
