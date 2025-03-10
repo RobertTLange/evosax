@@ -6,7 +6,11 @@
 [![Paper](http://img.shields.io/badge/paper-arxiv.2212.04180-B31B1B.svg)](http://arxiv.org/abs/2212.04180)
 <a href="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true"><img src="https://github.com/RobertTLange/evosax/blob/main/docs/logo.png?raw=true" width="170" align="right" /></a>
 
-Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for Evolution Strategies? `evosax` allows you to use JAX, XLA compilation and vectorization/parallelization to scale ES to your favorite accelerators. The API is based on the classical `ask`-`eval`-`tell` cycle of ES. Both `ask` and `tell` calls are compatible with `jit`, `vmap` and `lax.scan`. It includes a vast set of both classic (e.g., CMA-ES, Differential Evolution, etc.) and modern (e.g. OpenAI-ES, Augmented Random Search, etc.) evolution strategies. You can get started here 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/00_getting_started.ipynb)
+Tired of having to handle asynchronous processes for neuroevolution? Do you want to leverage massive vectorization and high-throughput accelerators for Evolution Strategies? `evosax` provides a comprehensive, high-performance library that implements Evolution Strategies (ES) in JAX. By leveraging XLA compilation and JAX's transformation primitives, `evosax` enables researchers and practitioners to efficiently scale evolutionary algorithms to modern hardware accelerators without the traditional overhead of distributed implementations.
+
+The API follows the classical `ask`-`eval`-`tell` cycle of ES, with full support for JAX's transformations (`jit`, `vmap`, `lax.scan`). The library includes 30+ evolution strategies, from classics like CMA-ES and Differential Evolution to modern approaches like OpenAI-ES and Diffusion Evolution.
+
+**Get started here** 👉 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/00_getting_started.ipynb)
 
 ## Basic `evosax` API Usage 🍲
 
@@ -87,46 +91,46 @@ You will need Python 3.10 or later, and a working JAX installation.
 
 Then, install `evosax` from PyPi:
 
-```
+```bash
 pip install evosax
 ```
 
 To upgrade to the latest version of `evosax`, you can use:
 
-```
+```bash
 pip install git+https://github.com/RobertTLange/evosax.git@main
 ```
 
 ## Examples 📖
 
-* 📓 [Getting Started](https://github.com/RobertTLange/evosax/blob/main/examples/00_getting_started.ipynb): Introduction to the library.
-* 📓 [Back Box Optimization Benchmark](https://github.com/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb): Optimization of common black box optimization problems with visualization.
-* 📓 [Reinforcement Learning](https://github.com/RobertTLange/evosax/blob/main/examples/02_rl.ipynb): Using OpenAI-ES to learn complex MLP control policies.
-* 📓 [Vision](https://github.com/RobertTLange/evosax/blob/main/examples/03_vision.ipynb): Learning Convolution Neural Network for classification.
-* 📓 [Restart ES](https://github.com/RobertTLange/evosax/blob/main/examples/04_restart_es.ipynb): Example of restart strategies like IPOP-CMA-ES.
-* 📓 [Diffusion Evolution](https://github.com/RobertTLange/evosax/blob/main/examples/05_diffusion_evolution.ipynb): Optimization with diffusion evolution.
-* 📓 [Stein Variational ES](https://github.com/RobertTLange/evosax/blob/main/examples/06_sv_es.ipynb): Using Stein Variational Evolution Strategy on BBOB problems.
-* 📓 [Persistent/Noise-Reuse ES](https://github.com/RobertTLange/evosax/blob/main/examples/07_persistent_es.ipynb): Using Persistent/Noise-Reuse ES on meta-learning problem as in [Vicol et al. (2021)](http://proceedings.mlr.press/v139/vicol21a.html).
+* 📓 [Getting Started](https://github.com/RobertTLange/evosax/blob/main/examples/00_getting_started.ipynb) - Introduction to the library
+* 📓 [Black Box Optimization Benchmark](https://github.com/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb) - Optimization of common test functions
+* 📓 [Reinforcement Learning](https://github.com/RobertTLange/evosax/blob/main/examples/02_rl.ipynb) - Learning MLP control policies
+* 📓 [Vision](https://github.com/RobertTLange/evosax/blob/main/examples/03_vision.ipynb) - Training CNNs for classification
+* 📓 [Restart ES](https://github.com/RobertTLange/evosax/blob/main/examples/04_restart_es.ipynb) - Implementing restart strategies
+* 📓 [Diffusion Evolution](https://github.com/RobertTLange/evosax/blob/main/examples/05_diffusion_evolution.ipynb) - Optimization with diffusion evolution.
+* 📓 [Stein Variational ES](https://github.com/RobertTLange/evosax/blob/main/examples/06_sv_es.ipynb) - Using SV-ES on BBOB problems
+* 📓 [Persistent/Noise-Reuse ES](https://github.com/RobertTLange/evosax/blob/main/examples/07_persistent_es.ipynb) - ES for meta-learning problems
 
-## Key Features 💵
+## Key Features 💎
 
-- **Diversity**: `evosax` implements more than 30 classic and modern neuroevolution methods. All of them follow the same simple `ask`/`eval` API and come with tailored tools such as the [ClipUp](https://arxiv.org/abs/2008.02387) optimizer, fitness shaping, and more.
+- **Comprehensive Algorithm Collection**: 30+ classic and modern evolution strategies with a unified API
+- **JAX Acceleration**: Fully compatible with JAX transformations for speed and scalability
+- **Vectorization & Parallelization**: Fast execution on CPUs, GPUs, and TPUs
+- **Production Ready**: Well-tested, documented, and used in research environments
+- **Batteries Included**: Comes with optimizers like ClipUp, fitness shaping, and restart strategies
 
-- **Vectorization/Parallelization of `ask`/`tell`**: Both `ask` and `tell` calls can leverage `jit` and `vmap`.
+## Related Resources 📚
 
-- **Scan Through Evolution**: You can also `lax.scan` through entire `init`, `ask`, `eval`, `tell` loops for fast compilation of ES loops.
-
-## Resources & Other Great JAX-ES Tools 📝
-
-* 📺 [Rob's MLC Research Jam Talk](https://www.youtube.com/watch?v=Wn6Lq2bexlA&t=51s): Small motivation talk at the ML Collective Research Jam.
-* 📝 [Rob's 02/2021 Blog](https://roberttlange.github.io/posts/2021/02/cma-es-jax/): Tutorial on CMA-ES & JAX.
-* 💻 [Evojax](https://github.com/google/evojax): Hardware-Accelerated Neuroevolution with great rollout wrappers.
+* 📺 [Rob's MLC Research Jam Talk](https://www.youtube.com/watch?v=Wn6Lq2bexlA&t=51s) - Overview at the ML Collective Research Jam
+* 📝 [Rob's 02/2021 Blog](https://roberttlange.github.io/posts/2021/02/cma-es-jax/) - Blog post on implementing CMA-ES in JAX
+* 💻 [Evojax](https://github.com/google/evojax) - Hardware-Accelerated Neuroevolution with great rollout wrappers.
 * 💻 [QDax](https://github.com/adaptive-intelligent-robotics/QDax): Quality-Diversity algorithms in JAX.
 
-## Acknowledgements & Citing `evosax` ✏️
+## Citing `evosax` ✏️
 
 If you use `evosax` in your research, please cite the following [paper](https://arxiv.org/abs/2212.04180):
-```
+```bibtex
 @article{evosax2022github,
     author = {Robert Tjarko Lange},
     title = {evosax: JAX-based Evolution Strategies},
@@ -135,11 +139,13 @@ If you use `evosax` in your research, please cite the following [paper](https://
 }
 ```
 
+## Acknowledgements 🙏
+
 We acknowledge financial support by the [Google TRC](https://sites.research.google/trc/about/) and the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) under Germany's Excellence Strategy - EXC 2002/1 ["Science of Intelligence"](https://www.scienceofintelligence.de/) - project number 390523135.
 
 ## Contributing 👷
 
-If you find a bug or are missing your favourite feature, feel free to create an issue and/or start [contributing](CONTRIBUTING.md) 🤗.
+Contributions are welcome! If you find a bug or are missing your favorite feature, please [open an issue](https://github.com/RobertTLange/evosax/issues) or submit a pull request following our [contribution guidelines](CONTRIBUTING.md) 🤗.
 
 ## Disclaimer ⚠️
 
