@@ -1,4 +1,4 @@
-"""Base module for distribution-based algorithms."""
+"""Base module for Stein Variational Evolution Strategies."""
 
 from collections.abc import Callable
 from functools import partial

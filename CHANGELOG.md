@@ -1,3 +1,98 @@
+### [v0.2.0] - [03/2025]
+
+This major update includes significant architectural changes, dependency updates, bug fixes, and naming standardization across the library.
+
+#### Breaking Changes
+
+- Increased minimum Python requirement to >=3.10
+- Updated to JAX >=0.5.0
+- Switched from `setup.py` to `pyproject.toml` for package configuration
+- Restructured algorithms into two main types: `PopulationBased` and `DistributionBased`
+- Removed `ESLogger` in favor of user-provided `metrics_fn`
+- Removed `ParameterReshape` class (now handled automatically by algorithm classes)
+- Removed `n_devices` parameter and all `pmap` calls to align with JAX's new sharding mechanisms
+- Renamed `Strategy.initialize` to `Strategy.init`
+- Renamed `Fitness` to `Problem` with `.eval` method replacing `.rollout`
+
+#### Optimization and Dependencies
+
+- Replaced custom optimizer with `optax`
+  - Implemented ClipUp in Optax GradientTransformation
+- Added ruff for code linting
+- Removed chex dependency
+  - Added custom types.py file with Solution, Fitness, and Metrics types
+- Removed RBF (now using JAX's `jax.scipy.stats.norm.pdf`)
+
+#### Library Structure Improvements
+
+- Made all MA-ES strategies inherit from CMA-ES
+  - Includes: cma_es, sep_cma_es, sv_cma_es, rm_es, ma_es, lm_ma_es
+- For Stein Variational methods, implemented Strategies that inherit from CMA-ES/OpenES
+- Refactored fitness shaping to use a direct function (`fitness_shaping_fn`) rather than an object
+- Implemented SNES/xNES inheritance for weights
+- Made all Genetic Algorithms return initial population for evaluation on first generation
+- Moved Restart mechanism to core
+
+#### Algorithm Fixes
+
+- Fixed numerous bugs in evolution strategies:
+  - Fixed xNES implementation
+  - Fixed SimAnneal implementation
+  - Fixed PBT implementation
+  - Fixed GuidedES implementation
+  - Fixed MR15-GA implementation
+  - Fixed nan values in PGPE
+  - Fixed nan values in RM-ES
+  - Fixed incorrect z calculation in MA-ES
+  - Fixed sep_cma_es where D was never updated
+  - Fixed GESMR-GA algorithm
+
+#### Naming Standardization
+
+- Renamed `EvoState` to `State` and `EvoParams` to `Params`
+- Renamed `es_params`/`es_state` to `params`/`state`
+- Renamed `params`/`x` to `solution` or `solutions`
+- Renamed `rng` to `key`
+- Renamed `gen_counter` to `generation_counter` or `counter`
+- Renamed `gen` to `generation`
+- Renamed `popsize` to `population_size`
+- Standardized naming between `mean`/`sigma` across algorithms
+- Renamed `get_eval_params` to `get_eval_solution`
+- Changed `lrate` to `lr`
+- Renamed `persistent_es.py` to `pes.py`
+- Renamed all `*_strategy` to `_*`
+- Standardized all references to `total_params` and `num_dims`
+
+#### Evolution Strategy Improvements
+
+- Replaced `jnp.finfo(jnp.float32).max` with `jnp.inf` throughout codebase
+- Avoided logic with `None` args in `Strategy.__init__` and `Strategy.ask`
+- Refactored std decay to use optax schedules
+- Removed mean decay from within strategies
+- Added correct implementation of c_m in MA-ES algorithms
+- Fixed incorrect p notation (now properly uses p_σ and p_c)
+- Updated all static_argnums to static_argnames
+- Fixed GuideES to pass gradient within EvoState rather than implementing tell
+
+#### Problem Modules
+
+- Renamed "classic" to "bbo"
+- Renamed "control_gym" to "gymnax"
+- Added Brax support
+- Improved gymnax integration
+- Created base class for problems
+- All problems now provide a `sample_solution` method
+- Added noise models for BBO problems
+- Added `problem.eval`, `problem.sample_solution`, `dummy_solution` methods
+
+#### Documentation
+
+- Updated all notebooks
+- Fixed license mismatch on PyPI
+- Fixed all TODOs within codebase
+- Updated examples and experimental code
+- Added tests for experimental features
+
 ### [v0.1.7] - [10/2024]
 
 ##### Added
