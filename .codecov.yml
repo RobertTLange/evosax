@@ -22,7 +22,6 @@ comment:
 
 ignore:
   - "tests/.*"
-  - "_version.py"
   - "setup.py"
   - "requirements/*"
   - "notebooks/*"

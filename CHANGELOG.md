@@ -25,7 +25,7 @@ fn_name = "Sphere"
 num_dims = 2
 popsize = 64
 rng = jax.random.PRNGKey(0)
-evaluator = BBOBFitness(fn_name, num_dims=num_dims, n_devices=num_devices)
+problem = BBOBFitness(fn_name, num_dims=num_dims, n_devices=num_devices)
 
 strategy = SNES(
     popsize=popsize,
@@ -35,24 +35,24 @@ strategy = SNES(
     maximize=False,
 )
 
-es_params = strategy.default_params.replace(init_min=-3.0, init_max=3.0)
-es_params = jax_utils.replicate(es_params)
+params = strategy.default_params.replace(init_min=-3.0, init_max=3.0)
+params = jax_utils.replicate(params)
 
 init_rng = jnp.tile(rng[None], (num_devices, 1))
-es_state = jax.pmap(strategy.initialize)(init_rng, es_params)
-print("Mean pre-update:", es_state.mean)  # (num_devices, num_dims)
+state = jax.pmap(strategy.initialize)(init_rng, params)
+print("Mean pre-update:", state.mean)  # (num_devices, num_dims)
 
 rng, rng_a, rng_e = jax.random.split(rng, 3)
 ask_rng = jax.random.split(rng_a, num_devices)
-x, es_state = jax.pmap(strategy.ask, axis_name="device")(ask_rng, es_state, es_params)
+x, state = jax.pmap(strategy.ask, axis_name="device")(ask_rng, state, params)
 
 print("Population shape:", x.shape)  # (num_devices, popsize/num_devices, num_dims)
 
-fitness = evaluator.rollout(rng_e, x)
+fitness = problem.rollout(rng_e, x)
 print("Fitness shape:", fitness.shape)  # (num_devices, popsize/num_devices)
 
-es_state = jax.pmap(strategy.tell, axis_name="device")(x, fitness, es_state, es_params)
-print("Mean post-update:", es_state.mean)  # (num_devices, num_dims)
+state = jax.pmap(strategy.tell, axis_name="device")(x, fitness, state, params)
+print("Mean post-update:", state.mean)  # (num_devices, num_dims)
 ```
 
 - Added `DiffusionEvolution` based on [Zhang et al. (2024)](https://arxiv.org/pdf/2410.02543). Example: [`10_diffusion_evolution.ipynb`](https://github.com/RobertTLange/evosax/blob/main/examples/10_diffusion_evolution.ipynb)
@@ -174,10 +174,10 @@ Big thanks to Cornelius Braun (@cornelius-braun
 
 ##### Changed
 
-- `ParameterReshaper` can now be directly applied from within the strategy. You simply have to provide a `pholder_params` pytree at strategy instantiation (and no `num_dims`).
+- `ParameterReshaper` can now be directly applied from within the strategy. You simply have to provide a solution at strategy instantiation (and no `num_dims`).
 - `FitnessShaper` can also be directly applied from within the strategy. This makes it easier to track the best performing member across generations and addresses issue #32. Simply provide the fitness shaping settings as args to the strategy (`maximize`, `centered_rank`, ...)
 - Removes Brax fitness (use EvoJAX version instead)
-- Add lrate and sigma schedule to strategy instantiation
+- Add lr and sigma schedule to strategy instantiation
 
 ##### Fixed
 
@@ -194,12 +194,12 @@ Big thanks to Cornelius Braun (@cornelius-braun
     - Hypernetworks for MLP architectures
 - Example notebook for infirect encodings.
 - Example notebook for Brax control tasks and policy visualizations.
-- Adds option to restart wrappers to `copy_mean` and only reset other parts of `EvoState`.
+- Adds option to restart wrappers to `copy_mean` and only reset other parts of `State`.
 
 ##### Changed
 
 - Change problem wrappers to work with `{"params": ...}` dictionary. No longer need to define `ParameterReshaper(net_params["params"])` to work without preselecting "params". Changed tests and notebooks accordingly.
-- Restructured all strategies to work with flax structured dataclass and `EvoState`/`EvoParams`.
+- Restructured all strategies to work with flax structured dataclass and `State`/`Params`.
 
 ```python
 from flax import struct
@@ -208,7 +208,7 @@ class State:
     ...
 ```
 
-- The core strategy API now also works without `es_params` being supplied in call. In this case we simply use the default settings.
+- The core strategy API now also works without `params` being supplied in call. In this case we simply use the default settings.
 - Moved all gym environment to (still private but soon to be released) `gymnax`.
 - Updated all notebooks accordingly.
 
@@ -250,7 +250,7 @@ class State:
 - Adds Acrobot task to `GymFitness` rollout wrappers.
 - Adds modified Ant environment to Brax rollout.
 - New strategies:
-    - RmES (`RmES` following Li & Zhang, 2008).
+    - Rm_ES (`Rm_ES` following Li & Zhang, 2008).
     - Gradientless Descent (`GLD` following Golovin et al., 2020).
     - Simulated Annealing (`SimAnneal` following Rasdi Rere et al., 2015)
 - Adds simultaneous batch strategy functionalities:
@@ -276,7 +276,7 @@ class State:
     - Separable CMA-ES strategy (`Sep_CMA_ES` following Ros & Hansen, 2008).
     - BIPOP-CMA-ES (`BIPOP_CMA_ES`, following Hansen, 2009)
     - IPOP-CMA-ES (`IPOP_CMA_ES`, following Auer & Hansen, 2005)
-    - Full-iAMaLGaM (`Full_iAMaLGaM`, following Bosman et al., 2013)
+    - Full-iAMaLGaM (`iAMaLGaM_Full`, following Bosman et al., 2013)
     - MA-ES (`MA_ES`, following Bayer & Sendhoff, 2017)
     - LM-MA-ES (`LM_MA_ES`, following Loshchilov et al., 2017)
 - Restart wrappers: 

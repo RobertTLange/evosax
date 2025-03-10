@@ -1,98 +1,44 @@
-def pytest_addoption(parser):
-    parser.addoption("--all", action="store_true", help="run all combinations")
+"""Pytest configuration file for evosax tests."""
+
+import jax
+import pytest
+from evosax.algorithms.distribution_based import distribution_based_algorithms
+from evosax.algorithms.population_based import population_based_algorithms
+from evosax.problems import BBOBProblem
 
 
-def pytest_generate_tests(metafunc):
-    if "strategy_name" in metafunc.fixturenames:
-        if metafunc.config.getoption("all"):
-            metafunc.parametrize(
-                "strategy_name",
-                [
-                    "SimpleGA",
-                    "SimpleES",
-                    "CMA_ES",
-                    "DE",
-                    "PSO",
-                    "OpenES",
-                    "PGPE",
-                    "ARS",
-                    "PBT",
-                    "PersistentES",
-                    "Sep_CMA_ES",
-                    "Full_iAMaLGaM",
-                    "Indep_iAMaLGaM",
-                    "MA_ES",
-                    "LM_MA_ES",
-                    "RmES",
-                    "GLD",
-                    "xNES",
-                    "SNES",
-                    "ESMC",
-                    "DES",
-                    "SAMR_GA",
-                    "GESMR_GA",
-                    "GuidedES",
-                    "ASEBO",
-                    "CR_FM_NES",
-                    "MR15_GA",
-                    "RandomSearch",
-                    "LES",
-                    "LGA",
-                    "NoiseReuseES",
-                    "HillClimber",
-                    "EvoTF_ES",
-                    "DiffusionEvolution",
-                    "SV_CMA_ES",
-                ],
-            )
-        else:
-            metafunc.parametrize("strategy_name", ["LGA"])
+# Common test parameters
+@pytest.fixture
+def num_dims():
+    return 2
 
-    if "classic_name" in metafunc.fixturenames:
-        if metafunc.config.getoption("all"):
-            metafunc.parametrize(
-                "classic_name",
-                [
-                    "Sphere",
-                    "EllipsoidalOriginal",
-                    "RastriginOriginal",
-                    "BuecheRastrigin",
-                    "LinearSlope",
-                    # Part 2: Functions with low or moderate conditions
-                    "AttractiveSector",
-                    "StepEllipsoidal",
-                    "RosenbrockOriginal",
-                    "RosenbrockRotated",
-                    # Part 3: Functions with high conditioning and unimodal
-                    "EllipsoidalRotated",
-                    "Discus",
-                    "BentCigar",
-                    "SharpRidge",
-                    "DifferentPowers",
-                    # Part 4: Multi-modal functions with adequate global structure
-                    "RastriginRotated",
-                    "Weierstrass",
-                    "SchaffersF7",
-                    "SchaffersF7IllConditioned",
-                    "GriewankRosenbrock",
-                    # Part 5: Multi-modal functions with weak global structure
-                    "Schwefel",
-                    "Lunacek",
-                    "Gallagher101Me",
-                    "Gallagher21Hi",
-                    # "Katsuura",
-                ],
-            )
-        else:
-            metafunc.parametrize("classic_name", ["Sphere"])
 
-    if "env_name" in metafunc.fixturenames:
-        if metafunc.config.getoption("all"):
-            metafunc.parametrize(
-                "env_name",
-                [
-                    "CartPole-v1",
-                ],
-            )
-        else:
-            metafunc.parametrize("env_name", ["CartPole-v1"])
+@pytest.fixture
+def num_generations():
+    return 16
+
+
+@pytest.fixture
+def population_size():
+    return 8
+
+
+@pytest.fixture
+def key():
+    return jax.random.key(0)
+
+
+@pytest.fixture
+def bbob_problem(num_dims):
+    """Create a BBOB problem instance with the sphere function."""
+    return BBOBProblem(fn_name="sphere", num_dims=num_dims, seed=0)
+
+
+@pytest.fixture(params=list(distribution_based_algorithms.keys()))
+def distribution_based_algorithm_name(request):
+    return request.param
+
+
+@pytest.fixture(params=list(population_based_algorithms.keys()))
+def population_based_algorithm_name(request):
+    return request.param
