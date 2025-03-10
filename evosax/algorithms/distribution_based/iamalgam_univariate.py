@@ -17,7 +17,9 @@ from .iamalgam_full import Params, State, iAMaLGaM_Full
 
 
 class iAMaLGaM_Univariate(iAMaLGaM_Full):
-    """Incremental Adapted Maximum-Likelihood Gaussian Model - Iterated Density-Estimation Evolutionary Algorithm (iAMaLGaM) with diagonal covariance matrix."""
+    """Incremental Adapted Maximum-Likelihood Gaussian Model -
+    Iterated Density-Estimation Evolutionary Algorithm (iAMaLGaM) with diagonal
+    covariance matrix."""
 
     def __init__(
         self,

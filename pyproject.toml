@@ -66,8 +66,8 @@ line-length = 88
 indent-width = 4
 
 [tool.ruff.lint]
-select = ["E", "D", "F", "I", "N", "SIM", "UP", "W"]
-ignore = ["D203", "D206", "D213", "W191"]
+select = ["E", "F", "I", "N", "SIM", "UP", "W"]
+ignore = ["N801", "N802", "N803", "N806", "N815", "W191"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -49,7 +49,6 @@ class DistributionFeaturizer:
         evopath_timescales: list[float] = [0.9, 0.95, 1.0],
         momentum_timescales: list[float] = [0.9, 0.95, 1.0],
         use_oai_grad: bool = False,
-        verbose: bool = False,
     ):
         self.population_size = population_size
         self.num_dims = num_dims
@@ -61,22 +60,9 @@ class DistributionFeaturizer:
         self.evopath_timescales = evopath_timescales
         self.momentum_timescales = momentum_timescales
         self.use_oai_grad = use_oai_grad
-        self.verbose = verbose
 
         self.evopath = TraceConstructor(num_dims, jnp.array(evopath_timescales))
         self.mompath = TraceConstructor(num_dims, jnp.array(momentum_timescales))
-
-        if self.verbose:
-            print(
-                f"Distribution Features / Batch shape: {self.num_features} / {self.example_batch_shape}"
-            )
-            print("[BASE] SNES grad mean -> sum w_i (x-mu)/std")
-            print("[BASE] SNES grad std -> sum w_i [(x-mu)/std]**2 - 1")
-            print(f"[{self.use_mean}] Mean")
-            print(f"[{self.use_std}] std")
-            print(f"[{self.use_evopaths}] Evolution Paths -> {self.evopath_timescales}")
-            print(f"[{self.use_momentum}] Momentum -> {self.momentum_timescales}")
-            print(f"[{self.use_oai_grad}] OpenAI Gradient")
 
     @functools.partial(jax.jit, static_argnames=("self",))
     def init(self) -> DistributionFeaturesState:

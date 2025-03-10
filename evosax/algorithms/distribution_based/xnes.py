@@ -59,7 +59,6 @@ class xNES(DistributionBasedAlgorithm):
         lr_std_init = (9 + 3 * jnp.log(self.num_dims)) / (
             5 * jnp.sqrt(self.num_dims) * self.num_dims
         )
-        rho = 0.5 - 1 / (3 * (self.num_dims + 1))
         return Params(
             std_init=1.0,
             weights=weights,

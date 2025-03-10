@@ -1,4 +1,5 @@
-"""Incremental Adapted Maximum-Likelihood Gaussian Model - Iterated Density-Estimation Evolutionary Algorithm (Bosman et al., 2013).
+"""Incremental Adapted Maximum-Likelihood Gaussian Model - Iterated Density-Estimation
+Evolutionary Algorithm (Bosman et al., 2013).
 
 Full covariance version.
 
@@ -44,7 +45,9 @@ class Params(Params):
 
 
 class iAMaLGaM_Full(DistributionBasedAlgorithm):
-    """Incremental Adapted Maximum-Likelihood Gaussian Model - Iterated Density-Estimation Evolutionary Algorithm (iAMaLGaM) with full covariance matrix."""
+    """Incremental Adapted Maximum-Likelihood Gaussian Model -
+    Iterated Density-Estimation Evolutionary Algorithm (iAMaLGaM) with full covariance
+    matrix."""
 
     def __init__(
         self,

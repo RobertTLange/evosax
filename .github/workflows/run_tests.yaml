@@ -34,8 +34,8 @@ jobs:
         pip install -e .[dev,examples]
     - name: Lint with ruff
       run: |
-        ruff check .
-        ruff format .
+        ruff format evosax/
+        ruff check evosax/
     - name: Run unit/integration tests
       run: |
         python -m pytest tests/ -vv --durations=0 --cov=./ --cov-report=term-missing --cov-report=xml

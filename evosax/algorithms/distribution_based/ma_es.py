@@ -102,7 +102,9 @@ class MA_ES(CMA_ES):
         """Update the transformation matrix M."""
         p_std_outer = jnp.outer(p_std, p_std)
         z_outer_w = jnp.einsum("i,ijk->jk", params.weights, jax.vmap(jnp.outer)(z, z))
-        I = jnp.eye(self.num_dims)
+        identity = jnp.eye(self.num_dims)
         return M @ (
-            I + params.c_1 / 2 * (p_std_outer - I) + params.c_mu / 2 * (z_outer_w - I)
+            identity
+            + params.c_1 / 2 * (p_std_outer - identity)
+            + params.c_mu / 2 * (z_outer_w - identity)
         )  # Eq. (M11) in Figure 3

@@ -51,8 +51,12 @@ class MLP(nn.Module):
         ]
 
     def __call__(self, x: jax.Array, train: bool = True) -> jax.Array:
-        for l in self.linear:
-            x = l(x) if not isinstance(l, nn.Dropout) else l(x, deterministic=not train)
+        for linear in self.linear:
+            x = (
+                linear(x)
+                if not isinstance(linear, nn.Dropout)
+                else linear(x, deterministic=not train)
+            )
         return x
 
 

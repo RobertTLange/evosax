@@ -14,14 +14,14 @@ from .restart_conds import RestartParams, RestartState, spread_cond
 
 
 @struct.dataclass
-class RestartState:
+class RestartState(RestartState):
     restart_counter: int
     restart_next: bool
     active_population_size: int
 
 
 @struct.dataclass
-class RestartParams:
+class RestartParams(RestartParams):
     min_num_gens: int = 50
     min_fitness_spread: float = 1e-12
     population_size_multiplier: int = 2

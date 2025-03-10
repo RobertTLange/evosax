@@ -27,7 +27,6 @@ class SolutionFeaturizer:
         diff_best: bool = False,
         norm_diff_best: bool = False,
         maximize: bool = False,
-        verbose: bool = False,
     ):
         self.population_size = population_size
         self.num_dims = num_dims
@@ -37,21 +36,6 @@ class SolutionFeaturizer:
         self.diff_best = diff_best
         self.norm_diff_best = norm_diff_best
         self.maximize = maximize
-        self.verbose = verbose
-
-        if self.verbose:
-            print(
-                f"Solution Features / Batch shape: {self.num_features} / {self.example_batch_shape}"
-            )
-            print("[BASE] Diff mean -> (x - mu)")
-            print(f"[{self.norm_diff_mean}] Norm difference mean -> (x - mu)/ std")
-            print(
-                f"[{self.norm_diff_mean_sq}] Norm difference to mean squared -> [(x - mu)/ std]^2"
-            )
-            print(f"[{self.diff_best}] Difference to best -> (x - x_best)")
-            print(
-                f"[{self.norm_diff_best}] Normalized difference to best  -> (x - x_best) in [-0.5, 0.5]"
-            )
 
     @functools.partial(jax.jit, static_argnames=("self",))
     def init(self):

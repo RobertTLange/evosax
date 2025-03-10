@@ -36,7 +36,6 @@ class FitnessFeaturizer:
         des_weights: bool = False,
         w_decay: float = 0.0,
         maximize: bool = False,
-        verbose: bool = False,
     ):
         self.population_size = population_size
         self.num_dims = num_dims
@@ -49,22 +48,6 @@ class FitnessFeaturizer:
         self.des_weights = des_weights
         self.w_decay = w_decay
         self.maximize = maximize
-        self.verbose = verbose
-
-        if self.verbose:
-            print(
-                f"Fitness Features / Batch shape: {self.num_features} / {self.example_batch_shape}"
-            )
-            print("[BASE] Centered ranks in [-0.5, 0.5]")
-            print(f"[{self.improved_best}] Improved best fitness -> f < f_best")
-            print(f"[{self.z_score}] Z-score normalization -> (f-f_mu)/f_std")
-            print(
-                f"[{self.norm_diff_best}] Normalized difference to best -> (f-f_best) in [-1, 1]"
-            )
-            print(f"[{self.norm_range}] Normalized fitness -> f in [-1, 1]")
-            print(f"[{self.snes_weights}] SNES weights")
-            print(f"[{self.des_weights}] DES weights")
-            print(f"[{self.w_decay}] Scaled Weight Norm")
 
     @functools.partial(jax.jit, static_argnames=("self",))
     def featurize(

@@ -172,10 +172,10 @@ class DistributionUpdateNetwork(nn.Module):
     @nn.compact
     def __call__(self, x: jax.Array, train: bool = False) -> jax.Array:
         out = x
-        for l in self.output_net:
+        for linear in self.output_net:
             out = (
-                l(out)
-                if not isinstance(l, nn.Dropout)
-                else l(out, deterministic=not train)
+                linear(out)
+                if not isinstance(linear, nn.Dropout)
+                else linear(out, deterministic=not train)
             )
         return out

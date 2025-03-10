@@ -13,6 +13,8 @@ organized into two main categories:
    Particle Swarm Optimization, and Diffusion Evolution.
 """
 
+# ruff: noqa: F401
+
 # Distribution-based algorithms
 from .distribution_based import distribution_based_algorithms
 from .distribution_based.ars import ARS

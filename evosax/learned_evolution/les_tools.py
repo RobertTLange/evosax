@@ -1,5 +1,5 @@
 import functools
-import sys
+import pickle
 from typing import Any
 
 import jax
@@ -12,12 +12,6 @@ from .fitness_shaping import (
     normalize,
     standardize,
 )
-
-if sys.version_info < (3, 8):
-    # Load with pickle5 for python version compatibility
-    import pickle5 as pickle
-else:
-    import pickle
 
 
 def load_pkl_object(filename: Any, pkg_load: bool = False) -> Any:

@@ -16,6 +16,8 @@ solutions from the search space and evaluate their fitness, respectively.
 from .bbob.bbob import BBOBProblem
 from .bbob.bbob_fns import bbob_fns
 from .bbob.meta_bbob import MetaBBOBProblem
+
+# Meta-Problem
 from .meta_problem import MetaProblem
 
 # Networks
@@ -26,6 +28,8 @@ from .networks import (
     identity_output_fn,
     tanh_output_fn,
 )
+
+# Problem
 from .problem import Problem
 
 # RL
@@ -35,27 +39,18 @@ from .rl.gymnax import GymnaxProblem
 # Vision
 from .vision.torchvision import TorchVisionProblem
 
-bbob = [
+__all__ = [
+    "Problem",
+    "MetaProblem",
     "BBOBProblem",
     "MetaBBOBProblem",
     "bbob_fns",
-]
-
-rl = [
     "GymnaxProblem",
     "BraxProblem",
-]
-
-vision = [
     "TorchVisionProblem",
-]
-
-networks = [
     "MLP",
     "CNN",
     "identity_output_fn",
     "categorical_output_fn",
     "tanh_output_fn",
 ]
-
-__all__ = bbob + rl + vision + networks

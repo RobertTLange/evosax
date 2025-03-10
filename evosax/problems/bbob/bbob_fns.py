@@ -424,7 +424,6 @@ def schwefel(
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
 
-    # x_opt = 4.2096874633 * (2 * jax.random.bernoulli(subkey, shape=(max_num_dims,)) - 1) / 2
     bernoulli = jnp.where(x_opt > 0.0, 1.0, -1.0)
     x_opt = 4.2096874633 * bernoulli / 2
 
