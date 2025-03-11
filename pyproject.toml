@@ -18,7 +18,7 @@ authors = [
 ]
 description = "Evolution Strategies in JAX"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = {text = "Apache-2.0"}
 keywords = ["evolution-strategy", "evolutionary-algorithms", "neuroevolution"]
 classifiers = [
 	"Programming Language :: Python :: 3.10",
