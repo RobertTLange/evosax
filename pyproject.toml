@@ -71,3 +71,6 @@ ignore = ["N801", "N802", "N803", "N806", "N815", "W191"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+
+[tool.setuptools]
+license-files = ["LICENSE"]
