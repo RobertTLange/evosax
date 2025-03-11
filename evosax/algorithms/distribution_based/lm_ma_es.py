@@ -15,16 +15,16 @@ from evosax.core.fitness_shaping import weights_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
 from .base import metrics_fn
-from .ma_es import MA_ES, Params, State
+from .ma_es import MA_ES, Params as BaseParams, State as BaseState
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     pass
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     c_d: jax.Array
 
 

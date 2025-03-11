@@ -14,12 +14,12 @@ from flax import struct
 from evosax.core.fitness_shaping import weights_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
-from .base import State, metrics_fn
-from .cma_es import CMA_ES, Params
+from .base import State as BaseState, metrics_fn
+from .cma_es import CMA_ES, Params as BaseParams
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: jax.Array
     std: float
     p_c: jax.Array  # p
@@ -30,7 +30,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     T: int
     q_star: float
 

@@ -4,7 +4,6 @@ from collections.abc import Callable
 from functools import partial
 
 import jax
-from flax import struct
 
 from evosax.core.kernel import kernel_rbf
 from evosax.types import Fitness, Metrics, Population, Solution
@@ -17,16 +16,6 @@ from ..base import (
     identity_fitness_shaping_fn,
     metrics_fn,
 )
-
-
-@struct.dataclass
-class State(State):
-    mean: Solution
-
-
-@struct.dataclass
-class Params(Params):
-    pass
 
 
 class SV_ES(DistributionBasedAlgorithm):

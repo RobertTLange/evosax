@@ -13,11 +13,16 @@ from flax import struct
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
-from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
+from .base import (
+    Params as BaseParams,
+    PopulationBasedAlgorithm,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     population: Population
     fitness: Fitness
     std: jax.Array
@@ -25,7 +30,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     std_m: float
     scale_factor: float
     alphas: jax.Array

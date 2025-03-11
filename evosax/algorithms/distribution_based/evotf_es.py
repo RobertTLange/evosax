@@ -20,7 +20,12 @@ from ...learned_evolution.evotf_tools import (
     SolutionFeaturizer,
 )
 from ...learned_evolution.les_tools import load_pkl_object
-from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
+from .base import (
+    DistributionBasedAlgorithm,
+    Params as BaseParams,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
@@ -46,7 +51,7 @@ class SolutionFeaturesState:
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: jax.Array
     std: jax.Array
     sf_state: SolutionFeaturesState
@@ -58,7 +63,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     std_init: float
     lr_mean: float
     lr_std: float

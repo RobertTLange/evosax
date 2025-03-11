@@ -69,15 +69,5 @@ indent-width = 4
 select = ["E", "F", "I", "N", "SIM", "UP", "W"]
 ignore = ["N801", "N802", "N803", "N806", "N815", "W191"]
 
-[tool.mypy]
-python_version = "3.11"
-disallow_untyped_defs = true
-disallow_any_unimported = true
-no_implicit_optional = true
-check_untyped_defs = true
-warn_return_any = true
-show_error_codes = true
-warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-ignore_missing_imports = true
+[tool.ruff.lint.isort]
+combine-as-imports = true

@@ -5,24 +5,28 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 import optax
-from flax import linen as nn
-from flax import struct
+from flax import linen as nn, struct
 
 from evosax.core.fitness_shaping import weights_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
-from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
+from .base import (
+    DistributionBasedAlgorithm,
+    Params as BaseParams,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: jax.Array
     std: jax.Array
     opt_state: optax.OptState
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     std_init: float
     weights: jax.Array
     lr_std: float  # Learning rate for population std

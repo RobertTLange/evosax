@@ -12,17 +12,22 @@ from flax import struct
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
-from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
+from .base import (
+    Params as BaseParams,
+    PopulationBasedAlgorithm,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     population: jax.Array
     fitness: jax.Array
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     elitism: bool  # If elitism, base vector is best member else random
     crossover_rate: float  # [0, 1]
     differential_weight: float  # [0, 2]

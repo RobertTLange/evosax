@@ -14,18 +14,23 @@ from evosax.core.fitness_shaping import centered_rank_fitness_shaping_fn
 from evosax.core.optimizer import clipup
 from evosax.types import Fitness, Population, Solution
 
-from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
+from .base import (
+    DistributionBasedAlgorithm,
+    Params as BaseParams,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: jax.Array
     std: jax.Array
     opt_state: optax.OptState
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     std_init: float
     std_lr: float  # Learning rate for std
     std_max_change: float  # Clip adaptive std to 20%

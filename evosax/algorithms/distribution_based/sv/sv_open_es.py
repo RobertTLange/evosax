@@ -14,17 +14,17 @@ from evosax.core.fitness_shaping import centered_rank_fitness_shaping_fn
 from evosax.core.kernel import kernel_rbf
 from evosax.types import Fitness, Population, Solution
 
-from ..open_es import Open_ES, Params, State
+from ..open_es import Open_ES, Params as BaseParams, State as BaseState
 from .base import SV_ES, metrics_fn
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     pass
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     kernel_std: float
     alpha: float
 

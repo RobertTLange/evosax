@@ -13,11 +13,16 @@ from flax import struct
 from evosax.core.fitness_shaping import weights_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
-from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
+from .base import (
+    DistributionBasedAlgorithm,
+    Params as BaseParams,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: jax.Array
     std: float
     p_std: jax.Array
@@ -28,7 +33,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     std_init: float
     std_min: float
     std_max: float

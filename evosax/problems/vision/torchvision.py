@@ -20,8 +20,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from evosax.types import Fitness, Metrics, Population, PyTree, Solution
-from flax import linen as nn
-from flax import struct
+from flax import linen as nn, struct
 
 from ..problem import Problem, State
 
