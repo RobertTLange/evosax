@@ -28,11 +28,16 @@ from ...learned_evolution.lga_tools import (
     tanh_age,
 )
 from ..base import update_best_solution_and_fitness
-from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
+from .base import (
+    Params as BaseParams,
+    PopulationBasedAlgorithm,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     population: jax.Array  # Parents: Solution vectors
     fitness: jax.Array  # Parents: Fitness scores
     std: jax.Array  # Parents: Mutation strengths
@@ -43,7 +48,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     std_init: float
     crossover_rate: float
     params: PyTree

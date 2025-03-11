@@ -17,11 +17,16 @@ from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
 from ..base import update_best_solution_and_fitness
-from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
+from .base import (
+    DistributionBasedAlgorithm,
+    Params as BaseParams,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: jax.Array
     std: float
     C: jax.Array
@@ -33,7 +38,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     eta_std: float
     eta_shift: float
     eta_avs_inc: float

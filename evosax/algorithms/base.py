@@ -9,18 +9,25 @@ from flax import struct
 from jax import flatten_util
 
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
-from evosax.types import Fitness, Metrics, Params, Population, Solution, State
+from evosax.types import (
+    Fitness,
+    Metrics,
+    Params as BaseParams,
+    Population,
+    Solution,
+    State as BaseState,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     best_solution: Solution
     best_fitness: float
     generation_counter: int
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     pass
 
 
@@ -142,13 +149,7 @@ class EvolutionaryAlgorithm:
 
         return state, metrics
 
-    def _init(
-        self,
-        key: jax.Array,
-        solution: Solution,
-        fitness: Fitness,
-        params: Params,
-    ) -> State:
+    def _init(self, key: jax.Array, params: Params) -> State:
         raise NotImplementedError
 
     def _ask(

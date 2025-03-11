@@ -10,17 +10,21 @@ from flax import struct
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Metrics, Population, Solution
 
-from ..base import EvolutionaryAlgorithm, Params, State
-from ..base import metrics_fn as base_metrics_fn
+from ..base import (
+    EvolutionaryAlgorithm,
+    Params as BaseParams,
+    State as BaseState,
+    metrics_fn as base_metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: Solution
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     pass
 
 

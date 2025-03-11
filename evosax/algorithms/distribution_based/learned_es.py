@@ -26,11 +26,16 @@ from ...learned_evolution.les_tools import (
     tanh_timestamp,
 )
 from ..base import update_best_solution_and_fitness
-from .base import DistributionBasedAlgorithm, Params, State, metrics_fn
+from .base import (
+    DistributionBasedAlgorithm,
+    Params as BaseParams,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: jax.Array
     std: jax.Array
     p_std: jax.Array
@@ -40,7 +45,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     std_init: float
     params: PyTree
 

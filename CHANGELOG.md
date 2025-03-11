@@ -1,8 +1,10 @@
-### [v0.2.0] - [03/2025]
+# CHANGELOG
+
+## [v0.2.0] - [03/2025]
 
 This major update includes significant architectural changes, dependency updates, bug fixes, and naming standardization across the library.
 
-#### Breaking Changes
+### Breaking Changes
 
 - Increased minimum Python requirement to >=3.10
 - Updated to JAX >=0.5.0
@@ -14,7 +16,7 @@ This major update includes significant architectural changes, dependency updates
 - Renamed `Strategy.initialize` to `Strategy.init`
 - Renamed `Fitness` to `Problem` with `.eval` method replacing `.rollout`
 
-#### Optimization and Dependencies
+### Optimization and Dependencies
 
 - Replaced custom optimizer with `optax`
   - Implemented ClipUp in Optax GradientTransformation
@@ -23,7 +25,7 @@ This major update includes significant architectural changes, dependency updates
   - Added custom types.py file with Solution, Fitness, and Metrics types
 - Removed RBF (now using JAX's `jax.scipy.stats.norm.pdf`)
 
-#### Library Structure Improvements
+### Library Structure Improvements
 
 - Made all MA-ES strategies inherit from CMA-ES
   - Includes: cma_es, sep_cma_es, sv_cma_es, rm_es, ma_es, lm_ma_es
@@ -33,7 +35,7 @@ This major update includes significant architectural changes, dependency updates
 - Made all Genetic Algorithms return initial population for evaluation on first generation
 - Moved Restart mechanism to core
 
-#### Algorithm Fixes
+### Algorithm Fixes
 
 - Fixed numerous bugs in evolution strategies:
   - Fixed xNES implementation
@@ -47,7 +49,7 @@ This major update includes significant architectural changes, dependency updates
   - Fixed sep_cma_es where D was never updated
   - Fixed GESMR-GA algorithm
 
-#### Naming Standardization
+### Naming Standardization
 
 - Renamed `EvoState` to `State` and `EvoParams` to `Params`
 - Renamed `es_params`/`es_state` to `params`/`state`
@@ -63,7 +65,7 @@ This major update includes significant architectural changes, dependency updates
 - Renamed all `*_strategy` to `_*`
 - Standardized all references to `total_params` and `num_dims`
 
-#### Evolution Strategy Improvements
+### Evolution Strategy Improvements
 
 - Replaced `jnp.finfo(jnp.float32).max` with `jnp.inf` throughout codebase
 - Avoided logic with `None` args in `Strategy.__init__` and `Strategy.ask`
@@ -74,7 +76,7 @@ This major update includes significant architectural changes, dependency updates
 - Updated all static_argnums to static_argnames
 - Fixed GuideES to pass gradient within EvoState rather than implementing tell
 
-#### Problem Modules
+### Problem Modules
 
 - Renamed "classic" to "bbo"
 - Renamed "control_gym" to "gymnax"
@@ -85,7 +87,7 @@ This major update includes significant architectural changes, dependency updates
 - Added noise models for BBO problems
 - Added `problem.eval`, `problem.sample_solution`, `dummy_solution` methods
 
-#### Documentation
+### Documentation
 
 - Updated all notebooks
 - Fixed license mismatch on PyPI
@@ -93,13 +95,12 @@ This major update includes significant architectural changes, dependency updates
 - Updated examples and experimental code
 - Added tests for experimental features
 
-### [v0.1.7] - [10/2024]
+## [v0.1.7] - [10/2024]
 
-##### Added
+### Added
 
 - Adds an option for device-parallel evaluation of `BBOBFitness`.
 - Implements fully `pmap`-compatible implementations of `OpenES`, `PGPE`, `Sep_CMA_ES` and `SNES`. Example: [`09_pmap_strategy.ipynb`](https://github.com/RobertTLange/evosax/blob/main/examples/09_pmap_strategy.ipynb):
-
 ```python
 # set number of cpu devices for jax pmap
 import os
@@ -156,27 +157,26 @@ print("Mean post-update:", state.mean)  # (num_devices, num_dims)
 
 Big thanks to Cornelius Braun (@cornelius-braun
 ) for adding the stein variational methods!
+## [v0.1.6] - [03/2024]
 
-### [v0.1.6] - [03/2024]
-
-##### Added
+### Added
 
 - Implemented Hill Climbing strategy as a simple baseline.
 - Adds `use_antithetic_sampling` option to OpenAI-ES.
 - Added `EvoTransformer` and `EvoTF_ES` strategy with example trained checkpoint.
 
-##### Fixed
+### Fixed
 
 - Gradientless Descent best member replacement.
 
-##### Changed
+### Changed
 
 - SNES import DES weights directly and reuses code
 - Made `Sep_CMA_ES` and `OpenAI-ES` use vector sigmas for EvoTransformer data collection.
 
-### [v0.1.5] - [11/2023]
+## [v0.1.5] - [11/2023]
 
-##### Added
+### Added
 
 - Adds string `fitness_trafo` option to `FitnessShaper` (e.g. `z_score`, etc.).
 - Adds `sigma_meta` as kwarg to `SAMR_GA` and `GESMR_GA`.
@@ -184,47 +184,47 @@ Big thanks to Cornelius Braun (@cornelius-braun
 - Adds Noise-Reuse ES - `NoiseReuseES` - ([Li et al., 2023](https://arxiv.org/pdf/2304.12180.pdf)) as a generalization of PES. 
 - Fix LES evolution path calculation and re-ran meta-training for checkpoint.
 
-##### Fixed
+### Fixed
 
 - Fixed error in LGA resulting from `elite_ratio=0.0` in sampling operator logit squeeze.
 - Fixed range normalization in fitness transformation - `range_norm_trafo` - Thank you @yudonglee
 
-##### Changed
+### Changed
 
 - Refactored core modules and utilities. Learned evolution utilities now in subdirectory.
 
-### [v0.1.4] - [04/2023]
+## [v0.1.4] - [04/2023]
 
-##### Added
+### Added
 
 - Adds LGA checkpoint and optimizer class from [Lange et al. (2023b)](https://arxiv.org/abs/2304.03995).
 - Adds optional `init_mean` to `strategy.initialize` to warm start strategy from e.g. pre-trained checkpoint.
 - Adds `n_devices` option to every strategy to control reshaping for pmap in `ParameterReshaper` (if desired) explicitly.
 - Adds `mean_decay` optional kwarg to LES for regularization.
 
-##### Fixed
+### Fixed
 
 - Fix missing matplotlib requirement for BBOB Visualizer.
 - Fix squeezing of sampled solutions in order to enable 1D optimization.
 - Fix `ESLog` to work with `ParameterReshaper` reshaping of candidate solutions.
 - Fix overflow errors in CMA-ES style ES when `num_dims ** 2` is too large.
 
-##### Changed
+### Changed
 
 - Changed default gradient descent optimizer of ARS to Adam.
 
-### [v0.1.3] - [03/2023]
+## [v0.1.3] - [03/2023]
 
 - Finally solved checkpoint loading LES problem (needed `MANIFEST.in`)
 - Fixed PGPE bug with regards to scaled noise.
 
-### [v0.1.2] - [03/2023]
+## [v0.1.2] - [03/2023]
 
 - Fix LES checkpoint loading from package data via `pkgutil`.
 
-### [v0.1.1] - [03/2023]
+## [v0.1.1] - [03/2023]
 
-##### Added
+### Added
 
 - Adds exponential decay of mean/weight regularization to ES that update mean (FD-ES and CMA variants). Simply provide `mean_decay` != 0.0 argument at strategy instantiation to strategy. Note that covariance estimates may be a bit off, but this circumvents constant increase of mean norm due to stochastic process nature.
 
@@ -239,18 +239,18 @@ Big thanks to Cornelius Braun (@cornelius-braun
 
 - Adds a separate example notebook for how to use the `BBOBVisualizer`.
 
-##### Changed
+### Changed
 
 - `Sep_CMA_ES` automatic hyperparameter calculation runs into `int32` problems, when `num_dims` > 40k. We therefore clip the number to 40k for this calculation.
 
-##### Fixed
+### Fixed
 
 - Fixed DES to also take flexible `fitness_kwargs`, `temperature`, `sigma_init` as inputs.
 - Fixed PGPE exponential decay option to account for `sigma` update.
 
-### [v0.1.0] - [12/2022]
+## [v0.1.0] - [12/2022]
 
-##### Added
+### Added
 
 - Adds a `total_env_steps` counter to both `GymFitness` and `BraxFitness` for easier sample efficiency comparability with RL algorithms.
 - Support for new strategies/genetic algorithms
@@ -267,22 +267,22 @@ Big thanks to Cornelius Braun (@cornelius-braun
 - Adds `Evosax2JAXWrapper` to wrap all evosax strategies
 - Adds Adan optimizer (Xie et al., 2022)
 
-##### Changed
+### Changed
 
 - `ParameterReshaper` can now be directly applied from within the strategy. You simply have to provide a solution at strategy instantiation (and no `num_dims`).
 - `FitnessShaper` can also be directly applied from within the strategy. This makes it easier to track the best performing member across generations and addresses issue #32. Simply provide the fitness shaping settings as args to the strategy (`maximize`, `centered_rank`, ...)
 - Removes Brax fitness (use EvoJAX version instead)
 - Add lr and sigma schedule to strategy instantiation
 
-##### Fixed
+### Fixed
 
 - Fixed reward masking in `GymFitness`. Using `jnp.sum(dones) >= 1` for cumulative return computation zeros out the final timestep, which is wrong. That's why there were problems with sparse reward gym environments (e.g. Mountain Car).
 - Fixed PGPE sample indexing.
 - Fixed weight decay. Falsely multiplied by -1 when maximization.
 
-### [v0.0.9] - 15/06/2022
+## [v0.0.9] - 15/06/2022
 
-##### Added
+### Added
 
 - Base indirect encoding methods in `experimental`. Sofar support for:
     - Random projection-based decodings
@@ -291,7 +291,7 @@ Big thanks to Cornelius Braun (@cornelius-braun
 - Example notebook for Brax control tasks and policy visualizations.
 - Adds option to restart wrappers to `copy_mean` and only reset other parts of `State`.
 
-##### Changed
+### Changed
 
 - Change problem wrappers to work with `{"params": ...}` dictionary. No longer need to define `ParameterReshaper(net_params["params"])` to work without preselecting "params". Changed tests and notebooks accordingly.
 - Restructured all strategies to work with flax structured dataclass and `State`/`Params`.
@@ -307,39 +307,39 @@ class State:
 - Moved all gym environment to (still private but soon to be released) `gymnax`.
 - Updated all notebooks accordingly.
 
-##### Fixed
+### Fixed
 
 - Makes `ParameterReshaper` work also with `dm-haiku`-style parameter dictionaries. Thanks to @vuoristo.
 
-### [v0.0.8] - [24/05/2022]
+## [v0.0.8] - [24/05/2022]
 
-##### Fixed
+### Fixed
 
 - Fix gym import bug and codecov patch tolerance.
 
-### [v0.0.7] - [24/05/2022]
+## [v0.0.7] - [24/05/2022]
 
-##### Fixed
+### Fixed
 
 - Bug due to `subpops` import in `experimental`.
 
-### [v0.0.6] - [24/05/2022]
+## [v0.0.6] - [24/05/2022]
 
-##### Added
+### Added
 
 - Adds basic indirect encoding method in `experimental` - via special reshape wrappers: `RandomDecoder` embeddings (Gaussian, Rademacher)
 
-##### Fixed
+### Fixed
 
 - Fix import of modified ant environment. Broke due to optional brax dependence.
-##### Changed
+### Changed
 
 - Restructure batch strategies into `experimental`
 - Make ant modified more flexible with configuration dict option (`modify_dict`)
 
-### [v0.0.5] - [22/05/2022]
+## [v0.0.5] - [22/05/2022]
 
-##### Added
+### Added
 
 - Adds sequential problems (SeqMNIST and MNIST) to evaluation wrappers.
 - Adds Acrobot task to `GymFitness` rollout wrappers.
@@ -353,19 +353,19 @@ class State:
     - `Protocol`: Communication protocol between subpopulations
     - `MetaStrategy`: Stack one ES on top of subpopulations to control hyperparameters
 
-##### Changed
+### Changed
 
 - Renamed `crossover_rate` to `cross_over_rate` in DE to make consistent with `SimpleGA`.
 - Add option to add optional `env_params` to `GymFitness`, `seq_length` to addition and `permute_seq` for S-MNIST problem.
 - Network classes now support different initializers for the kernels using the `kernel_init_type` string option. By default we follow flax's choice in `lecun_normal`.
 
-##### Fixed
+### Fixed
 
 - Add `spring_legacy` option to Brax rollout wrappers.
 
-### [v0.0.4] - [26/03/2022]
+## [v0.0.4] - [26/03/2022]
 
-##### Added
+### Added
 
 - New strategies:
     - Separable CMA-ES strategy (`Sep_CMA_ES` following Ros & Hansen, 2008).
@@ -380,29 +380,29 @@ class State:
     - BIPOP strategy with interleaved small/large populations (`BIPOP_Restarter`).
     - IPOP strategy with growing population size (`IPOP_Restarter`).
 
-##### Changed
+### Changed
 
 - Both `ParamReshaper` and the rollout wrappers now support `pmap` over the population member dimension.
 - Add `mean` state component to all strategies (also non-GD-based) for smoother evaluation protocols.
 - Add `strategy_name` to all strategies.
 - Major renaming of strategies to more parsimonious version (e.g. `PSO_ES` -> `PSO`)
 
-##### Fixed
+### Fixed
 
 - Fix `BraxFitness` rollout wrapper and add train/test option.
 - Fix small bug related to sigma decay in `Simple_GA`.
 - Increase numerical stability constant to 1e-05 for z-scoring fitness reshaping. Everything smaller did not work robustly.
 - Get rid of deprecated `index_update` and use `at[].set()`
 
-### [v0.0.3] - 21/02/2022
+## [v0.0.3] - 21/02/2022
 
 - Fix Python version requirements for evojax integration. Needs to be >3.6 since JAX versions stopped supporting 3.6.
 
-### [v0.0.2] - 17/02/2022
+## [v0.0.2] - 17/02/2022
 
 - First public release including 11 strategies, rollout/network wrappers, utilities.
 
-### [v0.0.1] - 22/11/2021
+## [v0.0.1] - 22/11/2021
 
-##### Added
+### Added
 - Adds all base functionalities

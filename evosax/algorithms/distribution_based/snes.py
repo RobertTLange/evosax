@@ -13,12 +13,12 @@ from flax import struct
 from evosax.core.fitness_shaping import weights_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
-from .base import Params, State, metrics_fn
+from .base import Params as BaseParams, State as BaseState, metrics_fn
 from .xnes import xNES
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     mean: jax.Array
     std: jax.Array
     opt_state: optax.OptState
@@ -26,7 +26,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     std_init: float
     weights: jax.Array
     lr_std_init: float

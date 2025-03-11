@@ -12,11 +12,16 @@ from flax import struct
 from evosax.core.fitness_shaping import identity_fitness_shaping_fn
 from evosax.types import Fitness, Population, Solution
 
-from .base import Params, PopulationBasedAlgorithm, State, metrics_fn
+from .base import (
+    Params as BaseParams,
+    PopulationBasedAlgorithm,
+    State as BaseState,
+    metrics_fn,
+)
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     population: Population
     fitness: Fitness
     population_best: Population
@@ -25,7 +30,7 @@ class State(State):
 
 
 @struct.dataclass
-class Params(Params):
+class Params(BaseParams):
     inertia_coeff: float  # w momentum of velocity
     cognitive_coeff: float  # c_1 cognitive "force" multiplier
     social_coeff: float  # c_2 social "force" multiplier
