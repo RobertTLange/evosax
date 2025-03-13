@@ -132,10 +132,10 @@ pip install git+https://github.com/RobertTLange/evosax.git@main
 If you use `evosax` in your research, please cite the following [paper](https://arxiv.org/abs/2212.04180):
 ```bibtex
 @article{evosax2022github,
-    author = {Robert Tjarko Lange},
-    title = {evosax: JAX-based Evolution Strategies},
-    journal={arXiv preprint arXiv:2212.04180},
-    year = {2022},
+    author  = {Robert Tjarko Lange},
+    title   = {evosax: JAX-based Evolution Strategies},
+    journal = {arXiv preprint arXiv:2212.04180},
+    year    = {2022},
 }
 ```
 
