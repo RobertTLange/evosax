@@ -38,6 +38,8 @@ examples = [
 	"torchvision",
 	"brax",
 	"gymnax",
+	"mediapy",
+	"ipywidgets",
 	"ipykernel",
 ]
 
