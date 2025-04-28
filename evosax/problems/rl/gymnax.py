@@ -112,9 +112,9 @@ class GymnaxProblem(Problem):
 
         return State(
             counter=0,
-            obs_mean=jax.tree_map(lambda x: jnp.zeros_like(x), dummy_obs),
-            obs_std=jax.tree_map(lambda x: jnp.ones_like(x), dummy_obs),
-            obs_var_sum=jax.tree_map(lambda x: jnp.zeros_like(x), dummy_obs),
+            obs_mean=jax.tree.map(lambda x: jnp.zeros_like(x), dummy_obs),
+            obs_std=jax.tree.map(lambda x: jnp.ones_like(x), dummy_obs),
+            obs_var_sum=jax.tree.map(lambda x: jnp.zeros_like(x), dummy_obs),
             obs_counter=0,
             std_min=1e-6,
             std_max=1e6,
@@ -189,7 +189,7 @@ class GymnaxProblem(Problem):
 
     def normalize_obs(self, obs: PyTree, state: State) -> PyTree:
         """Normalize observations using running statistics."""
-        return jax.tree_map(
+        return jax.tree.map(
             lambda obs, mean, std: (obs - mean) / std,
             obs,
             state.obs_mean,
@@ -232,7 +232,7 @@ class GymnaxProblem(Problem):
             return new_obs_mean, new_obs_var_sum
 
         # Apply the update function to each leaf in the observation PyTree
-        obs_mean, obs_var_sum = jax.tree_map(
+        obs_mean, obs_var_sum = jax.tree.map(
             lambda obs, mean, var: _update_leaf_stats(obs, mean, var),
             obs,
             state.obs_mean,
