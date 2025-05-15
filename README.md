@@ -108,9 +108,10 @@ pip install git+https://github.com/RobertTLange/evosax.git@main
 * 📓 [Reinforcement Learning](https://github.com/RobertTLange/evosax/blob/main/examples/02_rl.ipynb) - Learning MLP control policies
 * 📓 [Vision](https://github.com/RobertTLange/evosax/blob/main/examples/03_vision.ipynb) - Training CNNs for classification
 * 📓 [Restart ES](https://github.com/RobertTLange/evosax/blob/main/examples/04_restart_es.ipynb) - Implementing restart strategies
-* 📓 [Diffusion Evolution](https://github.com/RobertTLange/evosax/blob/main/examples/05_diffusion_evolution.ipynb) - Optimization with diffusion evolution.
+* 📓 [Diffusion Evolution](https://github.com/RobertTLange/evosax/blob/main/examples/05_diffusion_evolution.ipynb) - Optimization with diffusion evolution
 * 📓 [Stein Variational ES](https://github.com/RobertTLange/evosax/blob/main/examples/06_sv_es.ipynb) - Using SV-ES on BBOB problems
 * 📓 [Persistent/Noise-Reuse ES](https://github.com/RobertTLange/evosax/blob/main/examples/07_persistent_es.ipynb) - ES for meta-learning problems
+* 📓 [Parallelization](https://github.com/RobertTLange/evosax/blob/main/examples/08_parallelization.ipynb) - ES with parallelization on multiple devices
 
 ## Key Features 💎
 
