@@ -101,9 +101,9 @@ class BraxProblem(Problem):
 
         return State(
             counter=0,
-            obs_mean=jax.tree_map(lambda x: jnp.zeros_like(x), dummy_env_state.obs),
-            obs_std=jax.tree_map(lambda x: jnp.ones_like(x), dummy_env_state.obs),
-            obs_var_sum=jax.tree_map(lambda x: jnp.zeros_like(x), dummy_env_state.obs),
+            obs_mean=jax.tree.map(lambda x: jnp.zeros_like(x), dummy_env_state.obs),
+            obs_std=jax.tree.map(lambda x: jnp.ones_like(x), dummy_env_state.obs),
+            obs_var_sum=jax.tree.map(lambda x: jnp.zeros_like(x), dummy_env_state.obs),
             obs_counter=0,
             std_min=1e-6,
             std_max=1e6,
@@ -175,7 +175,7 @@ class BraxProblem(Problem):
 
     def normalize_obs(self, obs: PyTree, state: State) -> PyTree:
         """Normalize observations using running statistics."""
-        return jax.tree_map(
+        return jax.tree.map(
             lambda obs, mean, std: (obs - mean) / std,
             obs,
             state.obs_mean,
