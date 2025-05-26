@@ -1,6 +1,6 @@
 # `evosax`: Evolution Strategies in JAX 🦎
 
-[![Pyversions](https://img.shields.io/pypi/pyversions/evosax.svg?style=flat-square)](https://pypi.python.org/pypi/evosax) [![PyPI version](https://badge.fury.io/py/evosax.svg)](https://badge.fury.io/py/evosax)
+[![Pyversions](https://img.shields.io/pypi/pyversions/evosax.svg?style=flat)](https://pypi.python.org/pypi/evosax) [![PyPI version](https://badge.fury.io/py/evosax.svg)](https://badge.fury.io/py/evosax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![codecov](https://codecov.io/gh/RobertTLange/evosax/branch/main/graph/badge.svg?token=5FUSX35KWO)](https://codecov.io/gh/RobertTLange/evosax)
 [![Paper](http://img.shields.io/badge/paper-arxiv.2212.04180-B31B1B.svg)](http://arxiv.org/abs/2212.04180)
@@ -108,9 +108,10 @@ pip install git+https://github.com/RobertTLange/evosax.git@main
 * 📓 [Reinforcement Learning](https://github.com/RobertTLange/evosax/blob/main/examples/02_rl.ipynb) - Learning MLP control policies
 * 📓 [Vision](https://github.com/RobertTLange/evosax/blob/main/examples/03_vision.ipynb) - Training CNNs for classification
 * 📓 [Restart ES](https://github.com/RobertTLange/evosax/blob/main/examples/04_restart_es.ipynb) - Implementing restart strategies
-* 📓 [Diffusion Evolution](https://github.com/RobertTLange/evosax/blob/main/examples/05_diffusion_evolution.ipynb) - Optimization with diffusion evolution.
+* 📓 [Diffusion Evolution](https://github.com/RobertTLange/evosax/blob/main/examples/05_diffusion_evolution.ipynb) - Optimization with diffusion evolution
 * 📓 [Stein Variational ES](https://github.com/RobertTLange/evosax/blob/main/examples/06_sv_es.ipynb) - Using SV-ES on BBOB problems
 * 📓 [Persistent/Noise-Reuse ES](https://github.com/RobertTLange/evosax/blob/main/examples/07_persistent_es.ipynb) - ES for meta-learning problems
+* 📓 [Parallelization](https://github.com/RobertTLange/evosax/blob/main/examples/08_parallelization.ipynb) - ES with parallelization on multiple devices
 
 ## Key Features 💎
 
