@@ -18,7 +18,7 @@ class ScaleByClipUpState(NamedTuple):
 
 
 def scale_by_clipup(
-    max_velocity_ratio: float = 2.0,
+    max_velocity_ratio: optax.ScalarOrSchedule = 2.0,
     momentum: float = 0.9,
 ) -> optax.GradientTransformation:
     """Core ClipUp gradient scaling transformation.
@@ -52,29 +52,27 @@ def scale_by_clipup(
     def update_fn(updates, state, params=None):
         del params  # Unused
 
+        # Get the current max_velocity_ratio from the schedule if it's callable
+        count = state.count
+        max_velocity_ratio_value = max_velocity_ratio(count) if callable(max_velocity_ratio) else max_velocity_ratio
+
         # Update velocity with momentum
-        new_velocity = jax.tree.map(
-            lambda v, u: momentum * v + u, state.velocity, updates
-        )
+        new_velocity = jax.tree.map(lambda v, u: momentum * v + u, state.velocity, updates)
 
         # Clip velocity if its norm exceeds max_velocity_ratio
         velocity_norm = optax.global_norm(new_velocity)
-        scale = jnp.where(
-            velocity_norm > max_velocity_ratio, max_velocity_ratio / velocity_norm, 1.0
-        )
+        scale = jnp.where(velocity_norm > max_velocity_ratio_value, max_velocity_ratio_value / velocity_norm, 1.0)
         clipped_velocity = jax.tree.map(lambda v: v * scale, new_velocity)
 
         # Update state with new velocity and increment count
         count_inc = state.count + 1
-        return clipped_velocity, ScaleByClipUpState(
-            velocity=clipped_velocity, count=count_inc
-        )
+        return clipped_velocity, ScaleByClipUpState(velocity=clipped_velocity, count=count_inc)
 
     return optax.GradientTransformation(init_fn, update_fn)
 
 
 def clipup(
-    learning_rate: float,
+    learning_rate: optax.ScalarOrSchedule,
     max_velocity: float = 0.1,
     momentum: float = 0.9,
     eps: float = 1e-8,
@@ -103,10 +101,15 @@ def clipup(
         https://arxiv.org/abs/2008.02387
 
     """
+    if callable(learning_rate):
+        max_velocity_ratio_schedule = lambda count: max_velocity / learning_rate(count)
+    else:
+        max_velocity_ratio_schedule = max_velocity / learning_rate
+
     return optax.chain(
         optax.normalize_by_update_norm(eps=eps),
         scale_by_clipup(
-            max_velocity_ratio=max_velocity / learning_rate,
+            max_velocity_ratio=max_velocity_ratio_schedule,
             momentum=momentum,
         ),
         optax.scale_by_learning_rate(learning_rate),

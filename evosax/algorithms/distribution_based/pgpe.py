@@ -32,6 +32,8 @@ class State(BaseState):
 @struct.dataclass
 class Params(BaseParams):
     std_init: float
+    std_min: float
+    std_max: float
     std_lr: float  # Learning rate for std
     std_max_change: float  # Clip adaptive std to 20%
 
@@ -60,6 +62,8 @@ class PGPE(DistributionBasedAlgorithm):
     def _default_params(self) -> Params:
         return Params(
             std_init=1.0,
+            std_min=0.0,
+            std_max=1e8,
             std_lr=0.1,
             std_max_change=0.2,
         )
@@ -127,7 +131,7 @@ class PGPE(DistributionBasedAlgorithm):
         # )
 
         # Update mean
-        updates, opt_state = self.optimizer.update(grad_mean, state.opt_state)
+        updates, opt_state = self.optimizer.update(-grad_mean, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
         # Update std
@@ -136,9 +140,9 @@ class PGPE(DistributionBasedAlgorithm):
         std_max = state.std + std_max_change
 
         std = jnp.clip(
-            state.std - params.std_lr * grad_std,
-            min=std_min,
-            max=std_max,
+            state.std + params.std_lr * grad_std,
+            min=jnp.maximum(std_min, params.std_min),
+            max=jnp.minimum(std_max, params.std_max),
         )
 
         return state.replace(mean=mean, std=std, opt_state=opt_state)

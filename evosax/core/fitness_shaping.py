@@ -61,11 +61,9 @@ def normalize_fitness_shaping_fn(
     return normalize(fitness, axis=-1)
 
 
-def centered_rank_fitness_shaping_fn(
-    population: Population, fitness: Fitness, state: State, params: Params
-) -> Fitness:
+def centered_rank_fitness_shaping_fn(population: Population, fitness: Fitness, state: State, params: Params) -> Fitness:
     """Return centered ranks in [-0.5, 0.5] according to fitness."""
-    ranks = jax.scipy.stats.rankdata(fitness, axis=-1) - 1.0
+    ranks = jax.scipy.stats.rankdata(-fitness, axis=-1) - 1.0
     return ranks / (fitness.shape[-1] - 1) - 0.5
 
 

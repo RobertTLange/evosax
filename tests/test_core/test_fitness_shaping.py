@@ -112,7 +112,7 @@ def test_centered_rank_fitness_shaping_fn():
     params = None
 
     result = centered_rank_fitness_shaping_fn(population, fitness, state, params)
-    expected = jnp.array([0.5, -0.5, 0.0])
+    expected = jnp.array([-0.5, 0.5, 0.0])
     assert jnp.allclose(result, expected)
 
 

@@ -98,12 +98,12 @@ class Open_ES(DistributionBasedAlgorithm):
         params: Params,
     ) -> State:
         # Compute grad
-        grad = jnp.dot(fitness, (population - state.mean) / state.std) / (
+        grad_mean = jnp.dot(fitness, (population - state.mean) / state.std) / (
             self.population_size * state.std
         )
 
         # Update mean
-        updates, opt_state = self.optimizer.update(grad, state.opt_state)
+        updates, opt_state = self.optimizer.update(-grad_mean, state.opt_state)
         mean = optax.apply_updates(state.mean, updates)
 
         return state.replace(
