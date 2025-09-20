@@ -54,19 +54,31 @@ def scale_by_clipup(
 
         # Get the current max_velocity_ratio from the schedule if it's callable
         count = state.count
-        max_velocity_ratio_value = max_velocity_ratio(count) if callable(max_velocity_ratio) else max_velocity_ratio
+        max_velocity_ratio_value = (
+            max_velocity_ratio(count)
+            if callable(max_velocity_ratio)
+            else max_velocity_ratio
+        )
 
         # Update velocity with momentum
-        new_velocity = jax.tree.map(lambda v, u: momentum * v + u, state.velocity, updates)
+        new_velocity = jax.tree.map(
+            lambda v, u: momentum * v + u, state.velocity, updates
+        )
 
         # Clip velocity if its norm exceeds max_velocity_ratio
         velocity_norm = optax.global_norm(new_velocity)
-        scale = jnp.where(velocity_norm > max_velocity_ratio_value, max_velocity_ratio_value / velocity_norm, 1.0)
+        scale = jnp.where(
+            velocity_norm > max_velocity_ratio_value,
+            max_velocity_ratio_value / velocity_norm,
+            1.0,
+        )
         clipped_velocity = jax.tree.map(lambda v: v * scale, new_velocity)
 
         # Update state with new velocity and increment count
         count_inc = state.count + 1
-        return clipped_velocity, ScaleByClipUpState(velocity=clipped_velocity, count=count_inc)
+        return clipped_velocity, ScaleByClipUpState(
+            velocity=clipped_velocity, count=count_inc
+        )
 
     return optax.GradientTransformation(init_fn, update_fn)
 

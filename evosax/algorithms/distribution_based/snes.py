@@ -46,7 +46,9 @@ class SNES(xNES):
     ):
         """Initialize SNES."""
         assert population_size % 2 == 0, "Population size must be even."
-        super().__init__(population_size, solution, optimizer, fitness_shaping_fn, metrics_fn)
+        super().__init__(
+            population_size, solution, optimizer, fitness_shaping_fn, metrics_fn
+        )
 
     @property
     def _default_params(self) -> Params:
