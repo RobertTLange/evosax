@@ -25,7 +25,7 @@ params = es.default_params
 
 # Initialize state
 key = jax.random.key(0)
-state = es.init(key, params)
+state = es.init(key, dummy_solution, params)
 
 # Ask-Eval-Tell loop
 for i in range(num_generations):
@@ -38,7 +38,7 @@ for i in range(num_generations):
     fitness = ...
 
     # Update the evolution strategy
-    state = es.tell(population, fitness, state, params)
+    state, metrics = es.tell(key_eval, population, fitness, state, params)
 
 # Get best solution
 state.best_solution, state.best_fitness
