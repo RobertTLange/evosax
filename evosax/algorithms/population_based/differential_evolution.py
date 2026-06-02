@@ -30,9 +30,9 @@ class State(BaseState):
 class Params(BaseParams):
     elitism: bool  # If elitism, base vector is best member else random
     crossover_rate: float  # [0, 1]
-    differential_weight: float  # [0, 2]
-    differential_weight_min: float  # [0, 2]
-    differential_weight_max: float  # [0, 2]
+    differential_weight: float  # [0, 2], used when min >= max
+    differential_weight_min: float  # [0, 2], dithering lower bound when min < max
+    differential_weight_max: float  # [0, 2], dithering upper bound when min < max
 
 
 class DifferentialEvolution(PopulationBasedAlgorithm):
@@ -78,13 +78,14 @@ class DifferentialEvolution(PopulationBasedAlgorithm):
         state: State,
         params: Params,
     ) -> tuple[Population, State]:
+        key, key_dither = jax.random.split(key)
         keys = jax.random.split(key, self.population_size)
         member_ids = jnp.arange(self.population_size)
         best_index = jnp.argmin(state.fitness)
         differential_weight = jnp.where(
             params.differential_weight_min < params.differential_weight_max,
             jax.random.uniform(
-                jax.random.fold_in(key, state.generation_counter),
+                jax.random.fold_in(key_dither, state.generation_counter),
                 (),
                 minval=params.differential_weight_min,
                 maxval=params.differential_weight_max,
