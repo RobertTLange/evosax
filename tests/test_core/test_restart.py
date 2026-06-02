@@ -35,9 +35,9 @@ def test_fitness_std_cond_absolute_tolerance():
     assert bool(converged)
 
 
-def test_fitness_std_cond_nonfinite_not_converged():
-    """Test non-finite fitness values do not converge."""
-    fitness = jnp.array([1.0, 1.0, jnp.nan])
+def test_fitness_std_cond_infinite_not_converged():
+    """Test infinite fitness values do not converge."""
+    fitness = jnp.array([1.0, 1.0, jnp.inf])
     restart_params = FitnessStdRestartParams(tol=0.001)
 
     converged = fitness_std_cond(None, fitness, None, None, None, restart_params)
