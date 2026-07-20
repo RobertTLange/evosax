@@ -56,12 +56,19 @@ class PopulationBasedAlgorithm(EvolutionaryAlgorithm):
         # Ravel population
         population = jax.vmap(self._ravel_solution)(population)
 
+        # Seed archive from the evaluated initial population (raw fitness)
+        best_idx = jnp.argmin(fitness)
+        best_solution = population[best_idx]
+        best_fitness = fitness[best_idx]
+
         # Shape fitness
         fitness = self.fitness_shaping_fn(population, fitness, state, params)
 
         state = state.replace(
             population=population,
             fitness=fitness,
+            best_solution=best_solution,
+            best_fitness=best_fitness,
         )
         return state
 

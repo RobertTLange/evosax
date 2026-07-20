@@ -3,6 +3,42 @@
 import jax
 import jax.numpy as jnp
 from evosax.algorithms.population_based import population_based_algorithms
+from evosax.algorithms.population_based.pso import PSO
+
+
+def test_pso_seeds_personal_and_global_best_from_init(key):
+    """PSO must keep the best initial particle after the first ask/tell."""
+    population_size = 3
+    num_dims = 1
+    algo = PSO(population_size=population_size, solution=jnp.zeros(num_dims))
+    params = algo.default_params
+
+    # True best at particle 2 (fitness 0); particle 0 is a distractor
+    population_init = jnp.array([[10.0], [20.0], [0.0]])
+    fitness_init = jnp.array([100.0, 400.0, 0.0])
+
+    key, subkey = jax.random.split(key)
+    state = algo.init(subkey, population_init, fitness_init, params)
+
+    assert jnp.allclose(state.population_best, population_init)
+    assert jnp.allclose(state.fitness_best, fitness_init)
+    assert jnp.allclose(state.best_solution, jnp.array([0.0]))
+    assert state.best_fitness == 0.0
+
+    # First ask must use true gbest (particle 2), not particle 0
+    key, key_ask, key_tell = jax.random.split(key, 3)
+    _, state = algo.ask(key_ask, state, params)
+
+    # Worse post-move positions (as under the old bogus-gbest pull)
+    population = jnp.array([[10.0], [10.57], [0.57]])
+    fitness = jnp.array([100.0, 105.7, 0.57])
+    state, _ = algo.tell(key_tell, population, fitness, state, params)
+
+    # Initial optimum must remain personal best for particle 2 and archive best
+    assert jnp.allclose(state.population_best[2], jnp.array([0.0]))
+    assert state.fitness_best[2] == 0.0
+    assert jnp.allclose(state.best_solution, jnp.array([0.0]))
+    assert state.best_fitness == 0.0
 
 
 def test_run(
