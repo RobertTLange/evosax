@@ -5,6 +5,9 @@
 Note that there are a couple of adaptations:
 1. We always sample a fixed population size per generation
 2. We keep a fixed archive of gradients to estimate the subspace
+
+Alpha is clamped to [0, 1] for numerical stability. On high-dimensional noisy
+problems this often saturates at 1 until the gradient archive is informative.
 """
 
 from collections.abc import Callable
@@ -112,23 +115,26 @@ class ASEBO(DistributionBasedAlgorithm):
         U, Vt = svd_flip(U, Vt)
         U = Vt[: int(self.population_size / 2)]
         UUT = jnp.matmul(U.T, U)
-
-        U_ort = Vt[int(self.population_size / 2) :]
-        UUT_ort = jnp.matmul(U_ort.T, U_ort)
+        # Orthogonal projector I - UU^T (avoids empty U_ort when subspace_dims < pop/2)
+        UUT_ort = jnp.eye(self.num_dims) - UUT
 
         subspace_ready = state.generation_counter > self.subspace_dims
 
         UUT = jax.lax.select(
             subspace_ready, UUT, jnp.zeros((self.num_dims, self.num_dims))
         )
+        UUT_ort = jax.lax.select(
+            subspace_ready, UUT_ort, jnp.zeros((self.num_dims, self.num_dims))
+        )
         cov = (
             state.std * (state.alpha / self.num_dims) * jnp.eye(self.num_dims)
             + ((1 - state.alpha) / int(self.population_size / 2)) * UUT
         )
+        # Jitter keeps cov SPD when alpha is small / subspace is low-rank
+        cov = cov + 1e-6 * jnp.eye(self.num_dims)
         chol = jnp.linalg.cholesky(cov)
         z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
         z_plus = z_plus @ chol.T
-        z_plus /= jnp.linalg.norm(z_plus, axis=-1)[:, None]
         z = jnp.concatenate([z_plus, -z_plus])
         population = state.mean + z
         return population, state.replace(UUT=UUT, UUT_ort=UUT_ort)
@@ -149,9 +155,11 @@ class ASEBO(DistributionBasedAlgorithm):
             (population[: self.population_size // 2] - state.mean) / state.std,
         )
 
-        alpha = jnp.linalg.norm(jnp.dot(grad, state.UUT_ort)) / jnp.linalg.norm(
-            jnp.dot(grad, state.UUT)
+        # Clamp alpha in [0, 1]; epsilon avoids 0/0 when projectors are empty/singular
+        alpha = jnp.linalg.norm(jnp.dot(grad, state.UUT_ort)) / (
+            jnp.linalg.norm(jnp.dot(grad, state.UUT)) + 1e-8
         )
+        alpha = jnp.clip(alpha, 0.0, 1.0)
         subspace_ready = state.generation_counter > self.subspace_dims
         alpha = jax.lax.select(subspace_ready, alpha, 1.0)
 
