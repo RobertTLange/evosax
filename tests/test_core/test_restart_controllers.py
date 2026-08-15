@@ -261,6 +261,18 @@ def test_cma_condition_uses_standard_deviation_of_covariance_diagonal():
     )
 
 
+def test_cma_condition_detects_an_ill_conditioned_covariance_matrix():
+    strategy = CMA_ES(population_size=4, solution=jnp.zeros(2))
+    state = strategy.init(jax.random.key(0), jnp.zeros(2), strategy.default_params)
+    state = state.replace(C=jnp.diag(jnp.array([1e-8, 1e8])))
+
+    assert bool(
+        cma_cond(
+            None, jnp.zeros(4), state, strategy.default_params, None, RestartParams()
+        )
+    )
+
+
 def test_cma_condition_requires_small_absolute_evolution_path():
     strategy = CMA_ES(population_size=4, solution=jnp.zeros(2))
     state = strategy.init(jax.random.key(0), jnp.zeros(2), strategy.default_params)

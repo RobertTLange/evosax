@@ -123,7 +123,8 @@ def cma_cond(
     cond_4 = cond_no_axis_change
 
     # Stop if the condition number of the covariance matrix exceeds 1e14.
-    cond_condition_cov = jnp.max(D) / jnp.min(D) > restart_params.tol_condition_C
+    condition_number = (jnp.max(D) / jnp.min(D)) ** 2
+    cond_condition_cov = condition_number > restart_params.tol_condition_C
     cond_5 = cond_condition_cov
 
     return cond_1 | cond_2 | cond_3 | cond_4 | cond_5
