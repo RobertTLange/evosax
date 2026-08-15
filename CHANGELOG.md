@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [TBD]
+
+### Added
+
+- Added generation-level differential-weight dithering to Differential Evolution. Thanks @githubpsyche!
+
 ## [v0.2.0] - [03/2025]
 
 This major update includes significant architectural changes, dependency updates, bug fixes, and naming standardization across the library.
