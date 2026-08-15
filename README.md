@@ -133,7 +133,7 @@ pip install git+https://github.com/RobertTLange/evosax.git@main
 * 📓 [Black Box Optimization Benchmark](https://github.com/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb) - Optimization of common test functions
 * 📓 [Reinforcement Learning](https://github.com/RobertTLange/evosax/blob/main/examples/02_rl.ipynb) - Learning MLP control policies
 * 📓 [Vision](https://github.com/RobertTLange/evosax/blob/main/examples/03_vision.ipynb) - Training CNNs for classification
-* 📓 [Restart ES](https://github.com/RobertTLange/evosax/blob/main/examples/04_restart_es.ipynb) - Implementing restart strategies
+* 📓 [Restart ES](https://github.com/RobertTLange/evosax/blob/main/examples/04_restart_es.ipynb) - Using simple, IPOP, and BIPOP restart controllers
 * 📓 [Diffusion Evolution](https://github.com/RobertTLange/evosax/blob/main/examples/05_diffusion_evolution.ipynb) - Optimization with diffusion evolution
 * 📓 [Stein Variational ES](https://github.com/RobertTLange/evosax/blob/main/examples/06_sv_es.ipynb) - Using SV-ES on BBOB problems
 * 📓 [Persistent/Noise-Reuse ES](https://github.com/RobertTLange/evosax/blob/main/examples/07_persistent_es.ipynb) - ES for meta-learning problems
@@ -145,7 +145,7 @@ pip install git+https://github.com/RobertTLange/evosax.git@main
 - **JAX Acceleration**: Fully compatible with JAX transformations for speed and scalability
 - **Vectorization & Parallelization**: Fast execution on CPUs, GPUs, and TPUs
 - **Production Ready**: Well-tested, documented, and used in research environments
-- **Batteries Included**: Comes with optimizers like ClipUp, fitness shaping, and restart strategies
+- **Batteries Included**: Comes with optimizers like ClipUp, fitness shaping, and restart controllers
 
 ## Related Resources 📚
 

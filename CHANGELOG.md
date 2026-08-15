@@ -4,6 +4,8 @@
 
 ### Added
 
+- Restored public restart controllers in `evosax.core.restart`: `SimpleRestart`,
+  `IPOPRestart`, and `BIPOPRestart`.
 - Added a fitness-standard-deviation restart condition. Thanks to Jordan Gunn
   (@githubpsyche) for the contribution.
 
