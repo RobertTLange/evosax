@@ -24,7 +24,7 @@ from .base import (
 @struct.dataclass
 class State(BaseState):
     mean: Solution
-    fitness: Fitness
+    fitness: float | Fitness
     std: float
     temperature: float
 

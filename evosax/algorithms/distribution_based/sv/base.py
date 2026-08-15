@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from functools import partial
+from typing import Any
 
 import jax
 
@@ -114,7 +115,7 @@ class SV_ES(DistributionBasedAlgorithm):
 
         return state, metrics
 
-    def _init(self, key: jax.Array, params: Params) -> State:
+    def _init(self, key: jax.Array, params: Any) -> Any:
         keys = jax.random.split(key, num=self.num_populations)
         state = jax.vmap(super()._init, in_axes=(0, None))(keys, params)
         return state
@@ -122,9 +123,9 @@ class SV_ES(DistributionBasedAlgorithm):
     def _ask(
         self,
         key: jax.Array,
-        state: State,
-        params: Params,
-    ) -> tuple[Population, State]:
+        state: Any,
+        params: Any,
+    ) -> tuple[Population, Any]:
         keys = jax.random.split(key, num=self.num_populations)
         return jax.vmap(super()._ask, in_axes=(0, 0, None))(keys, state, params)
 

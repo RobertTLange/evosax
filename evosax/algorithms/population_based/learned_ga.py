@@ -9,6 +9,7 @@ from the ones shown in the paper.
 
 import pkgutil
 from collections.abc import Callable
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -128,7 +129,10 @@ class LearnedGA(PopulationBasedAlgorithm):
             state.population, state.fitness, state.best_fitness_shaped
         )
         F_E = jnp.concatenate([F_E, age_features[..., None]], axis=-1)
-        p = self.sampling_layer.apply(params.params["sampling"], F_E)
+        p = cast(
+            jax.Array,
+            self.sampling_layer.apply(params.params["sampling"], F_E),
+        )
         idx = jax.random.choice(key_idx, self.num_elites, (self.population_size,), p=p)
 
         # Select children with sampled indices
@@ -138,8 +142,11 @@ class LearnedGA(PopulationBasedAlgorithm):
 
         # Perform mutation rate adaptation of solutions
         F_C_tilde = self.fitness_features.apply(X_C, f_C, state.best_fitness_shaped)
-        std_C = self.mutation_layer.apply(
-            params.params["mutation"], std_C[..., None], F_C_tilde
+        std_C = cast(
+            jax.Array,
+            self.mutation_layer.apply(
+                params.params["mutation"], std_C[..., None], F_C_tilde
+            ),
         )
 
         # Perform Gaussian scaled mutation
@@ -164,7 +171,10 @@ class LearnedGA(PopulationBasedAlgorithm):
         # Perform selection - either learned or hard truncation based
         F_X = fitness_features[: self.population_size]
         F_E = fitness_features[self.population_size :]
-        select = self.selection_layer.apply(params.params["selection"], key, F_X, F_E)
+        select = cast(
+            jax.Array,
+            self.selection_layer.apply(params.params["selection"], key, F_X, F_E),
+        )
         keep_parent = jnp.sum(select, axis=-1) == 0
 
         # Update population

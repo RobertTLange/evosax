@@ -15,18 +15,19 @@ Supported datasets include MNIST, FashionMNIST, CIFAR10, and SVHN.
 """
 
 from functools import partial
+from typing import cast
 
 import jax
 import jax.numpy as jnp
-import optax
+import optax  # type: ignore[import-untyped]
 from evosax.types import Fitness, Metrics, Population, PyTree, Solution
 from flax import linen as nn, struct
 
-from ..problem import Problem, State
+from ..problem import Problem, State as BaseState
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     pass
 
 
@@ -73,7 +74,7 @@ class TorchVisionProblem(Problem):
     @property
     def input_shape(self) -> tuple[int]:
         """Get image shape."""
-        return self.dataloader.data_shape
+        return self.dataloader.data_shape  # type: ignore[attr-defined]
 
     @property
     def num_classes(self) -> int:
@@ -94,7 +95,13 @@ class TorchVisionProblem(Problem):
         loss, accuracy = jax.vmap(self._predict, in_axes=(None, 0, None, None))(
             key, solutions, self.image_train, self.target_train
         )
-        return loss, state.replace(counter=state.counter + 1), {"accuracy": accuracy}
+        return (
+            loss,
+            state.replace(  # type: ignore[attr-defined]
+                counter=state.counter + 1
+            ),
+            {"accuracy": accuracy},
+        )
 
     @partial(jax.jit, static_argnames=("self",))
     def eval_test(
@@ -105,7 +112,13 @@ class TorchVisionProblem(Problem):
         loss, accuracy = jax.vmap(self._predict, in_axes=(None, 0, None, None))(
             key, solutions, self.image_test, self.target_test
         )
-        return loss, state.replace(counter=state.counter + 1), {"accuracy": accuracy}
+        return (
+            loss,
+            state.replace(  # type: ignore[attr-defined]
+                counter=state.counter + 1
+            ),
+            {"accuracy": accuracy},
+        )
 
     @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
@@ -124,7 +137,9 @@ class TorchVisionProblem(Problem):
         batch_x, batch_y = self._sample_batch(key_sample, x, y)
 
         # Predict
-        y_pred = self.network.apply(network_params, batch_x, key_network)
+        y_pred = cast(
+            jax.Array, self.network.apply(network_params, batch_x, key_network)
+        )
 
         # Calculate accuracy
         accuracy = jnp.mean(jnp.argmax(y_pred, axis=-1) == batch_y)
@@ -148,8 +163,11 @@ class TorchVisionProblem(Problem):
     def get_mnist(self):
         """Get the MNIST dataset."""
         try:
-            import torch
-            from torchvision import datasets, transforms
+            import torch  # type: ignore[import-not-found]
+            from torchvision import (  # type: ignore[import-not-found]
+                datasets,
+                transforms,
+            )
         except ImportError:
             raise ImportError(
                 "You need to install `torchvision` to use this problem class."
@@ -184,8 +202,11 @@ class TorchVisionProblem(Problem):
     def get_fashion_mnist(self):
         """Get the Fashion MNIST dataset."""
         try:
-            import torch
-            from torchvision import datasets, transforms
+            import torch  # type: ignore[import-not-found]
+            from torchvision import (  # type: ignore[import-not-found]
+                datasets,
+                transforms,
+            )
         except ImportError:
             raise ImportError(
                 "You need to install `torchvision` to use this problem class."
@@ -220,8 +241,11 @@ class TorchVisionProblem(Problem):
     def get_cifar10(self):
         """Get the CIFAR-10 dataset."""
         try:
-            import torch
-            from torchvision import datasets, transforms
+            import torch  # type: ignore[import-not-found]
+            from torchvision import (  # type: ignore[import-not-found]
+                datasets,
+                transforms,
+            )
         except ImportError:
             raise ImportError(
                 "You need to install `torchvision` to use this problem class."
@@ -258,8 +282,11 @@ class TorchVisionProblem(Problem):
     def get_svhn(self):
         """Get the SVHN dataset."""
         try:
-            import torch
-            from torchvision import datasets, transforms
+            import torch  # type: ignore[import-not-found]
+            from torchvision import (  # type: ignore[import-not-found]
+                datasets,
+                transforms,
+            )
         except ImportError:
             raise ImportError(
                 "You need to install `torchvision` to use this problem class."

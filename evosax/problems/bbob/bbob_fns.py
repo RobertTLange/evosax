@@ -10,8 +10,12 @@ This module implements the core 24 functions used in the BBOB suite from [1].
 import jax
 import jax.numpy as jnp
 
+BBOBResult = tuple[jax.Array, jax.Array]
 
-def lambda_alpha(alpha: float, max_num_dims: int, num_dims: int) -> jax.Array:
+
+def lambda_alpha(
+    alpha: float | jax.Array, max_num_dims: int, num_dims: int
+) -> jax.Array:
     """Masked lambda alpha matrix ([1], p. 5)."""
     mask = jnp.arange(max_num_dims) < num_dims
 
@@ -22,7 +26,7 @@ def lambda_alpha(alpha: float, max_num_dims: int, num_dims: int) -> jax.Array:
     return jnp.diag(jnp.power(alpha, exp))
 
 
-def transform_osz(element: float) -> jax.Array:
+def transform_osz(element: float | jax.Array) -> jax.Array:
     """Oscillation transformation function ([1], p. 6)."""
     x_hat = jnp.where(element == 0.0, 0.0, jnp.log(jnp.abs(element)))
     c_1 = jnp.where(element > 0.0, 10.0, 5.5)
@@ -58,7 +62,7 @@ def f_pen(x: jax.Array, num_dims: int) -> jax.Array:
 
 def sphere(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Sphere Function ([1], p. 6)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -71,7 +75,7 @@ def sphere(
 
 def ellipsoidal(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Ellipsoidal Function ([1], p. 6)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -88,7 +92,7 @@ def ellipsoidal(
 
 def rastrigin(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Rastrigin Function ([1], p. 6)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -106,7 +110,7 @@ def rastrigin(
 
 def bueche_rastrigin(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Bueche-Rastrigin Function ([1], p. 7)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -132,7 +136,7 @@ def bueche_rastrigin(
 
 def linear_slope(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Linear Slope ([1], p. 7)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -151,7 +155,7 @@ def linear_slope(
 
 def attractive_sector(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Attractive Sector Function ([1], p. 8)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -168,7 +172,7 @@ def attractive_sector(
 
 def step_ellipsoidal(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Step Ellipsoidal Function ([1], p. 8)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -194,7 +198,7 @@ def step_ellipsoidal(
 
 def rosenbrock(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Rosenbrock Function, original ([1], p. 8).
 
     Exceptionally, here x_opt must be in [-3, 3].
@@ -212,7 +216,7 @@ def rosenbrock(
 
 def rosenbrock_rotated(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Rosenbrock Function, rotated ([1], p. 9)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
@@ -227,7 +231,7 @@ def rosenbrock_rotated(
 
 def ellipsoidal_rotated(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Ellipsoidal Function ([1], p. 9)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -245,7 +249,7 @@ def ellipsoidal_rotated(
 
 def discus(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Discus Function ([1], p. 9)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -260,7 +264,7 @@ def discus(
 
 def bent_cigar(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Bent Cigar Function ([1], p. 10)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -276,7 +280,7 @@ def bent_cigar(
 
 def sharp_ridge(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Sharp Ridge Function ([1], p. 10)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
@@ -291,7 +295,7 @@ def sharp_ridge(
 
 def different_powers(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Different Powers Function ([1], p. 10)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -310,7 +314,7 @@ def different_powers(
 
 def rastrigin_rotated(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Rastrigin Function ([1], p. 11)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -331,7 +335,7 @@ def rastrigin_rotated(
 
 def weierstrass(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Weierstrass Function ([1], p. 11)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -357,7 +361,7 @@ def weierstrass(
 
 def schaffers_f7(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult | float:
     """Schaffers F7 Function ([1], p. 11)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
@@ -380,7 +384,7 @@ def schaffers_f7(
 
 def schaffers_f7_ill_cond(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult | float:
     """Schaffers F7 Function, moderately ill-conditioned ([1], p. 12)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
@@ -403,7 +407,7 @@ def schaffers_f7_ill_cond(
 
 def griewank_rosenbrock(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Composite Griewank-Rosenbrock Function F8F2 ([1], p. 12)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims - 1) < (num_dims - 1)
@@ -419,7 +423,7 @@ def griewank_rosenbrock(
 
 def schwefel(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Schwefel Function ([1], p. 12)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -446,7 +450,7 @@ def schwefel(
 
 def gallagher_101_me(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Gallagher's Gaussian 101-me Peaks Function ([1], p. 13)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -509,7 +513,7 @@ def gallagher_101_me(
 
 def gallagher_21_hi(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Gallagher's Gaussian 21-hi Peaks Function ([1], p. 13)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -574,7 +578,7 @@ def gallagher_21_hi(
 
 def katsuura(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Katsuura Function ([1], p. 13)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims
@@ -600,7 +604,7 @@ def katsuura(
 
 def lunacek(
     x: jax.Array, x_opt: jax.Array, R: jax.Array, Q: jax.Array, num_dims: int
-) -> jax.Array:
+) -> BBOBResult:
     """Lunacek bi-Rastrigin Function ([1], p. 14)."""
     max_num_dims = x.shape[0]
     mask = jnp.arange(max_num_dims) < num_dims

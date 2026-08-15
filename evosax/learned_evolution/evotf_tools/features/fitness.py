@@ -19,7 +19,7 @@ from ...fitness_shaping import (
 
 @struct.dataclass
 class FitnessFeaturesState:
-    best_fitness: float
+    best_fitness: float | jax.Array
 
 
 class FitnessFeaturizer:
@@ -119,7 +119,7 @@ class FitnessFeaturizer:
 
 
 def update_best_fitness(
-    fitness: jax.Array, best_fitness: float, maximize: bool = False
+    fitness: jax.Array, best_fitness: float | jax.Array, maximize: bool = False
 ) -> jax.Array:
     fitness_min = jax.lax.select(maximize, -1 * fitness, fitness)
     best_fit_min = jax.lax.select(maximize, -1 * best_fitness, best_fitness)
@@ -131,7 +131,9 @@ def update_best_fitness(
     return best_fitness
 
 
-def get_norm_diff_best(fitness: jax.Array, best_fitness: float) -> jax.Array:
+def get_norm_diff_best(
+    fitness: jax.Array, best_fitness: float | jax.Array
+) -> jax.Array:
     fitness = jnp.clip(fitness, -1e10, 1e10)
     diff_best = fitness - best_fitness
     return jnp.clip(

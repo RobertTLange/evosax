@@ -80,7 +80,7 @@ class iAMaLGaM_Univariate(iAMaLGaM_Full):
         elites: jax.Array,
         C: jax.Array,
         mean: jax.Array,
-    ) -> float:
+    ) -> jax.Array:
         """SDR: relate distance of improvements to mean in search space."""
         # Compute average solutions that improved fitness
         solution_avg_imp = jnp.dot(improvement_mask, elites) / jnp.sum(improvement_mask)

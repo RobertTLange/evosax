@@ -18,6 +18,8 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 
+NoiseRange = tuple[float, float] | None
+
 
 @struct.dataclass
 class NoiseParams:
@@ -35,14 +37,14 @@ class NoiseModel:
 
     def __init__(
         self,
-        noise_model_names: list[str] = [
+        noise_model_names: list[str] | str = [
             "noiseless",
             "gaussian",
             "uniform",
             "cauchy",
             "additive",
         ],
-        noise_ranges: dict[str, tuple[float, float]] = {
+        noise_ranges: dict[str, NoiseRange] = {
             "gaussian_beta": None,
             "uniform_alpha": None,
             "uniform_beta": None,
@@ -54,13 +56,16 @@ class NoiseModel:
     ):
         """Initialize noise model."""
         # Collect active noise models
-        self.noise_ids, self.noise_models, counter = [], [], 0
+        noise_ids = []
+        noise_models = []
+        counter = 0
         for noise_model_name, noise_model in all_noise_models.items():
             if noise_model_name in noise_model_names:
-                self.noise_ids.append(counter)
-                self.noise_models.append(noise_model)
+                noise_ids.append(counter)
+                noise_models.append(noise_model)
                 counter += 1
-        self.noise_ids = jnp.array(self.noise_ids)
+        self.noise_ids = jnp.array(noise_ids)
+        self.noise_models = noise_models
 
         # Default ranges for noise model parameters between moderate and severe
         self.noise_ranges = {

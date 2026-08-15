@@ -1,7 +1,7 @@
 """Restart utilities for distribution-based Evolution Strategies."""
 
 from collections.abc import Callable, Sequence
-from typing import TypeAlias
+from typing import Protocol, TypeAlias
 
 import jax
 import jax.numpy as jnp
@@ -26,6 +26,35 @@ SmallPopulationParamsFactory: TypeAlias = Callable[
     [jax.Array, DistributionBasedAlgorithm, Params, float], Params
 ]
 PopulationSizeTransform: TypeAlias = Callable[[int], int]
+
+
+class GenerationRestartState(Protocol):
+    generation_counter: int
+
+
+class GenerationRestartParams(Protocol):
+    generation_threshold: int
+
+
+class SpreadRestartParams(Protocol):
+    min_fitness_spread: float
+
+
+class CMAESRestartState(Protocol):
+    C: jax.Array
+    mean: jax.Array
+    std: float | jax.Array
+    p_c: jax.Array
+
+
+class CMAESRestartParams(Protocol):
+    tol_x: float
+    tol_x_up: float
+    tol_condition_C: float
+
+
+class AmalgamRestartState(Protocol):
+    c_mult: jax.Array
 
 
 @struct.dataclass
@@ -54,10 +83,10 @@ class FitnessStdRestartParams(RestartParams):
 def generation_cond(
     population: Population,
     fitness: Fitness,
-    state: State,
+    state: GenerationRestartState,
     params: Params,
     restart_state: RestartState,
-    restart_params: RestartParams,
+    restart_params: GenerationRestartParams,
 ) -> bool:
     """Stop after a certain number of generations."""
     return state.generation_counter >= restart_params.generation_threshold
@@ -69,8 +98,8 @@ def spread_cond(
     state: State,
     params: Params,
     restart_state: RestartState,
-    restart_params: RestartParams,
-) -> bool:
+    restart_params: SpreadRestartParams,
+) -> jax.Array:
     """Stop if fitness max minus fitness min is below threshold."""
     return jnp.max(fitness) - jnp.min(fitness) < restart_params.min_fitness_spread
 
@@ -82,7 +111,7 @@ def fitness_std_cond(
     params: Params,
     restart_state: RestartState,
     restart_params: FitnessStdRestartParams,
-) -> bool:
+) -> jax.Array:
     """Stop if fitness standard deviation is below tolerance."""
     finite = jnp.all(jnp.isfinite(fitness))
     threshold = restart_params.atol + restart_params.tol * jnp.abs(jnp.mean(fitness))
@@ -92,11 +121,11 @@ def fitness_std_cond(
 def cma_cond(
     population: Population,
     fitness: Fitness,
-    state: State,
+    state: CMAESRestartState,
     params: Params,
     restart_state: RestartState,
-    restart_params: RestartParams,
-) -> bool:
+    restart_params: CMAESRestartParams,
+) -> jax.Array:
     """Stop if condition specific to CMA-ES is met.
 
     Default tolerances:
@@ -139,11 +168,11 @@ def cma_cond(
 def amalgam_cond(
     population: Population,
     fitness: Fitness,
-    state: State,
+    state: AmalgamRestartState,
     params: Params,
     restart_state: RestartState,
     restart_params: RestartParams,
-) -> bool:
+) -> jax.Array:
     """Stop if c_mult is below threshold."""
     return state.c_mult < 1e-10
 

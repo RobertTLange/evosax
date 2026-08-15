@@ -6,11 +6,15 @@
 
 - Restored public restart controllers in `evosax.core.restart`: `SimpleRestart`,
   `IPOPRestart`, and `BIPOPRestart`.
+- Added generation-level differential-weight dithering to Differential Evolution. Thanks @githubpsyche!
 - Added a fitness-standard-deviation restart condition. Thanks to Jordan Gunn
   (@githubpsyche) for the contribution.
 
 ### Fixed
 
+- Corrected CMA-ES restart conditions and BIPOP restart scheduling.
+- Stabilized ASEBO subspace activation near singular covariance updates. Thanks to
+  Rasa Khosrowshahi (@rkhosrowshahi) for the contribution.
 - `SV_Open_ES` now passes its mean vector to Optax updates, supporting
   parameter-dependent optimizers such as AdamW. Thanks to Rasa Khosrowshahi
   (@rkhosrowshahi) for the fix.

@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from functools import partial
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -53,6 +54,8 @@ def metrics_fn(
 class EvolutionaryAlgorithm:
     """Base class for evolutionary algorithms."""
 
+    _default_params: Any
+
     def __init__(
         self,
         population_size: int,
@@ -88,7 +91,7 @@ class EvolutionaryAlgorithm:
         return max(1, int(self.elite_ratio * self.population_size))
 
     @property
-    def default_params(self) -> Params:
+    def default_params(self) -> Any:
         """Return default evolutionary algorithm params."""
         return self._default_params
 
@@ -96,8 +99,8 @@ class EvolutionaryAlgorithm:
     def init(
         self,
         key: jax.Array,
-        params: Params,
-    ) -> State:
+        params: Any,
+    ) -> Any:
         """Initialize evolutionary algorithm."""
         state = self._init(key, params)
         return state
@@ -106,9 +109,9 @@ class EvolutionaryAlgorithm:
     def ask(
         self,
         key: jax.Array,
-        state: State,
-        params: Params,
-    ) -> tuple[Population, State]:
+        state: Any,
+        params: Any,
+    ) -> tuple[Population, Any]:
         """Ask evolutionary algorithm for new candidate solutions to evaluate."""
         # Generate population
         population, state = self._ask(key, state, params)
@@ -124,9 +127,9 @@ class EvolutionaryAlgorithm:
         key: jax.Array,
         population: Population,
         fitness: Fitness,
-        state: State,
-        params: Params,
-    ) -> tuple[State, Metrics]:
+        state: Any,
+        params: Any,
+    ) -> tuple[Any, Metrics]:
         """Tell evolutionary algorithm fitness for state update."""
         # Ravel population
         population = jax.vmap(self._ravel_solution)(population)
@@ -151,15 +154,15 @@ class EvolutionaryAlgorithm:
 
         return state, metrics
 
-    def _init(self, key: jax.Array, params: Params) -> State:
+    def _init(self, key: jax.Array, params: Any) -> Any:
         raise NotImplementedError
 
     def _ask(
         self,
         key: jax.Array,
-        state: State,
-        params: Params,
-    ) -> tuple[Population, State]:
+        state: Any,
+        params: Any,
+    ) -> tuple[Population, Any]:
         raise NotImplementedError
 
     def _tell(
@@ -167,9 +170,9 @@ class EvolutionaryAlgorithm:
         key: jax.Array,
         population: Population,
         fitness: Fitness,
-        state: State,
-        params: Params,
-    ) -> State:
+        state: Any,
+        params: Any,
+    ) -> Any:
         raise NotImplementedError
 
     def _postprocess_fitness(self, raw_fitness: Fitness, fitness: Fitness) -> Fitness:

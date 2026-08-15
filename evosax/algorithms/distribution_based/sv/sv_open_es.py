@@ -70,7 +70,7 @@ class SV_Open_ES(SV_ES, Open_ES):
     def _default_params(self) -> Params:
         return Params(kernel_std=1.0, alpha=1.0)
 
-    def _tell(
+    def _tell(  # type: ignore[override]
         self,
         key: jax.Array,
         population: Population,

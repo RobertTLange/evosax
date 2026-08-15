@@ -21,9 +21,9 @@ from .cma_es import CMA_ES, Params as BaseParams
 @struct.dataclass
 class State(BaseState):
     mean: jax.Array
-    std: float
+    std: jax.Array
     p_c: jax.Array  # p
-    cumulative_rank_rate: float  # s
+    cumulative_rank_rate: jax.Array  # s
     P: jax.Array
     t: jax.Array
     fitness_elites_sorted: jax.Array
@@ -65,8 +65,8 @@ class Rm_ES(CMA_ES):
             weights=params.weights,
             mu_eff=params.mu_eff,
             c_mean=params.c_mean,
-            c_std=0.3,
-            d_std=1.0,
+            c_std=jnp.asarray(0.3),
+            d_std=jnp.asarray(1.0),
             c_c=2 / (self.num_dims + 7),  # Table 1
             c_1=1 / (3 * jnp.sqrt(self.num_dims) + 5),  # Table 1, c_cov renamed to c_1
             c_mu=params.c_mu,
@@ -75,12 +75,14 @@ class Rm_ES(CMA_ES):
             q_star=0.3,
         )
 
-    def _init(self, key: jax.Array, params: Params) -> State:
+    def _init(  # type: ignore[override]
+        self, key: jax.Array, params: Params
+    ) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
             p_c=jnp.zeros((self.num_dims,)),
-            cumulative_rank_rate=0.0,
+            cumulative_rank_rate=jnp.asarray(0.0),
             P=jnp.zeros((self.m, self.num_dims)),
             t=jnp.zeros(self.m),
             fitness_elites_sorted=jnp.full((self.num_elites,), -jnp.inf),
@@ -90,7 +92,7 @@ class Rm_ES(CMA_ES):
         )
         return state
 
-    def _ask(
+    def _ask(  # type: ignore[override]
         self,
         key: jax.Array,
         state: State,
@@ -107,7 +109,7 @@ class Rm_ES(CMA_ES):
         x = state.mean + state.std * perturbation
         return x, state
 
-    def _tell(
+    def _tell(  # type: ignore[override]
         self,
         key: jax.Array,
         population: Population,
@@ -181,9 +183,9 @@ class Rm_ES(CMA_ES):
             fitness_elites_sorted=fitness_elites_sorted,
         )
 
-    def update_std(
-        self, std: float, cumulative_rank_rate: float, params: Params
-    ) -> float:
+    def update_std(  # type: ignore[override]
+        self, std: jax.Array, cumulative_rank_rate: jax.Array, params: Params
+    ) -> jax.Array:
         """Update the step size (standard deviation)."""
         std = std * jnp.exp(cumulative_rank_rate / params.d_std)  # Eq. (14)
         return jnp.clip(std, min=params.std_min, max=params.std_max)

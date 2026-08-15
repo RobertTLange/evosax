@@ -13,13 +13,13 @@ import matplotlib.pyplot as plt
 from evosax.types import Fitness, Metrics, Population, Solution
 from flax import struct
 
-from ..problem import Problem, State
+from ..problem import Problem, State as ProblemState
 from .bbob_fns import fn_names_short_dict
 from .meta_bbob import MetaBBOBProblem
 
 
 @struct.dataclass
-class State(State):
+class State(ProblemState):
     pass
 
 

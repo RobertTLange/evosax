@@ -24,7 +24,7 @@ from .base import (
 @struct.dataclass
 class State(BaseState):
     mean: jax.Array
-    std: float
+    std: jax.Array
     p_std: jax.Array
     p_c: jax.Array
     C: jax.Array
@@ -34,18 +34,18 @@ class State(BaseState):
 
 @struct.dataclass
 class Params(BaseParams):
-    std_init: float
+    std_init: jax.Array
     std_min: float
     std_max: float
     weights: jax.Array
-    mu_eff: float
+    mu_eff: jax.Array
     c_mean: float
-    c_std: float
-    d_std: float
-    c_c: float
-    c_1: float
-    c_mu: float
-    chi_n: float
+    c_std: jax.Array
+    d_std: jax.Array
+    c_c: jax.Array
+    c_1: jax.Array
+    c_mu: jax.Array
+    chi_n: jax.Array
 
 
 class CMA_ES(DistributionBasedAlgorithm):
@@ -130,7 +130,7 @@ class CMA_ES(DistributionBasedAlgorithm):
         )  # Page 28
 
         return Params(
-            std_init=1.0,
+            std_init=jnp.asarray(1.0),
             std_min=0.0,
             std_max=1e8,
             weights=weights,
@@ -215,7 +215,7 @@ class CMA_ES(DistributionBasedAlgorithm):
         population: Population,
         fitness: Fitness,
         mean: jax.Array,
-        std: float,
+        std: jax.Array,
         params: Params,
     ) -> tuple[jax.Array, jax.Array, jax.Array]:
         """Update the mean of the distribution."""
@@ -231,14 +231,18 @@ class CMA_ES(DistributionBasedAlgorithm):
             params.c_std * (2 - params.c_std) * params.mu_eff
         ) * C_inv_sqrt_y_w  # Eq. (43)
 
-    def update_std(self, std: float, norm_p_std: float, params: Params) -> float:
+    def update_std(
+        self, std: jax.Array, norm_p_std: jax.Array, params: Params
+    ) -> jax.Array:
         """Update the step size (standard deviation)."""
         std = std * jnp.exp(
             (params.c_std / params.d_std) * (norm_p_std / params.chi_n - 1)
         )  # Eq. (44)
         return jnp.clip(std, min=params.std_min, max=params.std_max)
 
-    def h_std(self, norm_p_std: float, generation_counter: int, params: Params) -> bool:
+    def h_std(
+        self, norm_p_std: jax.Array, generation_counter: int, params: Params
+    ) -> jax.Array:
         """Compute the stall indicator for the rank-one update."""
         h_std_cond_left = norm_p_std / jnp.sqrt(
             1 - (1 - params.c_std) ** (2 * (generation_counter + 1))
@@ -247,14 +251,18 @@ class CMA_ES(DistributionBasedAlgorithm):
         return h_std_cond_left < h_std_cond_right  # Page 28
 
     def update_p_c(
-        self, p_c: jax.Array, h_std: bool, y_w: jax.Array, params: Params
+        self,
+        p_c: jax.Array,
+        h_std: jax.Array | bool,
+        y_w: jax.Array,
+        params: Params,
     ) -> jax.Array:
         """Update the evolution path for the covariance matrix adaptation."""
         return (1 - params.c_c) * p_c + h_std * jnp.sqrt(
             params.c_c * (2 - params.c_c) * params.mu_eff
         ) * y_w  # Eq. (45)
 
-    def delta_h_std(self, h_std: bool, params: Params) -> float:
+    def delta_h_std(self, h_std: jax.Array, params: Params) -> jax.Array:
         """Compute the coefficient for the rank-one update when stalled."""
         return (1 - h_std) * params.c_c * (2 - params.c_c)  # Page 28
 
@@ -277,7 +285,7 @@ class CMA_ES(DistributionBasedAlgorithm):
     def update_C(
         self,
         C: jax.Array,
-        delta_h_std: float,
+        delta_h_std: jax.Array,
         rank_one: jax.Array,
         rank_mu: jax.Array,
         params: Params,
