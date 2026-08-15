@@ -25,19 +25,19 @@ from .base import (
 @struct.dataclass
 class State(BaseState):
     mean: jax.Array
-    std: float
+    std: jax.Array
     opt_state: optax.OptState
     B: jax.Array
-    lr_std: float
+    lr_std: jax.Array
     z: jax.Array
 
 
 @struct.dataclass
 class Params(BaseParams):
-    std_init: float
+    std_init: jax.Array
     weights: jax.Array
-    lr_std_init: float
-    lr_B: float
+    lr_std_init: jax.Array
+    lr_B: jax.Array
 
 
 class xNES(DistributionBasedAlgorithm):
@@ -65,7 +65,7 @@ class xNES(DistributionBasedAlgorithm):
             5 * jnp.sqrt(self.num_dims) * self.num_dims
         )
         return Params(
-            std_init=1.0,
+            std_init=jnp.asarray(1.0),
             weights=weights,
             lr_std_init=lr_std_init,
             lr_B=lr_std_init,

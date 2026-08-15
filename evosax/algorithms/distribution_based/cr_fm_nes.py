@@ -38,18 +38,18 @@ class Params(BaseParams):
     std_init: float
     weights_hat: jax.Array
     weights: jax.Array
-    mu_eff: float
+    mu_eff: jax.Array
     c_std: float
     c_c: float
     c1: float
     chi_n: float
     h_inv: float
-    alpha_dist: float
+    alpha_dist: jax.Array
     lr_mean: float = 1.0
     lr_move_std: float = 0.1
-    lr_stag_std: float = 0.1
-    lr_conv_std: float = 0.1
-    lr_B: float = 0.1
+    lr_stag_std: float | jax.Array = 0.1
+    lr_conv_std: float | jax.Array = 0.1
+    lr_B: float | jax.Array = 0.1
 
 
 def get_h_inv(dim: int) -> float:

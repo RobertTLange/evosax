@@ -25,7 +25,7 @@ from .base import (
 class State(BaseState):
     population: Population
     fitness: Fitness
-    std: jax.Array
+    std: float | jax.Array
     latent_projection: jax.Array
 
 
@@ -36,7 +36,7 @@ class Params(BaseParams):
     alphas: jax.Array
 
 
-def ddim_schedule(num_step: int) -> tuple[jax.Array, jax.Array]:
+def ddim_schedule(num_step: int) -> jax.Array:
     """Generate DDIM schedule."""
     eps = 1e-4
     power = 1.0
@@ -44,7 +44,7 @@ def ddim_schedule(num_step: int) -> tuple[jax.Array, jax.Array]:
     return alphas
 
 
-def cosine_schedule(num_step: int) -> tuple[jax.Array, jax.Array]:
+def cosine_schedule(num_step: int) -> jax.Array:
     """Generate cosine schedule."""
     eps = 1e-3
     alphas = jnp.cos(jnp.linspace(0, jnp.pi, num_step)) + 1
@@ -53,7 +53,7 @@ def cosine_schedule(num_step: int) -> tuple[jax.Array, jax.Array]:
     return alphas
 
 
-def ddpm_schedule(num_step: int) -> tuple[jax.Array, jax.Array]:
+def ddpm_schedule(num_step: int) -> jax.Array:
     """Generate DDPM schedule."""
     eps = 1e-4
     beta = ((num_step**2) * jnp.log(1 / (1 - eps)) + jnp.log(eps)) / (num_step - 1)
@@ -213,6 +213,10 @@ def ddim_step(key, x_t, x_0, alpha_t, alpha_tm1, std_m):
     return x_tm1
 
 
-def ddim_std(std_m: float, alpha_t: float, alpha_tm1: float) -> float:
+def ddim_std(
+    std_m: float | jax.Array,
+    alpha_t: float | jax.Array,
+    alpha_tm1: float | jax.Array,
+) -> jax.Array:
     """Compute the default std for the DDIM algorithm."""
     return std_m * jnp.sqrt((1 - alpha_tm1) / (1 - alpha_t) * (1 - alpha_t / alpha_tm1))

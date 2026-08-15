@@ -7,6 +7,7 @@ Full covariance version.
 """
 
 from collections.abc import Callable
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -31,16 +32,16 @@ class State(BaseState):
     std: float
     C: jax.Array
     mean_shift: jax.Array
-    nis_counter: int
-    c_mult: float
+    nis_counter: int | jax.Array
+    c_mult: float | jax.Array
     best_solution_shaped: Solution
     best_fitness_shaped: float
 
 
 @struct.dataclass
 class Params(BaseParams):
-    eta_std: float
-    eta_shift: float
+    eta_std: jax.Array
+    eta_shift: jax.Array
     eta_avs_inc: float
     eta_avs_dec: float
     nis_max_gens: int
@@ -165,8 +166,8 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         c_mult, nis_counter = self.adaptive_variance_scaling(
             any_improvement,
             sdr,
-            state.c_mult,
-            state.nis_counter,
+            cast(jax.Array, state.c_mult),
+            cast(jax.Array, state.nis_counter),
             params,
         )
 
@@ -201,7 +202,7 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         self,
         key: jax.Array,
         population: jax.Array,
-        c_mult: float,
+        c_mult: float | jax.Array,
         mean_shift: jax.Array,
         params: Params,
     ) -> jax.Array:
@@ -218,7 +219,7 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
         elites: jax.Array,
         C: jax.Array,
         mean: jax.Array,
-    ) -> float:
+    ) -> jax.Array:
         """SDR: relate distance of improvements to mean in search space."""
         # Compute average solutions that improved fitness
         solution_avg_imp = jnp.dot(improvement_mask, elites) / jnp.sum(improvement_mask)
@@ -231,12 +232,12 @@ class iAMaLGaM_Full(DistributionBasedAlgorithm):
 
     def adaptive_variance_scaling(
         self,
-        any_improvement: bool,
-        sdr: float,
-        c_mult: float,
-        nis_counter: int,
+        any_improvement: jax.Array,
+        sdr: jax.Array,
+        c_mult: jax.Array,
+        nis_counter: jax.Array,
         params: Params,
-    ) -> tuple[float, int]:
+    ) -> tuple[jax.Array, jax.Array]:
         """AVS - adaptively rescale covariance depending on SDR."""
         # Case 1: If improvement in best fitness -> SDR increase c_mult! L14-19
         new_nis_counter = jnp.where(any_improvement, 0, nis_counter)

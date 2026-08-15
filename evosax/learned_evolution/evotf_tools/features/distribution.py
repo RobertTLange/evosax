@@ -83,7 +83,7 @@ class DistributionFeaturizer:
         mean: jax.Array,
         std: jax.Array,
         state: DistributionFeaturesState,
-    ) -> jax.Array:
+    ) -> tuple[jax.Array, DistributionFeaturesState]:
         ranks = fitness.argsort()
         weights = get_nes_weights(fitness.shape[0])
         noise = (x - mean) / std

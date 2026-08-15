@@ -11,13 +11,13 @@ import jax.numpy as jnp
 from evosax.types import Fitness, Metrics, Population, Solution
 from flax import struct
 
-from ..meta_problem import MetaProblem, Params, State
+from ..meta_problem import MetaProblem, Params as MetaParams, State as MetaState
 from .bbob_fns import bbob_fns
 from .bbob_noise import NoiseModel, NoiseParams
 
 
 @struct.dataclass
-class Params(Params):
+class Params(MetaParams):
     fn_id: jax.Array
     num_dims: jax.Array
     x_opt: jax.Array
@@ -28,7 +28,7 @@ class Params(Params):
 
 
 @struct.dataclass
-class State(State):
+class State(MetaState):
     pass
 
 
@@ -56,14 +56,14 @@ class MetaBBOBProblem(MetaProblem):
         self.f_opt_range = [-1000, 1000]
 
         # Collect active BBOB functions
-        self.fn_ids, self.fns = [], []
+        fn_ids = []
+        fns = []
         for counter, fn_name in enumerate(fn_names):
             assert fn_name in bbob_fns, f"Function {fn_name} not found in bbob_fns"
-            self.fn_ids.append(counter)
-            self.fns.append(
-                jax.vmap(bbob_fns[fn_name], in_axes=(0, None, None, None, None))
-            )
-        self.fn_ids = jnp.array(self.fn_ids)
+            fn_ids.append(counter)
+            fns.append(jax.vmap(bbob_fns[fn_name], in_axes=(0, None, None, None, None)))
+        self.fn_ids = jnp.array(fn_ids)
+        self.fns = fns
 
         # Noise
         self.noise_model = NoiseModel(**noise_config)
@@ -129,7 +129,7 @@ class MetaBBOBProblem(MetaProblem):
 
         return (
             fn_noise + fn_pen + params.f_opt,
-            state.replace(counter=state.counter + 1),
+            State(counter=state.counter + 1),
             {"fn_val": fn_val, "fn_noise": fn_noise, "fn_pen": fn_pen},
         )
 

@@ -7,7 +7,7 @@ from flax import struct
 
 from evosax.types import Fitness, Metrics, Population
 
-from .problem import Problem, State
+from .problem import Problem, State as BaseState
 
 
 @struct.dataclass
@@ -16,7 +16,7 @@ class Params:
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     pass
 
 

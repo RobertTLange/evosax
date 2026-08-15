@@ -9,12 +9,12 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-import optax
+import optax  # type: ignore[import-untyped]
 
 
 class ScaleByClipUpState(NamedTuple):
     velocity: optax.Updates
-    count: jnp.ndarray
+    count: jax.Array  # type: ignore[assignment]
 
 
 def scale_by_clipup(

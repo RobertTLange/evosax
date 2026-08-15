@@ -28,7 +28,8 @@ class State(BaseState):
     std: float
     opt_state: optax.OptState
     pert_accum: jax.Array  # History of accum. noise perturb in partial unroll
-    inner_step_counter: int  # Keep track of unner unroll steps for noise reset
+    # Keep track of unner unroll steps for noise reset.
+    inner_step_counter: int | jax.Array
 
 
 @struct.dataclass

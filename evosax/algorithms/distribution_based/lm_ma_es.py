@@ -67,13 +67,15 @@ class LM_MA_ES(MA_ES):
             c_std=parent_params.c_std,
             d_std=parent_params.d_std,
             c_c=c_c,
-            c_1=0.0,  # Not used in LM-MA-ES
-            c_mu=0.0,  # Not used in LM-MA-ES
+            c_1=jnp.asarray(0.0),  # Not used in LM-MA-ES
+            c_mu=jnp.asarray(0.0),  # Not used in LM-MA-ES
             chi_n=parent_params.chi_n,
             c_d=c_d,
         )
 
-    def _init(self, key: jax.Array, params: Params) -> State:
+    def _init(  # type: ignore[override]
+        self, key: jax.Array, params: Params
+    ) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
@@ -86,7 +88,7 @@ class LM_MA_ES(MA_ES):
         )
         return state
 
-    def _ask(
+    def _ask(  # type: ignore[override]
         self,
         key: jax.Array,
         state: State,
@@ -107,7 +109,7 @@ class LM_MA_ES(MA_ES):
         population = state.mean + state.std * d
         return population, state.replace(z=z)
 
-    def _tell(
+    def _tell(  # type: ignore[override]
         self,
         key: jax.Array,
         population: Population,
@@ -133,7 +135,9 @@ class LM_MA_ES(MA_ES):
 
         return state.replace(mean=mean, std=std, p_std=p_std, M=M)
 
-    def update_M(self, M: jax.Array, z: jax.Array, params: Params) -> jax.Array:
+    def update_M(  # type: ignore[override]
+        self, M: jax.Array, z: jax.Array, params: Params
+    ) -> jax.Array:
         """Update the low-memory transformation matrix M."""
         return (1 - params.c_c)[:, None] * M + jnp.sqrt(
             params.mu_eff * params.c_c * (2 - params.c_c)

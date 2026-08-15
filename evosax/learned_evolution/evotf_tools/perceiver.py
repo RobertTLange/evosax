@@ -49,7 +49,7 @@ class MultiheadPerceiver(nn.Module):
         x: jax.Array,
         mask: jax.Array | None = None,
         train: bool = True,
-    ) -> tuple[jax.Array, jax.Array]:
+    ) -> tuple[jax.Array, jax.Array | None]:
         batch_size, seq_length, embed_dim = x.shape
         if mask is not None:
             mask = expand_mask(mask)
@@ -101,7 +101,7 @@ class PerceiverBlock(nn.Module):
 
     def __call__(
         self, x: jax.Array, mask: jax.Array | None = None, train: bool = True
-    ) -> tuple[jax.Array, jax.Array]:
+    ) -> tuple[jax.Array, jax.Array | None]:
         attn_out, attn = self.perceive(self.ln_1(x), mask, train)
         x = self.mlp(self.ln_2(attn_out), train)
         return x, attn
@@ -141,7 +141,7 @@ class PerceiverEncoder(nn.Module):
         mask: jax.Array | None = None,
         add_positional_encoding: bool = True,
         train: bool = True,
-    ) -> tuple[jax.Array, list[jax.Array]]:
+    ) -> tuple[jax.Array, list[jax.Array | None]]:
         x = self.input_layer(x)
         if add_positional_encoding:
             x = self.positional_encoding(x)

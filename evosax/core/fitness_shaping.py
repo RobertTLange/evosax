@@ -6,10 +6,18 @@ evolutionary algorithms by normalizing or standardizing fitness values, or by ad
 regularization terms like weight decay.
 """
 
+from typing import Protocol
+
 import jax
 import jax.numpy as jnp
 
 from evosax.types import Fitness, Params, Population, State
+
+
+class WeightedFitnessParams(Protocol):
+    """Parameters required for weighted fitness shaping."""
+
+    weights: jax.Array
 
 
 def normalize(
@@ -70,7 +78,10 @@ def centered_rank_fitness_shaping_fn(
 
 
 def weights_fitness_shaping_fn(
-    population: Population, fitness: Fitness, state: State, params: Params
+    population: Population,
+    fitness: Fitness,
+    state: State,
+    params: WeightedFitnessParams,
 ) -> Fitness:
     """Return weights according to fitness."""
     ranks = jax.scipy.stats.rankdata(fitness, axis=-1) - 1.0
