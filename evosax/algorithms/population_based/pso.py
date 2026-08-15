@@ -83,8 +83,12 @@ class PSO(PopulationBasedAlgorithm):
         state = super().init(key, population, fitness, params)
         return state.replace(
             population_best=state.population,
-            fitness_best=state.fitness,
+            fitness_best=self._postprocess_fitness(fitness, state.fitness),
         )
+
+    def _postprocess_fitness(self, raw_fitness: Fitness, fitness: Fitness) -> Fitness:
+        """Keep failed evaluations out of personal-best comparisons."""
+        return jnp.where(jnp.isnan(raw_fitness), jnp.inf, fitness)
 
     def _ask(
         self,
