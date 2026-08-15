@@ -2,9 +2,19 @@
 
 ## [TBD]
 
+### Added
+
+- Added a fitness-standard-deviation restart condition. Thanks to Jordan Gunn
+  (@githubpsyche) for the contribution.
+
 ### Fixed
 
-- Seed population-based archives and PSO personal bests from the initial evaluation while safely ignoring failed evaluations. Thanks to @rkhosrowshahi.
+- `SV_Open_ES` now passes its mean vector to Optax updates, supporting
+  parameter-dependent optimizers such as AdamW. Thanks to Rasa Khosrowshahi
+  (@rkhosrowshahi) for the fix.
+- Seed population-based archives and PSO personal bests from the initial
+  evaluation while safely ignoring failed evaluations. Thanks to Rasa
+  Khosrowshahi (@rkhosrowshahi) for the fix.
 
 ## [v0.2.0] - [03/2025]
 
