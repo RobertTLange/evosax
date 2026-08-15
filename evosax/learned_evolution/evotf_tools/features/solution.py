@@ -53,7 +53,7 @@ class SolutionFeaturizer:
         mean: jax.Array,
         std: jax.Array,
         state: SolutionFeaturesState,
-    ) -> jax.Array:
+    ) -> tuple[jax.Array, SolutionFeaturesState]:
         diff_mean = population - mean
         sol_out = jnp.expand_dims(population, axis=-1)
 
@@ -84,7 +84,7 @@ class SolutionFeaturizer:
             )
             dist_best_norm = jnp.expand_dims(dist_best_norm, axis=-1)
             sol_out = jnp.concatenate([sol_out, dist_best_norm], axis=-1)
-        return sol_out, state.replace(
+        return sol_out, SolutionFeaturesState(
             best_solution=best_solution,
             best_fitness=best_fitness,
             generation_counter=state.generation_counter + 1,

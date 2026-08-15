@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from evosax.algorithms.distribution_based import (
+    ASEBO,
     Open_ES,
     SV_Open_ES,
     distribution_based_algorithms,
@@ -234,6 +235,96 @@ def test_open_es_runs_with_adamw_optimizer(key, population_size, bbob_problem):
 
     assert jnp.all(jnp.isfinite(state.mean))
     assert jnp.isfinite(metrics["best_fitness"])
+
+
+def test_asebo_uses_an_informative_active_subspace(key):
+    """ASEBO should retain enough centered gradients to identify its subspace."""
+    algo = ASEBO(population_size=8, solution=jnp.zeros(3), subspace_dims=1)
+    params = algo.default_params
+    state = algo.init(key, jnp.zeros(3), params)
+
+    assert state.grad_subspace.shape == (2, 3)
+
+    state = state.replace(
+        generation_counter=2,
+        grad_subspace=jnp.array([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]),
+    )
+    _, state = algo.ask(key, state, params)
+
+    assert jnp.allclose(state.UUT, jnp.diag(jnp.array([1.0, 0.0, 0.0])))
+
+
+def test_asebo_ignores_rank_deficient_gradient_directions(key):
+    """ASEBO should not use arbitrary SVD vectors from a rank-deficient archive."""
+    algo = ASEBO(population_size=8, solution=jnp.zeros(3), subspace_dims=2)
+    params = algo.default_params
+    state = algo.init(key, jnp.zeros(3), params).replace(
+        generation_counter=3,
+        grad_subspace=jnp.array([[-1.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]),
+    )
+
+    _, state = algo.ask(key, state, params)
+
+    assert jnp.allclose(state.UUT, jnp.diag(jnp.array([1.0, 0.0, 0.0])))
+
+
+def test_asebo_remains_finite_after_subspace_activation(key):
+    """ASEBO should continue producing finite states after activation."""
+    algo = ASEBO(population_size=8, solution=jnp.zeros(3), subspace_dims=1)
+    params = algo.default_params
+    state = algo.init(key, jnp.zeros(3), params)
+
+    for _ in range(4):
+        key, ask_key, tell_key = jax.random.split(key, 3)
+        population, state = algo.ask(ask_key, state, params)
+        fitness = jnp.sum(population**2, axis=-1)
+        state, _ = algo.tell(tell_key, population, fitness, state, params)
+
+        assert jnp.all(jnp.isfinite(population))
+        assert jnp.all(jnp.isfinite(state.mean))
+        assert jnp.isfinite(state.alpha)
+
+
+def test_asebo_samples_with_the_configured_standard_deviation(key):
+    """ASEBO should scale active-subspace samples by the scheduled std."""
+
+    def std_schedule(generation):
+        return jnp.where(generation < 2, 1.0, 0.25)
+
+    algo = ASEBO(
+        population_size=8,
+        solution=jnp.zeros(3),
+        subspace_dims=1,
+        std_schedule=std_schedule,
+    )
+    params = algo.default_params
+    state = algo.init(key, jnp.zeros(3), params).replace(
+        alpha=0.5,
+        generation_counter=2,
+        grad_subspace=jnp.array([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]),
+    )
+
+    population, _ = algo.ask(key, state, params)
+    decayed_state = state.replace(std=std_schedule(state.generation_counter))
+    decayed_population, _ = algo.ask(key, decayed_state, params)
+
+    assert jnp.all(jnp.isfinite(population))
+    assert jnp.allclose(decayed_population, 0.25 * population, rtol=1e-5)
+
+
+def test_asebo_gradient_archive_is_invariant_to_standard_deviation(key):
+    """ASEBO should not reweight archived gradients when std changes."""
+    algo = ASEBO(population_size=2, solution=jnp.zeros(2))
+    params = algo.default_params
+
+    def estimate_gradient(std):
+        state = algo.init(key, jnp.zeros(2), params).replace(std=std)
+        population = jnp.array([[std, 0.0], [-std, 0.0]])
+        fitness = population[:, 0]
+        state = algo._tell(key, population, fitness, state, params)
+        return state.grad_subspace[-1]
+
+    assert jnp.allclose(estimate_gradient(1.0), estimate_gradient(0.25))
 
 
 def test_sv_open_es_runs_with_adamw_optimizer(key, population_size, bbob_problem):

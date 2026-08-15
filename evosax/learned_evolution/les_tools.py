@@ -24,7 +24,7 @@ def load_pkl_object(filename: Any, pkg_load: bool = False) -> Any:
     return obj
 
 
-def tanh_timestamp(x: jax.Array) -> jax.Array:
+def tanh_timestamp(x: int | jax.Array) -> jax.Array:
     """Timestamp embedding with evo-adapted timescales (Metz et al., 2022)."""
 
     def single_frequency(timescale):
@@ -105,7 +105,7 @@ def norm_diff_best(fitness: jax.Array, best_fitness: float) -> jax.Array:
     fitness = jnp.clip(fitness, -1e10, 1e10)
     diff_best = fitness - best_fitness
     return jnp.clip(
-        diff_best / (jnp.nanmax(diff_best) - jnp.nanmin(diff_best.min) + 1e-10),
+        diff_best / (jnp.nanmax(diff_best) - jnp.nanmin(diff_best) + 1e-10),
         -1,
         1,
     )

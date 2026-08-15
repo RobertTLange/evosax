@@ -19,7 +19,7 @@ from .cma_es import CMA_ES, Params as BaseParams
 @struct.dataclass
 class State(BaseState):
     mean: jax.Array
-    std: float
+    std: jax.Array
     p_std: jax.Array
     M: jax.Array
     z: jax.Array
@@ -46,7 +46,9 @@ class MA_ES(CMA_ES):
         self.elite_ratio = 0.5
         self.use_negative_weights = False
 
-    def _init(self, key: jax.Array, params: Params) -> State:
+    def _init(  # type: ignore[override]
+        self, key: jax.Array, params: Params
+    ) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
@@ -59,7 +61,7 @@ class MA_ES(CMA_ES):
         )
         return state
 
-    def _ask(
+    def _ask(  # type: ignore[override]
         self,
         key: jax.Array,
         state: State,
@@ -71,7 +73,7 @@ class MA_ES(CMA_ES):
 
         return population, state.replace(z=z)
 
-    def _tell(
+    def _tell(  # type: ignore[override]
         self,
         key: jax.Array,
         population: Population,

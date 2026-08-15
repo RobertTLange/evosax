@@ -19,11 +19,11 @@ import jax.numpy as jnp
 from evosax.types import Fitness, Metrics, PyTree, Solution
 from flax import linen as nn, struct
 
-from ..problem import Problem, State
+from ..problem import Problem, State as BaseState
 
 
 @struct.dataclass
-class State(State):
+class State(BaseState):
     obs_mean: PyTree
     obs_std: PyTree
     obs_var_sum: PyTree
@@ -47,7 +47,7 @@ class GymnaxProblem(Problem):
     ):
         """Initialize the Gymnax problem."""
         try:
-            import gymnax
+            import gymnax  # type: ignore[import-not-found]
         except ImportError:
             raise ImportError("You need to install `gymnax` to use this problem class.")
 
@@ -134,7 +134,7 @@ class GymnaxProblem(Problem):
 
         return (
             jnp.mean(fitness, axis=-1),
-            state.replace(counter=state.counter + 1),
+            state.replace(counter=state.counter + 1),  # type: ignore[attr-defined]
             {"env_states": env_states},
         )
 
@@ -244,7 +244,7 @@ class GymnaxProblem(Problem):
         obs_std = jnp.clip(obs_std, state.std_min, state.std_max)
 
         # Return updated state with new statistics
-        return state.replace(
+        return state.replace(  # type: ignore[attr-defined]
             obs_mean=obs_mean,
             obs_std=obs_std,
             obs_var_sum=obs_var_sum,

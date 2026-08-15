@@ -1,10 +1,21 @@
 """Tests for reinforcement learning problems."""
 
+from importlib.util import find_spec
+
 import jax
+import pytest
 from evosax.problems import BraxProblem, GymnaxProblem
 from evosax.problems.networks import MLP
 
+requires_gymnax = pytest.mark.skipif(
+    find_spec("gymnax") is None, reason="gymnax is not installed"
+)
+requires_brax = pytest.mark.skipif(
+    find_spec("brax") is None, reason="brax is not installed"
+)
 
+
+@requires_gymnax
 def test_gymnax_problem_init():
     """Test GymnaxProblem initialization with default settings."""
     policy = MLP(layer_sizes=(64, 64, 2))
@@ -17,6 +28,7 @@ def test_gymnax_problem_init():
     assert problem.num_rollouts == 5
 
 
+@requires_gymnax
 def test_gymnax_problem_sample():
     """Test GymnaxProblem solution sampling."""
     key = jax.random.key(0)
@@ -33,6 +45,7 @@ def test_gymnax_problem_sample():
     assert flat_params.ndim == 1
 
 
+@requires_gymnax
 def test_gymnax_problem_eval():
     """Test GymnaxProblem evaluation."""
     key = jax.random.key(0)
@@ -60,6 +73,7 @@ def test_gymnax_problem_eval():
     assert new_state.counter == state.counter + 1
 
 
+@requires_brax
 def test_brax_problem_init():
     """Test BraxProblem initialization with default settings."""
     policy = MLP(layer_sizes=(64, 64, 1))
@@ -72,6 +86,7 @@ def test_brax_problem_init():
     assert problem.num_rollouts == 5
 
 
+@requires_brax
 def test_brax_problem_sample():
     """Test BraxProblem solution sampling."""
     key = jax.random.key(0)
@@ -88,6 +103,7 @@ def test_brax_problem_sample():
     assert flat_params.ndim == 1
 
 
+@requires_brax
 def test_brax_problem_eval():
     """Test BraxProblem evaluation."""
     key = jax.random.key(0)

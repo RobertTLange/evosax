@@ -27,7 +27,8 @@ class State(BaseState):
     std: float
     opt_state: optax.OptState
     pert: jax.Array  # Perturbations used in partial unroll multiple times
-    inner_step_counter: int  # Keep track of unner unroll steps for noise reset
+    # Keep track of unner unroll steps for noise reset.
+    inner_step_counter: int | jax.Array
 
 
 @struct.dataclass

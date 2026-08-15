@@ -1,10 +1,18 @@
 """Tests for vision problems."""
 
+from importlib.util import find_spec
+
 import jax
+import pytest
 from evosax.problems import TorchVisionProblem
 from evosax.problems.networks import CNN, identity_output_fn
 
+requires_torchvision = pytest.mark.skipif(
+    find_spec("torchvision") is None, reason="torchvision is not installed"
+)
 
+
+@requires_torchvision
 def test_torchvision_problem_init():
     """Test TorchVisionProblem initialization with default settings."""
     # Define a simple CNN for MNIST
@@ -26,6 +34,7 @@ def test_torchvision_problem_init():
     assert problem.batch_size == 128
 
 
+@requires_torchvision
 def test_torchvision_problem_sample():
     """Test TorchVisionProblem solution sampling."""
     key = jax.random.key(0)
@@ -53,6 +62,7 @@ def test_torchvision_problem_sample():
     assert flat_params.ndim == 1
 
 
+@requires_torchvision
 def test_torchvision_problem_eval():
     """Test TorchVisionProblem evaluation."""
     key = jax.random.key(0)

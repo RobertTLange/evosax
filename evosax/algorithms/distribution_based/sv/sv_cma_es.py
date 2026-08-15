@@ -79,7 +79,7 @@ class SV_CMA_ES(SV_ES, CMA_ES):
             alpha=1.0,
         )
 
-    def _tell(
+    def _tell(  # type: ignore[override]
         self,
         key: jax.Array,
         population: Population,
@@ -135,12 +135,12 @@ class SV_CMA_ES(SV_ES, CMA_ES):
             C=C,
         )
 
-    def update_mean(
+    def update_mean(  # type: ignore[override]
         self,
         population: Population,
         fitness: Fitness,
         mean: jax.Array,
-        std: float,
+        std: jax.Array,
         means: Solution,
         params: Params,
     ) -> tuple[jax.Array, jax.Array, jax.Array]:

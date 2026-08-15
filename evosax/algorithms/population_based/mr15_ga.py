@@ -4,6 +4,7 @@
 """
 
 from collections.abc import Callable
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -25,7 +26,7 @@ from .simple_ga import mutation
 class State(BaseState):
     population: jax.Array
     fitness: Fitness
-    std: jax.Array
+    std: float | jax.Array
 
 
 @struct.dataclass
@@ -80,7 +81,7 @@ class MR15_GA(PopulationBasedAlgorithm):
         # Mutation
         keys = jax.random.split(key, self.population_size)
         population = jax.vmap(mutation, in_axes=(0, 0, None))(
-            keys, state.population, state.std
+            keys, state.population, cast(jax.Array, state.std)
         )
         return population, state
 

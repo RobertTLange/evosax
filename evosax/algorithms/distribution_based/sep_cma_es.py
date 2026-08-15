@@ -49,7 +49,9 @@ class Sep_CMA_ES(CMA_ES):
         self.elite_ratio = 0.5
         self.use_negative_weights = False
 
-    def _init(self, key: jax.Array, params: Params) -> State:
+    def _init(  # type: ignore[override]
+        self, key: jax.Array, params: Params
+    ) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init,
@@ -63,7 +65,7 @@ class Sep_CMA_ES(CMA_ES):
         )
         return state
 
-    def _ask(
+    def _ask(  # type: ignore[override]
         self,
         key: jax.Array,
         state: State,
@@ -79,7 +81,7 @@ class Sep_CMA_ES(CMA_ES):
 
         return x, state.replace(C=C, D=D)
 
-    def _tell(
+    def _tell(  # type: ignore[override]
         self,
         key: jax.Array,
         population: Population,
@@ -130,7 +132,7 @@ class Sep_CMA_ES(CMA_ES):
         return jnp.dot(w_o, y_k**2)
 
 
-def eigen_decomposition(C: jax.Array) -> jax.Array:
+def eigen_decomposition(C: jax.Array) -> tuple[jax.Array, jax.Array]:
     """Eigendecomposition of covariance matrix."""
     C = jnp.clip(C, min=0.0, max=1e8)
 

@@ -22,14 +22,14 @@ class State(BaseState):
     mean: jax.Array
     std: jax.Array
     opt_state: optax.OptState
-    lr_std: float
+    lr_std: jax.Array
 
 
 @struct.dataclass
 class Params(BaseParams):
-    std_init: float
+    std_init: jax.Array
     weights: jax.Array
-    lr_std_init: float
+    lr_std_init: jax.Array
 
 
 class SNES(xNES):
@@ -49,7 +49,7 @@ class SNES(xNES):
         )
 
     @property
-    def _default_params(self) -> Params:
+    def _default_params(self) -> Params:  # type: ignore[override]
         params = super()._default_params
 
         # Override the learning rate for std with SNES-specific value
@@ -61,7 +61,9 @@ class SNES(xNES):
             lr_std_init=lr_std_init,
         )
 
-    def _init(self, key: jax.Array, params: Params) -> State:
+    def _init(  # type: ignore[override]
+        self, key: jax.Array, params: Params
+    ) -> State:
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
             std=params.std_init * jnp.ones(self.num_dims),
@@ -73,7 +75,7 @@ class SNES(xNES):
         )
         return state
 
-    def _ask(
+    def _ask(  # type: ignore[override]
         self,
         key: jax.Array,
         state: State,
@@ -83,7 +85,7 @@ class SNES(xNES):
         population = state.mean + state.std * z
         return population, state
 
-    def _tell(
+    def _tell(  # type: ignore[override]
         self,
         key: jax.Array,
         population: Population,
