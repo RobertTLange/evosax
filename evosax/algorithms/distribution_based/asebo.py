@@ -77,7 +77,7 @@ class ASEBO(DistributionBasedAlgorithm):
         return Params(grad_decay=0.99)
 
     def _init(self, key: jax.Array, params: Params) -> State:
-        grad_subspace = jnp.zeros((self.subspace_dims, self.num_dims))
+        grad_subspace = jnp.zeros((self.subspace_dims + 1, self.num_dims))
 
         state = State(
             mean=jnp.full((self.num_dims,), jnp.nan),
@@ -100,21 +100,21 @@ class ASEBO(DistributionBasedAlgorithm):
         params: Params,
     ) -> tuple[Population, State]:
         # Antithetic sampling of noise
-        X = state.grad_subspace
-        X -= jnp.mean(X, axis=0)
-        U, S, Vt = jnp.linalg.svd(X, full_matrices=False)
-
-        def svd_flip(u, v):
-            # columns of u, rows of v
-            max_abs_cols = jnp.argmax(jnp.abs(u), axis=0)
-            signs = jnp.sign(u[max_abs_cols, jnp.arange(u.shape[1])])
-            u *= signs
-            v *= signs[:, jnp.newaxis]
-            return u, v
-
-        U, Vt = svd_flip(U, Vt)
-        U = Vt[: int(self.population_size / 2)]
-        UUT = jnp.matmul(U.T, U)
+        centered_gradients = state.grad_subspace - jnp.mean(state.grad_subspace, axis=0)
+        _, singular_values, right_singular_vectors = jnp.linalg.svd(
+            centered_gradients, full_matrices=False
+        )
+        subspace_basis = right_singular_vectors[: self.subspace_dims]
+        rank_tolerance = (
+            jnp.finfo(singular_values.dtype).eps
+            * max(centered_gradients.shape)
+            * singular_values[0]
+        )
+        informative_directions = (
+            singular_values[: self.subspace_dims] > rank_tolerance
+        ).astype(subspace_basis.dtype)
+        UUT = (subspace_basis.T * informative_directions) @ subspace_basis
+        effective_subspace_dims = jnp.maximum(jnp.sum(informative_directions), 1.0)
         # Orthogonal projector I - UU^T (avoids empty U_ort when subspace_dims < pop/2)
         UUT_ort = jnp.eye(self.num_dims) - UUT
 
@@ -126,15 +126,14 @@ class ASEBO(DistributionBasedAlgorithm):
         UUT_ort = jax.lax.select(
             subspace_ready, UUT_ort, jnp.zeros((self.num_dims, self.num_dims))
         )
-        cov = (
-            state.std * (state.alpha / self.num_dims) * jnp.eye(self.num_dims)
-            + ((1 - state.alpha) / int(self.population_size / 2)) * UUT
-        )
+        cov = (state.alpha / self.num_dims) * jnp.eye(self.num_dims) + (
+            (1 - state.alpha) / effective_subspace_dims
+        ) * UUT
         # Jitter keeps cov SPD when alpha is small / subspace is low-rank
         cov = cov + 1e-6 * jnp.eye(self.num_dims)
         chol = jnp.linalg.cholesky(cov)
         z_plus = jax.random.normal(key, (self.population_size // 2, self.num_dims))
-        z_plus = z_plus @ chol.T
+        z_plus = state.std * (z_plus @ chol.T)
         z = jnp.concatenate([z_plus, -z_plus])
         population = state.mean + z
         return population, state.replace(UUT=UUT, UUT_ort=UUT_ort)
@@ -152,7 +151,7 @@ class ASEBO(DistributionBasedAlgorithm):
         fitness_minus = fitness[self.population_size // 2 :]
         grad = 0.5 * jnp.dot(
             fitness_plus - fitness_minus,
-            (population[: self.population_size // 2] - state.mean) / state.std,
+            (population[: self.population_size // 2] - state.mean) / state.std**2,
         )
 
         # Clamp alpha in [0, 1]; epsilon avoids 0/0 when projectors are empty/singular
