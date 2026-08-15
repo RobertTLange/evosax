@@ -7,6 +7,7 @@ from evosax.algorithms import CMA_ES, Open_ES
 from evosax.core.restart import (
     BIPOPRestart,
     BIPOPRestartParams,
+    BIPOPRestartState,
     IPOPRestart,
     IPOPRestartParams,
     RestartParams,
@@ -16,6 +17,7 @@ from evosax.core.restart import (
     generation_cond,
     spread_cond,
 )
+from flax import serialization
 
 
 def always_restart(*_args):
@@ -185,6 +187,38 @@ def test_bipop_restart_excludes_initial_run_from_regime_budgets():
     assert restart_state.small_eval_budget == 0
 
 
+def test_bipop_restart_state_keeps_its_existing_constructor_contract():
+    restart_state = BIPOPRestartState(
+        restart_counter=0,
+        restart_next=False,
+        active_population_size=4,
+        restart_large_counter=0,
+        large_eval_budget=0,
+        small_eval_budget=0,
+        small_pop_active=True,
+    )
+
+    assert jnp.isnan(restart_state.initial_std)
+
+
+def test_bipop_restart_state_restores_legacy_state_dicts():
+    restart_state = BIPOPRestartState(
+        restart_counter=0,
+        restart_next=False,
+        active_population_size=4,
+        restart_large_counter=0,
+        large_eval_budget=0,
+        small_eval_budget=0,
+        small_pop_active=True,
+    )
+    legacy_state_dict = serialization.to_state_dict(restart_state)
+    legacy_state_dict.pop("initial_std")
+
+    restored_state = serialization.from_state_dict(restart_state, legacy_state_dict)
+
+    assert jnp.isnan(restored_state.initial_std)
+
+
 def test_bipop_restart_switches_from_large_to_small_population_by_budget():
     strategy = cma_es_factory(4)
     params = strategy.default_params
@@ -207,6 +241,50 @@ def test_bipop_restart_switches_from_large_to_small_population_by_budget():
     assert restart_state.large_eval_budget == 24
     assert population.shape == (strategy.population_size, 2)
     assert 4 <= strategy.population_size < 8
+
+
+def test_bipop_small_population_resamples_cma_initial_standard_deviation():
+    strategy = cma_es_factory(4)
+    params = strategy.default_params
+    state = strategy.init(jax.random.key(0), jnp.zeros(2), params)
+    restarter = BIPOPRestart(cma_es_factory, initial_population_size=4)
+
+    strategy, params, state, restart_state = restarter.restart(
+        jax.random.key(1), strategy, state, params, restarter.init(strategy)
+    )
+    state = state.replace(generation_counter=3)
+    _, params, _, restart_state = restarter.restart(
+        jax.random.key(2), strategy, state, params, restart_state
+    )
+
+    assert restart_state.small_pop_active
+    assert 0.01 <= params.std_init < 1.0
+
+
+def test_bipop_small_populations_use_the_initial_standard_deviation():
+    strategy = cma_es_factory(4)
+    params = strategy.default_params.replace(std_init=0.5)
+    state = strategy.init(jax.random.key(0), jnp.zeros(2), params)
+    restarter = BIPOPRestart(
+        cma_es_factory,
+        initial_population_size=4,
+        strategy_params_factory=cma_restart_params,
+    )
+
+    strategy, params, state, restart_state = restarter.restart(
+        jax.random.key(1), strategy, state, params, restarter.init(strategy)
+    )
+    state = state.replace(generation_counter=3)
+    strategy, params, state, restart_state = restarter.restart(
+        jax.random.key(2), strategy, state, params, restart_state
+    )
+    state = state.replace(generation_counter=1)
+    _, params, _, restart_state = restarter.restart(
+        jax.random.key(3), strategy, state, params, restart_state
+    )
+
+    assert restart_state.small_pop_active
+    assert 0.005 <= params.std_init < 0.5
 
 
 def test_bipop_restart_applies_population_size_transform_before_rebuilding():

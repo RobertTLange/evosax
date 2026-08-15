@@ -5,12 +5,15 @@ from typing import TypeAlias
 
 import jax
 import jax.numpy as jnp
-from flax import struct
+from flax import serialization, struct
 
 from evosax.types import Fitness, Params, Population, State
 
 from ..algorithms.distribution_based.base import DistributionBasedAlgorithm
-from ..algorithms.distribution_based.cma_es import eigen_decomposition
+from ..algorithms.distribution_based.cma_es import (
+    Params as CMAESParams,
+    eigen_decomposition,
+)
 
 RestartCondition: TypeAlias = Callable[
     [Population, Fitness, State, Params, "RestartState", "RestartParams"], jax.Array
@@ -18,6 +21,9 @@ RestartCondition: TypeAlias = Callable[
 StrategyFactory: TypeAlias = Callable[[int], DistributionBasedAlgorithm]
 StrategyParamsFactory: TypeAlias = Callable[
     [DistributionBasedAlgorithm, Params], Params
+]
+SmallPopulationParamsFactory: TypeAlias = Callable[
+    [jax.Array, DistributionBasedAlgorithm, Params, float], Params
 ]
 PopulationSizeTransform: TypeAlias = Callable[[int], int]
 
@@ -164,12 +170,53 @@ class BIPOPRestartState(RestartState):
     large_eval_budget: int
     small_eval_budget: int
     small_pop_active: bool
+    initial_std: float = float("nan")
 
 
 @struct.dataclass
 class BIPOPRestartParams(RestartParams):
     min_num_gens: int = 50
     population_size_multiplier: int = 2
+
+
+def _bipop_restart_state_to_state_dict(
+    restart_state: BIPOPRestartState,
+) -> dict[str, object]:
+    return {
+        name: serialization.to_state_dict(getattr(restart_state, name))
+        for name in BIPOPRestartState.__dataclass_fields__
+    }
+
+
+def _bipop_restart_state_from_state_dict(
+    restart_state: BIPOPRestartState,
+    state_dict: dict[str, object],
+) -> BIPOPRestartState:
+    state_dict = state_dict.copy()
+    state_dict.setdefault("initial_std", restart_state.initial_std)
+    restored_state = restart_state.replace(
+        **{
+            name: serialization.from_state_dict(
+                getattr(restart_state, name), state_dict.pop(name), name=name
+            )
+            for name in BIPOPRestartState.__dataclass_fields__
+        }
+    )
+    if state_dict:
+        names = ",".join(state_dict)
+        raise ValueError(
+            f'Unknown field(s) "{names}" in state dict while restoring '
+            f"BIPOPRestartState at path {serialization.current_path()}"
+        )
+    return restored_state
+
+
+serialization.register_serialization_state(
+    BIPOPRestartState,
+    _bipop_restart_state_to_state_dict,
+    _bipop_restart_state_from_state_dict,
+    override=True,
+)
 
 
 class RestartController:
@@ -324,7 +371,8 @@ class BIPOPRestart(RestartController):
 
     ``strategy_params_factory`` maps parameters from the previous strategy to a
     rebuilt one. ``population_size_transform`` adapts requested sizes to strategy
-    constraints such as even antithetic populations.
+    constraints such as even antithetic populations. The optional
+    ``small_population_params_factory`` configures small-regime restarts.
     """
 
     def __init__(
@@ -335,6 +383,7 @@ class BIPOPRestart(RestartController):
         restart_params: BIPOPRestartParams | None = None,
         strategy_params_factory: StrategyParamsFactory | None = None,
         population_size_transform: PopulationSizeTransform | None = None,
+        small_population_params_factory: SmallPopulationParamsFactory | None = None,
     ):
         resolved_restart_params = restart_params or BIPOPRestartParams()
         super().__init__(stop_criteria, resolved_restart_params)
@@ -346,6 +395,9 @@ class BIPOPRestart(RestartController):
         )
         self.population_size_transform = (
             population_size_transform or _identity_population_size
+        )
+        self.small_population_params_factory = (
+            small_population_params_factory or _default_small_population_params
         )
 
     def init(self, strategy: DistributionBasedAlgorithm) -> BIPOPRestartState:
@@ -359,6 +411,7 @@ class BIPOPRestart(RestartController):
             large_eval_budget=0,
             small_eval_budget=0,
             small_pop_active=True,
+            initial_std=jnp.nan,
         )
 
     def restart(
@@ -371,7 +424,7 @@ class BIPOPRestart(RestartController):
     ) -> tuple[DistributionBasedAlgorithm, Params, State, BIPOPRestartState]:
         """Rebuild a strategy using the next BIPOP population size."""
         _validate_single_distribution_state(state)
-        key_population, key_init = jax.random.split(key)
+        key_population, key_params, key_init = jax.random.split(key, 3)
         large_budget, small_budget = _updated_bipop_budgets(state, restart_state)
         use_small_population = small_budget < large_budget
         population_size, large_restart_counter = self._next_population_size(
@@ -383,6 +436,11 @@ class BIPOPRestart(RestartController):
         next_strategy_params = self.strategy_params_factory(
             next_strategy, strategy_params
         )
+        initial_std = _initial_cma_std(strategy_params, restart_state)
+        if use_small_population:
+            next_strategy_params = self.small_population_params_factory(
+                key_params, next_strategy, next_strategy_params, initial_std
+            )
         next_state = _restart_strategy(
             key_init,
             strategy,
@@ -399,6 +457,7 @@ class BIPOPRestart(RestartController):
             large_eval_budget=large_budget,
             small_eval_budget=small_budget,
             small_pop_active=use_small_population,
+            initial_std=initial_std,
         )
         return next_strategy, next_strategy_params, next_state, next_restart_state
 
@@ -456,6 +515,28 @@ def _default_strategy_params(
     """Use population-shape-compatible defaults for a rebuilt strategy."""
     del previous_params
     return strategy.default_params
+
+
+def _default_small_population_params(
+    key: jax.Array,
+    strategy: DistributionBasedAlgorithm,
+    params: Params,
+    initial_std: float,
+) -> Params:
+    """Apply BIPOP's randomized initial standard deviation for CMA-ES."""
+    del strategy
+    if isinstance(params, CMAESParams):
+        std_init = initial_std * 10 ** (-2 * jax.random.uniform(key))
+        return params.replace(std_init=std_init)
+    return params
+
+
+def _initial_cma_std(params: Params, restart_state: BIPOPRestartState) -> float:
+    if isinstance(params, CMAESParams) and (
+        restart_state.restart_counter == 0 or jnp.isnan(restart_state.initial_std)
+    ):
+        return params.std_init
+    return restart_state.initial_std
 
 
 def _identity_population_size(population_size: int) -> int:
