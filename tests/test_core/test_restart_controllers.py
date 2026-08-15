@@ -170,6 +170,21 @@ def test_population_restarters_reject_an_initial_population_size_mismatch():
         restarter.init(open_es_factory(8))
 
 
+def test_bipop_restart_excludes_initial_run_from_regime_budgets():
+    strategy = cma_es_factory(4)
+    params = strategy.default_params
+    state = strategy.init(jax.random.key(0), jnp.zeros(2), params)
+    state = state.replace(generation_counter=3)
+    restarter = BIPOPRestart(cma_es_factory, initial_population_size=4)
+
+    _, _, _, restart_state = restarter.restart(
+        jax.random.key(1), strategy, state, params, restarter.init(strategy)
+    )
+
+    assert restart_state.large_eval_budget == 0
+    assert restart_state.small_eval_budget == 0
+
+
 def test_bipop_restart_switches_from_large_to_small_population_by_budget():
     strategy = cma_es_factory(4)
     params = strategy.default_params

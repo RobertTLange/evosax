@@ -483,6 +483,9 @@ def _validate_single_distribution_state(state: State) -> None:
 def _updated_bipop_budgets(
     state: State, restart_state: BIPOPRestartState
 ) -> tuple[int, int]:
+    if restart_state.restart_counter == 0:
+        return restart_state.large_eval_budget, restart_state.small_eval_budget
+
     evaluations = restart_state.active_population_size * int(state.generation_counter)
     if restart_state.small_pop_active:
         return (
