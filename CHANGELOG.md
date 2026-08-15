@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added generation-level differential-weight dithering to Differential Evolution. Thanks @githubpsyche!
 - Added a fitness-standard-deviation restart condition. Thanks to Jordan Gunn
   (@githubpsyche) for the contribution.
 
