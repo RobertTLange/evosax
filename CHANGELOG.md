@@ -2,6 +2,11 @@
 
 ## [TBD]
 
+### Added
+
+- Added a fitness-standard-deviation restart condition. Thanks to Jordan Gunn
+  (@githubpsyche) for the contribution.
+
 ### Fixed
 
 - `SV_Open_ES` now passes its mean vector to Optax updates, supporting
