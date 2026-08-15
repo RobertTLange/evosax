@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [TBD]
+
+### Fixed
+
+- Seed population-based archives and PSO personal bests from the initial evaluation while safely ignoring failed evaluations. Thanks to @rkhosrowshahi.
+
 ## [v0.2.0] - [03/2025]
 
 This major update includes significant architectural changes, dependency updates, bug fixes, and naming standardization across the library.
