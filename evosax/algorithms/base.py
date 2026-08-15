@@ -144,7 +144,9 @@ class EvolutionaryAlgorithm:
         metrics = self.metrics_fn(key, population, fitness, state, params)
 
         # Shape fitness
-        fitness = self.fitness_shaping_fn(population, fitness, state, params)
+        raw_fitness = fitness
+        fitness = self.fitness_shaping_fn(population, raw_fitness, state, params)
+        fitness = self._postprocess_fitness(raw_fitness, fitness)
 
         # Update state
         state = self._tell(key, population, fitness, state, params)
@@ -172,6 +174,10 @@ class EvolutionaryAlgorithm:
         params: Any,
     ) -> Any:
         raise NotImplementedError
+
+    def _postprocess_fitness(self, raw_fitness: Fitness, fitness: Fitness) -> Fitness:
+        """Apply algorithm-specific processing after fitness shaping."""
+        return fitness
 
 
 def get_ravel_fn(solution: Solution):
@@ -201,9 +207,11 @@ def update_best_solution_and_fitness(
         tuple: containing the best solution and fitness seen so far.
 
     """
-    idx = jnp.argmin(fitness)
+    # Failed evaluations cannot improve the archive.
+    archive_fitness = jnp.where(jnp.isnan(fitness), jnp.inf, fitness)
+    idx = jnp.argmin(archive_fitness)
     best_solution_in_population = population[idx]
-    best_fitness_in_population = fitness[idx]
+    best_fitness_in_population = archive_fitness[idx]
 
     condition = best_fitness_in_population < best_fitness_so_far
     best_solution_so_far = jnp.where(

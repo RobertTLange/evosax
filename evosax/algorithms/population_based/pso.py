@@ -4,6 +4,7 @@
 """
 
 from collections.abc import Callable
+from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -70,24 +71,37 @@ class PSO(PopulationBasedAlgorithm):
         )
         return state
 
+    @partial(jax.jit, static_argnames=("self",))
+    def init(
+        self,
+        key: jax.Array,
+        population: Population,
+        fitness: Fitness,
+        params: Params,
+    ) -> State:
+        """Initialize PSO, seeding personal bests from the initial population."""
+        state = super().init(key, population, fitness, params)
+        return state.replace(
+            population_best=state.population,
+            fitness_best=self._postprocess_fitness(fitness, state.fitness),
+        )
+
+    def _postprocess_fitness(self, raw_fitness: Fitness, fitness: Fitness) -> Fitness:
+        """Keep failed evaluations out of personal-best comparisons."""
+        return jnp.where(jnp.isnan(raw_fitness), jnp.inf, fitness)
+
     def _ask(
         self,
         key: jax.Array,
         state: State,
         params: Params,
     ) -> tuple[Population, State]:
-        # Get global best
-        population_best = jnp.where(
-            jnp.isnan(state.population_best), state.population, state.population_best
-        )
-        fitness_best = jnp.where(
-            jnp.isnan(state.fitness_best), state.fitness, state.fitness_best
-        )
-        best_global_idx = jnp.argmin(fitness_best)
-        best_global = population_best[best_global_idx]
+        # Get global best from personal bests (seeded at init)
+        best_global_idx = jnp.argmin(state.fitness_best)
+        best_global = state.population_best[best_global_idx]
 
         def _ask_velocity(key, velocity, member, member_best):
-            # Sharing r1, r1 across dimensions seems more robust
+            # Sharing r1, r2 across dimensions seems more robust
             r1, r2 = jax.random.uniform(key, (2,))
             return (
                 params.inertia_coeff * velocity
@@ -98,7 +112,7 @@ class PSO(PopulationBasedAlgorithm):
         # Update particle positions with velocity
         keys = jax.random.split(key, self.population_size)
         velocity = jax.vmap(_ask_velocity)(
-            keys, state.velocity, state.population, population_best
+            keys, state.velocity, state.population, state.population_best
         )
         x = state.population + velocity
         return x, state.replace(velocity=velocity)

@@ -5,6 +5,115 @@ import jax.numpy as jnp
 from evosax.algorithms import DifferentialEvolution
 from evosax.algorithms.population_based import population_based_algorithms
 from evosax.algorithms.population_based.differential_evolution import Params
+from evosax.algorithms.population_based.pso import PSO
+from evosax.core.fitness_shaping import centered_rank_fitness_shaping_fn
+
+
+def _fitness_relative_to_archive(population, fitness, state, params):
+    return fitness - state.best_fitness
+
+
+def test_pso_seeds_personal_and_global_best_from_init(key):
+    """PSO must keep the best initial particle after the first ask/tell."""
+    population_size = 3
+    num_dims = 1
+    algo = PSO(population_size=population_size, solution=jnp.zeros(num_dims))
+    params = algo.default_params
+
+    # True best at particle 2 (fitness 0); particle 0 is a distractor
+    population_init = jnp.array([[10.0], [20.0], [0.0]])
+    fitness_init = jnp.array([100.0, 400.0, 0.0])
+
+    key, subkey = jax.random.split(key)
+    state = algo.init(subkey, population_init, fitness_init, params)
+
+    assert jnp.allclose(state.population_best, population_init)
+    assert jnp.allclose(state.fitness_best, fitness_init)
+    assert jnp.allclose(state.best_solution, jnp.array([0.0]))
+    assert state.best_fitness == 0.0
+
+    # First ask must use true gbest (particle 2), not particle 0
+    key, key_ask, key_tell = jax.random.split(key, 3)
+    _, state = algo.ask(key_ask, state, params)
+
+    # Worse post-move positions (as under the old bogus-gbest pull)
+    population = jnp.array([[10.0], [10.57], [0.57]])
+    fitness = jnp.array([100.0, 105.7, 0.57])
+    state, _ = algo.tell(key_tell, population, fitness, state, params)
+
+    # Initial optimum must remain personal best for particle 2 and archive best
+    assert jnp.allclose(state.population_best[2], jnp.array([0.0]))
+    assert state.fitness_best[2] == 0.0
+    assert jnp.allclose(state.best_solution, jnp.array([0.0]))
+    assert state.best_fitness == 0.0
+
+
+def test_pso_ignores_nan_initial_fitness_for_archive_and_personal_best(key):
+    """Finite initial candidates must survive alongside failed evaluations."""
+    algo = PSO(population_size=2, solution=jnp.zeros(1))
+    population = jnp.array([[10.0], [0.0]])
+    fitness = jnp.array([jnp.nan, 0.0])
+
+    state = algo.init(key, population, fitness, algo.default_params)
+
+    assert jnp.allclose(state.best_solution, jnp.array([0.0]))
+    assert state.best_fitness == 0.0
+    assert jnp.isinf(state.fitness_best[0])
+    assert state.fitness_best[1] == 0.0
+
+
+def test_population_archive_recovers_after_all_nan_initial_fitness(key):
+    """A later finite evaluation replaces an initially empty archive."""
+    algo = PSO(population_size=2, solution=jnp.zeros(1))
+    initial_population = jnp.array([[10.0], [20.0]])
+    initial_fitness = jnp.array([jnp.nan, jnp.nan])
+    state = algo.init(key, initial_population, initial_fitness, algo.default_params)
+
+    population = jnp.array([[10.0], [0.0]])
+    fitness = jnp.array([jnp.nan, 0.0])
+    state, _ = algo.tell(key, population, fitness, state, algo.default_params)
+
+    assert jnp.allclose(state.best_solution, jnp.array([0.0]))
+    assert state.best_fitness == 0.0
+
+
+def test_pso_does_not_rank_failed_initial_evaluations_as_personal_bests(key):
+    """Fitness shaping cannot turn failed evaluations into valid personal bests."""
+    algo = PSO(
+        population_size=2,
+        solution=jnp.zeros(1),
+        fitness_shaping_fn=centered_rank_fitness_shaping_fn,
+    )
+    population = jnp.array([[10.0], [20.0]])
+    fitness = jnp.array([jnp.nan, jnp.nan])
+
+    state = algo.init(key, population, fitness, algo.default_params)
+
+    assert jnp.all(jnp.isinf(state.fitness))
+    assert jnp.all(jnp.isinf(state.fitness_best))
+
+    population = jnp.array([[10.0], [0.0]])
+    fitness = jnp.array([jnp.nan, 0.0])
+    state, _ = algo.tell(key, population, fitness, state, algo.default_params)
+
+    assert jnp.isinf(state.fitness_best[0])
+    assert jnp.isfinite(state.fitness_best[1])
+
+
+def test_population_init_shaping_receives_seeded_archive(key):
+    """Initial shaping sees the same archive state as tell-time shaping."""
+    algo = PSO(
+        population_size=2,
+        solution=jnp.zeros(1),
+        fitness_shaping_fn=_fitness_relative_to_archive,
+    )
+    population = jnp.array([[1.0], [2.0]])
+    fitness = jnp.array([3.0, 4.0])
+
+    state = algo.init(key, population, fitness, algo.default_params)
+
+    assert jnp.allclose(state.fitness, jnp.array([0.0, 1.0]))
+    assert jnp.allclose(state.fitness_best, jnp.array([0.0, 1.0]))
 
 
 def test_run(
