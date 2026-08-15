@@ -10,6 +10,8 @@
 
 ### Fixed
 
+- Stabilized ASEBO subspace activation near singular covariance updates. Thanks to
+  Rasa Khosrowshahi (@rkhosrowshahi) for the contribution.
 - `SV_Open_ES` now passes its mean vector to Optax updates, supporting
   parameter-dependent optimizers such as AdamW. Thanks to Rasa Khosrowshahi
   (@rkhosrowshahi) for the fix.
