@@ -2,30 +2,157 @@ name: Upload Python Package
 
 on:
   release:
-    types: [created]
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    - name: Install, Build and publish
-      env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-        python -m build
-        twine upload dist/*
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify release commit is current main
+        run: |
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+
+      - name: Validate release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+
+          with open("pyproject.toml", "rb") as pyproject_file:
+              package_version = tomllib.load(pyproject_file)["project"]["version"]
+
+          release_tag = os.environ["RELEASE_TAG"]
+          tag_version = release_tag.removeprefix("v.")
+          if tag_version == release_tag:
+              tag_version = release_tag.removeprefix("v")
+
+          if tag_version != package_version:
+              raise SystemExit(
+                  f"Release tag {release_tag!r} does not match package version "
+                  f"{package_version!r}."
+              )
+          PY
+
+      - name: Build distributions
+        env:
+          DIST_DIR: ${{ runner.temp }}/dist
+        run: |
+          python -m build --outdir "$DIST_DIR"
+          python -m twine check "$DIST_DIR"/*
+
+      - name: Validate distribution contents
+        env:
+          DIST_DIR: ${{ runner.temp }}/dist
+        run: |
+          python - <<'PY'
+          import email
+          import os
+          import pathlib
+          import tarfile
+          import tomllib
+          import zipfile
+
+          distribution_directory = pathlib.Path(os.environ["DIST_DIR"])
+          artifacts = sorted(distribution_directory.iterdir())
+          with open("pyproject.toml", "rb") as pyproject_file:
+              package_version = tomllib.load(pyproject_file)["project"]["version"]
+          expected_names = {
+              f"evosax-{package_version}-py3-none-any.whl",
+              f"evosax-{package_version}.tar.gz",
+          }
+          actual_names = {artifact.name for artifact in artifacts}
+          if actual_names != expected_names:
+              raise SystemExit(
+                  f"Expected distributions {expected_names}, found {actual_names}."
+              )
+
+          for artifact in artifacts:
+              if artifact.suffix == ".whl":
+                  with zipfile.ZipFile(artifact) as archive:
+                      names = archive.namelist()
+                      metadata_name = next(
+                          name
+                          for name in names
+                          if name.endswith(".dist-info/METADATA")
+                      )
+                      metadata = email.message_from_bytes(
+                          archive.read(metadata_name)
+                      )
+              else:
+                  with tarfile.open(artifact) as archive:
+                      names = archive.getnames()
+                      metadata_member = next(
+                          member
+                          for member in archive.getmembers()
+                          if member.name.endswith("/PKG-INFO")
+                      )
+                      metadata_file = archive.extractfile(metadata_member)
+                      if metadata_file is None:
+                          raise SystemExit(f"Missing metadata in {artifact.name}.")
+                      metadata = email.message_from_bytes(metadata_file.read())
+
+              if metadata["Name"] != "evosax":
+                  raise SystemExit(f"Unexpected project name in {artifact.name}.")
+              if metadata["Version"] != package_version:
+                  raise SystemExit(f"Unexpected version in {artifact.name}.")
+              if metadata["License-Expression"] != "Apache-2.0":
+                  raise SystemExit(f"Unexpected license in {artifact.name}.")
+              if not any(name.endswith("/LICENSE") for name in names):
+                  raise SystemExit(f"Missing LICENSE in {artifact.name}.")
+              if sum(name.endswith(".pkl") for name in names) != 5:
+                  raise SystemExit(f"Missing checkpoints in {artifact.name}.")
+          PY
+
+      - name: Store distributions for publication
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-distributions-${{ github.event.release.tag_name }}
+          path: ${{ runner.temp }}/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: python-distributions-${{ github.event.release.tag_name }}
+          path: dist/
+
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          user: ${{ secrets.PYPI_USERNAME }}
+          password: ${{ secrets.PYPI_PASSWORD }}
+          packages-dir: dist/
+          skip-existing: true
+          attestations: false

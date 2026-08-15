@@ -2,13 +2,31 @@
 
 ## [TBD]
 
+## [v0.3.0] - [08/2026]
+
+This release expands restart and optimizer support, adds multi-device usage
+guidance, and fixes several numerical and initialization edge cases.
+
 ### Added
 
 - Restored public restart controllers in `evosax.core.restart`: `SimpleRestart`,
   `IPOPRestart`, and `BIPOPRestart`.
-- Added generation-level differential-weight dithering to Differential Evolution. Thanks @githubpsyche!
+- Added generation-level differential-weight dithering to Differential Evolution.
+  Thanks to Jordan Gunn (@githubpsyche) for the contribution.
 - Added a fitness-standard-deviation restart condition. Thanks to Jordan Gunn
   (@githubpsyche) for the contribution.
+- Added support for parameter-dependent Optax optimizers such as AdamW across
+  distribution-based strategies. Thanks to Theo Wolf (@TheodoreWolf) for the
+  contribution.
+- Added an end-to-end multi-device parallelization example. Thanks to Maxence
+  Faldor (@maxencefaldor) for the contribution.
+
+### Changed
+
+- Updated the Brax and Gymnax problem integrations for JAX 0.6 compatibility.
+  Thanks to Mohamed Yassine Kabouri (@mKabouri) for the contribution.
+- Constrained the JAX, Flax, and Orbax dependency stack to compatible release
+  ranges.
 
 ### Fixed
 
@@ -21,6 +39,10 @@
 - Seed population-based archives and PSO personal bests from the initial
   evaluation while safely ignoring failed evaluations. Thanks to Rasa
   Khosrowshahi (@rkhosrowshahi) for the fix.
+- Prevented integer overflow in LM-MA-ES cumulative learning rates. Thanks to
+  Xingyu Qu (@XingyuQu) for the fix.
+- Corrected getting-started and README examples. Thanks to Richie Bendall
+  (@Richienb) for the README fix.
 
 ## [v0.2.0] - [03/2025]
 
