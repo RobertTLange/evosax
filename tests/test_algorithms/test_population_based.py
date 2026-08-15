@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 from evosax.algorithms import DifferentialEvolution
 from evosax.algorithms.population_based import population_based_algorithms
+from evosax.algorithms.population_based.differential_evolution import Params
 
 
 def test_run(
@@ -172,6 +173,69 @@ def test_differential_evolution_default_dithering_inactive(key):
     population_fixed, _ = algo.ask(key_ask, state, fixed_params)
 
     assert jnp.allclose(population_default, population_fixed)
+
+
+def test_differential_evolution_default_params_preserve_seeded_candidates():
+    """Test defaults retain the pre-dithering candidate stream."""
+    algo = DifferentialEvolution(population_size=6, solution=jnp.zeros((2,)))
+    params = algo.default_params.replace(crossover_rate=1.0)
+    population = jnp.arange(12, dtype=float).reshape(6, 2)
+    fitness = jnp.arange(6, dtype=float)
+    _, key_init, key_ask = jax.random.split(jax.random.key(0), 3)
+    state = algo.init(key_init, population, fitness, params)
+
+    candidates, _ = algo.ask(key_ask, state, params)
+
+    expected_candidates = jnp.array(
+        [
+            [-4.8, -3.8],
+            [-1.6, -0.6],
+            [3.2, 4.2],
+            [-6.4, -5.4],
+            [-1.6, -0.6],
+            [-3.2, -2.2],
+        ]
+    )
+    assert jnp.allclose(candidates, expected_candidates)
+
+
+def test_differential_evolution_params_support_legacy_construction():
+    """Test fixed-weight Params construction remains compatible."""
+    params = Params(
+        elitism=True,
+        crossover_rate=0.9,
+        differential_weight=0.8,
+    )
+
+    assert params.differential_weight == 0.8
+
+
+def test_differential_evolution_dithering_uses_dedicated_key_stream():
+    """Test dithering does not consume a member's random key stream."""
+    algo = DifferentialEvolution(population_size=6, solution=jnp.zeros((2,)))
+    params = algo.default_params.replace(
+        crossover_rate=1.0,
+        differential_weight_min=0.0,
+        differential_weight_max=1.0,
+    )
+    population = jnp.arange(12, dtype=float).reshape(6, 2)
+    fitness = jnp.arange(6, dtype=float)
+    _, key_init, key_ask = jax.random.split(jax.random.key(0), 3)
+    state = algo.init(key_init, population, fitness, params)
+
+    candidates, _ = algo.ask(key_ask, state, params)
+
+    expected_candidates = jnp.array(
+        [
+            [-0.92328, 0.07672],
+            [-0.30776, 0.69224],
+            [0.61552, 1.61552],
+            [-1.23104, -0.23104],
+            [-0.30776, 0.69224],
+            [-0.61552, 0.38448],
+        ]
+    )
+    assert jnp.allclose(candidates, expected_candidates)
 
 
 def test_differential_evolution_dithering_changes_population(key):

@@ -31,8 +31,8 @@ class Params(BaseParams):
     elitism: bool  # If elitism, base vector is best member else random
     crossover_rate: float  # [0, 1]
     differential_weight: float  # [0, 2], used when min >= max
-    differential_weight_min: float  # [0, 2], dithering lower bound when min < max
-    differential_weight_max: float  # [0, 2], dithering upper bound when min < max
+    differential_weight_min: float = 0.8  # [0, 2], dithering lower bound
+    differential_weight_max: float = 0.8  # [0, 2], dithering upper bound
 
 
 class DifferentialEvolution(PopulationBasedAlgorithm):
@@ -78,19 +78,24 @@ class DifferentialEvolution(PopulationBasedAlgorithm):
         state: State,
         params: Params,
     ) -> tuple[Population, State]:
-        key, key_dither = jax.random.split(key)
         keys = jax.random.split(key, self.population_size)
+        dither_key = jax.random.fold_in(key, self.population_size)
         member_ids = jnp.arange(self.population_size)
         best_index = jnp.argmin(state.fitness)
-        differential_weight = jnp.where(
-            params.differential_weight_min < params.differential_weight_max,
-            jax.random.uniform(
-                jax.random.fold_in(key_dither, state.generation_counter),
+
+        def sample_differential_weight(key: jax.Array) -> jax.Array:
+            return jax.random.uniform(
+                jax.random.fold_in(key, state.generation_counter),
                 (),
                 minval=params.differential_weight_min,
                 maxval=params.differential_weight_max,
-            ),
-            params.differential_weight,
+            )
+
+        differential_weight = jax.lax.cond(
+            params.differential_weight_min < params.differential_weight_max,
+            sample_differential_weight,
+            lambda _: params.differential_weight,
+            dither_key,
         )
 
         def _ask_member(key, member_id):
