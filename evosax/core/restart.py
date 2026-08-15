@@ -87,7 +87,7 @@ def fitness_std_cond(
     params: Params,
     restart_state: RestartState,
     restart_params: FitnessStdRestartParams,
-) -> bool:
+) -> jax.Array:
     """Stop if fitness standard deviation is below tolerance."""
     finite = jnp.all(jnp.isfinite(fitness))
     threshold = restart_params.atol + restart_params.tol * jnp.abs(jnp.mean(fitness))
