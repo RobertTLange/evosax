@@ -50,6 +50,12 @@ class RestartParams:
     pass
 
 
+@struct.dataclass
+class FitnessStdRestartParams(RestartParams):
+    tol: float = 0.001
+    atol: float = 0.0
+
+
 def generation_cond(
     population: Population,
     fitness: Fitness,
@@ -72,6 +78,20 @@ def spread_cond(
 ) -> jax.Array:
     """Stop if fitness max minus fitness min is below threshold."""
     return jnp.max(fitness) - jnp.min(fitness) < restart_params.fitness_spread_threshold
+
+
+def fitness_std_cond(
+    population: Population,
+    fitness: Fitness,
+    state: State,
+    params: Params,
+    restart_state: RestartState,
+    restart_params: FitnessStdRestartParams,
+) -> bool:
+    """Stop if fitness standard deviation is below tolerance."""
+    finite = jnp.all(jnp.isfinite(fitness))
+    threshold = restart_params.atol + restart_params.tol * jnp.abs(jnp.mean(fitness))
+    return jnp.logical_and(finite, jnp.std(fitness) <= threshold)
 
 
 def cma_cond(

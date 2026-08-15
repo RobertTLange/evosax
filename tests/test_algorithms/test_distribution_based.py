@@ -6,6 +6,7 @@ import optax
 from evosax.algorithms.distribution_based import (
     ASEBO,
     Open_ES,
+    SV_Open_ES,
     distribution_based_algorithms,
 )
 
@@ -324,3 +325,34 @@ def test_asebo_gradient_archive_is_invariant_to_standard_deviation(key):
         return state.grad_subspace[-1]
 
     assert jnp.allclose(estimate_gradient(1.0), estimate_gradient(0.25))
+
+
+def test_sv_open_es_runs_with_adamw_optimizer(key, population_size, bbob_problem):
+    """SV_Open_ES should pass mean into optimizers that require params (e.g. adamw)."""
+    num_populations = 2
+    solution = bbob_problem.sample(key)
+    algo = SV_Open_ES(
+        population_size=population_size,
+        num_populations=num_populations,
+        solution=solution,
+        optimizer=optax.adamw(learning_rate=1e-3, weight_decay=1e-4),
+    )
+    params = algo.default_params
+
+    key, subkey = jax.random.split(key)
+    keys = jax.random.split(subkey, num_populations)
+    mean_init = jax.vmap(bbob_problem.sample)(keys)
+
+    key, subkey = jax.random.split(key)
+    state = algo.init(subkey, mean_init, params)
+
+    key, subkey = jax.random.split(key)
+    problem_state = bbob_problem.init(subkey)
+
+    key, key_ask, key_tell = jax.random.split(key, 3)
+    population, state = algo.ask(key_ask, state, params)
+    fitness, problem_state, _ = bbob_problem.eval(key_tell, population, problem_state)
+    state, metrics = algo.tell(key_tell, population, fitness, state, params)
+
+    assert jnp.all(jnp.isfinite(state.mean))
+    assert jnp.all(jnp.isfinite(metrics["best_fitness"]))

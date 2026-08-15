@@ -89,7 +89,9 @@ class SV_Open_ES(SV_ES, Open_ES):
         grad = -(svgd_grad + params.alpha * svgd_grad_kernel)
 
         # Update mean
-        updates, opt_state = jax.vmap(self.optimizer.update)(grad, state.opt_state)
+        updates, opt_state = jax.vmap(self.optimizer.update)(
+            grad, state.opt_state, state.mean
+        )
         mean = jax.vmap(optax.apply_updates)(state.mean, updates)
 
         return state.replace(mean=mean, opt_state=opt_state)
