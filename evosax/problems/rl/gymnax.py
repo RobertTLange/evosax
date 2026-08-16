@@ -42,8 +42,8 @@ class GymnaxProblem(Problem):
         episode_length: int | None = None,
         num_rollouts: int = 1,
         use_normalize_obs: bool = True,
-        env_kwargs: dict = {},
-        env_params: dict = {},
+        env_kwargs: dict | None = None,
+        env_params: dict | None = None,
     ):
         """Initialize the Gymnax problem."""
         try:
@@ -57,8 +57,10 @@ class GymnaxProblem(Problem):
         self.use_normalize_obs = use_normalize_obs
 
         # Instantiate environment and replace default parameters
+        env_kwargs = {} if env_kwargs is None else env_kwargs
+        env_params = {} if env_params is None else env_params
         self.env, self.env_params = gymnax.make(self.env_name, **env_kwargs)
-        self.env_params.replace(**env_params)
+        self.env_params = self.env_params.replace(**env_params)
 
         # Test policy and env compatibility
         key = jax.random.key(0)
@@ -156,9 +158,10 @@ class GymnaxProblem(Problem):
             action = self.policy.apply(policy_params, obs, key_action)
 
             # Step environment
-            obs, env_state, reward, done, _ = self.env.step(
+            obs, env_state, reward, terminated, truncated, _ = self.env.step(
                 key_step, env_state, action, self.env_params
             )
+            done = jnp.logical_or(terminated, truncated)
 
             # Update cumulative reward and valid mask
             cum_reward = cum_reward + reward * valid
@@ -212,36 +215,42 @@ class GymnaxProblem(Problem):
 
         """
         # Batch dimensions are (population_size, num_rollouts, episode_length)
-        batch_size = obs.shape[0] * obs.shape[1] * obs.shape[2]
+        first_observation = jax.tree.leaves(obs)[0]
+        batch_size = (
+            first_observation.shape[0]
+            * first_observation.shape[1]
+            * first_observation.shape[2]
+        )
         new_obs_counter = state.obs_counter + batch_size
 
-        # Function to update statistics for each leaf in the PyTree
-        def _update_leaf_stats(leaf_obs, leaf_mean, leaf_var_sum):
-            # Compute the new mean
-            diff_to_old_mean = leaf_obs - leaf_mean
-            new_obs_mean = (
-                leaf_mean + jnp.sum(diff_to_old_mean, axis=(0, 1, 2)) / new_obs_counter
-            )
-
-            # Compute new variance
-            diff_to_new_mean = leaf_obs - new_obs_mean
-            new_obs_var_sum = leaf_var_sum + jnp.sum(
-                diff_to_old_mean * diff_to_new_mean, axis=(0, 1, 2)
-            )
-
-            return new_obs_mean, new_obs_var_sum
-
-        # Apply the update function to each leaf in the observation PyTree
-        obs_mean, obs_var_sum = jax.tree.map(
-            lambda obs, mean, var: _update_leaf_stats(obs, mean, var),
+        obs_mean = jax.tree.map(
+            lambda leaf_obs, leaf_mean: (
+                leaf_mean
+                + jnp.sum(leaf_obs - leaf_mean, axis=(0, 1, 2)) / new_obs_counter
+            ),
+            obs,
+            state.obs_mean,
+        )
+        obs_var_sum = jax.tree.map(
+            lambda leaf_obs, leaf_mean, leaf_var_sum, new_leaf_mean: (
+                leaf_var_sum
+                + jnp.sum(
+                    (leaf_obs - leaf_mean) * (leaf_obs - new_leaf_mean), axis=(0, 1, 2)
+                )
+            ),
             obs,
             state.obs_mean,
             state.obs_var_sum,
+            obs_mean,
         )
 
-        obs_var_sum = jnp.maximum(obs_var_sum, 0)
-        obs_std = jnp.sqrt(obs_var_sum / new_obs_counter)
-        obs_std = jnp.clip(obs_std, state.std_min, state.std_max)
+        obs_var_sum = jax.tree.map(lambda var: jnp.maximum(var, 0), obs_var_sum)
+        obs_std = jax.tree.map(
+            lambda var: jnp.clip(
+                jnp.sqrt(var / new_obs_counter), state.std_min, state.std_max
+            ),
+            obs_var_sum,
+        )
 
         # Return updated state with new statistics
         return state.replace(  # type: ignore[attr-defined]
