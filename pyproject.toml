@@ -42,7 +42,7 @@ examples = [
 	"torch",
 	"torchvision",
 	"brax",
-	"gymnax>=0.0.9",
+	"gymnax>=1.0.0,<2",
 	"mediapy",
 	"ipywidgets",
 	"ipykernel",

@@ -2,6 +2,9 @@
 
 ## [TBD]
 
+- Preserved `GymnaxProblem` compatibility with both Gymnax 0.x five-value and
+  Gymnax 1.x six-value step returns.
+
 ## [v0.3.0] - [08/2026]
 
 This release expands restart and optimizer support, adds multi-device usage
