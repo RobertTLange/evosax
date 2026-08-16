@@ -158,10 +158,12 @@ class GymnaxProblem(Problem):
             action = self.policy.apply(policy_params, obs, key_action)
 
             # Step environment
-            obs, env_state, reward, terminated, truncated, _ = self.env.step(
-                key_step, env_state, action, self.env_params
-            )
-            done = jnp.logical_or(terminated, truncated)
+            step_result = self.env.step(key_step, env_state, action, self.env_params)
+            if len(step_result) == 5:
+                obs, env_state, reward, done, _ = step_result
+            else:
+                obs, env_state, reward, terminated, truncated, _ = step_result
+                done = jnp.logical_or(terminated, truncated)
 
             # Update cumulative reward and valid mask
             cum_reward = cum_reward + reward * valid

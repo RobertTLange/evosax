@@ -36,6 +36,15 @@ class TerminalRewardEnvironment:
         return jnp.array(0.0), next_state, jnp.array(1.0), terminated, truncated, {}
 
 
+class LegacyTerminalRewardEnvironment:
+    def reset(self, key, params):
+        return jnp.array(0.0), jnp.array(0)
+
+    def step(self, key, state, action, params):
+        next_state = state + 1
+        return jnp.array(0.0), next_state, jnp.array(1.0), jnp.array(True), {}
+
+
 @requires_gymnax
 def test_gymnax_problem_init():
     """Test GymnaxProblem initialization with default settings."""
@@ -105,6 +114,20 @@ def test_gymnax_problem_masks_rewards_after_episode_end(termination_kind):
     """Test terminated and truncated episodes do not add autoreset rewards."""
     problem = GymnaxProblem.__new__(GymnaxProblem)
     problem.env = TerminalRewardEnvironment(termination_kind)
+    problem.env_params = None
+    problem.policy = ConstantPolicy()
+    problem.episode_length = 4
+    problem.use_normalize_obs = False
+
+    fitness, _ = problem._rollout(jax.random.key(0), policy_params=None, state=None)
+
+    assert fitness.item() == pytest.approx(1.0)
+
+
+def test_gymnax_problem_masks_rewards_after_legacy_episode_end():
+    """Five-value Gymnax environments do not add autoreset rewards."""
+    problem = GymnaxProblem.__new__(GymnaxProblem)
+    problem.env = LegacyTerminalRewardEnvironment()
     problem.env_params = None
     problem.policy = ConstantPolicy()
     problem.episode_length = 4
