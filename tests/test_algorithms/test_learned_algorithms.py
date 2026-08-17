@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from evosax.algorithms import MutationFeatureEncoding
 from evosax.algorithms.distribution_based import EvoTF_ES, LearnedES
 from evosax.algorithms.population_based import LearnedGA
 from evosax.learned_evolution.evotf_tools.features.fitness import get_norm_diff_best
@@ -26,6 +27,97 @@ def test_normalized_fitness_gap_preserves_first_generation_sentinel():
     result = get_norm_diff_best(fitness, best_fitness=jnp.inf)
 
     assert jnp.array_equal(result, -jnp.ones_like(fitness))
+
+
+def test_lga_bundled_checkpoint_uses_legacy_mutation_encoding():
+    """Bundled 2023 checkpoints retain their trained feature contract."""
+    algorithm = _create_lga()
+
+    assert (
+        algorithm.mutation_feature_encoding,
+        algorithm.mutation_layer.feature_encoding,
+    ) == (
+        MutationFeatureEncoding.LEGACY_2023,
+        MutationFeatureEncoding.LEGACY_2023,
+    )
+
+
+def test_lga_custom_params_use_symmetric_mutation_encoding():
+    """Custom parameters retain the corrected public feature contract."""
+    bundled_params = _create_lga().default_params.params
+    algorithm = LearnedGA(
+        population_size=POPULATION_SIZE,
+        solution=jnp.zeros(NUM_DIMS),
+        params=bundled_params,
+    )
+
+    assert (
+        algorithm.mutation_feature_encoding,
+        algorithm.mutation_layer.feature_encoding,
+    ) == (
+        MutationFeatureEncoding.SYMMETRIC,
+        MutationFeatureEncoding.SYMMETRIC,
+    )
+
+
+def test_lga_custom_checkpoint_path_uses_symmetric_mutation_encoding():
+    """Explicit checkpoint paths use the corrected public feature contract."""
+    checkpoint_path = CHECKPOINT_DIR / "lga" / "2023_04_lga_v4.pkl"
+    algorithm = LearnedGA(
+        population_size=POPULATION_SIZE,
+        solution=jnp.zeros(NUM_DIMS),
+        params_path=str(checkpoint_path),
+    )
+
+    assert (
+        algorithm.mutation_feature_encoding,
+        algorithm.mutation_layer.feature_encoding,
+    ) == (
+        MutationFeatureEncoding.SYMMETRIC,
+        MutationFeatureEncoding.SYMMETRIC,
+    )
+
+
+def test_lga_allows_legacy_mutation_encoding_for_custom_params():
+    """Old custom checkpoints can explicitly select the 2023 contract."""
+    bundled_params = _create_lga().default_params.params
+    algorithm = LearnedGA(
+        population_size=POPULATION_SIZE,
+        solution=jnp.zeros(NUM_DIMS),
+        params=bundled_params,
+        mutation_feature_encoding=MutationFeatureEncoding.LEGACY_2023,
+    )
+
+    assert (
+        algorithm.mutation_feature_encoding,
+        algorithm.mutation_layer.feature_encoding,
+    ) == (
+        MutationFeatureEncoding.LEGACY_2023,
+        MutationFeatureEncoding.LEGACY_2023,
+    )
+
+
+def test_lga_rejects_invalid_mutation_feature_encoding():
+    """Invalid feature contracts fail at construction rather than during JIT."""
+    with pytest.raises(TypeError, match="MutationFeatureEncoding"):
+        LearnedGA(
+            population_size=POPULATION_SIZE,
+            solution=jnp.zeros(NUM_DIMS),
+            mutation_feature_encoding="legacy_2023",
+        )
+
+
+def test_lga_preserves_positional_fitness_shaping_argument():
+    """The new encoding option must not shift existing positional arguments."""
+    algorithm = LearnedGA(
+        POPULATION_SIZE,
+        jnp.zeros(NUM_DIMS),
+        None,
+        None,
+        _custom_fitness_shaping,
+    )
+
+    assert algorithm.fitness_shaping_fn is _custom_fitness_shaping
 
 
 @pytest.mark.parametrize(
@@ -107,3 +199,14 @@ def _initialize_algorithm(algorithm_class, key):
         initial_best = jnp.sum(jnp.square(mean))
 
     return algorithm, state, params, initial_best
+
+
+def _create_lga() -> LearnedGA:
+    return LearnedGA(
+        population_size=POPULATION_SIZE,
+        solution=jnp.zeros(NUM_DIMS),
+    )
+
+
+def _custom_fitness_shaping(population, fitness, state, params):
+    return fitness

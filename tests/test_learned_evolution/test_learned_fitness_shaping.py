@@ -2,7 +2,10 @@
 
 import jax.numpy as jnp
 from evosax.learned_evolution.fitness_shaping import normalize, standardize
-from evosax.learned_evolution.lga_tools import normalize_lga_mutation_strength
+from evosax.learned_evolution.lga_tools import (
+    MutationFeatureEncoding,
+    normalize_lga_mutation_strength,
+)
 
 
 def test_standardize_uses_population_statistics():
@@ -45,7 +48,9 @@ def test_lga_mutation_normalization_preserves_checkpoint_range():
     """The 2023 LGA checkpoints retain their original mutation encoding."""
     mutation_strengths = jnp.array([[1.0], [2.0]])
 
-    result = normalize_lga_mutation_strength(mutation_strengths)
+    result = normalize_lga_mutation_strength(
+        mutation_strengths, MutationFeatureEncoding.LEGACY_2023
+    )
 
     assert jnp.allclose(result, jnp.array([[1.0], [3.0]]))
 
@@ -54,6 +59,19 @@ def test_lga_equal_mutation_strength_preserves_checkpoint_baseline():
     """Equal mutation strengths retain LGA's checkpoint baseline."""
     mutation_strengths = jnp.ones((8, 1))
 
-    result = normalize_lga_mutation_strength(mutation_strengths)
+    result = normalize_lga_mutation_strength(
+        mutation_strengths, MutationFeatureEncoding.LEGACY_2023
+    )
 
     assert jnp.array_equal(result, jnp.ones_like(mutation_strengths))
+
+
+def test_lga_symmetric_mutation_normalization_uses_corrected_range():
+    """Custom LGA checkpoints retain the corrected feature contract."""
+    mutation_strengths = jnp.array([[1.0], [2.0]])
+
+    result = normalize_lga_mutation_strength(
+        mutation_strengths, MutationFeatureEncoding.SYMMETRIC
+    )
+
+    assert jnp.allclose(result, jnp.array([[-1.0], [1.0]]))

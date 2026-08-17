@@ -1,3 +1,5 @@
+from enum import Enum
+
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
@@ -10,10 +12,23 @@ def tanh_age(x: jax.Array, generation_counter: float) -> jax.Array:
     return jnp.tanh(x / jnp.float32(generation_counter) - 1.0)
 
 
-def normalize_lga_mutation_strength(sigma: jax.Array) -> jax.Array:
-    """Encode mutation strengths for the 2023 LGA checkpoints."""
-    # These checkpoints predate corrected range normalization and learned [1, 3].
-    return normalize(sigma) + 2.0
+class MutationFeatureEncoding(Enum):
+    """Mutation-strength feature contracts used by LGA checkpoints."""
+
+    AUTO = "auto"
+    LEGACY_2023 = "legacy_2023"
+    SYMMETRIC = "symmetric"
+
+
+def normalize_lga_mutation_strength(
+    sigma: jax.Array, encoding: MutationFeatureEncoding
+) -> jax.Array:
+    """Encode mutation strengths according to the checkpoint's contract."""
+    if encoding is MutationFeatureEncoding.LEGACY_2023:
+        return normalize(sigma) + 2.0
+    if encoding is MutationFeatureEncoding.SYMMETRIC:
+        return normalize(sigma)
+    raise ValueError("Mutation feature encoding must be resolved before use.")
 
 
 class MultiHeadSelfAttention(nn.Module):
@@ -167,11 +182,12 @@ class SelectionAttention(nn.Module):
 class MutationAttention(nn.Module):
     num_att_heads: int
     att_hidden_dims: int
+    feature_encoding: MutationFeatureEncoding = MutationFeatureEncoding.SYMMETRIC
 
     @nn.compact
     def __call__(self, sigma: jax.Array, F: jax.Array) -> jax.Array:
         z_feat = standardize(sigma)
-        norm_feat = normalize_lga_mutation_strength(sigma)
+        norm_feat = normalize_lga_mutation_strength(sigma, self.feature_encoding)
         conc_inputs = jnp.concatenate([F, z_feat, norm_feat], axis=1)
         M = MultiHeadSelfAttention(self.num_att_heads, self.att_hidden_dims)(
             conc_inputs
