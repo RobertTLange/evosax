@@ -10,6 +10,12 @@ def tanh_age(x: jax.Array, generation_counter: float) -> jax.Array:
     return jnp.tanh(x / jnp.float32(generation_counter) - 1.0)
 
 
+def normalize_lga_mutation_strength(sigma: jax.Array) -> jax.Array:
+    """Encode mutation strengths for the 2023 LGA checkpoints."""
+    # These checkpoints predate corrected range normalization and learned [1, 3].
+    return normalize(sigma) + 2.0
+
+
 class MultiHeadSelfAttention(nn.Module):
     num_heads: int = 1
     num_features: int = 16
@@ -165,7 +171,7 @@ class MutationAttention(nn.Module):
     @nn.compact
     def __call__(self, sigma: jax.Array, F: jax.Array) -> jax.Array:
         z_feat = standardize(sigma)
-        norm_feat = normalize(sigma)
+        norm_feat = normalize_lga_mutation_strength(sigma)
         conc_inputs = jnp.concatenate([F, z_feat, norm_feat], axis=1)
         M = MultiHeadSelfAttention(self.num_att_heads, self.att_hidden_dims)(
             conc_inputs

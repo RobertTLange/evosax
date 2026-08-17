@@ -14,9 +14,8 @@ from evosax.learned_evolution.evotf_tools.features.fitness import get_norm_diff_
 CHECKPOINT_DIR = Path(__file__).parents[2] / "evosax" / "algorithms" / "ckpt"
 CHECKPOINT_PATHS = tuple(sorted(CHECKPOINT_DIR.rglob("*.pkl")))
 LEARNED_ALGORITHMS = (LearnedES, LearnedGA, EvoTF_ES)
-LGA_SPHERE_STD_INIT = 0.01
 NUM_DIMS = 2
-NUM_GENERATIONS = 4
+NUM_GENERATIONS = 100
 POPULATION_SIZE = 8
 
 
@@ -69,7 +68,9 @@ def test_checkpoint_stores_numeric_leaves_as_numpy_arrays(checkpoint_path):
 def test_learned_algorithm_runs_on_sphere(algorithm_class, key):
     """Each learned algorithm must complete a finite sphere run."""
     key, init_key = jax.random.split(key)
-    algorithm, state, params = _initialize_algorithm(algorithm_class, init_key)
+    algorithm, state, params, initial_best = _initialize_algorithm(
+        algorithm_class, init_key
+    )
 
     best_fitness = []
     all_values_are_finite = jnp.array(True)
@@ -86,7 +87,8 @@ def test_learned_algorithm_runs_on_sphere(algorithm_class, key):
 
     best_fitness = jnp.asarray(best_fitness)
     is_nonincreasing = jnp.all(jnp.diff(best_fitness) <= 0)
-    assert all_values_are_finite & is_nonincreasing
+    strictly_improves = best_fitness[-1] < initial_best
+    assert all_values_are_finite & is_nonincreasing & strictly_improves
 
 
 def _initialize_algorithm(algorithm_class, key):
@@ -95,11 +97,13 @@ def _initialize_algorithm(algorithm_class, key):
     params = algorithm.default_params
 
     if algorithm_class is LearnedGA:
-        params = params.replace(std_init=LGA_SPHERE_STD_INIT)
         population = jax.random.normal(key, (POPULATION_SIZE, NUM_DIMS))
         fitness = jnp.sum(jnp.square(population), axis=-1)
         state = algorithm.init(key, population, fitness, params)
+        initial_best = jnp.min(fitness)
     else:
-        state = algorithm.init(key, jnp.ones(NUM_DIMS), params)
+        mean = jnp.ones(NUM_DIMS)
+        state = algorithm.init(key, mean, params)
+        initial_best = jnp.sum(jnp.square(mean))
 
-    return algorithm, state, params
+    return algorithm, state, params, initial_best
