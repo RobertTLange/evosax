@@ -4,6 +4,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from flax import linen as nn
 
 from .fitness_shaping import (
@@ -12,6 +13,11 @@ from .fitness_shaping import (
     normalize,
     standardize,
 )
+
+
+def _restore_array(data: bytes, dtype: str, shape: tuple[int, ...]) -> np.ndarray:
+    """Restore a checkpoint array using NumPy's public API."""
+    return np.frombuffer(data, dtype=np.dtype(dtype)).reshape(shape).copy()
 
 
 def load_pkl_object(filename: Any, pkg_load: bool = False) -> Any:

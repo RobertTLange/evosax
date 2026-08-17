@@ -135,9 +135,12 @@ def get_norm_diff_best(
     fitness: jax.Array, best_fitness: float | jax.Array
 ) -> jax.Array:
     fitness = jnp.clip(fitness, -1e10, 1e10)
-    diff_best = fitness - best_fitness
-    return jnp.clip(
+    has_previous_best = jnp.isfinite(best_fitness)
+    safe_best_fitness = jnp.where(has_previous_best, best_fitness, 0.0)
+    diff_best = fitness - safe_best_fitness
+    normalized_diff = jnp.clip(
         diff_best / (jnp.nanmax(diff_best) - jnp.nanmin(diff_best) + 1e-10),
         -1,
         1,
     )
+    return jnp.where(has_previous_best, normalized_diff, jnp.zeros_like(fitness))
