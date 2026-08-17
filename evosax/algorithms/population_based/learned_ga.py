@@ -72,7 +72,11 @@ class LearnedGA(PopulationBasedAlgorithm):
             MutationFeatureEncoding.AUTO
         ),
     ):
-        """Initialize LGA."""
+        """Initialize LGA.
+
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        ``params_path``.
+        """
         if not isinstance(mutation_feature_encoding, MutationFeatureEncoding):
             raise TypeError(
                 "mutation_feature_encoding must be a MutationFeatureEncoding"

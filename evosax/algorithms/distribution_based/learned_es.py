@@ -62,7 +62,11 @@ class LearnedES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize LES."""
+        """Initialize LES.
+
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        ``params_path``.
+        """
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # LES components

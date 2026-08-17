@@ -1,5 +1,7 @@
 import functools
+import io
 import pickle
+from collections.abc import Callable
 from typing import Any
 
 import jax
@@ -20,14 +22,52 @@ def _restore_array(data: bytes, dtype: str, shape: tuple[int, ...]) -> np.ndarra
     return np.frombuffer(data, dtype=np.dtype(dtype)).reshape(shape).copy()
 
 
+def _restore_legacy_jax_array(
+    reconstruct: Callable[..., np.ndarray],
+    args: tuple[Any, ...],
+    array_state: tuple[Any, ...],
+    aval_state: dict[str, Any],
+) -> np.ndarray:
+    """Restore an old pickled JAX array as a portable NumPy array."""
+    del aval_state
+    value = reconstruct(*args)
+    value.__setstate__(array_state)
+    return value
+
+
+def _restore_checkpoint_array(
+    current_reconstruct: Callable[..., Any] | None,
+    reconstruct: Callable[..., np.ndarray],
+    args: tuple[Any, ...],
+    array_state: tuple[Any, ...],
+    aval_state: dict[str, Any],
+) -> Any:
+    if current_reconstruct is not None and "named_shape" not in aval_state:
+        return current_reconstruct(reconstruct, args, array_state, aval_state)
+    return _restore_legacy_jax_array(reconstruct, args, array_state, aval_state)
+
+
+class _CheckpointUnpickler(pickle.Unpickler):
+    def find_class(self, module: str, name: str) -> Any:
+        if (module, name) == ("jax._src.array", "_reconstruct_array"):
+            try:
+                current_reconstruct = super().find_class(module, name)
+            except (AttributeError, ImportError):
+                current_reconstruct = None
+            return functools.partial(_restore_checkpoint_array, current_reconstruct)
+        return super().find_class(module, name)
+
+
 def load_pkl_object(filename: Any, pkg_load: bool = False) -> Any:
-    """Reload pickle objects from path."""
+    """Load a trusted checkpoint, including arrays pickled by older JAX releases.
+
+    Pickle loading can execute arbitrary code. Only load checkpoints from trusted
+    sources.
+    """
     if not pkg_load:
         with open(filename, "rb") as input:
-            obj = pickle.load(input)
-    else:
-        obj = pickle.loads(filename)
-    return obj
+            return _CheckpointUnpickler(input).load()
+    return _CheckpointUnpickler(io.BytesIO(filename)).load()
 
 
 def tanh_timestamp(x: int | jax.Array) -> jax.Array:

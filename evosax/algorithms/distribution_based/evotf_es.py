@@ -120,6 +120,11 @@ class EvoTF_ES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
+        """Initialize EvoTF-ES.
+
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        ``params_path``.
+        """
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.max_context_len = max_context_len
