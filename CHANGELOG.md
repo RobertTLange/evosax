@@ -4,6 +4,8 @@
 
 - Preserved `GymnaxProblem` compatibility with both Gymnax 0.x five-value and
   Gymnax 1.x six-value step returns.
+- Restored LES, LGA, and EvoTF checkpoint compatibility with modern JAX,
+  including legacy user checkpoints and pretrained feature contracts.
 
 ## [v0.3.0] - [08/2026]
 

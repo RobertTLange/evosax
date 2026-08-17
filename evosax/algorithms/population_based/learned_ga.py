@@ -20,10 +20,12 @@ from evosax.types import Fitness, Population, PyTree, Solution
 
 from ...learned_evolution.les_tools import (
     FitnessFeatures,
+    device_put_parameter_arrays,
     load_pkl_object,
 )
 from ...learned_evolution.lga_tools import (
     MutationAttention,
+    MutationFeatureEncoding,
     SamplingAttention,
     SelectionAttention,
     tanh_age,
@@ -66,8 +68,20 @@ class LearnedGA(PopulationBasedAlgorithm):
         params_path: str | None = None,
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
+        *,
+        mutation_feature_encoding: MutationFeatureEncoding = (
+            MutationFeatureEncoding.AUTO
+        ),
     ):
-        """Initialize LGA."""
+        """Initialize LGA.
+
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        ``params_path``.
+        """
+        if not isinstance(mutation_feature_encoding, MutationFeatureEncoding):
+            raise TypeError(
+                "mutation_feature_encoding must be a MutationFeatureEncoding"
+            )
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 1.0
@@ -76,7 +90,16 @@ class LearnedGA(PopulationBasedAlgorithm):
         self.fitness_features = FitnessFeatures(centered_rank=True, z_score=True)
         self.selection_layer = SelectionAttention(2, 16)
         self.sampling_layer = SamplingAttention(2, 16)
-        self.mutation_layer = MutationAttention(2, 16)
+        if mutation_feature_encoding is MutationFeatureEncoding.AUTO:
+            mutation_feature_encoding = (
+                MutationFeatureEncoding.LEGACY_2023
+                if params is None and params_path is None
+                else MutationFeatureEncoding.SYMMETRIC
+            )
+        self.mutation_feature_encoding = mutation_feature_encoding
+        self.mutation_layer = MutationAttention(
+            2, 16, feature_encoding=self.mutation_feature_encoding
+        )
 
         if params is not None:
             # Set params provided
@@ -92,6 +115,7 @@ class LearnedGA(PopulationBasedAlgorithm):
                 ckpt_fname = "2023_04_lga_v4.pkl"
             data = pkgutil.get_data(__name__, f"../ckpt/lga/{ckpt_fname}")
             self.lga_params = load_pkl_object(data, pkg_load=True)
+        self.lga_params = device_put_parameter_arrays(self.lga_params)
 
     @property
     def _default_params(self) -> Params:

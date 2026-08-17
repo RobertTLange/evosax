@@ -3,7 +3,7 @@
 from .differential_evolution import DifferentialEvolution
 from .diffusion_evolution import DiffusionEvolution
 from .gesmr_ga import GESMR_GA
-from .learned_ga import LearnedGA
+from .learned_ga import LearnedGA, MutationFeatureEncoding
 from .mr15_ga import MR15_GA
 from .pso import PSO
 from .samr_ga import SAMR_GA
@@ -20,4 +20,4 @@ population_based_algorithms = {
     "SimpleGA": SimpleGA,
 }
 
-__all__ = list(population_based_algorithms.keys())
+__all__ = [*population_based_algorithms, "MutationFeatureEncoding"]

@@ -6,21 +6,19 @@ import jax.numpy as jnp
 from evosax.types import Fitness, Solution
 
 
-def standardize(fitness: jax.Array) -> jax.Array:
-    """Return standardized fitness."""
-    return jax.nn.standardize(fitness, axis=-1, epsilon=1e-8, where=~jnp.isnan(fitness))
+def standardize(values: jax.Array) -> jax.Array:
+    """Standardize globally using the learned checkpoints' feature contract."""
+    mean = jnp.nanmean(values)
+    std = jnp.nanstd(values)
+    return (values - mean) / (std + 1e-10)
 
 
 def normalize(arr: jax.Array, min_val: float = -1.0, max_val: float = 1.0) -> jax.Array:
-    """Normalize fitness."""
-    arr_min = jnp.nanmin(arr)
-    arr_max = jnp.nanmax(arr)
-
-    return jnp.where(
-        jnp.allclose(arr_max, arr_min),
-        jnp.ones_like(arr) * (min_val + max_val) / 2,
-        min_val + (max_val - min_val) * (arr - arr_min) / (arr_max - arr_min),
-    )
+    """Normalize values into the requested feature range."""
+    arr = jnp.clip(arr, -1e10, 1e10)
+    return (max_val - min_val) * (arr - jnp.nanmin(arr)) / (
+        jnp.nanmax(arr) - jnp.nanmin(arr) + 1e-10
+    ) + min_val
 
 
 def rank(fitness: Fitness) -> jax.Array:

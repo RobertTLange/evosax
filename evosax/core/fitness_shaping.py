@@ -69,11 +69,16 @@ def normalize_fitness_shaping_fn(
     return normalize(fitness, axis=-1)
 
 
+def _rank_fitness(fitness: Fitness) -> jax.Array:
+    rankable_fitness = jnp.where(jnp.isnan(fitness), jnp.inf, fitness)
+    return jax.scipy.stats.rankdata(rankable_fitness, axis=-1) - 1.0
+
+
 def centered_rank_fitness_shaping_fn(
     population: Population, fitness: Fitness, state: State, params: Params
 ) -> Fitness:
     """Return centered ranks in [-0.5, 0.5] according to fitness."""
-    ranks = jax.scipy.stats.rankdata(fitness, axis=-1) - 1.0
+    ranks = _rank_fitness(fitness)
     return ranks / (fitness.shape[-1] - 1) - 0.5
 
 
@@ -84,5 +89,7 @@ def weights_fitness_shaping_fn(
     params: WeightedFitnessParams,
 ) -> Fitness:
     """Return weights according to fitness."""
-    ranks = jax.scipy.stats.rankdata(fitness, axis=-1) - 1.0
-    return params.weights[..., ranks.astype(jnp.int32)]
+    ranks = _rank_fitness(fitness)
+    weights = params.weights[..., ranks.astype(jnp.int32)]
+    all_failed = jnp.all(jnp.isnan(fitness), axis=-1, keepdims=True)
+    return jnp.where(all_failed, jnp.zeros_like(weights), weights)

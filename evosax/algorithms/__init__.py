@@ -51,7 +51,7 @@ from .population_based import population_based_algorithms
 from .population_based.differential_evolution import DifferentialEvolution
 from .population_based.diffusion_evolution import DiffusionEvolution
 from .population_based.gesmr_ga import GESMR_GA
-from .population_based.learned_ga import LearnedGA
+from .population_based.learned_ga import LearnedGA, MutationFeatureEncoding
 from .population_based.mr15_ga import MR15_GA
 from .population_based.pso import PSO
 from .population_based.samr_ga import SAMR_GA
@@ -60,4 +60,4 @@ from .population_based.simple_ga import SimpleGA
 # Combine algorithms from both categories
 algorithms = distribution_based_algorithms | population_based_algorithms
 
-__all__ = list(algorithms.keys())
+__all__ = [*algorithms, "MutationFeatureEncoding"]

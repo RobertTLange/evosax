@@ -22,6 +22,7 @@ from ...learned_evolution.les_tools import (
     EvolutionPath,
     EvoPathMLP,
     FitnessFeatures,
+    device_put_parameter_arrays,
     load_pkl_object,
     tanh_timestamp,
 )
@@ -62,7 +63,11 @@ class LearnedES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize LES."""
+        """Initialize LES.
+
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        ``params_path``.
+        """
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # LES components
@@ -84,6 +89,7 @@ class LearnedES(DistributionBasedAlgorithm):
             ckpt_fname = "2023_10_les_v2.pkl"
             data = pkgutil.get_data(__name__, f"../ckpt/les/{ckpt_fname}")
             self.les_params = load_pkl_object(data, pkg_load=True)
+        self.les_params = device_put_parameter_arrays(self.les_params)
 
     @property
     def _default_params(self) -> Params:

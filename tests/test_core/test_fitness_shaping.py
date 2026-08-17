@@ -116,6 +116,25 @@ def test_centered_rank_fitness_shaping_fn():
     assert jnp.allclose(result, expected)
 
 
+def test_centered_rank_fitness_shaping_ranks_nan_worst():
+    """Failed evaluations must not outrank finite fitness values."""
+    fitness = jnp.array([jnp.nan, 0.0])
+
+    result = centered_rank_fitness_shaping_fn(None, fitness, None, None)
+
+    assert jnp.array_equal(result, jnp.array([0.5, -0.5]))
+
+    fitness = jnp.array([0.0, jnp.nan, jnp.nan])
+    result = centered_rank_fitness_shaping_fn(None, fitness, None, None)
+
+    assert jnp.array_equal(result, jnp.array([-0.5, 0.25, 0.25]))
+
+    fitness = jnp.full(3, jnp.nan)
+    result = centered_rank_fitness_shaping_fn(None, fitness, None, None)
+
+    assert jnp.array_equal(result, jnp.zeros(3))
+
+
 def test_weights_fitness_shaping_fn():
     """Test the weights fitness shaping function."""
     population = jnp.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
@@ -134,3 +153,29 @@ def test_weights_fitness_shaping_fn():
     # Expected: weights[ranks] = weights[[2, 0, 1]] = [0.3, 0.1, 0.2]
     expected = jnp.array([0.3, 0.1, 0.2])
     assert jnp.allclose(result, expected)
+
+
+def test_weights_fitness_shaping_ranks_nan_worst():
+    """Failed evaluations must not outrank finite fitness values."""
+
+    class Params:
+        weights = jnp.array([1.0, -1.0])
+
+    fitness = jnp.array([jnp.nan, 0.0])
+
+    result = weights_fitness_shaping_fn(None, fitness, None, Params())
+
+    assert jnp.array_equal(result, jnp.array([-1.0, 1.0]))
+
+    class ThreeWeightsParams:
+        weights = jnp.array([1.0, 0.0, -1.0])
+
+    fitness = jnp.array([0.0, jnp.nan, jnp.nan])
+    result = weights_fitness_shaping_fn(None, fitness, None, ThreeWeightsParams())
+
+    assert jnp.array_equal(result, jnp.array([1.0, 0.0, 0.0]))
+
+    fitness = jnp.full(3, jnp.nan)
+    result = weights_fitness_shaping_fn(None, fitness, None, ThreeWeightsParams())
+
+    assert jnp.array_equal(result, jnp.zeros(3))
