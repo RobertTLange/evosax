@@ -19,7 +19,10 @@ from ...learned_evolution.evotf_tools import (
     FitnessFeaturizer,
     SolutionFeaturizer,
 )
-from ...learned_evolution.les_tools import load_pkl_object
+from ...learned_evolution.les_tools import (
+    device_put_parameter_arrays,
+    load_pkl_object,
+)
 from .base import (
     DistributionBasedAlgorithm,
     Params as BaseParams,
@@ -206,6 +209,7 @@ class EvoTF_ES(DistributionBasedAlgorithm):
                 **self.ckpt["distrib_config"],
             )
 
+        self.params = device_put_parameter_arrays(self.params)
         self.num_network_params = sum(x.size for x in jax.tree.leaves(self.params))
 
         # Antithetic sampling

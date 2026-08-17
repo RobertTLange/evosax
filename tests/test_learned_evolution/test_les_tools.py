@@ -6,7 +6,11 @@ import pickle
 import jax
 import jax.numpy as jnp
 import numpy as np
-from evosax.learned_evolution.les_tools import load_pkl_object, norm_diff_best
+from evosax.learned_evolution.les_tools import (
+    device_put_parameter_arrays,
+    load_pkl_object,
+    norm_diff_best,
+)
 
 LEGACY_JAX_ARRAY_PICKLE = base64.b64decode(
     "gASV6AAAAAAAAAB9lIwHd2VpZ2h0c5SMDmpheC5fc3JjLmFycmF5lIwS"
@@ -56,3 +60,19 @@ def test_legacy_checkpoint_fixture_targets_removed_jax_reducer() -> None:
     expected_globals = (b"jax._src.array", b"_reconstruct_array", b"named_shape")
 
     assert all(value in LEGACY_JAX_ARRAY_PICKLE for value in expected_globals)
+
+
+def test_device_put_parameter_arrays_preserves_jax_arrays() -> None:
+    parameters = {"weights": jnp.array([1.0, 2.0])}
+
+    placed = device_put_parameter_arrays(parameters)
+
+    assert placed["weights"] is parameters["weights"]
+
+
+def test_device_put_parameter_arrays_places_numpy_scalars() -> None:
+    parameters = {"scale": np.float32(1.0)}
+
+    placed = device_put_parameter_arrays(parameters)
+
+    assert isinstance(placed["scale"], jax.Array)

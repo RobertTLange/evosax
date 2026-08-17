@@ -157,6 +157,44 @@ def test_checkpoint_stores_numeric_leaves_as_numpy_arrays(checkpoint_path):
     LEARNED_ALGORITHMS,
     ids=lambda algorithm_class: algorithm_class.__name__,
 )
+def test_loaded_checkpoint_parameters_are_device_arrays(algorithm_class):
+    """Checkpoint arrays are transferred once at the algorithm boundary."""
+    algorithm = algorithm_class(
+        population_size=POPULATION_SIZE,
+        solution=jnp.zeros(NUM_DIMS),
+    )
+
+    leaves = jax.tree.leaves(algorithm.default_params.params)
+    assert leaves and all(isinstance(leaf, jax.Array) for leaf in leaves)
+
+
+@pytest.mark.parametrize(
+    "algorithm_class",
+    LEARNED_ALGORITHMS,
+    ids=lambda algorithm_class: algorithm_class.__name__,
+)
+def test_user_numpy_parameters_are_device_arrays(algorithm_class):
+    """User-supplied NumPy parameters are transferred at construction."""
+    bundled = algorithm_class(
+        population_size=POPULATION_SIZE,
+        solution=jnp.zeros(NUM_DIMS),
+    )
+    numpy_params = jax.tree.map(np.asarray, bundled.default_params.params)
+    algorithm = algorithm_class(
+        population_size=POPULATION_SIZE,
+        solution=jnp.zeros(NUM_DIMS),
+        params=numpy_params,
+    )
+
+    leaves = jax.tree.leaves(algorithm.default_params.params)
+    assert leaves and all(isinstance(leaf, jax.Array) for leaf in leaves)
+
+
+@pytest.mark.parametrize(
+    "algorithm_class",
+    LEARNED_ALGORITHMS,
+    ids=lambda algorithm_class: algorithm_class.__name__,
+)
 def test_learned_algorithm_runs_on_sphere(algorithm_class, key):
     """Each learned algorithm must complete a finite sphere run."""
     key, init_key = jax.random.split(key)

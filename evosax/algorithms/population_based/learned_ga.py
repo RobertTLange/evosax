@@ -20,6 +20,7 @@ from evosax.types import Fitness, Population, PyTree, Solution
 
 from ...learned_evolution.les_tools import (
     FitnessFeatures,
+    device_put_parameter_arrays,
     load_pkl_object,
 )
 from ...learned_evolution.lga_tools import (
@@ -114,6 +115,7 @@ class LearnedGA(PopulationBasedAlgorithm):
                 ckpt_fname = "2023_04_lga_v4.pkl"
             data = pkgutil.get_data(__name__, f"../ckpt/lga/{ckpt_fname}")
             self.lga_params = load_pkl_object(data, pkg_load=True)
+        self.lga_params = device_put_parameter_arrays(self.lga_params)
 
     @property
     def _default_params(self) -> Params:

@@ -70,6 +70,16 @@ def load_pkl_object(filename: Any, pkg_load: bool = False) -> Any:
     return _CheckpointUnpickler(io.BytesIO(filename)).load()
 
 
+def device_put_parameter_arrays(tree: Any) -> Any:
+    """Transfer NumPy parameter leaves to the default JAX device once."""
+    return jax.tree.map(
+        lambda leaf: (
+            jax.device_put(leaf) if isinstance(leaf, (np.ndarray, np.generic)) else leaf
+        ),
+        tree,
+    )
+
+
 def tanh_timestamp(x: int | jax.Array) -> jax.Array:
     """Timestamp embedding with evo-adapted timescales (Metz et al., 2022)."""
 
