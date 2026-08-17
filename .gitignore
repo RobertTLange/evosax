@@ -2,7 +2,6 @@
 output/
 *.html
 *.png
-!docs/figures/*.png
 *.jpg
 *.jpeg
 *.gif
