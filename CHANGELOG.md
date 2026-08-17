@@ -2,6 +2,13 @@
 
 ## [TBD]
 
+## [v0.3.1] - [08/2026]
+
+This patch release restores modern JAX compatibility for learned optimizers
+and preserves Gymnax compatibility across 0.x and 1.x releases.
+
+### Fixed
+
 - Preserved `GymnaxProblem` compatibility with both Gymnax 0.x five-value and
   Gymnax 1.x six-value step returns.
 - Restored LES, LGA, and EvoTF checkpoint compatibility with modern JAX,
