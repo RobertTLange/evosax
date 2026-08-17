@@ -143,4 +143,4 @@ def get_norm_diff_best(
         -1,
         1,
     )
-    return jnp.where(has_previous_best, normalized_diff, jnp.zeros_like(fitness))
+    return jnp.where(has_previous_best, normalized_diff, -jnp.ones_like(fitness))

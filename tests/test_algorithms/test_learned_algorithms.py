@@ -19,13 +19,13 @@ NUM_GENERATIONS = 100
 POPULATION_SIZE = 8
 
 
-def test_normalized_fitness_gap_is_zero_without_previous_best():
-    """The first EvoTF generation has no previous best for comparison."""
+def test_normalized_fitness_gap_preserves_first_generation_sentinel():
+    """The bundled EvoTF checkpoint learned an all-negative first generation."""
     fitness = jnp.array([1.0, 2.0, 3.0])
 
     result = get_norm_diff_best(fitness, best_fitness=jnp.inf)
 
-    assert jnp.array_equal(result, jnp.zeros_like(fitness))
+    assert jnp.array_equal(result, -jnp.ones_like(fitness))
 
 
 @pytest.mark.parametrize(
