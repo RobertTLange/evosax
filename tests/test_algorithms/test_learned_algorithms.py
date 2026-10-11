@@ -8,13 +8,13 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from evosax.algorithms import MutationFeatureEncoding
-from evosax.algorithms.distribution_based import EvoTF_ES, LearnedES
+from evosax.algorithms.distribution_based import CMAAnchoredLES, EvoTF_ES, LearnedES
 from evosax.algorithms.population_based import LearnedGA
 from evosax.learned_evolution.evotf_tools.features.fitness import get_norm_diff_best
 
 CHECKPOINT_DIR = Path(__file__).parents[2] / "evosax" / "algorithms" / "ckpt"
 CHECKPOINT_PATHS = tuple(sorted(CHECKPOINT_DIR.rglob("*.pkl")))
-LEARNED_ALGORITHMS = (LearnedES, LearnedGA, EvoTF_ES)
+LEARNED_ALGORITHMS = (LearnedES, LearnedGA, EvoTF_ES, CMAAnchoredLES)
 NUM_DIMS = 2
 NUM_GENERATIONS = 100
 POPULATION_SIZE = 8

@@ -1,0 +1,31 @@
+{
+  "name": "CMAAnchoredLES",
+  "source": "cma_anchored_learnedes/strategy/.metaevo_bbob_official/_selected_meta_params.msgpack",
+  "checkpoint_sha256": "dc4ded99fee4b84e1ed9837fdb026d2a0b8d49c56cb0c063a47522a3bbb45dd8",
+  "checkpoint_bytes": 2118,
+  "parameter_count": 364,
+  "program_sha256": "14f1215d3609cd7f2fed5a85f8a59de2b6f0661abf42700d37423b387957c8fb",
+  "format": "Pickle protocol 4; plain dictionary of NumPy arrays",
+  "network_shapes": {
+    "recombination": [
+      6,
+      8,
+      16,
+      8,
+      1
+    ],
+    "global_gates": [
+      9,
+      8,
+      2
+    ],
+    "dimension_gate": [
+      6,
+      8,
+      1
+    ]
+  },
+  "source_checkpoint_sha256": "7e080b262a8def198909133facc5441aecb81664d64e3b697a6ade9d58b62295",
+  "source_checkpoint_bytes": 1908,
+  "conversion": "Portable les_tools._restore_array reducer; original tree keys, shapes, dtypes and values preserved exactly; no retraining"
+}

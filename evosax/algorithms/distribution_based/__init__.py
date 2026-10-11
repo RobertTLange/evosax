@@ -2,6 +2,7 @@
 
 from .ars import ARS
 from .asebo import ASEBO
+from .cma_anchored_les import CMAAnchoredLES
 from .cma_es import CMA_ES
 from .cr_fm_nes import CR_FM_NES
 from .discovered_es import DiscoveredES
@@ -32,6 +33,7 @@ from .xnes import xNES
 distribution_based_algorithms = {
     "ARS": ARS,
     "ASEBO": ASEBO,
+    "CMAAnchoredLES": CMAAnchoredLES,
     "CMA_ES": CMA_ES,
     "CR_FM_NES": CR_FM_NES,
     "DES": DiscoveredES,

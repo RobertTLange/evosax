@@ -126,8 +126,18 @@ jobs:
                   raise SystemExit(f"Unexpected license in {artifact.name}.")
               if not any(name.endswith("/LICENSE") for name in names):
                   raise SystemExit(f"Missing LICENSE in {artifact.name}.")
-              if sum(name.endswith(".pkl") for name in names) != 5:
+              if sum(name.endswith(".pkl") for name in names) != 6:
                   raise SystemExit(f"Missing checkpoints in {artifact.name}.")
+              if not any(
+                  "/ckpt/cma_anchored_les/" in name and name.endswith(".pkl")
+                  for name in names
+              ):
+                  raise SystemExit(f"Missing CMAAnchoredLES weights in {artifact.name}.")
+              if not any(
+                  "/ckpt/cma_anchored_les/" in name and name.endswith(".json")
+                  for name in names
+              ):
+                  raise SystemExit(f"Missing CMAAnchoredLES provenance in {artifact.name}.")
           PY
 
       - name: Store distributions for publication

@@ -2,6 +2,13 @@
 
 ## [TBD]
 
+### Added
+
+- Added `CMAAnchoredLES`, a CMA-anchored learned evolution strategy with its
+  frozen 364-parameter meta-trained checkpoint.
+- Added a standalone, resumable eight-task Brax transfer evaluation example
+  for `CMAAnchoredLES`, preserving the paper's legacy-spring protocol.
+
 ## [v0.3.1] - [08/2026]
 
 This patch release restores modern JAX compatibility for learned optimizers

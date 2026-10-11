@@ -58,7 +58,9 @@ include = ["evosax*"]
 evosax = [
 	"algorithms/ckpt/les/*.pkl",
 	"algorithms/ckpt/lga/*.pkl",
-	"algorithms/ckpt/evotf/*.pkl"
+	"algorithms/ckpt/evotf/*.pkl",
+	"algorithms/ckpt/cma_anchored_les/*.pkl",
+	"algorithms/ckpt/cma_anchored_les/*.json"
 ]
 
 [tool.ruff]
