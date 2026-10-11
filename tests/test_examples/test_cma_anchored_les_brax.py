@@ -218,6 +218,7 @@ def test_runtime_identity_includes_distinct_sources_and_weights():
     strategy = EXAMPLE["CMAAnchoredLES"](4, jnp.zeros(2))
     identity = EXAMPLE["runtime_identity"](strategy)
     assert "algorithms/base.py" in identity["sources"]
+    assert all("\\" not in name for name in identity["sources"])
     assert "algorithms/distribution_based/base.py" in identity["sources"]
     assert len(identity["weights_sha256"]) == 64
     assert identity["packages"]["jax"] == jax.__version__

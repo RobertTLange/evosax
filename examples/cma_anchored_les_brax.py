@@ -327,7 +327,7 @@ def runtime_identity(strategy):
     ]
     sources += sorted((root / "learned_evolution").glob("cma_anchored*.py"))
     hashes = {
-        str(path.relative_to(root))
+        path.relative_to(root).as_posix()
         if path.is_relative_to(root)
         else path.name: hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sources
