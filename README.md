@@ -114,15 +114,15 @@ The `fitness_init` argument seeds the stored population ranking used by the firs
 
 ## Installation ⏳
 
-You will need Python 3.10 or later, and a working JAX installation.
+`evosax` v0.3.2 requires Python 3.10 or later and a working JAX installation.
 
 Then, install `evosax` from PyPi:
 
 ```bash
-pip install evosax
+pip install "evosax==0.3.2"
 ```
 
-To upgrade to the latest version of `evosax`, you can use:
+To install the latest development version of `evosax`, use:
 
 ```bash
 pip install git+https://github.com/RobertTLange/evosax.git@main
