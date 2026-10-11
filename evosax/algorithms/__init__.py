@@ -19,6 +19,7 @@ organized into two main categories:
 from .distribution_based import distribution_based_algorithms
 from .distribution_based.ars import ARS
 from .distribution_based.asebo import ASEBO
+from .distribution_based.cma_anchored_les import CMAAnchoredLES
 from .distribution_based.cma_es import CMA_ES
 from .distribution_based.cr_fm_nes import CR_FM_NES
 from .distribution_based.discovered_es import DiscoveredES

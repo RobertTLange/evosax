@@ -93,6 +93,7 @@ The `fitness_init` argument seeds the stored population ranking used by the firs
 | ASEBO                       | [Choromanski et al. (2019)](https://arxiv.org/abs/1903.04268)                                                                                            | [`ASEBO`](https://github.com/RobertTLange/evosax/tree/main/evosax/algorithms/distribution_based/asebo.py)                   | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb)
 | Discovered ES               | [Lange et al. (2023a)](https://arxiv.org/abs/2211.11260)                                                                                                 | [`DiscoveredES`](https://github.com/RobertTLange/evosax/tree/main/evosax/algorithms/distribution_based/discovered_es.py)                       | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb)
 | LES                  | [Lange et al. (2023a)](https://arxiv.org/abs/2211.11260)                                                                                                 | [`LearnedES`](https://github.com/RobertTLange/evosax/tree/main/evosax/algorithms/distribution_based/learned_es.py)                       | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb)
+| CMA-anchored LES | Lange et al. (2026) | [`CMAAnchoredLES`](https://github.com/RobertTLange/evosax/tree/main/evosax/algorithms/distribution_based/cma_anchored_les.py) | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb) |
 | EvoTF                       | [Lange et al. (2024)](https://arxiv.org/abs/2403.02985)                                                                                                  | [`EvoTF_ES`](https://github.com/RobertTLange/evosax/tree/main/evosax/algorithms/distribution_based/evotf_es.py)             | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb)
 | iAMaLGaM-Full               | [Bosman et al. (2013)](https://homepages.cwi.nl/~bosman/publications/2013_benchmarkingparameterfree.pdf)                                                                                                     | [`iAMaLGaM_Full`](https://github.com/RobertTLange/evosax/tree/main/evosax/algorithms/distribution_based/iamalgam_full.py)   |[![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb)
 | iAMaLGaM-Univariate         | [Bosman et al. (2013)](https://homepages.cwi.nl/~bosman/publications/2013_benchmarkingparameterfree.pdf)                                                                                                     | [`iAMaLGaM_Univariate`](https://github.com/RobertTLange/evosax/tree/main/evosax/algorithms/distribution_based/iamalgam_univariate.py) | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RobertTLange/evosax/blob/main/examples/01_bbob.ipynb)
@@ -113,15 +114,15 @@ The `fitness_init` argument seeds the stored population ranking used by the firs
 
 ## Installation ⏳
 
-You will need Python 3.10 or later, and a working JAX installation.
+`evosax` v0.3.2 requires Python 3.10 or later and a working JAX installation.
 
 Then, install `evosax` from PyPi:
 
 ```bash
-pip install evosax
+pip install "evosax==0.3.2"
 ```
 
-To upgrade to the latest version of `evosax`, you can use:
+To install the latest development version of `evosax`, use:
 
 ```bash
 pip install git+https://github.com/RobertTLange/evosax.git@main

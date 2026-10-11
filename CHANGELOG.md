@@ -2,6 +2,26 @@
 
 ## [TBD]
 
+## [v0.3.2] - [10/2026]
+
+This release adds CMA-anchored learned evolution with frozen meta-trained weights
+and reproducible BBOB and Brax examples.
+
+### Added
+
+- Added `CMAAnchoredLES`, a CMA-anchored learned evolution strategy with its
+  frozen 364-parameter meta-trained checkpoint, packaged as portable NumPy pickle
+  arrays with source provenance and exact weight-identity checks.
+- Added a standalone, resumable eight-task Brax transfer evaluation example
+  for `CMAAnchoredLES`, preserving the paper's legacy-spring protocol.
+- Added `CMAAnchoredLES` to the BBOB notebook comparison and strategy table,
+  with a Colab link.
+
+### Fixed
+
+- Normalized source identifiers in Brax evaluation checkpoints across platforms,
+  including Windows.
+
 ## [v0.3.1] - [08/2026]
 
 This patch release restores modern JAX compatibility for learned optimizers
