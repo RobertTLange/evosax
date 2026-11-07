@@ -2,6 +2,7 @@
 
 import jax
 import jax.numpy as jnp
+import pytest
 from evosax.core.fitness_shaping import (
     add_weight_decay,
     centered_rank_fitness_shaping_fn,
@@ -35,6 +36,22 @@ def test_normalize():
     a = jnp.array([2.0, 2.0, 2.0])
     normalized = normalize(a)
     assert jnp.allclose(normalized, jnp.array([0.0, 0.0, 0.0]))
+
+
+@pytest.mark.parametrize("axis", [0, 1])
+def test_normalize_constant_slice_in_mixed_batch(axis):
+    """A constant slice maps to the midpoint independently of other slices."""
+    values = jnp.array([[2.0, 2.0, 2.0], [1.0, 2.0, 3.0]])
+    expected = jnp.array([[3.0, 3.0, 3.0], [2.0, 3.0, 4.0]])
+    if axis == 0:
+        values = values.T
+        expected = expected.T
+
+    def normalize_batch(values):
+        return normalize(values, axis=axis, minval=2.0, maxval=4.0)
+
+    assert jnp.allclose(normalize_batch(values), expected)
+    assert jnp.allclose(jax.jit(normalize_batch)(values), expected)
 
 
 def test_add_weight_decay():

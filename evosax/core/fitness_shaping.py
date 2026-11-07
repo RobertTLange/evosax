@@ -28,7 +28,7 @@ def normalize(
     a_max = jnp.nanmax(a, axis=axis, keepdims=True)
 
     return jnp.where(
-        jnp.allclose(a_max, a_min),
+        jnp.isclose(a_max, a_min),
         jnp.ones_like(a) * (minval + maxval) / 2,
         minval + (maxval - minval) * (a - a_min) / (a_max - a_min),
     )
