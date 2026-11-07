@@ -83,7 +83,7 @@ class SV_ES(DistributionBasedAlgorithm):
     ) -> tuple[State, Metrics]:
         """Tell evolutionary algorithm fitness for state update."""
         # Ravel population
-        population = jax.vmap(jax.vmap(self._ravel_solution))(population)
+        population = jax.vmap(self._ravel_solution)(population)
 
         # Reshape population and fitness
         population = population.reshape(
