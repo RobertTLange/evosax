@@ -2,6 +2,17 @@
 
 ## [TBD]
 
+### Fixed
+
+- Preserved parameter order and scalar leaves in structured populations for
+  `SV_Open_ES` and `SV_CMA_ES` (#116).
+- Applied configured exploration standard-deviation schedules in `SV_Open_ES`
+  (#117).
+- Normalized constant fitness slices independently in mixed batches, preventing
+  NaNs alongside varying slices (#118).
+
+Thanks to @AHMETHAKANBEZIR1 for the fixes and regression tests.
+
 ## [v0.3.2] - [10/2026]
 
 This release adds CMA-anchored learned evolution with frozen meta-trained weights
