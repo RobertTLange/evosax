@@ -94,7 +94,11 @@ class SV_Open_ES(SV_ES, Open_ES):
         )
         mean = jax.vmap(optax.apply_updates)(state.mean, updates)
 
-        return state.replace(mean=mean, opt_state=opt_state)
+        return state.replace(
+            mean=mean,
+            std=jax.vmap(self.std_schedule)(state.generation_counter),
+            opt_state=opt_state,
+        )
 
 
 def svgd_grad_fn(
