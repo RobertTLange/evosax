@@ -8,7 +8,9 @@ import pytest
 from evosax import problems
 from evosax.algorithms import algorithms
 
-REFERENCE_DIR = Path(__file__).parents[2] / "docs" / "reference"
+ROOT = Path(__file__).parents[2]
+DOCS_DIR = ROOT / "docs"
+REFERENCE_DIR = DOCS_DIR / "reference"
 DIRECTIVE = re.compile(r"^::: (\S+)$", re.MULTILINE)
 
 
@@ -18,7 +20,7 @@ def documented() -> set[str]:
     return {
         identifier
         for page in REFERENCE_DIR.rglob("*.md")
-        for identifier in DIRECTIVE.findall(page.read_text())
+        for identifier in DIRECTIVE.findall(page.read_text(encoding="utf-8"))
     }
 
 
@@ -49,4 +51,12 @@ def test_every_public_problem_is_documented(documented):
         if (inspect.isclass(obj) or inspect.isfunction(obj))
         and not is_documented(obj, documented)
     ]
+    assert missing == []
+
+
+def test_every_page_is_in_the_navigation():
+    """A page that is missing from the nav is built but cannot be reached."""
+    config = (ROOT / "zensical.toml").read_text(encoding="utf-8")
+    pages = [page.relative_to(DOCS_DIR).as_posix() for page in DOCS_DIR.rglob("*.md")]
+    missing = [page for page in pages if f'"{page}"' not in config]
     assert missing == []
