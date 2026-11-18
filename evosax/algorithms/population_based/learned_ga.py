@@ -58,7 +58,45 @@ class Params(BaseParams):
 
 
 class LearnedGA(PopulationBasedAlgorithm):
-    """Learned Genetic Algorithm (LGA)."""
+    """Learned Genetic Algorithm (LGA).
+
+    Genetic algorithm whose sampling, mutation rate adaptation and selection
+    operators are attention networks with meta-learned parameters. `ask` samples
+    parents from the stored population with the sampling network, adapts their
+    mutation strengths with the mutation network and adds Gaussian noise. `tell`
+    uses the selection network to decide which evaluated candidates replace which
+    stored parents; parents that are not replaced are kept.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        params: Parameters of the learned operators, a PyTree with the entries
+            `"sampling"`, `"mutation"` and `"selection"`. If None, they are loaded
+            from `params_path` or, if that is None too, from a checkpoint bundled
+            with evosax.
+        params_path: Path to a pickle file with the parameters of the learned
+            operators. Only used if `params` is None.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+        mutation_feature_encoding: Keyword-only. `MutationFeatureEncoding` member
+            selecting how mutation strengths are encoded as input features of the
+            mutation network. `AUTO` resolves to `LEGACY_2023` for the bundled
+            checkpoint and to `SYMMETRIC` if `params` or `params_path` is given.
+
+    Warning:
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        `params_path`.
+
+    References:
+        - [Lange et al. (2023b)](https://arxiv.org/abs/2304.03995)
+    """
 
     def __init__(
         self,
@@ -73,11 +111,6 @@ class LearnedGA(PopulationBasedAlgorithm):
             MutationFeatureEncoding.AUTO
         ),
     ):
-        """Initialize LGA.
-
-        Pickle loading can execute arbitrary code. Only pass trusted files to
-        ``params_path``.
-        """
         if not isinstance(mutation_feature_encoding, MutationFeatureEncoding):
             raise TypeError(
                 "mutation_feature_encoding must be a MutationFeatureEncoding"

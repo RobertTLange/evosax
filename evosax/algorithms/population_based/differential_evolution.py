@@ -36,7 +36,31 @@ class Params(BaseParams):
 
 
 class DifferentialEvolution(PopulationBasedAlgorithm):
-    """Differential Evolution (DE)."""
+    """Differential Evolution (DE).
+
+    `ask` builds one candidate per stored member: a base vector (the best member
+    if `params.elitism`, otherwise a random other member) plus `num_diff` scaled
+    differences of randomly chosen member pairs, mixed with the stored member by
+    crossover with rate `params.crossover_rate`. `tell` replaces a stored member
+    by its candidate if the candidate's fitness is not worse.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be at least 4.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        num_diff: Number of difference vectors added to the base vector.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Storn & Price (1997)](https://link.springer.com/article/10.1023/A:1008202821328)
+    """
 
     def __init__(
         self,
@@ -46,7 +70,6 @@ class DifferentialEvolution(PopulationBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize DE."""
         assert population_size >= 4, "DE requires population_size >= 4."
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 

@@ -38,7 +38,31 @@ class Params(BaseParams):
 
 
 class PSO(PopulationBasedAlgorithm):
-    """Particle Swarm Optimization (PSO)."""
+    """Particle Swarm Optimization (PSO).
+
+    The stored population holds the particle positions; the state also keeps a
+    velocity and a personal best per particle. `ask` updates each velocity from
+    its inertia and the attraction to the particle's personal best and to the
+    best personal best of the swarm, and returns the positions moved by the new
+    velocities. `tell` stores the evaluated positions and updates the personal
+    bests.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Kennedy & Eberhart (1995)](https://ieeexplore.ieee.org/document/488968)
+    """
 
     def __init__(
         self,
@@ -47,7 +71,6 @@ class PSO(PopulationBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize PSO."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
     @property
@@ -79,7 +102,21 @@ class PSO(PopulationBasedAlgorithm):
         fitness: Fitness,
         params: Params,
     ) -> State:
-        """Initialize PSO, seeding personal bests from the initial population."""
+        """Initialize PSO, seeding personal bests from the initial population.
+
+        Args:
+            key: PRNG key.
+            population: Initial particle positions, a PyTree with the structure of
+                `solution` and a leading population axis on every leaf.
+            fitness: Raw fitness of the initial population. Lower is better. NaN
+                values mark failed evaluations and never become the best
+                solution.
+            params: Algorithm hyperparameters, e.g. `default_params`.
+
+        Returns:
+            The initial algorithm state. The personal best of every particle is
+            its initial position and all velocities are zero.
+        """
         state = super().init(key, population, fitness, params)
         return state.replace(
             population_best=state.population,

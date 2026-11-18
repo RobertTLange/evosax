@@ -34,7 +34,31 @@ class Params(BaseParams):
 
 
 class SAMR_GA(PopulationBasedAlgorithm):
-    """Self-Adaptation Mutation Rate Genetic Algorithm (SAMR-GA)."""
+    """Self-Adaptation Mutation Rate Genetic Algorithm (SAMR-GA).
+
+    Every member carries its own mutation standard deviation. `ask` selects the
+    best stored member plus members drawn from the better half of the stored
+    population, perturbs their standard deviations by a random factor between
+    `1 / params.std_meta` and `params.std_meta`, and adds Gaussian noise with the
+    resulting standard deviations. `tell` replaces the stored population and
+    fitness with the evaluated candidates.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Clune et al. (2008)](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1000187)
+    """
 
     def __init__(
         self,
@@ -43,7 +67,6 @@ class SAMR_GA(PopulationBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize SAMR-GA."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
