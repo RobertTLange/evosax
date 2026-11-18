@@ -49,6 +49,16 @@ ruff check .
 pytest tests/
 ```
 
+If you changed docstrings or the pages under `docs/`, also build the documentation (requires Python >= 3.11):
+
+```bash
+pip install -e ".[docs]"
+zensical build --clean  # fails on broken links or references
+zensical serve          # live preview at http://localhost:8000
+```
+
+Docstrings follow the [Google style](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) with Markdown markup. Constructor arguments are documented in the `Args:` section of the class docstring. When you add an algorithm, also add a page under `docs/reference/algorithms/` and an entry in the `nav` of `zensical.toml` and in `docs/algorithms.md`.
+
 8. Once you are satisfied with your change, create a commit as follows ( how to write a commit message):
 
 ```bash
