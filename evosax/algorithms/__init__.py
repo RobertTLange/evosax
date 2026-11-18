@@ -61,4 +61,8 @@ from .population_based.simple_ga import SimpleGA
 # Combine algorithms from both categories
 algorithms = distribution_based_algorithms | population_based_algorithms
 
-__all__ = [*algorithms, "MutationFeatureEncoding"]
+# Registry keys may be aliases (e.g. "LES"), so export the class names instead
+__all__ = [
+    *(cls.__name__ for cls in algorithms.values()),
+    "MutationFeatureEncoding",
+]

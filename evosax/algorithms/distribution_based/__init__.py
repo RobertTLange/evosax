@@ -62,4 +62,5 @@ distribution_based_algorithms = {
     "xNES": xNES,
 }
 
-__all__ = list(distribution_based_algorithms.keys())
+# Registry keys may be aliases (e.g. "LES"), so export the class names instead
+__all__ = [cls.__name__ for cls in distribution_based_algorithms.values()]
