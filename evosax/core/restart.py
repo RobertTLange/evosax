@@ -1,4 +1,21 @@
-"""Restart utilities for distribution-based Evolution Strategies."""
+"""Restart utilities for distribution-based Evolution Strategies.
+
+A restart controller decides after each generation whether a strategy has
+converged and, if so, reinitializes it while keeping the best solution found so
+far. Three controllers are provided:
+
+- `SimpleRestart` restarts with a fixed population size.
+- `IPOPRestart` increases the population size after every restart.
+- `BIPOPRestart` interleaves restarts with small and large population sizes.
+
+Controllers are called from the Python loop around `ask` and `tell`. `IPOPRestart`
+and `BIPOPRestart` return a rebuilt strategy, because a different population size
+changes array shapes.
+
+Restart conditions such as `spread_cond` share the signature
+`(population, fitness, state, params, restart_state, restart_params) -> bool` and
+are passed to a controller as `stop_criteria`.
+"""
 
 from collections.abc import Callable, Sequence
 from typing import Protocol, TypeAlias
@@ -59,11 +76,34 @@ class AmalgamRestartState(Protocol):
 
 @struct.dataclass
 class RestartState:
+    """State of a restart controller.
+
+    Attributes:
+        restart_counter: Number of restarts performed so far.
+    """
+
     restart_counter: int
 
 
 @struct.dataclass
 class RestartParams:
+    """Hyperparameters of the restart controllers and restart conditions.
+
+    Attributes:
+        min_num_gens: Minimum number of generations a run must complete before
+            it can be restarted.
+        min_fitness_spread: Threshold of `spread_cond`.
+        copy_mean: If True, a restarted run starts from the mean of the previous
+            run. Otherwise it starts from the `solution` of the strategy.
+        generation_threshold: Threshold of `generation_cond`.
+        tol_x: Lower tolerance on the step size, used by `cma_cond`.
+        tol_x_up: Upper tolerance on the step size, used by `cma_cond`.
+        tol_condition_C: Maximum condition number of the covariance matrix, used
+            by `cma_cond`.
+        tol: Relative tolerance of `fitness_std_cond`.
+        atol: Absolute tolerance of `fitness_std_cond`.
+    """
+
     min_num_gens: int = 0
     min_fitness_spread: float = 1e-12
     copy_mean: bool = False
@@ -77,6 +117,8 @@ class RestartParams:
 
 @struct.dataclass
 class FitnessStdRestartParams(RestartParams):
+    """Hyperparameters for restarts based on `fitness_std_cond`."""
+
     pass
 
 
@@ -88,7 +130,7 @@ def generation_cond(
     restart_state: RestartState,
     restart_params: GenerationRestartParams,
 ) -> bool:
-    """Stop after a certain number of generations."""
+    """Stop once the generation counter reaches `generation_threshold`."""
     return state.generation_counter >= restart_params.generation_threshold
 
 
@@ -100,7 +142,7 @@ def spread_cond(
     restart_state: RestartState,
     restart_params: SpreadRestartParams,
 ) -> jax.Array:
-    """Stop if fitness max minus fitness min is below threshold."""
+    """Stop if fitness max minus fitness min is below `min_fitness_spread`."""
     return jnp.max(fitness) - jnp.min(fitness) < restart_params.min_fitness_spread
 
 
@@ -112,7 +154,11 @@ def fitness_std_cond(
     restart_state: RestartState,
     restart_params: FitnessStdRestartParams,
 ) -> jax.Array:
-    """Stop if fitness standard deviation is below tolerance."""
+    """Stop if the fitness standard deviation is below tolerance.
+
+    The condition is met if all fitness values are finite and
+    `std(fitness) <= atol + tol * abs(mean(fitness))`.
+    """
     finite = jnp.all(jnp.isfinite(fitness))
     threshold = restart_params.atol + restart_params.tol * jnp.abs(jnp.mean(fitness))
     return jnp.logical_and(finite, jnp.std(fitness) <= threshold)
@@ -126,12 +172,19 @@ def cma_cond(
     restart_state: RestartState,
     restart_params: CMAESRestartParams,
 ) -> jax.Array:
-    """Stop if condition specific to CMA-ES is met.
+    """Stop if a condition specific to CMA-ES is met.
 
-    Default tolerances:
-    tol_x: 1e-12 * sigma
-    tol_x_up: 1e4
-    tol_condition_C: 1e14
+    The condition is met if any of the following holds:
+
+    - The step size in every coordinate and the evolution path are below `tol_x`.
+    - The step size along the longest principal axis exceeds `tol_x_up`.
+    - Adding 0.2 standard deviations in some coordinate does not change the mean.
+    - Adding 0.1 standard deviations along a principal axis does not change the
+      mean.
+    - The condition number of the covariance matrix exceeds `tol_condition_C`.
+
+    The default tolerances in `RestartParams` are `tol_x = 1e-12`,
+    `tol_x_up = 1e4` and `tol_condition_C = 1e14`.
     """
     dC = jnp.diag(state.C)
     _, B, D = eigen_decomposition(state.C)
@@ -173,12 +226,14 @@ def amalgam_cond(
     restart_state: RestartState,
     restart_params: RestartParams,
 ) -> jax.Array:
-    """Stop if c_mult is below threshold."""
+    """Stop if the iAMaLGaM distribution multiplier `c_mult` is below 1e-10."""
     return state.c_mult < 1e-10
 
 
 @struct.dataclass
 class IPOPRestartState(RestartState):
+    """State of the `IPOPRestart` controller."""
+
     restart_counter: int
     restart_next: bool
     active_population_size: int
@@ -186,12 +241,25 @@ class IPOPRestartState(RestartState):
 
 @struct.dataclass
 class IPOPRestartParams(RestartParams):
+    """Hyperparameters of the `IPOPRestart` controller.
+
+    Extends `RestartParams`.
+
+    Attributes:
+        min_num_gens: Minimum number of generations a run must complete before
+            it can be restarted.
+        population_size_multiplier: Factor by which the population size grows at
+            every restart.
+    """
+
     min_num_gens: int = 50
     population_size_multiplier: int = 2
 
 
 @struct.dataclass
 class BIPOPRestartState(RestartState):
+    """State of the `BIPOPRestart` controller."""
+
     restart_counter: int
     restart_next: bool
     active_population_size: int
@@ -204,6 +272,17 @@ class BIPOPRestartState(RestartState):
 
 @struct.dataclass
 class BIPOPRestartParams(RestartParams):
+    """Hyperparameters of the `BIPOPRestart` controller.
+
+    Extends `RestartParams`.
+
+    Attributes:
+        min_num_gens: Minimum number of generations a run must complete before
+            it can be restarted.
+        population_size_multiplier: Factor by which the large population size
+            grows at every large restart.
+    """
+
     min_num_gens: int = 50
     population_size_multiplier: int = 2
 
@@ -249,7 +328,17 @@ serialization.register_serialization_state(
 
 
 class RestartController:
-    """Evaluate stop criteria for a single-distribution strategy."""
+    """Evaluate stop criteria for a single-distribution strategy.
+
+    Base class of the restart controllers. Batched strategies such as the Stein
+    Variational Evolution Strategies are not supported.
+
+    Args:
+        stop_criteria: Restart conditions. A restart is triggered when any of
+            them is met.
+        restart_params: Hyperparameters of the controller and its conditions.
+            Defaults to `RestartParams()`.
+    """
 
     def __init__(
         self,
@@ -270,7 +359,21 @@ class RestartController:
         strategy_params: Params,
         restart_state: RestartState,
     ) -> jax.Array:
-        """Return whether a completed generation should trigger a restart."""
+        """Return whether a completed generation should trigger a restart.
+
+        Call this after `tell`. A restart is triggered if the run has completed
+        at least `min_num_gens` generations and any stop criterion is met.
+
+        Args:
+            population: Population evaluated in this generation.
+            fitness: Fitness of the population.
+            state: Strategy state returned by `tell`.
+            strategy_params: Strategy hyperparameters.
+            restart_state: Current restart state.
+
+        Returns:
+            A boolean scalar array.
+        """
         _validate_single_distribution_state(state)
         criteria_met = jnp.asarray(
             [
@@ -292,10 +395,21 @@ class RestartController:
 
 
 class SimpleRestart(RestartController):
-    """Reinitialize a distribution-based strategy with a fixed population size."""
+    """Reinitialize a distribution-based strategy with a fixed population size.
+
+    Args:
+        stop_criteria: Restart conditions. A restart is triggered when any of
+            them is met.
+        restart_params: Hyperparameters of the controller and its conditions.
+            Defaults to `RestartParams()`.
+    """
 
     def init(self) -> RestartState:
-        """Create restart state for a new optimization run."""
+        """Create restart state for a new optimization run.
+
+        Returns:
+            The initial restart state.
+        """
         return RestartState(restart_counter=0)
 
     def restart(
@@ -306,7 +420,19 @@ class SimpleRestart(RestartController):
         strategy_params: Params,
         restart_state: RestartState,
     ) -> tuple[State, RestartState]:
-        """Reinitialize a strategy while preserving its run archive."""
+        """Reinitialize a strategy while preserving its run archive.
+
+        Args:
+            key: PRNG key.
+            strategy: Strategy to restart.
+            state: Strategy state of the finished run.
+            strategy_params: Strategy hyperparameters.
+            restart_state: Current restart state.
+
+        Returns:
+            A tuple `(state, restart_state)`. The new strategy state keeps the
+            best solution and fitness of the previous run.
+        """
         _validate_single_distribution_state(state)
         restarted_state = _restart_strategy(
             key,
@@ -324,9 +450,23 @@ class SimpleRestart(RestartController):
 class IPOPRestart(RestartController):
     """Increase the population size after every restart.
 
-    ``strategy_params_factory`` maps parameters from the previous strategy to a
-    rebuilt one. ``population_size_transform`` adapts requested sizes to strategy
-    constraints such as even antithetic populations.
+    Every restart rebuilds the strategy with the current population size
+    multiplied by `population_size_multiplier`.
+
+    Args:
+        strategy_factory: Function `population_size -> strategy` that builds the
+            strategy for a given population size.
+        initial_population_size: Population size of the initial strategy.
+        stop_criteria: Restart conditions. A restart is triggered when any of
+            them is met.
+        restart_params: Hyperparameters of the controller and its conditions.
+            Defaults to `IPOPRestartParams()`.
+        strategy_params_factory: Function `(strategy, previous_params) -> params`
+            that maps hyperparameters from the previous strategy to the rebuilt
+            one. Defaults to the default hyperparameters of the rebuilt strategy.
+        population_size_transform: Function `population_size -> population_size`
+            that adapts requested sizes to strategy constraints such as even
+            antithetic populations. Defaults to the identity.
     """
 
     def __init__(
@@ -351,7 +491,15 @@ class IPOPRestart(RestartController):
         )
 
     def init(self, strategy: DistributionBasedAlgorithm) -> IPOPRestartState:
-        """Create restart state for an IPOP run."""
+        """Create restart state for an IPOP run.
+
+        Args:
+            strategy: Initial strategy. Its population size must equal
+                `initial_population_size`.
+
+        Returns:
+            The initial restart state.
+        """
         _validate_initial_population_size(strategy, self.initial_population_size)
         return IPOPRestartState(
             restart_counter=0,
@@ -367,7 +515,20 @@ class IPOPRestart(RestartController):
         strategy_params: Params,
         restart_state: IPOPRestartState,
     ) -> tuple[DistributionBasedAlgorithm, Params, State, IPOPRestartState]:
-        """Rebuild a strategy with an increased population size."""
+        """Rebuild a strategy with an increased population size.
+
+        Args:
+            key: PRNG key.
+            strategy: Strategy of the finished run.
+            state: Strategy state of the finished run.
+            strategy_params: Strategy hyperparameters of the finished run.
+            restart_state: Current restart state.
+
+        Returns:
+            A tuple `(strategy, strategy_params, state, restart_state)` for the
+            next run. The new strategy state keeps the best solution and fitness
+            of the previous run.
+        """
         _validate_single_distribution_state(state)
         next_population_size = int(
             restart_state.active_population_size
@@ -398,10 +559,31 @@ class IPOPRestart(RestartController):
 class BIPOPRestart(RestartController):
     """Interleave small and large population restarts by evaluation budget.
 
-    ``strategy_params_factory`` maps parameters from the previous strategy to a
-    rebuilt one. ``population_size_transform`` adapts requested sizes to strategy
-    constraints such as even antithetic populations. The optional
-    ``small_population_params_factory`` configures small-regime restarts.
+    The controller tracks the number of evaluations spent in the small and the
+    large population regime and restarts in the regime that has used fewer. A
+    large restart multiplies the large population size by
+    `population_size_multiplier`; a small restart draws a random population size
+    no larger than the current large one.
+
+    Args:
+        strategy_factory: Function `population_size -> strategy` that builds the
+            strategy for a given population size.
+        initial_population_size: Population size of the initial strategy.
+        stop_criteria: Restart conditions. A restart is triggered when any of
+            them is met.
+        restart_params: Hyperparameters of the controller and its conditions.
+            Defaults to `BIPOPRestartParams()`.
+        strategy_params_factory: Function `(strategy, previous_params) -> params`
+            that maps hyperparameters from the previous strategy to the rebuilt
+            one. Defaults to the default hyperparameters of the rebuilt strategy.
+        population_size_transform: Function `population_size -> population_size`
+            that adapts requested sizes to strategy constraints such as even
+            antithetic populations. Defaults to the identity.
+        small_population_params_factory: Function
+            `(key, strategy, params, initial_std) -> params` that configures
+            small-regime restarts. The default draws a randomly reduced initial
+            standard deviation for CMA-ES and leaves other hyperparameters
+            unchanged.
     """
 
     def __init__(
@@ -430,7 +612,15 @@ class BIPOPRestart(RestartController):
         )
 
     def init(self, strategy: DistributionBasedAlgorithm) -> BIPOPRestartState:
-        """Create restart state for a BIPOP run."""
+        """Create restart state for a BIPOP run.
+
+        Args:
+            strategy: Initial strategy. Its population size must equal
+                `initial_population_size`.
+
+        Returns:
+            The initial restart state.
+        """
         _validate_initial_population_size(strategy, self.initial_population_size)
         return BIPOPRestartState(
             restart_counter=0,
@@ -451,7 +641,20 @@ class BIPOPRestart(RestartController):
         strategy_params: Params,
         restart_state: BIPOPRestartState,
     ) -> tuple[DistributionBasedAlgorithm, Params, State, BIPOPRestartState]:
-        """Rebuild a strategy using the next BIPOP population size."""
+        """Rebuild a strategy using the next BIPOP population size.
+
+        Args:
+            key: PRNG key.
+            strategy: Strategy of the finished run.
+            state: Strategy state of the finished run.
+            strategy_params: Strategy hyperparameters of the finished run.
+            restart_state: Current restart state.
+
+        Returns:
+            A tuple `(strategy, strategy_params, state, restart_state)` for the
+            next run. The new strategy state keeps the best solution and fitness
+            of the previous run.
+        """
         _validate_single_distribution_state(state)
         key_population, key_params, key_init = jax.random.split(key, 3)
         large_budget, small_budget = _updated_bipop_budgets(state, restart_state)
