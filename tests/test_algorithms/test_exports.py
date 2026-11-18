@@ -26,6 +26,22 @@ def test_star_import(package_name):
     exec(f"from {package_name} import *", namespace)
 
 
+def test_all_covers_every_registered_algorithm():
+    """The literal ``__all__`` lists must not drift from the registries."""
+    from evosax import algorithms
+    from evosax.algorithms import distribution_based, population_based
+
+    registries = [
+        (algorithms, algorithms.algorithms),
+        (distribution_based, distribution_based.distribution_based_algorithms),
+        (population_based, population_based.population_based_algorithms),
+    ]
+    for package, registry in registries:
+        registered = {cls.__name__ for cls in registry.values()}
+        assert registered <= set(package.__all__), package.__name__
+        assert len(package.__all__) == len(set(package.__all__)), package.__name__
+
+
 def test_aliased_algorithms_are_exported_by_class_name():
     """Algorithms registered under an alias are exported by their class name."""
     from evosax import algorithms

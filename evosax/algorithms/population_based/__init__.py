@@ -20,8 +20,14 @@ population_based_algorithms = {
     "SimpleGA": SimpleGA,
 }
 
-# Registry keys may be aliases (e.g. "LGA"), so export the class names instead
 __all__ = [
-    *(cls.__name__ for cls in population_based_algorithms.values()),
+    "DifferentialEvolution",
+    "DiffusionEvolution",
+    "GESMR_GA",
+    "LearnedGA",
+    "MR15_GA",
+    "PSO",
+    "SAMR_GA",
+    "SimpleGA",
     "MutationFeatureEncoding",
 ]
