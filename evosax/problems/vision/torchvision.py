@@ -20,8 +20,9 @@ from typing import cast
 import jax
 import jax.numpy as jnp
 import optax  # type: ignore[import-untyped]
-from evosax.types import Fitness, Metrics, Population, PyTree, Solution
 from flax import linen as nn, struct
+
+from evosax.types import Fitness, Metrics, Population, PyTree, Solution
 
 from ..problem import Problem, State as BaseState
 

@@ -8,8 +8,9 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
-from evosax.types import Fitness, Metrics, Population, Solution
 from flax import struct
+
+from evosax.types import Fitness, Metrics, Population, Solution
 
 from ..meta_problem import MetaProblem, Params as MetaParams, State as MetaState
 from .bbob_fns import bbob_fns

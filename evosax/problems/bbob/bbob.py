@@ -10,8 +10,9 @@ import jax
 import jax.numpy as jnp
 import matplotlib.colors
 import matplotlib.pyplot as plt
-from evosax.types import Fitness, Metrics, Population, Solution
 from flax import struct
+
+from evosax.types import Fitness, Metrics, Population, Solution
 
 from ..problem import Problem, State as ProblemState
 from .bbob_fns import fn_names_short_dict
