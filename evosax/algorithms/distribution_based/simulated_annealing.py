@@ -38,7 +38,33 @@ class Params(BaseParams):
 
 
 class SimulatedAnnealing(DistributionBasedAlgorithm):
-    """Simulated Annealing (SA)."""
+    """Simulated Annealing (SA).
+
+    Samples the population from an isotropic Gaussian around the current
+    solution. The best member of the generation replaces the current solution if
+    it improves on it, or otherwise with the Metropolis acceptance probability at
+    the current temperature. The temperature is multiplied by
+    `params.temperature_decay` every generation, down to
+    `params.temperature_limit`.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        std_schedule: Function mapping the generation counter to the standard
+            deviation of the search distribution, e.g. an Optax schedule.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Rasdi Rere et al. (2015)](https://www.sciencedirect.com/science/article/pii/S1877050915035759)
+    """
 
     def __init__(
         self,
@@ -48,7 +74,6 @@ class SimulatedAnnealing(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize SA."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # std schedule

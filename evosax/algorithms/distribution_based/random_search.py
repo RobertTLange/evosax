@@ -30,7 +30,30 @@ class Params(BaseParams):
 
 
 class RandomSearch(DistributionBasedAlgorithm):
-    """Random Search."""
+    """Random Search.
+
+    Draws every candidate solution independently with `sampling_fn`. The mean
+    of the state is the best solution found so far.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        sampling_fn: Function `key -> solution` that draws one candidate solution
+            with the structure of `solution`. It is called once per population
+            member with its own PRNG key.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Bergstra & Bengio (2012)](https://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf)
+    """
 
     def __init__(
         self,
@@ -40,7 +63,6 @@ class RandomSearch(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize Random Search."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
         self.sampling_fn = sampling_fn
 

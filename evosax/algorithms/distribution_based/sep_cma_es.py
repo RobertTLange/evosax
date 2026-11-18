@@ -34,7 +34,30 @@ class Params(BaseParams):
 
 
 class Sep_CMA_ES(CMA_ES):
-    """Separable CMA-ES (Sep-CMA-ES)."""
+    """Separable CMA-ES (Sep-CMA-ES).
+
+    Variant of CMA-ES that adapts only the diagonal of the covariance matrix, so
+    the state stores one variance per search dimension. Negative recombination
+    weights are not used.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Ros & Hansen (2008)](https://hal.inria.fr/inria-00287367/document)
+        - [Hansen & Ostermeier (2001)](https://arxiv.org/abs/1604.00772)
+        - [Reference implementation](https://github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_sepcma.py)
+    """
 
     def __init__(
         self,
@@ -43,7 +66,6 @@ class Sep_CMA_ES(CMA_ES):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize Sep-CMA-ES."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
@@ -113,7 +135,15 @@ class Sep_CMA_ES(CMA_ES):
         return state.replace(mean=mean, std=std, p_std=p_std, p_c=p_c, C=C)
 
     def rank_one(self, p_c: jax.Array) -> jax.Array:
-        """Compute the rank-one update term for the covariance matrix."""
+        """Compute the rank-one update term for the diagonal covariance.
+
+        Args:
+            p_c: Evolution path for the covariance adaptation, shape
+                `(num_dims,)`.
+
+        Returns:
+            The elementwise square of `p_c`, shape `(num_dims,)`.
+        """
         return p_c**2
 
     def rank_mu(
@@ -122,7 +152,18 @@ class Sep_CMA_ES(CMA_ES):
         y_k: jax.Array,
         C_inv_sqrt_y_k: jax.Array,
     ) -> jax.Array:
-        """Compute the rank-mu update term for the covariance matrix."""
+        """Compute the rank-mu update term for the diagonal covariance.
+
+        Args:
+            fitness: Shaped fitness, used as the weight of each population member.
+            y_k: Steps `(population - mean) / std`, shape
+                `(population_size, num_dims)`.
+            C_inv_sqrt_y_k: `y_k` divided elementwise by `D`, used to rescale
+                negative weights.
+
+        Returns:
+            The weighted sum of the squared steps, shape `(num_dims,)`.
+        """
         w_o = fitness * jnp.where(
             fitness >= 0,
             1,
@@ -133,7 +174,15 @@ class Sep_CMA_ES(CMA_ES):
 
 
 def eigen_decomposition(C: jax.Array) -> tuple[jax.Array, jax.Array]:
-    """Eigendecomposition of covariance matrix."""
+    """Clip the diagonal covariance and compute its square root.
+
+    Args:
+        C: Diagonal of the covariance matrix, shape `(num_dims,)`.
+
+    Returns:
+        A tuple `(C, D)`. `C` is the input clipped to `[0, 1e8]` plus `1e-8` and
+        `D` is its elementwise square root.
+    """
     C = jnp.clip(C, min=0.0, max=1e8)
 
     # Diagonal loading

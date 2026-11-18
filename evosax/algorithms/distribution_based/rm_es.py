@@ -36,7 +36,36 @@ class Params(BaseParams):
 
 
 class Rm_ES(CMA_ES):
-    """Rank-m Evolution Strategy (Rm-ES)."""
+    """Rank-m Evolution Strategy (Rm-ES).
+
+    Samples the population by adding a random combination of `m` stored evolution
+    paths to isotropic Gaussian noise, instead of maintaining a covariance
+    matrix. The step size is adapted with a rank-based success rule that compares
+    the elite fitness of consecutive generations.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        m: Number of evolution paths stored and combined into the sampling
+            perturbation.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    Note:
+        The original paper recommends a population size of
+        `4 + 3 * jnp.log(num_dims)`. Instabilities have been observed with larger
+        population sizes.
+
+    References:
+        - [Li & Zhang (2017)](https://ieeexplore.ieee.org/document/8080257)
+    """
 
     def __init__(
         self,
@@ -46,7 +75,6 @@ class Rm_ES(CMA_ES):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize Rm-ES."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
@@ -186,6 +214,16 @@ class Rm_ES(CMA_ES):
     def update_std(  # type: ignore[override]
         self, std: jax.Array, cumulative_rank_rate: jax.Array, params: Params
     ) -> jax.Array:
-        """Update the step size (standard deviation)."""
+        """Update the step size (standard deviation).
+
+        Args:
+            std: Current step size.
+            cumulative_rank_rate: Cumulative rank rate of the rank-based success
+                rule.
+            params: Algorithm hyperparameters.
+
+        Returns:
+            The updated step size, clipped to `[params.std_min, params.std_max]`.
+        """
         std = std * jnp.exp(cumulative_rank_rate / params.d_std)  # Eq. (14)
         return jnp.clip(std, min=params.std_min, max=params.std_max)

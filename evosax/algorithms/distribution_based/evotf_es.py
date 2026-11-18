@@ -74,7 +74,114 @@ class Params(BaseParams):
 
 
 class EvoTF_ES(DistributionBasedAlgorithm):
-    """Evolution Transformer (EvoTF)."""
+    """Evolution Transformer (EvoTF).
+
+    Samples the population from a Gaussian with a per-dimension standard
+    deviation. In `tell`, the population, its fitness and the search distribution
+    are turned into features and appended to a sliding window over the last
+    `max_context_len` generations. A transformer reads that context and predicts
+    the update: the mean moves by `lr_mean * std * prediction` and the standard
+    deviation is multiplied by `exp(lr_std / 2 * prediction)`.
+
+    The network weights come from `params`, from a checkpoint at `params_path`,
+    or, if both are `None`, from the checkpoint bundled with evosax. When a
+    checkpoint is loaded, the model and featurizers are rebuilt from the
+    configuration stored in it, and `model_config`, `solution_config`,
+    `fitness_config` and `distrib_config` are ignored. They only take effect
+    together with `params`.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be even if `use_antithetic_sampling` is True.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        max_context_len: Number of most recent generations kept in the
+            transformer context. Once it is full, the oldest generation is
+            dropped.
+        model_config: Keyword arguments for the `EvoTransformer` network.
+
+            - `num_layers`: Number of blocks in each encoder and in the
+              transformer backbone.
+            - `num_heads`: Number of attention heads.
+            - `num_latents`: Number of learned latent vectors in the perceiver
+              encoders.
+            - `latent_dim`: Size of each learned latent vector.
+            - `embed_dim`: Embedding size of the encoders and the backbone.
+            - `use_fitness_encoder`: If True, encode the fitness features and
+              append the encoding to the solution encoding.
+            - `use_dist_encoder`: If True, encode the distribution features per
+              dimension and append the encoding.
+            - `use_crossd_encoder`: If True, encode the distribution features
+              across dimensions with a perceiver and append the encoding.
+        solution_config: Keyword arguments for the `SolutionFeaturizer`. The
+            sampled solutions themselves are always a feature.
+
+            - `norm_diff_mean`: If True, add `(population - mean) / std`.
+            - `norm_diff_mean_sq`: If True, add the square of
+              `(population - mean) / std`.
+            - `diff_best`: If True, add the difference to the best solution so
+              far.
+            - `norm_diff_best`: If True, add the difference to the best solution
+              so far, rescaled per dimension to `[-0.5, 0.5]`.
+            - `maximize`: If True, the best solution so far is the one with the
+              highest fitness instead of the lowest.
+        fitness_config: Keyword arguments for the `FitnessFeaturizer`. The
+            centered ranks of the fitness are always a feature.
+
+            - `improved_best`: If True, add an indicator of whether a member
+              improved on the best fitness so far.
+            - `z_score`: If True, add the standardized fitness.
+            - `norm_diff_best`: If True, add the difference to the best fitness
+              so far, divided by its range over the population and clipped to
+              `[-1, 1]`.
+            - `norm_range`: If True, add the fitness rescaled to `[-0.5, 0.5]`.
+            - `snes_weights`: If True, add the rank-based weights of
+              `evosax.algorithms.distribution_based.xnes.get_weights`.
+            - `des_weights`: If True, add the rank-based weights of
+              `evosax.algorithms.distribution_based.discovered_es.get_weights`.
+            - `w_decay`: If nonzero, add the mean squared entry of each
+              solution. The value itself is not used as a coefficient.
+            - `maximize`: If True, negate the fitness before computing the
+              features.
+        distrib_config: Keyword arguments for the `DistributionFeaturizer`. Rank
+            weighted gradient estimates for the mean and the standard deviation
+            are always features.
+
+            - `use_mean`: If True, add the mean.
+            - `use_sigma`: If True, add the standard deviation.
+            - `use_evopaths`: If True, add exponential moving averages of the two
+              gradient estimates, one per entry of `evopath_timescales`.
+            - `use_momentum`: If True, add exponential moving averages of the
+              change in mean and standard deviation, one per entry of
+              `momentum_timescales`.
+            - `evopath_timescales`: Update rates `lr` of the evolution path
+              averages, `path = (1 - lr) * path + lr * value`.
+            - `momentum_timescales`: Update rates of the momentum averages, used
+              in the same way.
+            - `use_oai_grad`: If True, add a gradient estimate for the mean
+              computed from centered fitness ranks.
+        use_antithetic_sampling: If True, sample perturbations in mirrored pairs
+            `(z, -z)`.
+        params: Network weights for `EvoTransformer`. If `None`, the weights are
+            loaded from `params_path` or from the bundled checkpoint.
+        params_path: Path to a pickled checkpoint holding the entries
+            `net_params`, `model_config`, `solution_config`, `fitness_config` and
+            `distrib_config`. Only used if `params` is `None`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    Warning:
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        `params_path`.
+
+    References:
+        - [Lange et al. (2024)](https://arxiv.org/abs/2403.02985)
+    """
 
     def __init__(
         self,
@@ -123,11 +230,6 @@ class EvoTF_ES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize EvoTF-ES.
-
-        Pickle loading can execute arbitrary code. Only pass trusted files to
-        ``params_path``.
-        """
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.max_context_len = max_context_len

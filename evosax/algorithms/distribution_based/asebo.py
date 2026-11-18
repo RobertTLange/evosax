@@ -45,7 +45,44 @@ class Params(BaseParams):
 
 
 class ASEBO(DistributionBasedAlgorithm):
-    """Adaptive ES-Active Subspaces for Blackbox Optimization (ASEBO)."""
+    """Adaptive ES-Active Subspaces for Blackbox Optimization (ASEBO).
+
+    Keeps a fixed-size archive of the most recent gradient estimates and uses its
+    leading principal directions as an active subspace. Mirrored perturbation
+    pairs are sampled from a Gaussian whose covariance mixes an isotropic part
+    (weight `alpha`) with the projector onto that subspace (weight `1 - alpha`).
+    `alpha` is the ratio of the gradient norm outside the subspace to the norm
+    inside it, clamped to `[0, 1]`. Sampling is isotropic until more than
+    `subspace_dims` generations have passed. The mean is updated with an Optax
+    optimizer on the norm-rescaled gradient estimate.
+
+    Compared to the paper, the population size is fixed per generation and the
+    subspace is estimated from a fixed-size gradient archive.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be even.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        subspace_dims: Number of principal directions of the gradient archive that
+            span the active subspace. The archive holds the last
+            `subspace_dims + 1` gradient estimates. Must not exceed the number of
+            search dimensions.
+        optimizer: Optax optimizer applied to the estimated gradient to update the
+            mean.
+        std_schedule: Function mapping the generation counter to the standard
+            deviation of the search distribution, e.g. an Optax schedule.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Choromanski et al. (2019)](https://arxiv.org/abs/1903.04268)
+    """
 
     def __init__(
         self,
@@ -57,7 +94,6 @@ class ASEBO(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize ASEBO."""
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
