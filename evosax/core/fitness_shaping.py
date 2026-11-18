@@ -62,11 +62,12 @@ def add_weight_decay(fitness_shaping_fn, weight_decay=0.001):
     applies `fitness_shaping_fn`.
 
     Args:
-        fitness_shaping_fn: Fitness shaping function to wrap.
-        weight_decay: Coefficient of the L2 penalty.
+        fitness_shaping_fn (Callable): Fitness shaping function to wrap.
+        weight_decay (float): Coefficient of the L2 penalty.
 
     Returns:
-        A fitness shaping function with the same signature.
+        wrapped_fitness_fn (Callable): A fitness shaping function with the same
+        signature.
     """
 
     def wrapped_fitness_fn(population, fitness, state, params):
