@@ -48,7 +48,10 @@ examples = [
 ]
 docs = [
 	"zensical==0.1.2; python_version >= '3.11'",
+	"mkdocstrings==1.0.8; python_version >= '3.11'",
 	"mkdocstrings-python==2.0.11; python_version >= '3.11'",
+	"mkdocs-autorefs==1.4.5; python_version >= '3.11'",
+	"griffelib==2.4.1; python_version >= '3.11'",
 ]
 
 [project.urls]
