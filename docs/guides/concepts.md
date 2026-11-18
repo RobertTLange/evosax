@@ -53,7 +53,9 @@ Settings that determine array shapes or the structure of the computation are pas
 the constructor rather than stored in `params`:
 
 - `population_size`: the number of candidates per generation.
-- `solution`: an example solution. Only its structure and shapes are used.
+- `solution`: an example solution. The algorithm only uses its structure and shapes.
+  [Restart controllers](restarts.md) additionally use its values as the point to
+  restart from.
 - `fitness_shaping_fn`: how raw fitness is transformed before the update, see
   [Fitness shaping](fitness-shaping.md).
 - `metrics_fn`: what `tell` returns as `metrics`.
@@ -117,6 +119,9 @@ from evosax.algorithms import algorithms
 ES = algorithms["Sep_CMA_ES"]
 es = ES(population_size=16, solution=jnp.zeros(4))
 ```
+
+The keys are the class names, with three exceptions: `DiscoveredES`, `LearnedES` and
+`LearnedGA` are registered as `"DES"`, `"LES"` and `"LGA"`.
 
 ## Custom metrics
 

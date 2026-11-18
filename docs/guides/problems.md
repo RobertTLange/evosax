@@ -32,7 +32,9 @@ solution = problem.sample(key_sample)
 ```
 
 `MetaBBOBProblem` samples whole families of BBOB tasks with random optima, rotations
-and dimensions, which is useful for benchmarking across many tasks at once.
+and dimensions, which is useful for benchmarking across many tasks at once. Its
+interface has one more step: `sample_params(key)` draws a task, and `init` and `eval`
+take the resulting `params` as an additional last argument.
 
 ## Reinforcement learning
 

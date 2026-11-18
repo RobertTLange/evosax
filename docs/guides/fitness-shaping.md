@@ -52,8 +52,8 @@ fitness_shaping_fn = add_weight_decay(standardize_fitness_shaping_fn, weight_dec
 ## Writing your own
 
 A fitness shaping function takes the flat population, the raw fitness, and the state and
-params of the algorithm, and returns the shaped fitness. Lower values must remain
-better:
+params of the algorithm, and returns the shaped fitness. For algorithms that do not use
+recombination weights, lower values must remain better:
 
 ```python
 def clipped_fitness_shaping_fn(population, fitness, state, params):

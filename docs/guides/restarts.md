@@ -12,7 +12,8 @@ evosax provides three controllers in `evosax.core.restart`:
 | `IPOPRestart` | Multiplies the population size at every restart. |
 | `BIPOPRestart` | Alternates between small and large populations by evaluation budget. |
 
-Restart controllers work with distribution-based strategies.
+Restart controllers work with distribution-based strategies that maintain a single
+search distribution, so not with the Stein Variational strategies.
 
 ## Usage
 
@@ -97,9 +98,13 @@ at least `min_num_gens` generations.
 | `amalgam_cond` | The iAMaLGaM distribution multiplier collapses. |
 
 Thresholds are set through the restart params, for example
-`IPOPRestartParams(min_num_gens=50, min_fitness_spread=1e-8)`. With `copy_mean=True` a
-restarted run starts from the mean of the previous run instead of the `solution` the
-strategy was constructed with.
+`IPOPRestartParams(min_num_gens=50, min_fitness_spread=1e-8)`.
+
+!!! note "Where a restart starts"
+
+    By default a restarted run starts from the `solution` the strategy was constructed
+    with, so pass a meaningful starting point there rather than a placeholder. With
+    `copy_mean=True` it starts from the mean of the previous run instead.
 
 See the [API reference](../reference/core/restart.md) and the
 [restart notebook](../examples.md) for more.

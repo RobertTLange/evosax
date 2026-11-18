@@ -30,8 +30,8 @@ key, subkey = jax.random.split(key)
 solution = problem.sample(subkey)  # a point in the search space
 ```
 
-Create the algorithm. The `solution` argument is an example solution: only its structure
-and shapes matter, they tell the algorithm what the search space looks like.
+Create the algorithm. The `solution` argument is an example solution: its structure and
+shapes tell the algorithm what the search space looks like.
 
 ```python
 from evosax.algorithms import CMA_ES

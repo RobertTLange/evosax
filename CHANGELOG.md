@@ -7,8 +7,8 @@
 - Documentation website with guides and an API reference generated from the
   docstrings, built with Zensical, plus a workflow that deploys it to GitHub Pages
   (#53).
-- Docstrings with argument descriptions and paper references for all algorithms,
-  problems and core utilities.
+- Docstrings with argument descriptions and references for the algorithms, problems
+  and core utilities.
 
 ### Fixed
 

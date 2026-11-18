@@ -129,7 +129,8 @@ class PopulationBasedAlgorithm(EvolutionaryAlgorithm):
 
         This is the member with the lowest shaped fitness in the current
         population; the best solution seen over the whole run is kept in
-        `state.best_solution`.
+        `state.best_solution`. Unlike `state.best_solution`, this does not skip
+        NaN fitness values.
         """
         best_idx = jnp.argmin(state.fitness)
         solution = self._unravel_solution(state.population[best_idx])

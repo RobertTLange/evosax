@@ -12,7 +12,8 @@ The class name links to the API reference of each algorithm.
 ## Distribution-based
 
 These algorithms maintain a search distribution and are initialized from a starting
-mean with `init(key, mean, params)`.
+mean with `init(key, mean, params)`. The two Stein Variational strategies run several
+search distributions at once and take one starting mean per distribution.
 
 | Algorithm | Class | Reference |
 | --- | --- | --- |

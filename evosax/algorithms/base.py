@@ -66,6 +66,9 @@ def metrics_fn(
     Returns:
         Dictionary with the generation counter, the best fitness and solution of
         this generation, and the best fitness, solution and solution norm so far.
+        The entries for this generation are taken with a plain `argmin` over the
+        raw fitness, so they are NaN if the population contains a NaN fitness;
+        the entries for the best so far ignore NaN values.
     """
     best_idx_in_generation = jnp.argmin(fitness)
     return {
@@ -98,6 +101,9 @@ class EvolutionaryAlgorithm:
         solution: Example solution PyTree. Only its structure and leaf shapes
             are used: they set the number of search dimensions and how flat
             search vectors are unravelled into the PyTrees returned by `ask`.
+            The one exception are the restart controllers in
+            `evosax.core.restart`, which restart from the values of `solution`
+            unless `copy_mean=True`.
         fitness_shaping_fn: Function
             `(population, fitness, state, params) -> shaped_fitness` applied
             to the raw fitness in `tell` before the algorithm update. See

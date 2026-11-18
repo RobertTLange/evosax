@@ -10,7 +10,8 @@ Every fitness shaping function has the signature
 flat population of shape `(population_size, num_dims)`, `fitness` the raw fitness of
 shape `(population_size,)`, and `state` and `params` the state and hyperparameters of
 the algorithm. Pass one as `fitness_shaping_fn` when constructing an algorithm. Lower
-shaped fitness is better.
+shaped fitness is better, except for `weights_fitness_shaping_fn`, which returns
+recombination weights where the best member receives the largest weight.
 """
 
 from typing import Protocol

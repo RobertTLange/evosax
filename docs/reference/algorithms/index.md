@@ -1,8 +1,10 @@
 # Base classes
 
 Every algorithm derives from `EvolutionaryAlgorithm` through one of two families.
-The methods documented here, `init`, `ask` and `tell`, are the complete public interface
-of an algorithm; the individual algorithm pages list the constructor arguments.
+The methods documented here make up the public interface of an algorithm: `init`, `ask`
+and `tell`, the `default_params` property, and the accessors `get_mean` or
+`get_best_solution` and `get_population`. The individual algorithm pages list the
+constructor arguments.
 
 ::: evosax.algorithms.base.EvolutionaryAlgorithm
 
