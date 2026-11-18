@@ -34,7 +34,34 @@ class State(BaseState):
 
 
 class BraxProblem(Problem):
-    """Brax Problem for Reinforcement Learning Optimization."""
+    """Brax Problem for Reinforcement Learning Optimization.
+
+    Evaluates the parameters of a policy network by rolling the policy out in a
+    Brax environment. A solution is a PyTree of policy parameters.
+
+    Args:
+        env_name: Name of the Brax environment, passed to `brax.envs.create`.
+        policy: Flax module called as `policy.apply(policy_params, obs, key)` that
+            returns the action for an observation, e.g. `MLP` from
+            `evosax.problems.networks`.
+        episode_length: Number of environment steps per rollout, also passed to
+            `brax.envs.create`. If None, the episode length of the created
+            environment is used.
+        num_rollouts: Number of rollouts per population member. The fitness is
+            averaged over them.
+        use_normalize_obs: If True, the running mean and standard deviation used
+            to normalize observations are updated in every `eval` call. If False,
+            they keep their initial values (mean zero, standard deviation one).
+        env_kwargs: Additional keyword arguments passed to `brax.envs.create`,
+            e.g. the physics `backend`.
+
+    Note:
+        Requires the optional `brax` package.
+
+    References:
+        - [Brax](https://github.com/google/brax)
+        - [Brax running statistics](https://github.com/google/brax/blob/main/brax/training/acme/running_statistics.py)
+    """
 
     def __init__(
         self,
@@ -45,7 +72,6 @@ class BraxProblem(Problem):
         use_normalize_obs: bool = True,
         env_kwargs: dict = {"backend": "spring"},
     ):
-        """Initialize the Brax problem."""
         try:
             import brax.envs  # type: ignore[import-not-found]
         except ImportError:
@@ -95,7 +121,15 @@ class BraxProblem(Problem):
 
     @partial(jax.jit, static_argnames=("self",))
     def init(self, key: jax.Array) -> State:
-        """Initialize state with empty normalization statistics."""
+        """Initialize state with empty normalization statistics.
+
+        Args:
+            key: PRNG key.
+
+        Returns:
+            The initial problem state, with a counter of zero, an observation
+            mean of zero and an observation standard deviation of one.
+        """
         # Create a dummy environment state to get the observation structure
         dummy_env_state = self.env.reset(key)
 
@@ -113,7 +147,27 @@ class BraxProblem(Problem):
     def eval(
         self, key: jax.Array, solutions: Population, state: State
     ) -> tuple[Fitness, State, Metrics]:
-        """Evaluate a population of policies."""
+        """Evaluate a population of policies with environment rollouts.
+
+        Every member is rolled out `num_rollouts` times for `episode_length`
+        steps. Rewards after the first episode end of a rollout are not counted.
+        All members are evaluated with the same rollout keys.
+
+        Args:
+            key: PRNG key.
+            solutions: Population of policy parameters, a PyTree with a leading
+                population axis on every leaf.
+            state: Current problem state.
+
+        Returns:
+            A tuple `(fitness, state, info)`. `fitness` is the episode return of
+            each member averaged over its rollouts. It is not negated, so higher
+            is better: negate it before passing it to `tell`, which minimizes.
+            `state` has its counter incremented and, if `use_normalize_obs`, its
+            observation statistics updated. `info["env_states"]` holds the Brax
+            environment states of all steps; their leaves have the leading axes
+            `(population_size, num_rollouts, episode_length)`.
+        """
         keys = jax.random.split(key, self.num_rollouts)
         fitness, env_states = self._eval(keys, solutions, state)
 
@@ -174,7 +228,16 @@ class BraxProblem(Problem):
         return carry[1], env_states
 
     def normalize_obs(self, obs: PyTree, state: State) -> PyTree:
-        """Normalize observations using running statistics."""
+        """Normalize observations using running statistics.
+
+        Args:
+            obs: PyTree of observations.
+            state: Problem state holding the running mean and standard deviation.
+
+        Returns:
+            The observations with the mean subtracted, divided by the standard
+            deviation.
+        """
         return jax.tree.map(
             lambda obs, mean, std: (obs - mean) / std,
             obs,
@@ -186,16 +249,16 @@ class BraxProblem(Problem):
         """Update running statistics for observations using Welford's online algorithm.
 
         This method implements a numerically stable algorithm for computing
-        running mean and variance statistics across episodes [2].
+        running mean and variance statistics across episodes, following the
+        [Brax running statistics](https://github.com/google/brax/blob/main/brax/training/acme/running_statistics.py).
 
         Args:
             obs: PyTree containing observations with shape
-                (population_size, num_rollouts, episode_length, ...)
-            state: Current state containing running statistics
+                `(population_size, num_rollouts, episode_length, ...)`.
+            state: Current state containing running statistics.
 
         Returns:
-            Updated state with new observation statistics
-
+            Updated state with new observation statistics.
         """
         # Batch dimensions are (population_size, num_rollouts, episode_length)
         batch_size = obs.shape[0] * obs.shape[1] * obs.shape[2]
@@ -239,7 +302,16 @@ class BraxProblem(Problem):
 
     @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
-        """Sample a solution in the search space."""
+        """Sample policy parameters.
+
+        Initializes `policy` on the observation of a freshly reset environment.
+
+        Args:
+            key: PRNG key.
+
+        Returns:
+            A PyTree of policy parameters.
+        """
         key_init, key_reset, key_input = jax.random.split(key, 3)
         env_state = self.env.reset(key_reset)
         return self.policy.init(key_init, env_state.obs, key_input)

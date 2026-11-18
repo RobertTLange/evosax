@@ -32,7 +32,27 @@ class State(BaseState):
 
 
 class TorchVisionProblem(Problem):
-    """TorchVision Problem for Computer Vision Optimization."""
+    """TorchVision Problem for Computer Vision Optimization.
+
+    Evaluates the parameters of a classification network on random batches of an
+    image dataset. A solution is a PyTree of network parameters. The constructor
+    downloads the dataset to `~/data` if needed and loads the full train and test
+    splits as JAX arrays, with images in channel-last layout.
+
+    Args:
+        task_name: Name of the dataset: `"MNIST"`, `"FashionMNIST"`, `"CIFAR10"`
+            or `"SVHN"`. Any other value raises a `ValueError`.
+        network: Flax module called as `network.apply(network_params, images, key)`
+            that returns the class logits for a batch of images, e.g. `CNN` from
+            `evosax.problems.networks` with `identity_output_fn`.
+        batch_size: Number of images sampled for every `eval` call.
+
+    Note:
+        Requires the optional `torch` and `torchvision` packages.
+
+    References:
+        - [TorchVision](https://pytorch.org/vision/stable/index.html)
+    """
 
     def __init__(
         self,
@@ -40,7 +60,6 @@ class TorchVisionProblem(Problem):
         network: nn.Module,
         batch_size: int = 1024,
     ):
-        """Initialize the TorchVisionProblem."""
         self.task_name = task_name
         self.network = network
         self.batch_size = batch_size
@@ -83,14 +102,30 @@ class TorchVisionProblem(Problem):
 
     @partial(jax.jit, static_argnames=("self",))
     def init(self, key: jax.Array) -> State:
-        """Initialize state."""
+        """Initialize the problem state with an evaluation counter of zero."""
         return State(counter=0)
 
     @partial(jax.jit, static_argnames=("self",))
     def eval(
         self, key: jax.Array, solutions: Population, state: State
     ) -> tuple[Fitness, State, Metrics]:
-        """Evaluate a population of networks."""
+        """Evaluate a population of networks on a batch of the train split.
+
+        One batch of `batch_size` images is sampled without replacement from the
+        train split and used for all population members.
+
+        Args:
+            key: PRNG key.
+            solutions: Population of network parameters, a PyTree with a leading
+                population axis on every leaf.
+            state: Current problem state.
+
+        Returns:
+            A tuple `(fitness, state, info)`. `fitness` is the mean softmax
+            cross-entropy loss of each member on the batch (lower is better).
+            `state` has its counter incremented. `info["accuracy"]` is the
+            classification accuracy of each member on the batch.
+        """
         # Pegasus trick
         loss, accuracy = jax.vmap(self._predict, in_axes=(None, 0, None, None))(
             key, solutions, self.image_train, self.target_train
@@ -107,7 +142,23 @@ class TorchVisionProblem(Problem):
     def eval_test(
         self, key: jax.Array, solutions: Population, state: State
     ) -> tuple[Fitness, State, Metrics]:
-        """Evaluate a population of networks."""
+        """Evaluate a population of networks on a batch of the test split.
+
+        One batch of `batch_size` images is sampled without replacement from the
+        test split and used for all population members.
+
+        Args:
+            key: PRNG key.
+            solutions: Population of network parameters, a PyTree with a leading
+                population axis on every leaf.
+            state: Current problem state.
+
+        Returns:
+            A tuple `(fitness, state, info)`. `fitness` is the mean softmax
+            cross-entropy loss of each member on the batch (lower is better).
+            `state` has its counter incremented. `info["accuracy"]` is the
+            classification accuracy of each member on the batch.
+        """
         # Pegasus trick
         loss, accuracy = jax.vmap(self._predict, in_axes=(None, 0, None, None))(
             key, solutions, self.image_test, self.target_test
@@ -122,7 +173,16 @@ class TorchVisionProblem(Problem):
 
     @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
-        """Sample a solution in the search space."""
+        """Sample network parameters.
+
+        Initializes `network` on a batch of `batch_size` train images.
+
+        Args:
+            key: PRNG key.
+
+        Returns:
+            A PyTree of network parameters.
+        """
         key_init, key_sample, key_input = jax.random.split(key, 3)
         x, y = self._sample_batch(key_sample, self.image_train, self.target_train)
         return self.network.init(key_init, x, key_input)
@@ -161,7 +221,14 @@ class TorchVisionProblem(Problem):
         return x, y
 
     def get_mnist(self):
-        """Get the MNIST dataset."""
+        """Get the MNIST dataset.
+
+        Returns:
+            datasets (tuple): A tuple
+            `(dataset_train, dataset_test, loader_train, loader_test)` of
+            TorchVision datasets and PyTorch data loaders. Each loader yields its
+            whole split as a single batch.
+        """
         try:
             import torch  # type: ignore[import-not-found]
             from torchvision import (  # type: ignore[import-not-found]
@@ -200,7 +267,14 @@ class TorchVisionProblem(Problem):
         return dataset_train, dataset_test, loader_train, loader_test
 
     def get_fashion_mnist(self):
-        """Get the Fashion MNIST dataset."""
+        """Get the Fashion MNIST dataset.
+
+        Returns:
+            datasets (tuple): A tuple
+            `(dataset_train, dataset_test, loader_train, loader_test)` of
+            TorchVision datasets and PyTorch data loaders. Each loader yields its
+            whole split as a single batch.
+        """
         try:
             import torch  # type: ignore[import-not-found]
             from torchvision import (  # type: ignore[import-not-found]
@@ -239,7 +313,14 @@ class TorchVisionProblem(Problem):
         return dataset_train, dataset_test, loader_train, loader_test
 
     def get_cifar10(self):
-        """Get the CIFAR-10 dataset."""
+        """Get the CIFAR-10 dataset.
+
+        Returns:
+            datasets (tuple): A tuple
+            `(dataset_train, dataset_test, loader_train, loader_test)` of
+            TorchVision datasets and PyTorch data loaders. Each loader yields its
+            whole split as a single batch.
+        """
         try:
             import torch  # type: ignore[import-not-found]
             from torchvision import (  # type: ignore[import-not-found]
@@ -280,7 +361,14 @@ class TorchVisionProblem(Problem):
         return dataset_train, dataset_test, loader_train, loader_test
 
     def get_svhn(self):
-        """Get the SVHN dataset."""
+        """Get the SVHN dataset.
+
+        Returns:
+            datasets (tuple): A tuple
+            `(dataset_train, dataset_test, loader_train, loader_test)` of
+            TorchVision datasets and PyTorch data loaders. Each loader yields its
+            whole split as a single batch.
+        """
         try:
             import torch  # type: ignore[import-not-found]
             from torchvision import (  # type: ignore[import-not-found]
