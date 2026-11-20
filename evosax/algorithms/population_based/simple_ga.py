@@ -35,7 +35,32 @@ class Params(BaseParams):
 
 
 class SimpleGA(PopulationBasedAlgorithm):
-    """Simple Genetic Algorithm (Simple GA)."""
+    """Simple Genetic Algorithm (Simple GA).
+
+    `ask` draws two parents per candidate from the better half of the stored
+    population, mixes them by uniform crossover with rate `params.crossover_rate`
+    and adds Gaussian noise. `tell` replaces the stored population and fitness
+    with the evaluated candidates.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        std_schedule: Function mapping the generation counter to the standard
+            deviation of the Gaussian mutation, e.g. an Optax schedule.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Such et al. (2017)](https://arxiv.org/abs/1712.06567)
+        - [Reference implementation](https://github.com/hardmaru/estool/blob/master/es.py)
+    """
 
     def __init__(
         self,
@@ -45,7 +70,6 @@ class SimpleGA(PopulationBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize Simple GA."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5

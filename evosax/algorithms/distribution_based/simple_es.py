@@ -37,7 +37,33 @@ class Params(BaseParams):
 
 
 class SimpleES(DistributionBasedAlgorithm):
-    """Simple Evolution Strategy (Simple ES)."""
+    """Simple Evolution Strategy (Simple ES).
+
+    Samples the population from a diagonal Gaussian. The mean is moved with an
+    Optax optimizer towards the weighted average of the population, where the
+    default weights are uniform over the better half. The standard deviation
+    is an exponential moving average, with rate `params.c_std`, of the weighted
+    spread of the population around the mean.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        optimizer: Optax optimizer applied to the estimated gradient to update the
+            mean.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Rechenberg (1973)](https://onlinelibrary.wiley.com/doi/abs/10.1002/fedr.19750860506)
+        - [Reference implementation](https://github.com/hardmaru/estool/blob/master/es.py)
+    """
 
     def __init__(
         self,
@@ -47,7 +73,6 @@ class SimpleES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize Simple ES."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5

@@ -39,7 +39,42 @@ class Params(BaseParams):
 
 
 class GuidedES(DistributionBasedAlgorithm):
-    """Guided Evolution Strategy (GuidedES)."""
+    """Guided Evolution Strategy (GuidedES).
+
+    Samples mirrored perturbation pairs from a Gaussian that mixes isotropic
+    noise (weight `params.alpha`) with noise restricted to the subspace spanned
+    by the most recent surrogate gradients (weight `1 - params.alpha`). The
+    search gradient is estimated from the fitness differences of each pair,
+    scaled by `params.beta`, and applied to the mean with an Optax optimizer.
+
+    Unlike other algorithms, Guided ES expects a surrogate gradient before every
+    `ask`: store it as a flat vector with `state = state.replace(grad=grad)`.
+    `ask` appends it to the subspace and resets `state.grad`. If no gradient is
+    set, a zero vector is used.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be even.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        subspace_dims: Number of most recent surrogate gradients kept to span the
+            guiding subspace. Must not exceed the number of search dimensions.
+        optimizer: Optax optimizer applied to the estimated gradient to update the
+            mean.
+        std_schedule: Function mapping the generation counter to the standard
+            deviation of the search distribution, e.g. an Optax schedule.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Maheswaranathan et al. (2018)](https://arxiv.org/abs/1806.10230)
+        - [Reference implementation](https://github.com/brain-research/guided-evolutionary-strategies)
+    """
 
     def __init__(
         self,
@@ -51,7 +86,6 @@ class GuidedES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize GuidedES."""
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 

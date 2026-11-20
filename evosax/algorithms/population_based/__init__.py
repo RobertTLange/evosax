@@ -20,4 +20,14 @@ population_based_algorithms = {
     "SimpleGA": SimpleGA,
 }
 
-__all__ = [*population_based_algorithms, "MutationFeatureEncoding"]
+__all__ = [
+    "DifferentialEvolution",
+    "DiffusionEvolution",
+    "GESMR_GA",
+    "LearnedGA",
+    "MR15_GA",
+    "PSO",
+    "SAMR_GA",
+    "SimpleGA",
+    "MutationFeatureEncoding",
+]

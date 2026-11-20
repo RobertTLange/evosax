@@ -52,7 +52,44 @@ class Params(BaseParams):
 
 
 class LearnedES(DistributionBasedAlgorithm):
-    """Learned Evolution Strategy (LES)."""
+    """Learned Evolution Strategy (LES).
+
+    Samples the population from a diagonal Gaussian. In `tell`, a meta-learned
+    attention network turns fitness features into recombination weights and a
+    meta-learned MLP turns evolution paths into per-dimension learning rates for
+    the mean and the standard deviation.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        params: Meta-learned network parameters, a PyTree with the entries
+            `recomb_weights` and `lrate_modulation`. Takes precedence over
+            `params_path`.
+        params_path: Path to a pickle file holding the network parameters, used
+            if `params` is None. If both are None, the checkpoint shipped with
+            evosax is loaded.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    Warning:
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        `params_path`.
+
+    Note:
+        This is an independent reimplementation which does not use the same
+        meta-trained checkpoint used to generate the results in the paper. The
+        results may therefore differ from the ones shown in the paper.
+
+    References:
+        - [Lange et al. (2023a)](https://arxiv.org/abs/2211.11260)
+    """
 
     def __init__(
         self,
@@ -63,11 +100,6 @@ class LearnedES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize LES.
-
-        Pickle loading can execute arbitrary code. Only pass trusted files to
-        ``params_path``.
-        """
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # LES components

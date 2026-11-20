@@ -34,7 +34,35 @@ class Params(BaseParams):
 
 
 class ARS(DistributionBasedAlgorithm):
-    """Augmented Random Search (ARS)."""
+    """Augmented Random Search (ARS).
+
+    Samples mirrored perturbation pairs `(z, -z)` from an isotropic Gaussian around
+    the mean and keeps the `num_elites` pairs with the lowest fitness, each pair
+    being ranked by the better of its two members. The search gradient is
+    estimated from the fitness differences of the elite pairs, divided by the
+    standard deviation of the elite fitness values, and applied to the mean with
+    an Optax optimizer. The standard deviation follows a fixed schedule.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be even.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        optimizer: Optax optimizer applied to the estimated gradient to update the
+            mean.
+        std_schedule: Function mapping the generation counter to the standard
+            deviation of the search distribution, e.g. an Optax schedule.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Mania et al. (2018)](https://arxiv.org/abs/1803.07055)
+    """
 
     def __init__(
         self,
@@ -45,7 +73,6 @@ class ARS(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize ARS."""
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
@@ -59,7 +86,11 @@ class ARS(DistributionBasedAlgorithm):
 
     @property
     def num_elites(self):
-        """Set the elite ratio and update num_elites."""
+        """Number of elite perturbation pairs used in the gradient estimate.
+
+        Computed as `max(1, int(elite_ratio * population_size // 2))`, i.e. a
+        fraction `elite_ratio` (default 0.5) of the `population_size // 2` pairs.
+        """
         return max(1, int(self.elite_ratio * self.population_size // 2))
 
     @property

@@ -38,7 +38,30 @@ class Params(BaseParams):
 
 
 class MR15_GA(PopulationBasedAlgorithm):
-    """1/5 Mutation Rate Genetic Algorithm (MR15-GA)."""
+    """1/5 Mutation Rate Genetic Algorithm (MR15-GA).
+
+    `ask` perturbs every stored member with Gaussian noise of a single, shared
+    standard deviation. `tell` doubles that standard deviation if the fraction of
+    candidates that improve on the fitness of their parent exceeds
+    `params.std_ratio` and halves it otherwise, then keeps the `population_size`
+    best members among the candidates and the stored population.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Rechenberg (1978)](https://link.springer.com/chapter/10.1007/978-3-642-81283-5_8)
+    """
 
     def __init__(
         self,
@@ -47,7 +70,6 @@ class MR15_GA(PopulationBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize MR15-GA."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5

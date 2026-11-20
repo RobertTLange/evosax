@@ -39,7 +39,35 @@ class Params(BaseParams):
 
 
 class PersistentES(DistributionBasedAlgorithm):
-    """Persistent Evolution Strategy (PES)."""
+    """Persistent Evolution Strategy (PES).
+
+    Estimates gradients for an inner problem of length `params.T` that is unrolled
+    in truncations of `params.K` steps, one truncation per generation. Fresh
+    antithetic perturbations are sampled every generation and accumulated over the
+    inner problem; the gradient estimate uses the accumulated perturbations and
+    the mean is updated with an Optax optimizer.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be even.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        optimizer: Optax optimizer applied to the estimated gradient to update the
+            mean.
+        std_schedule: Function mapping the generation counter to the standard
+            deviation of the search distribution, e.g. an Optax schedule.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Vicol et al. (2021)](https://arxiv.org/abs/2112.13835)
+        - [Reference implementation](https://github.com/google-research/google-research/tree/master/persistent_es)
+    """
 
     def __init__(
         self,
@@ -50,7 +78,6 @@ class PersistentES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize PES."""
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 

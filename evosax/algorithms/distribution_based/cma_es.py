@@ -49,7 +49,34 @@ class Params(BaseParams):
 
 
 class CMA_ES(DistributionBasedAlgorithm):
-    """Covariance Matrix Adaptation Evolution Strategy (CMA-ES)."""
+    """Covariance Matrix Adaptation Evolution Strategy (CMA-ES).
+
+    Samples the population from a multivariate Gaussian with mean `mean` and
+    covariance `std**2 * C`. The mean moves to a weighted recombination of the
+    best half of the population, the step size `std` is adapted with cumulative
+    step-size adaptation, and the full covariance matrix `C` is adapted with
+    rank-one and rank-mu updates that include negative weights for the worse
+    half of the population.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`. The update uses the shaped fitness as
+            recombination weights; the default assigns `params.weights` by
+            fitness rank.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Hansen & Ostermeier (2001)](https://arxiv.org/abs/1604.00772)
+        - [Reference implementation](https://github.com/CyberAgentAILab/cmaes)
+    """
 
     def __init__(
         self,
@@ -58,7 +85,6 @@ class CMA_ES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize CMA-ES."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
@@ -305,7 +331,19 @@ class CMA_ES(DistributionBasedAlgorithm):
 
 
 def eigen_decomposition(C: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
-    """Eigendecomposition of covariance matrix."""
+    """Compute a numerically safeguarded eigendecomposition of a covariance matrix.
+
+    The matrix is symmetrized, its diagonal is clipped at 0, all entries are
+    capped at `1e8` and `1e-8` is added to the diagonal before decomposing.
+
+    Args:
+        C: Covariance matrix of shape `(num_dims, num_dims)`.
+
+    Returns:
+        A tuple `(C, B, D)` with the regularized covariance matrix, the matrix `B`
+        whose columns are its eigenvectors and the vector `D` of square roots of
+        its eigenvalues (floored at `1e-8` before the square root).
+    """
     # Symmetry
     C = (C + C.T) / 2
 

@@ -41,7 +41,31 @@ class Params(BaseParams):
 
 
 class xNES(DistributionBasedAlgorithm):
-    """Exponential Natural Evolution Strategy (xNES)."""
+    """Exponential Natural Evolution Strategy (xNES).
+
+    Samples the population as `mean + std * z @ B` with standard normal `z`. The
+    mean is updated with an Optax optimizer; the step size `std` and the matrix
+    `B` are updated multiplicatively.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        optimizer: Optax optimizer applied to the estimated gradient to update the
+            mean.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Wierstra et al. (2014)](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf)
+        - [Reference implementation](https://github.com/chanshing/xnes)
+    """
 
     def __init__(
         self,
@@ -51,7 +75,6 @@ class xNES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize xNES."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # Optimizer
@@ -131,7 +154,14 @@ class xNES(DistributionBasedAlgorithm):
 
 
 def get_weights(population_size: int):
-    """Get weights for fitness shaping."""
+    """Get weights for fitness shaping.
+
+    Args:
+        population_size: Number of population members.
+
+    Returns:
+        Weights by fitness rank, shape `(population_size,)`. They sum to zero.
+    """
     weights = jnp.clip(
         jnp.log(population_size / 2 + 1) - jnp.log(jnp.arange(1, population_size + 1)),
         min=0.0,

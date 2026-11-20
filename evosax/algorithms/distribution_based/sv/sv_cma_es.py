@@ -29,7 +29,33 @@ class Params(BaseParams):
 
 
 class SV_CMA_ES(SV_ES, CMA_ES):
-    """Stein Variational CMA-ES (SV-CMA-ES)."""
+    """Stein Variational CMA-ES (SV-CMA-ES).
+
+    Runs `num_populations` CMA-ES search distributions in parallel. The mean
+    update of each distribution adds the gradient of the kernel between the
+    means, scaled by `params.alpha`, to the CMA-ES step.
+
+    Args:
+        population_size: Number of candidate solutions sampled per search
+            distribution in each generation.
+        num_populations: Number of search distributions run in parallel.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        kernel: Function `(x, y, params) -> similarity` between the means of
+            two search distributions. See `evosax.core.kernel`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied
+            per search distribution to the raw fitness in `tell` before the
+            algorithm update. See `evosax.core.fitness_shaping`.
+        metrics_fn: Function
+            `(key, population, fitness, state, params) -> metrics` evaluated
+            per search distribution in `tell`; its output is returned
+            alongside the new state.
+
+    References:
+        - [Braun et al. (2024)](https://arxiv.org/abs/2410.10390)
+    """
 
     def __init__(
         self,
@@ -40,7 +66,6 @@ class SV_CMA_ES(SV_ES, CMA_ES):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize SV-CMA-ES."""
         SV_ES.__init__(
             self,
             population_size,
@@ -144,7 +169,25 @@ class SV_CMA_ES(SV_ES, CMA_ES):
         means: Solution,
         params: Params,
     ) -> tuple[jax.Array, jax.Array, jax.Array]:
-        """Update the mean of the distribution with Stein variational gradient."""
+        """Update the mean of the distribution with Stein variational gradient.
+
+        Operates on a single search distribution.
+
+        Args:
+            population: Flat population of this distribution, shape
+                `(population_size, num_dims)`.
+            fitness: Shaped fitness of this population.
+            mean: Mean of this distribution, shape `(num_dims,)`.
+            std: Step size of this distribution.
+            means: Means of all search distributions, shape
+                `(num_populations, num_dims)`.
+            params: Algorithm hyperparameters.
+
+        Returns:
+            A tuple `(mean, y_k, y_w)` with the updated mean, the steps
+            `(population - mean) / std` and the weighted step including the
+            kernel gradient term.
+        """
         y_k = (population - mean) / std  # ~ N(0, C)
         y_w = jnp.dot(jnp.where(fitness < 0.0, 0.0, fitness), y_k)  # Eq. (41)
 

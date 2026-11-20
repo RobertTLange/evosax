@@ -69,7 +69,44 @@ class Params(BaseParams):
 
 
 class CMAAnchoredLES(DistributionBasedAlgorithm):
-    """Separable CMA-ES with bounded residuals and bundled meta-trained weights."""
+    """Separable CMA-ES with bounded residuals and bundled meta-trained weights.
+
+    A separable CMA-ES core with dimensionless learned gates, adaptive antithetic
+    sampling, pair-consistent evolution paths, and capped stall re-expansion.
+    Three small frozen networks modulate the core: a recombination residual
+    rescales the rank-based weights, global gates scale the step-size and mean
+    updates, and a per-dimension gate scales the diagonal covariance update.
+    Every gate is a multiplicative factor in `[1/2, 2]`.
+
+    The weights come from `params`, from a trusted pickle file at `params_path`,
+    or, if both are `None`, from the checkpoint bundled with evosax. `params`
+    takes precedence over `params_path`. The weights are validated against the
+    fixed network shapes and a `ValueError` is raised if they do not match.
+    Checkpoint provenance is packaged beside the bundled weights.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`. Must have
+            at least one dimension.
+        params: Learned network weights, a PyTree with the entries
+            `recombination`, `global_gates` and `dimension_gate`. If `None`, the
+            weights are loaded from `params_path` or from the bundled checkpoint.
+        params_path: Path to a pickle file with the learned network weights. Only
+            used if `params` is `None`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    Warning:
+        Pickle loading can execute arbitrary code. Only pass trusted files to
+        `params_path`.
+    """
 
     def __init__(
         self,
@@ -80,7 +117,6 @@ class CMAAnchoredLES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize with weights, a trusted pickle path, or bundled weights."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
         if self.num_dims == 0:
             raise ValueError("CMAAnchoredLES requires a nonempty solution")
@@ -137,7 +173,7 @@ class CMAAnchoredLES(DistributionBasedAlgorithm):
         return jnp.asarray(1.0)
 
     def _mirror_mask(self, success_ema: jax.Array) -> jax.Array:
-        """Boolean vector of static length ``_pair_count``: which pairs mirror."""
+        """Boolean vector of static length `_pair_count`: which pairs mirror."""
         return jnp.arange(self._pair_count) < self._mirror_gate(success_ema) * float(
             self._pair_count
         )

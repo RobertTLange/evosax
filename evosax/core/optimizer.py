@@ -13,6 +13,13 @@ import optax  # type: ignore[import-untyped]
 
 
 class ScaleByClipUpState(NamedTuple):
+    """State of the `scale_by_clipup` transformation.
+
+    Attributes:
+        velocity: Current, clipped velocity.
+        count: Number of updates applied so far.
+    """
+
     velocity: optax.Updates
     count: jax.Array  # type: ignore[assignment]
 
@@ -24,23 +31,25 @@ def scale_by_clipup(
     """Core ClipUp gradient scaling transformation.
 
     This transformation implements the core ClipUp steps:
+
     1. Update velocity with momentum.
-    2. Clip velocity if its norm exceeds max_velocity_ratio.
+    2. Clip velocity if its norm exceeds `max_velocity_ratio`.
     3. Return the clipped velocity as updates.
-
-    Note 1: This does not apply gradient normalization, which should be handled by a
-    preceding transformation (e.g., optax.normalize_by_update_norm()).
-
-    Note 2: This does not apply the learning rate, which should be handled by a
-    following transformation (e.g., optax.scale_by_learning_rate(learning_rate)).
 
     Args:
         max_velocity_ratio: Maximum velocity magnitude before learning rate scaling.
         momentum: Momentum coefficient (decay rate for velocity).
 
     Returns:
-        An optax.GradientTransformation that computes the clipped velocity direction.
+        An `optax.GradientTransformation` that computes the clipped velocity
+        direction.
 
+    Note:
+        This does not apply gradient normalization, which should be handled by a
+        preceding transformation (e.g. `optax.normalize_by_update_norm()`), nor
+        the learning rate, which should be handled by a following transformation
+        (e.g. `optax.scale_by_learning_rate(learning_rate)`). Use `clipup` for the
+        complete optimizer.
     """
 
     def init_fn(params):
@@ -82,26 +91,25 @@ def clipup(
     """ClipUp optimizer.
 
     This transformation implements the ClipUp steps:
-    1. Normalizes the gradient globally.
-    2. Applies momentum to update velocity.
-    3. Clip velocity if its norm exceeds max_velocity_ratio.
+
+    1. Normalize the gradient globally.
+    2. Apply momentum to update the velocity.
+    3. Clip the velocity if its norm exceeds `max_velocity / learning_rate`.
     4. Return the clipped velocity as updates.
-    5. Scales by learning_rate.
+    5. Scale by `learning_rate`.
 
     Args:
         learning_rate: Learning rate to scale the updates.
-        max_velocity: Maximum step size magnitude (||updates|| <= max_velocity).
+        max_velocity: Maximum step size magnitude (`||updates|| <= max_velocity`).
         momentum: Momentum coefficient.
         eps: Small constant to prevent division by zero.
 
     Returns:
-        An optax.GradientTransformation representing the ClipUp optimizer.
+        An `optax.GradientTransformation` representing the ClipUp optimizer.
 
-    Reference:
-        Toklu et al., "ClipUp: A Simple and Powerful Optimizer for Distribution-based
-        Policy Evolution", 2020.
-        https://arxiv.org/abs/2008.02387
-
+    References:
+        - [Toklu et al. (2020)](https://arxiv.org/abs/2008.02387), "ClipUp: A Simple
+          and Powerful Optimizer for Distribution-based Policy Evolution"
     """
     return optax.chain(
         optax.normalize_by_update_norm(eps=eps),

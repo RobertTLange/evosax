@@ -36,7 +36,31 @@ class Params(BaseParams):
 
 
 class GradientlessDescent(DistributionBasedAlgorithm):
-    """GradientLess Descent (GLD)."""
+    """GradientLess Descent (GLD).
+
+    Samples each population member from an isotropic Gaussian around the mean
+    with its own search radius. The radius of member `i` is
+    `radius_min + 2 ** (-i / radius_decay) * (radius_max - radius_min)`, so the
+    radii decay from `radius_max` towards `radius_min` across the population.
+    After evaluation the mean is set to the best solution found so far. The
+    radius schedule differs from the one in the paper.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Golovin et al. (2019)](https://arxiv.org/abs/1911.06317)
+    """
 
     def __init__(
         self,
@@ -45,7 +69,6 @@ class GradientlessDescent(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize GLD."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
     @property

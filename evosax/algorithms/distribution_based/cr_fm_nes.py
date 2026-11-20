@@ -53,7 +53,17 @@ class Params(BaseParams):
 
 
 def get_h_inv(dim: int) -> float:
-    """Get h_inv following [1,2]."""
+    """Compute the CR-FM-NES constant `h_inv` for a given number of dimensions.
+
+    Solves `(1 + a**2) * exp(a**2 / 2) / 0.24 - 10 - dim = 0` for `a` with damped
+    Newton iterations starting from `a = 1`.
+
+    Args:
+        dim: Number of search dimensions. Values above 2000 are treated as 2000.
+
+    Returns:
+        The root `a`, used to set `Params.alpha_dist`.
+    """
     import math
 
     dim = min(dim, 2000)
@@ -73,7 +83,34 @@ def get_h_inv(dim: int) -> float:
 
 
 class CR_FM_NES(DistributionBasedAlgorithm):
-    """Cost-Reduced Fast-Moving Natural Evolution Strategy (CR-FM-NES)."""
+    """Cost-Reduced Fast-Moving Natural Evolution Strategy (CR-FM-NES).
+
+    Samples mirrored perturbation pairs from a Gaussian whose covariance is
+    parameterized by a diagonal scaling `D` and a single direction vector `v`,
+    so the covariance is never stored as a full matrix. `tell` updates the mean,
+    the evolution paths, `v`, `D` and the step size `std`. The step-size
+    learning rate is chosen from `lr_move_std`, `lr_stag_std` and `lr_conv_std`
+    depending on the norm of the step-size evolution path.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be even.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`. The update uses the shaped fitness as
+            recombination weights; the default assigns `params.weights` by
+            fitness rank.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Nomura & Ono (2022)](https://arxiv.org/abs/2201.11422)
+        - [IEEE Xplore](https://ieeexplore.ieee.org/document/9504865)
+    """
 
     def __init__(
         self,
@@ -82,7 +119,6 @@ class CR_FM_NES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize CR-FM-NES."""
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 

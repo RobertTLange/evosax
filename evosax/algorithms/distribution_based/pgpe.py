@@ -37,7 +37,32 @@ class Params(BaseParams):
 
 
 class PGPE(DistributionBasedAlgorithm):
-    """Policy Gradients with Parameter-Based Exploration (PGPE)."""
+    """Policy Gradients with Parameter-Based Exploration (PGPE).
+
+    Samples the population in mirrored pairs from a diagonal Gaussian. The mean
+    is updated with an Optax optimizer from the fitness differences of each pair.
+    The per-dimension standard deviation takes a gradient step with learning rate
+    `params.std_lr` and changes by at most a fraction `params.std_max_change` per
+    generation.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be even.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        optimizer: Optax optimizer applied to the estimated gradient to update the
+            mean.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Sehnke et al. (2010)](https://link.springer.com/chapter/10.1007/978-3-540-87536-9_40)
+    """
 
     def __init__(
         self,
@@ -49,7 +74,6 @@ class PGPE(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = centered_rank_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize PGPE."""
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 

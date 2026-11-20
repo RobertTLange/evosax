@@ -2,8 +2,21 @@
 
 ## [TBD]
 
+### Added
+
+- Documentation website with guides and an API reference generated from the
+  docstrings, built with Zensical, plus a workflow that deploys it to GitHub Pages
+  (#53).
+- Docstrings with argument descriptions and references for the algorithms, problems
+  and core utilities.
+
 ### Fixed
 
+- Exported algorithm classes by their class names in `__all__`, so that
+  `from evosax.algorithms import *` no longer fails on the registry aliases `DES`,
+  `LES` and `LGA`.
+- Added the missing `__init__.py` files to the `evosax.problems.bbob`,
+  `evosax.problems.rl` and `evosax.problems.vision` subpackages.
 - Preserved parameter order and scalar leaves in structured populations for
   `SV_Open_ES` and `SV_CMA_ES` (#116).
 - Applied configured exploration standard-deviation schedules in `SV_Open_ES`

@@ -1,0 +1,151 @@
+[project]
+site_name = "evosax"
+site_description = "Evolution strategies in JAX"
+site_url = "https://roberttlange.github.io/evosax/"
+repo_url = "https://github.com/RobertTLange/evosax"
+repo_name = "RobertTLange/evosax"
+docs_dir = "docs"
+strict = true
+copyright = "Copyright &copy; Robert Tjarko Lange"
+extra_css = ["stylesheets/extra.css"]
+nav = [
+  { "Home" = "index.md" },
+  { "Getting started" = [
+    { "Installation" = "getting-started/installation.md" },
+    { "Quickstart" = "getting-started/quickstart.md" },
+  ] },
+  { "Guides" = [
+    { "Concepts" = "guides/concepts.md" },
+    { "Fitness shaping" = "guides/fitness-shaping.md" },
+    { "Problems" = "guides/problems.md" },
+    { "Restarts" = "guides/restarts.md" },
+  ] },
+  { "Algorithms" = "algorithms.md" },
+  { "Examples" = "examples.md" },
+  { "API reference" = [
+    { "Algorithms" = [
+      { "Base classes" = "reference/algorithms/index.md" },
+      { "Distribution-based" = [
+        { "Simple ES" = "reference/algorithms/simple_es.md" },
+        { "OpenAI-ES" = "reference/algorithms/open_es.md" },
+        { "CMA-ES" = "reference/algorithms/cma_es.md" },
+        { "Sep-CMA-ES" = "reference/algorithms/sep_cma_es.md" },
+        { "xNES" = "reference/algorithms/xnes.md" },
+        { "SNES" = "reference/algorithms/snes.md" },
+        { "MA-ES" = "reference/algorithms/ma_es.md" },
+        { "LM-MA-ES" = "reference/algorithms/lm_ma_es.md" },
+        { "Rm-ES" = "reference/algorithms/rm_es.md" },
+        { "PGPE" = "reference/algorithms/pgpe.md" },
+        { "ARS" = "reference/algorithms/ars.md" },
+        { "ESMC" = "reference/algorithms/esmc.md" },
+        { "Persistent ES" = "reference/algorithms/persistent_es.md" },
+        { "Noise-Reuse ES" = "reference/algorithms/noise_reuse_es.md" },
+        { "CR-FM-NES" = "reference/algorithms/cr_fm_nes.md" },
+        { "Guided ES" = "reference/algorithms/guided_es.md" },
+        { "ASEBO" = "reference/algorithms/asebo.md" },
+        { "Discovered ES" = "reference/algorithms/discovered_es.md" },
+        { "Learned ES" = "reference/algorithms/learned_es.md" },
+        { "CMA-anchored LES" = "reference/algorithms/cma_anchored_les.md" },
+        { "EvoTF" = "reference/algorithms/evotf_es.md" },
+        { "iAMaLGaM-Full" = "reference/algorithms/iamalgam_full.md" },
+        { "iAMaLGaM-Univariate" = "reference/algorithms/iamalgam_univariate.md" },
+        { "Gradientless Descent" = "reference/algorithms/gradientless_descent.md" },
+        { "Simulated Annealing" = "reference/algorithms/simulated_annealing.md" },
+        { "Hill Climbing" = "reference/algorithms/hill_climbing.md" },
+        { "Random Search" = "reference/algorithms/random_search.md" },
+        { "SV-CMA-ES" = "reference/algorithms/sv_cma_es.md" },
+        { "SV-OpenAI-ES" = "reference/algorithms/sv_open_es.md" },
+      ] },
+      { "Population-based" = [
+        { "Simple GA" = "reference/algorithms/simple_ga.md" },
+        { "MR15-GA" = "reference/algorithms/mr15_ga.md" },
+        { "SAMR-GA" = "reference/algorithms/samr_ga.md" },
+        { "GESMR-GA" = "reference/algorithms/gesmr_ga.md" },
+        { "Learned GA" = "reference/algorithms/learned_ga.md" },
+        { "Diffusion Evolution" = "reference/algorithms/diffusion_evolution.md" },
+        { "Differential Evolution" = "reference/algorithms/differential_evolution.md" },
+        { "Particle Swarm Optimization" = "reference/algorithms/pso.md" },
+      ] },
+    ] },
+    { "Problems" = [
+      { "Base classes" = "reference/problems/index.md" },
+      { "BBOB" = "reference/problems/bbob.md" },
+      { "Reinforcement learning" = "reference/problems/rl.md" },
+      { "Vision" = "reference/problems/vision.md" },
+      { "Networks" = "reference/problems/networks.md" },
+    ] },
+    { "Core" = [
+      { "Fitness shaping" = "reference/core/fitness_shaping.md" },
+      { "Optimizers" = "reference/core/optimizer.md" },
+      { "Kernels" = "reference/core/kernel.md" },
+      { "Restarts" = "reference/core/restart.md" },
+    ] },
+    { "Types" = "reference/types.md" },
+  ] },
+]
+
+[project.theme]
+language = "en"
+logo = "logo.png"
+favicon = "logo.png"
+features = [
+  "content.code.copy",
+  "navigation.footer",
+  "navigation.instant",
+  "navigation.tabs",
+  "navigation.top",
+  "search.highlight",
+]
+
+# Follow the system colour scheme, with a manual toggle
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.superfences = {}
+
+# API reference generated from docstrings. Sources are parsed statically, so the
+# package does not need to be importable.
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["."]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+docstring_section_style = "list"
+filters = ["!^_", "!^num_elites$"]
+inherited_members = true
+members_order = "source"
+merge_init_into_class = true
+separate_signature = true
+show_if_no_docstring = false
+show_root_full_path = false
+show_root_heading = true
+show_signature_annotations = true
+show_source = false
+
+# Treat a wrapped "Returns:" section as one description, not one item per line
+[project.plugins.mkdocstrings.handlers.python.options.docstring_options]
+returns_multiple_items = false

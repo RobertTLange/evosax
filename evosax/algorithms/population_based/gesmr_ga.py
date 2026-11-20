@@ -36,7 +36,35 @@ class Params(BaseParams):
 
 
 class GESMR_GA(PopulationBasedAlgorithm):
-    """Group Elite Selection of Mutation Rates (GESMR)."""
+    """Group Elite Selection of Mutation Rates (GESMR).
+
+    Genetic algorithm that co-evolves one mutation standard deviation per group of
+    population members. `ask` keeps the best stored member unchanged and fills the
+    rest of the population with members drawn from the better half of the stored
+    population, perturbed by Gaussian noise scaled with the standard deviation of
+    their group. `tell` stores the evaluated candidates, ranks the groups by the
+    best fitness improvement of their members, and resamples and perturbs the
+    group standard deviations from the best ranked ones.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. `population_size - 1` must
+            be divisible by `num_groups`.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        num_groups: Number of groups with their own mutation standard deviation.
+            All members except the first are split evenly into these groups.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Kumar et al. (2022)](https://arxiv.org/abs/2204.04817)
+    """
 
     def __init__(
         self,
@@ -46,7 +74,6 @@ class GESMR_GA(PopulationBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize GESMR."""
         assert (population_size - 1) % num_groups == 0, (
             "Population size must be divisible by number of std groups"
         )

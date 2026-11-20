@@ -8,8 +8,9 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
-from evosax.types import Fitness, Metrics, Population, Solution
 from flax import struct
+
+from evosax.types import Fitness, Metrics, Population, Solution
 
 from ..meta_problem import MetaProblem, Params as MetaParams, State as MetaState
 from .bbob_fns import bbob_fns
@@ -33,7 +34,32 @@ class State(MetaState):
 
 
 class MetaBBOBProblem(MetaProblem):
-    """Blackbox Optimization Benchmarking Meta-Problem class."""
+    """Blackbox Optimization Benchmarking Meta-Problem class.
+
+    A family of BBOB problem instances. `sample_params` draws an instance: a
+    function from `fn_names`, a number of active dimensions, the optimum location
+    and value, rotation matrices and noise parameters. Solutions are always flat
+    arrays of shape `(max_num_dims,)`; an instance only uses its first
+    `params.num_dims` entries.
+
+    Args:
+        fn_names: Names of the BBOB functions to sample from, keys of `bbob_fns`
+            in `evosax.problems.bbob.bbob_fns`.
+        min_num_dims: Lower bound of the number of active dimensions of an
+            instance, which is drawn with
+            `jax.random.randint(minval=min_num_dims, maxval=max_num_dims)`.
+        max_num_dims: Size of the solution vectors and `maxval` of the draw of
+            the number of active dimensions.
+        noise_config: Keyword arguments of the noise model
+            (`evosax.problems.bbob.bbob_noise.NoiseModel`), e.g.
+            `"noise_model_names"` (a name or list of names among `"noiseless"`,
+            `"gaussian"`, `"uniform"`, `"cauchy"`, `"additive"`) and
+            `"use_stabilization"`.
+
+    References:
+        - [BBOB function definitions](https://inria.hal.science/inria-00362633)
+        - [BBOB test suite overview](https://coco-platform.org/testsuites/bbob/overview.html)
+    """
 
     def __init__(
         self,
@@ -45,7 +71,6 @@ class MetaBBOBProblem(MetaProblem):
             "use_stabilization": True,
         },
     ):
-        """Initialize BBOB meta-problem."""
         self.fn_names = fn_names
         self.min_num_dims = min_num_dims
         self.max_num_dims = max_num_dims
@@ -70,7 +95,18 @@ class MetaBBOBProblem(MetaProblem):
 
     @partial(jax.jit, static_argnames=("self",))
     def sample_params(self, key: jax.Array) -> Params:
-        """Sample BBOB parameters."""
+        """Sample the parameters of a BBOB problem instance.
+
+        Args:
+            key: PRNG key.
+
+        Returns:
+            Parameters with the function id (index into `fn_names`), the number
+            of active dimensions, the optimum location `x_opt` (uniform in
+            `x_opt_range`), the optimal value `f_opt` (Cauchy distributed with
+            scale 100, clipped to `[-1000, 1000]`), the rotation matrices `R` and
+            `Q` and the noise model parameters.
+        """
         key_fn, key_d, key_x, key_f, key_noise = jax.random.split(key, 5)
 
         # Sample function id
@@ -102,7 +138,7 @@ class MetaBBOBProblem(MetaProblem):
 
     @partial(jax.jit, static_argnames=("self",))
     def init(self, key: jax.Array, params: Params) -> State:
-        """Initialize state."""
+        """Initialize the problem state with an evaluation counter of zero."""
         return State(counter=0)
 
     @partial(jax.jit, static_argnames=("self",))
@@ -113,7 +149,23 @@ class MetaBBOBProblem(MetaProblem):
         state: State,
         params: Params,
     ) -> tuple[Fitness, State, Metrics]:
-        """Evaluate a batch of solutions."""
+        """Evaluate a population of solutions on a BBOB problem instance.
+
+        Args:
+            key: PRNG key, used by the noise model.
+            solutions: Population to evaluate, an array of shape
+                `(population_size, max_num_dims)`.
+            state: Current problem state.
+            params: Parameters of the problem instance.
+
+        Returns:
+            A tuple `(fitness, state, info)`. `fitness` is the function value to
+            minimize: the noisy function value plus the boundary penalty plus
+            `params.f_opt`. `state` has its counter incremented. `info` contains
+            `"fn_val"` (function value without noise, penalty and `f_opt`),
+            `"fn_noise"` (function value after the noise model) and `"fn_pen"`
+            (boundary penalty).
+        """
         fn_val, fn_pen = jax.lax.switch(
             params.fn_id,
             self.fns,
@@ -135,7 +187,14 @@ class MetaBBOBProblem(MetaProblem):
 
     @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
-        """Sample a solution in the search space."""
+        """Sample a solution uniformly from `x_range`.
+
+        Args:
+            key: PRNG key.
+
+        Returns:
+            An array of shape `(max_num_dims,)`.
+        """
         return jax.random.uniform(
             key,
             shape=(self.max_num_dims,),
@@ -151,8 +210,16 @@ class MetaBBOBProblem(MetaProblem):
         http://home.lu.lv/~sd20008/papers/essays/Random%20unitary%20[paper].pdf
         https://github.com/alecjacobson/gptoolbox/blob/master/matrix/rand_rotation.m
 
-        Uses a fixed-size matrix of max_num_dims and masks the extra dimensions to
-        handle variable num_dims while remaining jit-compatible.
+        Uses a fixed-size matrix of `max_num_dims` and masks the extra dimensions
+        to handle variable `num_dims` while remaining jit-compatible.
+
+        Args:
+            key: PRNG key.
+            num_dims: Number of active dimensions `n`.
+
+        Returns:
+            A matrix of shape `(max_num_dims, max_num_dims)` whose leading
+            `(num_dims, num_dims)` block holds the sampled rotation.
         """
         # Generate fixed-size random normal matrix but mask based on num_dims
         random_matrix = jax.random.normal(key, (self.max_num_dims, self.max_num_dims))

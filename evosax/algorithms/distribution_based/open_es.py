@@ -35,7 +35,34 @@ class Params(BaseParams):
 
 
 class Open_ES(DistributionBasedAlgorithm):
-    """OpenAI Evolution Strategy (OpenAI-ES)."""
+    """OpenAI Evolution Strategy (OpenAI-ES).
+
+    Samples the population from an isotropic Gaussian around the mean, estimates
+    the search gradient from the shaped fitness and updates the mean with an
+    Optax optimizer. The standard deviation follows a fixed schedule.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation. Must be even.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        use_antithetic_sampling: If True, sample perturbations in mirrored pairs
+            `(z, -z)`.
+        optimizer: Optax optimizer applied to the estimated gradient to update the
+            mean.
+        std_schedule: Function mapping the generation counter to the standard
+            deviation of the search distribution, e.g. an Optax schedule.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Salimans et al. (2017)](https://arxiv.org/abs/1703.03864)
+    """
 
     def __init__(
         self,
@@ -47,7 +74,6 @@ class Open_ES(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = centered_rank_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize OpenAI-ES."""
         assert population_size % 2 == 0, "Population size must be even."
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 

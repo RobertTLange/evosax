@@ -29,7 +29,34 @@ class Params(BaseParams):
 
 
 class LM_MA_ES(MA_ES):
-    """Limited Memory Matrix Adaptation Evolution Strategy (LM-MA-ES)."""
+    """Limited Memory Matrix Adaptation Evolution Strategy (LM-MA-ES).
+
+    Variant of MA-ES that replaces the full transformation matrix with
+    `m = int(4 + floor(3 * log(num_dims)))` direction vectors. Samples are drawn
+    from an isotropic Gaussian and transformed with these vectors; the step size
+    is adapted with cumulative step length adaptation.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    Note:
+        The original paper recommends a population size of
+        `4 + 3 * jnp.log(num_dims)`. Instabilities have been observed with larger
+        population sizes.
+
+    References:
+        - [Loshchilov et al. (2017)](https://arxiv.org/abs/1705.06693)
+    """
 
     def __init__(
         self,
@@ -38,7 +65,6 @@ class LM_MA_ES(MA_ES):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize LM-MA-ES."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
@@ -138,7 +164,17 @@ class LM_MA_ES(MA_ES):
     def update_M(  # type: ignore[override]
         self, M: jax.Array, z: jax.Array, params: Params
     ) -> jax.Array:
-        """Update the low-memory transformation matrix M."""
+        """Update the low-memory transformation matrix M.
+
+        Args:
+            M: Current direction vectors, shape `(m, num_dims)`.
+            z: Standard normal samples drawn in the last `ask`, shape
+                `(population_size, num_dims)`.
+            params: Algorithm hyperparameters.
+
+        Returns:
+            The updated direction vectors, shape `(m, num_dims)`.
+        """
         return (1 - params.c_c)[:, None] * M + jnp.sqrt(
             params.mu_eff * params.c_c * (2 - params.c_c)
         )[:, None] * jnp.dot(params.weights, z)

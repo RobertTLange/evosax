@@ -17,9 +17,32 @@ from .iamalgam_full import Params, State, iAMaLGaM_Full
 
 
 class iAMaLGaM_Univariate(iAMaLGaM_Full):
-    """Incremental Adapted Maximum-Likelihood Gaussian Model -
-    Iterated Density-Estimation Evolutionary Algorithm (iAMaLGaM) with diagonal
-    covariance matrix."""
+    """iAMaLGaM with diagonal covariance matrix.
+
+    Incremental Adapted Maximum-Likelihood Gaussian Model - Iterated
+    Density-Estimation Evolutionary Algorithm. Works like `iAMaLGaM_Full` but
+    stores only the diagonal of the covariance matrix: the population is sampled
+    independently per dimension and `C` is a vector of per-dimension variances.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        std_schedule: Function mapping the generation counter to `std`, e.g. an
+            Optax schedule. `std` is added to the per-dimension standard
+            deviations `sqrt(C)` when sampling.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Bosman et al. (2013)](https://homepages.cwi.nl/~bosman/publications/2013_benchmarkingparameterfree.pdf)
+    """
 
     def __init__(
         self,
@@ -29,7 +52,6 @@ class iAMaLGaM_Univariate(iAMaLGaM_Full):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize iAMaLGaM."""
         super().__init__(
             population_size, solution, std_schedule, fitness_shaping_fn, metrics_fn
         )
@@ -81,7 +103,22 @@ class iAMaLGaM_Univariate(iAMaLGaM_Full):
         C: jax.Array,
         mean: jax.Array,
     ) -> jax.Array:
-        """SDR: relate distance of improvements to mean in search space."""
+        """Compute the standard deviation ratio (SDR).
+
+        Averages the elites that improved on the best fitness so far, divides
+        the offset of that average from the mean elementwise by `C` and returns
+        the largest absolute component.
+
+        Args:
+            improvement_mask: Boolean vector of shape `(num_elites,)` marking the
+                elites that improved on the best fitness so far.
+            elites: Elite solutions of shape `(num_elites, num_dims)`.
+            C: Per-dimension variances of shape `(num_dims,)`.
+            mean: Mean of the search distribution, shape `(num_dims,)`.
+
+        Returns:
+            The scalar standard deviation ratio.
+        """
         # Compute average solutions that improved fitness
         solution_avg_imp = jnp.dot(improvement_mask, elites) / jnp.sum(improvement_mask)
 
@@ -97,7 +134,20 @@ class iAMaLGaM_Univariate(iAMaLGaM_Full):
         mean: jax.Array,
         params: Params,
     ) -> jax.Array:
-        """Update covariance."""
+        """Update the per-dimension variances.
+
+        Blends `C` with the per-dimension mean squared deviation of the elites
+        from `mean` using rate `params.eta_std`.
+
+        Args:
+            elites: Elite solutions of shape `(num_elites, num_dims)`.
+            C: Current per-dimension variances of shape `(num_dims,)`.
+            mean: Mean the elites are centered on, shape `(num_dims,)`.
+            params: Algorithm hyperparameters.
+
+        Returns:
+            The updated per-dimension variances.
+        """
         S_bar = elites - mean
         new_C = (1 - params.eta_std) * C + params.eta_std * jnp.sum(
             S_bar**2, axis=0

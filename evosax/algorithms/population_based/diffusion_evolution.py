@@ -37,7 +37,14 @@ class Params(BaseParams):
 
 
 def ddim_schedule(num_step: int) -> jax.Array:
-    """Generate DDIM schedule."""
+    """Generate the DDIM alpha schedule.
+
+    Args:
+        num_step: Number of entries of the schedule.
+
+    Returns:
+        Array of `num_step` alphas, decreasing from close to 1 to close to 0.
+    """
     eps = 1e-4
     power = 1.0
     alphas = jnp.linspace(1 - eps, eps ** (2 / power), num_step) ** power
@@ -45,7 +52,14 @@ def ddim_schedule(num_step: int) -> jax.Array:
 
 
 def cosine_schedule(num_step: int) -> jax.Array:
-    """Generate cosine schedule."""
+    """Generate the cosine alpha schedule.
+
+    Args:
+        num_step: Number of entries of the schedule.
+
+    Returns:
+        Array of `num_step` alphas, decreasing from close to 1 to close to 0.
+    """
     eps = 1e-3
     alphas = jnp.cos(jnp.linspace(0, jnp.pi, num_step)) + 1
     alphas = alphas / 2
@@ -54,7 +68,14 @@ def cosine_schedule(num_step: int) -> jax.Array:
 
 
 def ddpm_schedule(num_step: int) -> jax.Array:
-    """Generate DDPM schedule."""
+    """Generate the DDPM alpha schedule.
+
+    Args:
+        num_step: Number of entries of the schedule.
+
+    Returns:
+        Array of `num_step` alphas, decreasing from close to 1 to close to 0.
+    """
     eps = 1e-4
     beta = ((num_step**2) * jnp.log(1 / (1 - eps)) + jnp.log(eps)) / (num_step - 1)
     gamma = (
@@ -66,14 +87,62 @@ def ddpm_schedule(num_step: int) -> jax.Array:
 
 
 def fitness_mapping_energy(fitness: Fitness, temperature: float = 1.0) -> jax.Array:
-    """Transform fitness into probabilities with softmax."""
+    """Map fitness to unnormalized Boltzmann weights.
+
+    Computes `exp(-fitness / temperature)` up to a constant factor, so a lower
+    fitness gives a higher weight.
+
+    Args:
+        fitness: Fitness values. Lower is better.
+        temperature: Temperature dividing the fitness.
+
+    Returns:
+        Positive weights with the same shape as `fitness`.
+    """
     fitness = -fitness / temperature
     fitness = fitness - fitness.max() + 5.0
     return jnp.exp(fitness)
 
 
 class DiffusionEvolution(PopulationBasedAlgorithm):
-    """Diffusion Evolution."""
+    """Diffusion Evolution.
+
+    Treats the generations as the steps of a reverse diffusion process. `ask` maps
+    the stored fitness to weights with `fitness_mapping`, estimates a denoised
+    target for every member as a weighted average of the stored population and
+    moves the members towards it with a DDIM step from `params.alphas`. `tell`
+    replaces the stored population and fitness with the evaluated candidates.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        num_generations: Number of entries of the alpha schedule stored in the
+            default params. `ask` reads the entries at `generation_counter` and
+            `generation_counter + 1`.
+        fitness_mapping: Function mapping the stored fitness to non-negative
+            weights, where a higher weight marks a better member.
+        alpha_schedule: Function called as `alpha_schedule(num_step=...)` that
+            returns the array of alphas, e.g. `cosine_schedule`, `ddim_schedule`
+            or `ddpm_schedule`. Its output is reversed before it is stored in the
+            default params.
+        num_latent_dims: If given, `init` draws a random Gaussian matrix that
+            projects the population to this many dimensions; the distances
+            between members that enter the weighted average are computed in that
+            latent space. If None, distances are computed in the search space.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Zhang et al. (2024)](https://arxiv.org/abs/2410.02543)
+        - [Reference implementation](https://github.com/openai/diffusion-evolution)
+    """
 
     def __init__(
         self,
@@ -86,7 +155,6 @@ class DiffusionEvolution(PopulationBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize Diffusion Evolution."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.num_generations = num_generations

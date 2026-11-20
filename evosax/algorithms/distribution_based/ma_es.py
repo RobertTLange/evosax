@@ -31,7 +31,29 @@ class Params(BaseParams):
 
 
 class MA_ES(CMA_ES):
-    """Matrix Adaptation Evolution Strategy (MA-ES)."""
+    """Matrix Adaptation Evolution Strategy (MA-ES).
+
+    Variant of CMA-ES that adapts a transformation matrix `M` directly instead of
+    a covariance matrix. Samples are drawn as `mean + std * z @ M.T` with standard
+    normal `z`; the step size is adapted with cumulative step length adaptation.
+    Negative recombination weights are not used.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Bayer & Sendhoff (2017)](https://ieeexplore.ieee.org/document/7875115)
+    """
 
     def __init__(
         self,
@@ -40,7 +62,6 @@ class MA_ES(CMA_ES):
         fitness_shaping_fn: Callable = weights_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize MA-ES."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         self.elite_ratio = 0.5
@@ -101,7 +122,19 @@ class MA_ES(CMA_ES):
     def update_M(
         self, M: jax.Array, p_std: jax.Array, z: jax.Array, params: Params
     ) -> jax.Array:
-        """Update the transformation matrix M."""
+        """Update the transformation matrix M.
+
+        Args:
+            M: Current transformation matrix, shape `(num_dims, num_dims)`.
+            p_std: Evolution path for the step-size adaptation, shape
+                `(num_dims,)`.
+            z: Standard normal samples drawn in the last `ask`, shape
+                `(population_size, num_dims)`.
+            params: Algorithm hyperparameters.
+
+        Returns:
+            The updated transformation matrix, shape `(num_dims, num_dims)`.
+        """
         p_std_outer = jnp.outer(p_std, p_std)
         z_outer_w = jnp.einsum("i,ijk->jk", params.weights, jax.vmap(jnp.outer)(z, z))
         identity = jnp.eye(self.num_dims)

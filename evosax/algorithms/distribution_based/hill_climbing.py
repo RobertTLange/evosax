@@ -33,7 +33,30 @@ class Params(BaseParams):
 
 
 class HillClimbing(DistributionBasedAlgorithm):
-    """Gaussian Hill Climbing algorithm."""
+    """Gaussian Hill Climbing algorithm.
+
+    Samples the population from an isotropic Gaussian around the mean and then
+    sets the mean to the best solution found so far. The standard deviation
+    follows a fixed schedule.
+
+    Args:
+        population_size: Number of candidate solutions sampled and evaluated per
+            generation.
+        solution: Example solution PyTree. Only its structure and leaf shapes are
+            used: they set the number of search dimensions and how flat search
+            vectors are unravelled into the PyTrees returned by `ask`.
+        std_schedule: Function mapping the generation counter to the standard
+            deviation of the search distribution, e.g. an Optax schedule.
+        fitness_shaping_fn: Function
+            `(population, fitness, state, params) -> shaped_fitness` applied to
+            the raw fitness in `tell` before the algorithm update. See
+            `evosax.core.fitness_shaping`.
+        metrics_fn: Function `(key, population, fitness, state, params) -> metrics`
+            evaluated in `tell`; its output is returned alongside the new state.
+
+    References:
+        - [Rasdi Rere et al. (2015)](https://www.sciencedirect.com/science/article/pii/S1877050915035759)
+    """
 
     def __init__(
         self,
@@ -43,7 +66,6 @@ class HillClimbing(DistributionBasedAlgorithm):
         fitness_shaping_fn: Callable = identity_fitness_shaping_fn,
         metrics_fn: Callable = metrics_fn,
     ):
-        """Initialize Gaussian Hill Climbing."""
         super().__init__(population_size, solution, fitness_shaping_fn, metrics_fn)
 
         # std schedule

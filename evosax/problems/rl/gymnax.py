@@ -16,8 +16,9 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
-from evosax.types import Fitness, Metrics, PyTree, Solution
 from flax import linen as nn, struct
+
+from evosax.types import Fitness, Metrics, PyTree, Solution
 
 from ..problem import Problem, State as BaseState
 
@@ -33,7 +34,33 @@ class State(BaseState):
 
 
 class GymnaxProblem(Problem):
-    """Gymnax Problem for Reinforcement Learning Optimization."""
+    """Gymnax Problem for Reinforcement Learning Optimization.
+
+    Evaluates the parameters of a policy network by rolling the policy out in a
+    Gymnax environment. A solution is a PyTree of policy parameters.
+
+    Args:
+        env_name: Name of the Gymnax environment, passed to `gymnax.make`.
+        policy: Flax module called as `policy.apply(policy_params, obs, key)` that
+            returns the action for an observation, e.g. `MLP` from
+            `evosax.problems.networks`.
+        episode_length: Number of environment steps per rollout. If None, the
+            `max_steps_in_episode` of the environment parameters is used.
+        num_rollouts: Number of rollouts per population member. The fitness is
+            averaged over them.
+        use_normalize_obs: If True, observations are normalized with a running
+            mean and standard deviation that are stored in the problem state and
+            updated in every `eval` call.
+        env_kwargs: Keyword arguments passed to `gymnax.make`.
+        env_params: Fields that replace the default environment parameters
+            returned by `gymnax.make`.
+
+    Note:
+        Requires the optional `gymnax` package.
+
+    References:
+        - [Gymnax](https://github.com/RobertTLange/gymnax)
+    """
 
     def __init__(
         self,
@@ -45,7 +72,6 @@ class GymnaxProblem(Problem):
         env_kwargs: dict | None = None,
         env_params: dict | None = None,
     ):
-        """Initialize the Gymnax problem."""
         try:
             import gymnax  # type: ignore[import-not-found]
         except ImportError:
@@ -108,7 +134,15 @@ class GymnaxProblem(Problem):
 
     @partial(jax.jit, static_argnames=("self",))
     def init(self, key: jax.Array) -> State:
-        """Initialize state with empty normalization statistics."""
+        """Initialize state with empty normalization statistics.
+
+        Args:
+            key: PRNG key.
+
+        Returns:
+            The initial problem state, with a counter of zero, an observation
+            mean of zero and an observation standard deviation of one.
+        """
         # Create a dummy observation to get the observation structure
         dummy_obs, _ = self.env.reset(key, self.env_params)
 
@@ -126,7 +160,28 @@ class GymnaxProblem(Problem):
     def eval(
         self, key: jax.Array, solutions: Solution, state: State
     ) -> tuple[Fitness, State, Metrics]:
-        """Evaluate a population of policies."""
+        """Evaluate a population of policies with environment rollouts.
+
+        Every member is rolled out `num_rollouts` times for `episode_length`
+        steps. Rewards after the first episode end of a rollout are not counted.
+        All members are evaluated with the same rollout keys.
+
+        Args:
+            key: PRNG key.
+            solutions: Population of policy parameters, a PyTree with a leading
+                population axis on every leaf.
+            state: Current problem state.
+
+        Returns:
+            A tuple `(fitness, state, info)`. `fitness` is the episode return of
+            each member averaged over its rollouts. It is not negated, so higher
+            is better: negate it before passing it to `tell`, which minimizes.
+            `state` has its counter incremented and, if `use_normalize_obs`, its
+            observation statistics updated. `info["env_states"]` is a tuple
+            `(obs, env_state)` with the observations and environment states of
+            all steps; their leaves have the leading axes
+            `(population_size, num_rollouts, episode_length)`.
+        """
         keys = jax.random.split(key, self.num_rollouts)
         fitness, env_states = self._eval(keys, solutions, state)
 
@@ -193,7 +248,16 @@ class GymnaxProblem(Problem):
         return carry[2], env_states
 
     def normalize_obs(self, obs: PyTree, state: State) -> PyTree:
-        """Normalize observations using running statistics."""
+        """Normalize observations using running statistics.
+
+        Args:
+            obs: PyTree of observations.
+            state: Problem state holding the running mean and standard deviation.
+
+        Returns:
+            The observations with the mean subtracted, divided by the standard
+            deviation.
+        """
         return jax.tree.map(
             lambda obs, mean, std: (obs - mean) / std,
             obs,
@@ -209,12 +273,11 @@ class GymnaxProblem(Problem):
 
         Args:
             obs: PyTree containing observations with shape
-                (population_size, num_rollouts, episode_length, ...)
-            state: Current state containing running statistics
+                `(population_size, num_rollouts, episode_length, ...)`.
+            state: Current state containing running statistics.
 
         Returns:
-            Updated state with new observation statistics
-
+            Updated state with new observation statistics.
         """
         # Batch dimensions are (population_size, num_rollouts, episode_length)
         first_observation = jax.tree.leaves(obs)[0]
@@ -264,7 +327,16 @@ class GymnaxProblem(Problem):
 
     @partial(jax.jit, static_argnames=("self",))
     def sample(self, key: jax.Array) -> Solution:
-        """Sample a solution in the search space."""
+        """Sample policy parameters.
+
+        Initializes `policy` on an observation sampled from the observation space.
+
+        Args:
+            key: PRNG key.
+
+        Returns:
+            A PyTree of policy parameters.
+        """
         key_init, key_sample, key_input = jax.random.split(key, 3)
         obs = self.observation_space.sample(key_sample)
         return self.policy.init(key_init, obs, key_input)
